@@ -1,15 +1,28 @@
 # FoxyFox
 
- FoxyFox is an all-in-one desktop chat application built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
+ FoxyFox is an all-in-one desktop AI assistant built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
 
 ## Features
 
-- **Multi-Model Support**: Connect to various LLM services including OpenAI, local models, and custom endpoints
+- **Multi-Model Support**: Connect to various LLM services including Claude, OpenAI, local models, and custom endpoints
 - **Model Context Protocol (MCP)**: Standardized interface for AI services integration
 - **Modern UI**: Built with React, TailwindCSS, and Radix UI components
 - **Desktop Integration**: Global keyboard shortcuts, system tray, theme integration
-- **Tool Execution**: Support for web search, code execution, and more
+- **Tool Execution**: Support for web search, code execution, edit images/files, etc.
 - **Internationalization**: Multi-language support via i18next
+
+## Demos
+https://github.com/user-attachments/assets/44f5dd78-5c69-4e1d-a800-0ef043abaee8
+
+https://github.com/user-attachments/assets/1b0ba5e1-fd63-40c0-bd51-de0c4d0ccf40
+
+https://github.com/user-attachments/assets/c5333113-bfcd-490c-aaa3-67ca38b1dc8c
+
+Browser
+
+<img src="https://github.com/user-attachments/assets/cc4bfb28-a03c-4995-9d41-577b318716b6" height="200"/>
+
+<img src="https://github.com/user-attachments/assets/a96eda6b-fdf0-427f-b26f-b438a0b09292" height="200"/>
 
 ## Installation & Setup
 
@@ -25,17 +38,14 @@ yarn package
 
 # Make distributable installers
 yarn make
-
-# Run chat server
-yarn chat-server
 ```
 
 ## Keyboard Shortcuts
 
 ### Quick Launch
 
-- Press `Control+Space` to activate FoxChat from anywhere on your system
-- If FoxChat is already visible and focused, pressing `Control+Space` will hide it
+- Press `Control+Space` to activate Foxyfox from anywhere on your system
+- If Foxyfox is already visible and focused, pressing `Control+Space` will hide it
 - When the app appears, the chat input will be automatically focused
 
 ### Settings
@@ -56,7 +66,7 @@ Your shortcuts are saved automatically and will persist between application rest
 
 ## Model Context Protocol (MCP) Integration
 
- FoxyFox uses the Model Context Protocol (MCP) to provide a unified interface for interacting with various AI services. The MCP implementation includes:
+FoxyFox uses the Model Context Protocol (MCP) to provide a unified interface for interacting with various AI services. The MCP implementation includes:
 
 - **MCP Client**: Communicates with MCP servers using the MCP SDK
 - **MCP Registry**: Manages and discovers available MCP servers
@@ -73,13 +83,13 @@ This integration allows FoxyFox to:
 
  FoxyFox is built with the following technologies:
 
-- **Electron**: For cross-platform desktop application
-- **React**: For UI components and state management
-- **TypeScript**: For type-safe code
-- **TailwindCSS**: For styling
-- **Radix UI**: For accessible UI components
-- **Vite**: For fast development and building
-- **Electron Forge**: For packaging and distribution
+- **Electron**: cross-platform desktop application
+- **React**: UI components and state management
+- **TypeScript**: type-safe code
+- **TailwindCSS**: styling
+- **Radix UI**: accessible UI components
+- **Vite**: fast development and building
+- **Electron Forge**: packaging and distribution
 
 The application is organized into the following main directories:
 - `src/`: Source code
