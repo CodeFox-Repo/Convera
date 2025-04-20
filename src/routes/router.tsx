@@ -7,7 +7,17 @@ declare module "@tanstack/react-router" {
   }
 }
 
+declare global {
+  interface Window {
+    router?: typeof router;
+  }
+}
+
 const history = createMemoryHistory({
   initialEntries: ["/"],
 });
 export const router = createRouter({ routeTree: rootTree, history: history });
+
+if (typeof window !== "undefined") {
+  window.router = router;
+}

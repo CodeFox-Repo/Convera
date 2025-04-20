@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "last_updated": "April 12, 2025 at 03:29 PM",
+  "project": {
+    "name": "codefox-foxychat",
+    "version": "1.0.0",
+    "language": "typescript",
+    "framework": "react",
+    "type": "desktop application",
+    "description": "This desktop application, built with TypeScript and React, focuses on code generation and project analysis, providing users with tools to streamline development workflows. It leverages a rich set of dependencies to achieve its core purpose, aiming to improve efficiency and understanding of codebases through its analytical capabilities. The application aims to provide features and insights for developers looking to enhance their productivity and code quality."
+  },
+  "ai_behavior": {
+    "code_generation": {
+      "style": {
+        "prefer": [
+          "Typescript with React",
+          "Functional components with hooks",
+          "Arrow functions",
+          "Consistent use of single quotes for strings",
+          "Use of `cn` utility function for Tailwind class merging",
+          "Explicit type annotations",
+          "Consistent indentation (typically 2 spaces)",
+          "Consistent use of `export function` or `export default function` for component definitions",
+          "Radix UI primitives for UI components (where applicable)",
+          "Use of `data-slot` attribute for components derived from Radix primitives.",
+          "Consistent line endings",
+          "Use of `@/` alias for `src` directory",
+          "Short descriptive variable names",
+          "Use default exports where appropriate",
+          "Use import aliases, such as `import { Button } from \"@/components/ui/button\";`"
+        ],
+        "avoid": [
+          "Classes for React components",
+          "Inconsistent string quoting",
+          "Inconsistent indentation",
+          "Mixing different component definition styles",
+          "Global CSS styling where component-specific is possible"
+        ]
+      },
+      "error_handling": {
+        "prefer": [
+          "Try-catch blocks for asynchronous operations (especially network requests)",
+          "Logging errors to the console (`console.error`)",
+          "Providing user-friendly error messages (where applicable)",
+          "Using `instanceof Error` checks for error types",
+          "Explicitly handling promise rejections"
+        ],
+        "avoid": [
+          "Ignoring errors",
+          "Generic error messages without context",
+          "Throwing errors without handling them"
+        ]
+      },
+      "performance": {
+        "prefer": [
+          "Memoization with `React.memo` (where applicable)",
+          "Lazy loading of components (where applicable)",
+          "Code splitting with Vite",
+          "Using performant data structures",
+          "Avoiding unnecessary re-renders"
+        ],
+        "avoid": [
+          "Unnecessary calculations in render functions",
+          "Large component trees without memoization",
+          "Blocking the main thread with long-running operations"
+        ]
+      },
+      "suggest_patterns": {
+        "improve": [],
+        "avoid": []
+      },
+      "module_organization": {
+        "structure": [
+          "Components are typically located in the `src/components` directory.",
+          "UI components are often in `src/components/ui`.",
+          "Helper functions are located in `src/utils` or `src/helpers`.",
+          "Types are located in `src/types`.",
+          "Server-side code is in `src/server`.",
+          "Localization files are in `src/localization`.",
+          "Tests are in `src/tests`."
+        ],
+        "dependencies": [
+          "React components often depend on other UI components and helper functions.",
+          "Server-side modules depend on configuration and utility modules.",
+          "The main process depends on helper modules for IPC communication and window management.",
+          "The preload script depends on IPC Renderer to expose functions to React.",
+          "UI components depend on `@radix-ui/react-*` for primitives."
+        ],
+        "responsibilities": {
+          "src/App.tsx": "Main application component, initializes theme and language, and renders the router.",
+          "src/main.ts": "Electron main process, manages the main window, global shortcuts, and IPC communication.",
+          "src/preload.ts": "Electron preload script, exposes the electronAPI to the renderer process.",
+          "src/renderer.ts": "Entry point for the React application, imports the main App component.",
+          "src/components/ui/*": "Reusable UI components based on Radix UI primitives.",
+          "src/utils/*": "Utility functions for keyboard shortcuts, settings management, and Tailwind CSS class merging.",
+          "src/helpers/*": "Helper functions for theme management, language management, and window management.",
+          "src/server/*": "Server-side code for chat functionality and MCP server management.",
+          "src/types/*": "TypeScript type definitions for various application data."
+        },
+        "rules": [
+          "Separate UI components from business logic.",
+          "Use helper functions for common tasks.",
+          "Define types for data structures.",
+          "Use IPC communication for communication between the main process and the renderer process.",
+          "Use consistent naming conventions.",
+          "Group related files into directories.",
+          "Components should use Radix primitives when applicable.",
+          "Components should use the `cn` utility function for class names.",
+          "Maintain clear separation between client-side and server-side code.",
+          "The `src` directory is the root for most application code."
+        ],
+        "naming": {
+          "components": "PascalCase (e.g., `MyComponent`)",
+          "functions": "camelCase (e.g., `myFunction`)",
+          "variables": "camelCase (e.g., `myVariable`)",
+          "constants": "UPPER_SNAKE_CASE (e.g., `MY_CONSTANT`)",
+          "interfaces": "PascalCase (e.g., `MyInterface`)",
+          "types": "PascalCase (e.g., `MyType`)",
+          "files": "kebab-case (e.g., `my-file.ts`)",
+          "Tailwind classes": "Use abbreviations and semantic naming (e.g., `bg-primary`, `text-muted-foreground`)",
+          "Data attributes": "Use `data-slot`"
+        }
+      }
+    }
+  }
+}

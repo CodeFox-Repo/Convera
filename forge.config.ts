@@ -7,19 +7,23 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import pkg from "./package.json";
-
 const config: ForgeConfig = {
   packagerConfig: {
-    executableName: pkg.name, 
-    name: pkg.productName, 
+    executableName: pkg.name,
+    name: pkg.productName,
     asar: true,
+    icon: "./images/icon",
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ["darwin"]),
     new MakerRpm({}),
-    new MakerDeb({}),
+    new MakerDeb({
+      options: {
+        icon: "./images/icon.icns",
+      },
+    }),
   ],
   plugins: [
     new VitePlugin({

@@ -8,41 +8,86 @@ export interface ThemePreferences {
 }
 
 export async function getCurrentTheme(): Promise<ThemePreferences> {
-  const currentTheme = await window.themeMode.current();
-  const localTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
+  // Check for electronAPI availability
+  if (!window.electronAPI) {
+    console.error("electronAPI is not available for getting current theme!");
+    return {
+      system: "light", // Default to light if API not available
+      local: localStorage.getItem(THEME_KEY) as ThemeMode | null,
+    };
+  }
 
-  return {
-    system: currentTheme,
-    local: localTheme,
-  };
+  try {
+    const currentTheme = await window.electronAPI.getCurrentTheme();
+    const localTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
+
+    return {
+      system:
+        typeof currentTheme === "string"
+          ? (currentTheme as ThemeMode)
+          : "light",
+      local: localTheme,
+    };
+  } catch (error) {
+    console.error("Error getting current theme:", error);
+    return {
+      system: "light", // Default to light on error
+      local: localStorage.getItem(THEME_KEY) as ThemeMode | null,
+    };
+  }
 }
 
 export async function setTheme(newTheme: ThemeMode) {
-  switch (newTheme) {
-    case "dark":
-      await window.themeMode.dark();
-      updateDocumentTheme(true);
-      break;
-    case "light":
-      await window.themeMode.light();
-      updateDocumentTheme(false);
-      break;
-    case "system": {
-      const isDarkMode = await window.themeMode.system();
-      updateDocumentTheme(isDarkMode);
-      break;
-    }
+  if (!window.electronAPI) {
+    console.error("electronAPI is not available for setting theme!");
+    return;
   }
 
-  localStorage.setItem(THEME_KEY, newTheme);
+  try {
+    switch (newTheme) {
+      case "dark":
+        await window.electronAPI.setThemeDark();
+        updateDocumentTheme(true);
+        break;
+      case "light":
+        await window.electronAPI.setThemeLight();
+        updateDocumentTheme(false);
+        break;
+      case "system": {
+        // The system theme function now returns the resulting theme after setting
+        const resultTheme = await window.electronAPI.setThemeSystem();
+        // Check for string since we don't know exact return type
+        const isDarkMode =
+          typeof resultTheme === "string" ? resultTheme === "dark" : false;
+        updateDocumentTheme(isDarkMode);
+        break;
+      }
+    }
+
+    localStorage.setItem(THEME_KEY, newTheme);
+  } catch (error) {
+    console.error(`Error setting theme to ${newTheme}:`, error);
+  }
 }
 
 export async function toggleTheme() {
-  const isDarkMode = await window.themeMode.toggle();
-  const newTheme = isDarkMode ? "dark" : "light";
+  if (!window.electronAPI) {
+    console.error("electronAPI is not available for toggling theme!");
+    return;
+  }
 
-  updateDocumentTheme(isDarkMode);
-  localStorage.setItem(THEME_KEY, newTheme);
+  try {
+    // The toggle function returns the new theme state
+    const newTheme = await window.electronAPI.toggleTheme();
+    // Check for string since we don't know exact return type
+    if (typeof newTheme === "string") {
+      const isDarkMode = newTheme === "dark";
+      updateDocumentTheme(isDarkMode);
+      localStorage.setItem(THEME_KEY, newTheme as ThemeMode);
+    }
+  } catch (error) {
+    console.error("Error toggling theme:", error);
+  }
 }
 
 export async function syncThemeWithLocal() {

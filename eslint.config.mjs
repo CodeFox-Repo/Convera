@@ -22,6 +22,7 @@ export default [
     },
     rules: {
       "react-compiler/react-compiler": "error",
+      "typescript-eslint/no-explicit-any": "off",
     },
   },
   { languageOptions: { globals: globals.browser } },

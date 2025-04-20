@@ -2,19 +2,22 @@ import {
   closeWindow,
   maximizeWindow,
   minimizeWindow,
-} from "@/helpers/window_helpers";
+} from "@/helpers/windows/window_helpers";
 import React, { type ReactNode } from "react";
 
 interface DragWindowRegionProps {
   title?: ReactNode;
 }
 
+/**
+ * Window title bar with drag functionality and window control buttons
+ */
 export default function DragWindowRegion({ title }: DragWindowRegionProps) {
   return (
-    <div className="flex w-screen items-stretch justify-between">
+    <div className="bg-primary flex w-screen items-stretch justify-between">
       <div className="draglayer w-full">
         {title && (
-          <div className="flex flex-1 select-none whitespace-nowrap p-2 text-xs text-gray-400">
+          <div className="text-primary-foreground flex flex-1 p-2 text-xs whitespace-nowrap select-none">
             {title}
           </div>
         )}
@@ -30,7 +33,7 @@ function WindowButtons() {
       <button
         title="Minimize"
         type="button"
-        className="p-2 hover:bg-slate-300"
+        className="hover:bg-accent p-2"
         onClick={minimizeWindow}
       >
         <svg
@@ -46,7 +49,7 @@ function WindowButtons() {
       <button
         title="Maximize"
         type="button"
-        className="p-2 hover:bg-slate-300"
+        className="hover:bg-accent p-2"
         onClick={maximizeWindow}
       >
         <svg

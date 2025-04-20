@@ -18,4 +18,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        settings: path.resolve(__dirname, "src/standalone/settings.html"),
+      },
+    },
+  },
 });

@@ -1,5 +1,8 @@
 import React from "react";
 
+/**
+ * Base layout component that provides the main application structure
+ */
 export default function BaseLayout({
   children,
 }: {
@@ -7,7 +10,9 @@ export default function BaseLayout({
 }) {
   return (
     <>
-      <main className="h-screen p-2 pb-20">{children}</main>
+      <main className="bg-background/60 text-foreground h-screen w-screen">
+        {children}
+      </main>
     </>
   );
 }

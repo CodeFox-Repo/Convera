@@ -2,7 +2,7 @@
   "compilerOptions": {
     "jsx": "react",
     "target": "ESNext",
-    "module": "CommonJS",
+    "module": "NodeNext",
     "lib": ["dom", "ESNext"],
     "experimentalDecorators": true,
     "composite": true,
@@ -12,14 +12,18 @@
     "esModuleInterop": true,
     "noImplicitAny": true,
     "sourceMap": true,
-    "strict": false,
+    "strict": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
     "outDir": "dist",
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "package.json", "forge.config.ts"]
+  "include": ["src/**/*", "package.json", "forge.config.ts"],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
 }

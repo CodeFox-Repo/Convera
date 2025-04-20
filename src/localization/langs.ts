@@ -6,9 +6,4 @@ export default [
     nativeName: "English",
     prefix: "🇺🇸",
   },
-  {
-    key: "pt-BR",
-    nativeName: "Português (Brasil)",
-    prefix: "🇧🇷",
-  },
 ] satisfies Language[];
