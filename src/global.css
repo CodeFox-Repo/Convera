@@ -443,10 +443,27 @@
 }
 
 /* Electron window drag region styles */
+/* Base drag region style */
 .drag-region {
   -webkit-app-region: drag;
+  pointer-events: none;
 }
 
+/* Elements that need to be draggable but also interactive */
+.drag-region > * {
+  pointer-events: auto;
+}
+
+/* Explicit no-drag areas */
 .no-drag-region {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+}
+
+/* Control layer - highest priority for interactive elements */
+.control-layer {
+  position: relative;
+  z-index: 50;
+  pointer-events: auto;
   -webkit-app-region: no-drag;
 }

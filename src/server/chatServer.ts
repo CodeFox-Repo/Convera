@@ -7,14 +7,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { AppSettings } from "@/types/settings";
 import {
-  initializeMCP,
-  getMCPRegistry,
-  MCPConfigManager,
-  MCPServerConfig,
-  getAvailablePredefinedServers,
-  isPredefinedServerInstalled,
-  installPredefinedMCPServer,
   startMCPServers,
+  getAvailablePredefinedServers,
+  installPredefinedMCPServer,
+  isPredefinedServerInstalled,
+  initializeMCP,
+  getMCPManager,
 } from "./mcp";
 import {
   getAgentList,
@@ -24,7 +22,8 @@ import {
   saveCustomAgent,
 } from "./agents";
 import { AgentDefinition } from "./agents/types";
-import { agentTools, getToolsByNames } from "./agents/tools";
+import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
+import { MCPServerConfig } from "./mcp/types";
 
 // Initialize dotenv
 dotenv.config();
@@ -224,8 +223,8 @@ router.get("/api/health", (req: Request, res: Response) => {
 // MCP servers endpoint
 router.get("/api/mcp/servers", async (req: Request, res: Response) => {
   try {
-    const registry = getMCPRegistry();
-    const servers = registry.getAllServerStatus();
+    const manager = getMCPManager();
+    const servers = manager.getAllServerStatus();
 
     res.json({ status: "success", servers });
   } catch (error) {
@@ -239,9 +238,9 @@ router.get("/api/mcp/servers", async (req: Request, res: Response) => {
 app.post("/api/mcp/servers/:id/start", (async (req, res) => {
   try {
     const { id } = req.params;
-    const registry = getMCPRegistry();
+    const manager = getMCPManager();
 
-    const success = await registry.startServer(id);
+    const success = await manager.startServer(id);
 
     if (success) {
       res.json({
@@ -264,9 +263,9 @@ app.post("/api/mcp/servers/:id/start", (async (req, res) => {
 app.post("/api/mcp/servers/:id/stop", (async (req, res) => {
   try {
     const { id } = req.params;
-    const registry = getMCPRegistry();
+    const manager = getMCPManager();
 
-    const success = await registry.stopServer(id);
+    const success = await manager.stopServer(id);
 
     if (success) {
       res.json({
@@ -317,20 +316,6 @@ router.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
   }
 });
 
-// MCP tools endpoint
-router.get("/api/mcp/tools", async (req: Request, res: Response) => {
-  try {
-    const registry = getMCPRegistry();
-    const tools = await registry.listAllTools();
-
-    res.json({ status: "success", tools });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error fetching MCP tools:", errorMessage);
-    res.status(500).json({ status: "error", message: errorMessage });
-  }
-});
-
 // MCP settings endpoint
 router.post("/api/mcp/settings", (req: Request, res: Response) => {
   try {
@@ -366,9 +351,17 @@ router.post("/api/mcp/settings", (req: Request, res: Response) => {
 // Get all MCP server configurations
 router.get("/api/mcp/configurations", async (req: Request, res: Response) => {
   try {
-    const configManager = new MCPConfigManager();
-    const configs = configManager.getAllServerConfigs();
-    res.json({ status: "success", configurations: configs });
+    const manager = getMCPManager();
+    const configs = manager.getAllServerConfigs();
+
+    const configsWithTools = { ...configs };
+
+    if (configsWithTools["Dev-MCP"]) {
+      const allDevMCPTools = Object.keys(serverTools);
+      configsWithTools["Dev-MCP"].builtInToolsList = allDevMCPTools;
+    }
+
+    res.json({ status: "success", configurations: configsWithTools });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching MCP configurations:", errorMessage);
@@ -384,8 +377,19 @@ router.put(
     const updatedConfig: Partial<MCPServerConfig> = req.body;
 
     try {
-      const configManager = new MCPConfigManager();
-      configManager.updateServerConfig(id, updatedConfig);
+      const manager = getMCPManager();
+      if (id === "Dev-MCP") {
+        const allDevMCPTools = Object.keys(serverTools);
+        if (updatedConfig.enabledTools) {
+          updatedConfig.enabledTools = updatedConfig.enabledTools.filter(
+            (tool) => allDevMCPTools.includes(tool),
+          );
+        }
+
+        updatedConfig.builtInToolsList = allDevMCPTools;
+      }
+
+      manager.updateServerConfig(id, updatedConfig);
       res.json({
         status: "success",
         message: `Configuration for ${id} updated.`,
@@ -446,6 +450,7 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
       isInstalled: isPredefinedServerInstalled(server.id),
     }));
 
+    console.log("Predefined servers:", serversWithStatus);
     res.json({
       status: "success",
       servers: serversWithStatus,
@@ -458,9 +463,9 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
 });
 
 // Install predefined MCP server endpoint
-app.post("/api/mcp/predefined-servers/install", (req, res) => {
+app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
   try {
-    const { id, customConfig } = req.body;
+    const { id } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -469,9 +474,30 @@ app.post("/api/mcp/predefined-servers/install", (req, res) => {
       });
     }
 
-    const success = installPredefinedMCPServer(id, customConfig);
+    const manager = getMCPManager();
+    const success = manager.installPredefinedServer(id);
 
     if (success) {
+      // Get the server config to check if it's enabled
+      const serverConfig = manager.getServerConfig(id);
+
+      // If the server is configured to be enabled, start it automatically
+      if (serverConfig && serverConfig.enabled) {
+        console.log(`Auto-starting newly installed MCP server: ${id}`);
+        manager
+          .startServer(id)
+          .then((startSuccess) => {
+            if (startSuccess) {
+              console.log(`Successfully auto-started MCP server: ${id}`);
+            } else {
+              console.warn(`Failed to auto-start MCP server: ${id}`);
+            }
+          })
+          .catch((err) => {
+            console.error(`Error auto-starting MCP server ${id}:`, err);
+          });
+      }
+
       res.json({
         status: "success",
         message: `Server ${id} installed successfully`,
@@ -487,22 +513,55 @@ app.post("/api/mcp/predefined-servers/install", (req, res) => {
     console.error("Error installing predefined MCP server:", errorMessage);
     res.status(500).json({ status: "error", message: errorMessage });
   }
-});
+}) as RequestHandler);
 
 // Get tools for a specific MCP server
 app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
   try {
     const { id } = req.params;
-    const registry = getMCPRegistry();
+    const manager = getMCPManager();
 
     // Get the server status to check if it's running
-    const serverStatus = registry.getServerStatus(id);
+    const serverStatus = manager.getServerStatus(id);
 
     if (!serverStatus) {
       return res.status(404).json({
         status: "error",
         message: `Server with id ${id} not found`,
       });
+    }
+
+    // 获取服务器配置
+    const serverConfig = manager.getServerConfig(id);
+    const disabledTools = serverConfig?.disabledTools || [];
+
+    if (id === "Dev-MCP") {
+      const config = manager.getServerConfig(id);
+      if (config) {
+        if (config.builtInToolsList && config.builtInToolsList.length > 0) {
+          return res.json({
+            status: "success",
+            tools: config.builtInToolsList.map((name) => ({
+              name,
+              description: serverTools[name]?.description || `Tool: ${name}`,
+              enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+            })),
+            serverId: id,
+            disabledTools, // 返回禁用的工具列表
+          });
+        }
+        const allTools = Object.keys(serverTools).map((name) => ({
+          name,
+          description: serverTools[name]?.description || `Tool: ${name}`,
+          enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+        }));
+        return res.json({
+          status: "success",
+          tools: allTools,
+          serverId: id,
+          disabledTools, // 返回禁用的工具列表
+        });
+      }
     }
 
     if (!serverStatus.running) {
@@ -512,11 +571,17 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       });
     }
 
-    // Since the server is running, we can return its tools from the status
-    res.json({
+    // 对于运行中的服务器，返回其工具并标记是否启用
+    const availableTools = serverStatus.tools || [];
+
+    return res.json({
       status: "success",
-      tools: serverStatus.tools || [],
+      tools: availableTools.map((tool) => ({
+        ...tool,
+        enabled: !disabledTools.includes(tool.name), // 使用disabledTools判断是否启用
+      })),
       serverId: id,
+      disabledTools, // 返回禁用的工具列表
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -527,6 +592,59 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
     res.status(500).json({ status: "error", message: errorMessage });
   }
 }) as RequestHandler);
+
+// Update MCP server enabled tools
+router.post(
+  "/api/mcp/servers/:id/tools",
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { disabledTools } = req.body;
+
+      if (!Array.isArray(disabledTools)) {
+        return res.status(400).json({
+          status: "error",
+          message: "disabledTools must be an array of tool names",
+        });
+      }
+
+      const manager = getMCPManager();
+      const serverStatus = manager.getServerStatus(id);
+
+      if (!serverStatus) {
+        return res.status(404).json({
+          status: "error",
+          message: `Server with id ${id} not found`,
+        });
+      }
+
+      // 统计有多少可用工具
+      const availableTools = serverStatus.tools || [];
+      const totalTools = availableTools.length;
+      const disabledCount = disabledTools.length;
+
+      // 更新服务器配置，设置已禁用的工具
+      const success = manager.updateServerConfig(id, { disabledTools });
+
+      // If the server is running, restart it to apply the changes
+      if (serverStatus.running) {
+        await manager.stopServer(id);
+        await manager.startServer(id);
+      }
+
+      res.json({
+        status: "success",
+        message: `Disabled ${disabledCount} tools for server ${id}. ${totalTools - disabledCount} tools are now available.`,
+        disabledTools,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("Error updating MCP server tools:", errorMessage);
+      res.status(500).json({ status: "error", message: errorMessage });
+    }
+  },
+);
 
 const PORT = 38000;
 
@@ -578,7 +696,6 @@ export function startChatServer() {
     console.log(
       `MCP marketplace endpoint: http://localhost:${PORT}/api/mcp/marketplace`,
     );
-    console.log(`MCP tools endpoint: http://localhost:${PORT}/api/mcp/tools`);
     console.log(
       `OpenRouter API key configured: ${!!DEFAULT_OPENROUTER_API_KEY}`,
     );
@@ -594,7 +711,7 @@ export function startChatServer() {
 
 router.get("/api/tools", (req, res) => {
   try {
-    const tools = Object.keys(agentTools); // 获取工具名称数组
+    const tools = Object.keys(serverTools); // 获取工具名称数组
     res.json({ tools });
   } catch (error) {
     console.error("Error fetching tools:", error);

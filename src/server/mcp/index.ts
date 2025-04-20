@@ -3,56 +3,59 @@
  * MCP Module Entry Point
  * Provides a unified API interface
  */
-import { MCPRegistry } from "./mcp-registry";
+import { MCPManager } from "./mcp-manager";
 import { MCPClient } from "./mcp-client";
-import { ServerManager } from "./server-manager";
-import { MCPConfigManager } from "./config-manager";
-import type {
-  ToolDefinition,
-  PredefinedMCPServer,
-  MCPServerConfig,
-} from "./types";
-import { tool } from "ai";
+import type { ToolDefinition, PredefinedMCPServer } from "./types";
+import { tool, Tool } from "ai";
 import { z } from "zod";
+import { initProjectTool } from "./dev-mcp/tools/projectTools";
+import { listProjectStructureTool } from "./dev-mcp/tools/listProjectStructureTool";
+import {
+  writeFileTool,
+  renameFileTool,
+  deleteFileTool,
+  addDependencyTool,
+} from "./dev-mcp/tools/fileTools";
+import { webSearch } from "./dev-mcp/tools/webSearchTool";
 
-// Initialize MCP registry instance
-let registry: MCPRegistry | null = null;
+// Initialize MCP manager instance
+let manager: MCPManager | null = null;
 
 /**
  * Initialize MCP system
  */
-export function initializeMCP(configPath?: string): MCPRegistry {
-  if (!registry) {
-    registry = MCPRegistry.getInstance(configPath);
+export function initializeMCP(configPath?: string): MCPManager {
+  if (!manager) {
+    manager = MCPManager.getInstance(configPath);
     console.log("MCP system initialized");
   }
-  return registry;
+  return manager;
 }
 
 /**
- * Get MCP registry instance
+ * Get MCP manager instance
  */
-export function getMCPRegistry(): MCPRegistry {
-  if (!registry) {
-    registry = initializeMCP();
+export function getMCPManager(): MCPManager {
+  if (!manager) {
+    manager = initializeMCP();
   }
-  return registry;
+  return manager;
 }
 
 /**
  * Start all enabled MCP servers
  */
 export async function startMCPServers(): Promise<Map<string, boolean>> {
-  const reg = getMCPRegistry();
-  return reg.startAllEnabled();
+  const mgr = getMCPManager();
+  return mgr.startAllEnabled();
 }
 
 /**
  * Stop all MCP servers
  */
 export async function stopMCPServers(): Promise<Map<string, boolean>> {
-  const reg = getMCPRegistry();
-  return reg.stopAll();
+  const mgr = getMCPManager();
+  return mgr.stopAll();
 }
 
 /**
@@ -61,8 +64,22 @@ export async function stopMCPServers(): Promise<Map<string, boolean>> {
 export async function listAllMCPTools(): Promise<
   { serverId: string; tool: ToolDefinition }[]
 > {
-  const reg = getMCPRegistry();
-  return reg.listAllTools();
+  const mgr = getMCPManager();
+  const allServers = mgr.getAllServerStatus();
+  const result: { serverId: string; tool: ToolDefinition }[] = [];
+
+  for (const server of allServers) {
+    if (server.tools && server.running) {
+      for (const tool of server.tools) {
+        result.push({
+          serverId: server.id,
+          tool,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -72,24 +89,39 @@ export async function runMCPTool<T>(
   toolName: string,
   input: Record<string, unknown>,
 ): Promise<T> {
-  const reg = getMCPRegistry();
-  return reg.runToolByName<T>(toolName, input);
+  const mgr = getMCPManager();
+  // Find which server has this tool
+  const allServers = mgr.getAllServerStatus();
+
+  for (const server of allServers) {
+    if (server.tools && server.running) {
+      const hasTool = server.tools.some((t) => t.name === toolName);
+      if (hasTool) {
+        const client = mgr.getClient(server.id);
+        if (client) {
+          return client.runTool<T>(toolName, input);
+        }
+      }
+    }
+  }
+
+  throw new Error(`Tool ${toolName} not found in any running server`);
 }
 
 /**
  * Import MCP configuration
  */
 export function importMCPConfig(configJson: string): boolean {
-  const reg = getMCPRegistry();
-  return reg.importFromJson(configJson);
+  const mgr = getMCPManager();
+  return mgr.importFromJson(configJson);
 }
 
 /**
  * Export MCP configuration
  */
 export function exportMCPConfig(): string {
-  const reg = getMCPRegistry();
-  return reg.exportToJson();
+  const mgr = getMCPManager();
+  return mgr.exportToJson();
 }
 
 /**
@@ -97,45 +129,159 @@ export function exportMCPConfig(): string {
  * Returns tool objects that can be added to the tool list in chatServer.ts
  */
 export async function getMCPToolsForChat(): Promise<Record<string, any>> {
-  const registry = getMCPRegistry();
-  const allTools = await listAllMCPTools();
+  const manager = getMCPManager();
   const aiTools: Record<string, any> = {};
 
-  // Convert each MCP tool to AI SDK format
-  for (const { serverId, tool: mcpTool } of allTools) {
-    try {
-      const toolName = mcpTool.name;
-      // Create a Zod schema from the MCP tool parameters
-      const paramSchema = createZodSchemaFromMCPParams(mcpTool.parameters);
+  // Get all server configurations and statuses
+  const serverConfigs = manager.getAllServerConfigs();
+  const serverStatuses = manager.getAllServerStatus();
 
-      // Create the AI SDK tool
-      aiTools[toolName] = tool({
-        description: mcpTool.description || `Tool: ${toolName}`,
-        parameters: paramSchema,
-        execute: async (params: Record<string, unknown>) => {
-          try {
-            // Call the MCP tool through the registry
-            const result = await registry.runTool(serverId, toolName, params);
-            // Convert result to string if it's not already
-            return typeof result === "string" ? result : JSON.stringify(result);
-          } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error(`Error executing MCP tool ${toolName}:`, error);
-            return `Error executing ${toolName}: ${errorMessage}`;
-          }
-        },
-      });
+  // Log the total number of servers and their status
+  console.log(
+    `Found ${serverStatuses.length} MCP servers, checking for available tools...`,
+  );
 
-      console.log(`Successfully converted MCP tool: ${toolName}`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(
-        `Failed to convert MCP tool ${mcpTool.name}:`,
-        errorMessage,
-      );
+  // Map of built-in tools to their direct imports
+  const builtInTools: Record<string, Tool<any, any>> = {
+    initProject: initProjectTool,
+    listProjectStructure: listProjectStructureTool,
+    writeFile: writeFileTool,
+    renameFile: renameFileTool,
+    deleteFile: deleteFileTool,
+    addDependency: addDependencyTool,
+    webSearch: webSearch,
+  };
+
+  // Special handling for built-in tools that need direct access
+  // We add these first so they can be overridden by MCP servers if needed
+  if (serverConfigs["Dev-MCP"] && serverConfigs["Dev-MCP"].enabled) {
+    const devMcpConfig = serverConfigs["Dev-MCP"];
+    console.log(
+      `Dev-MCP is enabled with ${Object.keys(builtInTools).length} available tools`,
+    );
+
+    const disabledTools = devMcpConfig.disabledTools || [];
+    console.log(
+      `${disabledTools.length} tools are explicitly disabled in Dev-MCP`,
+    );
+
+    for (const [toolName, toolObj] of Object.entries(builtInTools)) {
+      if (!disabledTools.includes(toolName)) {
+        aiTools[toolName] = toolObj;
+        console.log(`+ Added built-in ${toolName} tool from Dev-MCP`);
+      } else {
+        console.log(`- Skipping disabled built-in tool: ${toolName}`);
+      }
     }
+  }
+
+  // Process each running server
+  for (const serverStatus of serverStatuses) {
+    // Skip servers that aren't running
+    if (!serverStatus.running) {
+      console.log(
+        `- Skipping MCP server that's not running: ${serverStatus.id}`,
+      );
+      continue;
+    }
+
+    const serverId = serverStatus.id;
+    const serverConfig = serverConfigs[serverId];
+
+    // Skip if no configuration exists
+    if (!serverConfig) {
+      console.log(`- No configuration found for MCP server: ${serverId}`);
+      continue;
+    }
+
+    // Get the tools for this server
+    const tools = serverStatus.tools || [];
+    console.log(`Server ${serverId} has ${tools.length} available tools`);
+
+    const disabledTools = serverConfig.disabledTools || [];
+    console.log(
+      `${disabledTools.length} tools are explicitly disabled in server ${serverId}`,
+    );
+
+    // Process each tool from this server
+    for (const mcpTool of tools) {
+      try {
+        const toolName = mcpTool.name;
+
+        // Skip built-in tools that were already added directly from source
+        if (serverId === "Dev-MCP" && toolName in builtInTools) {
+          console.log(
+            `- Skipping ${toolName} from Dev-MCP as it was already added directly`,
+          );
+          continue;
+        }
+
+        if (disabledTools.includes(toolName)) {
+          console.log(
+            `- Skipping disabled MCP tool: ${toolName} from server ${serverId}`,
+          );
+          continue;
+        }
+
+        // Create a Zod schema from the MCP tool parameters
+        const paramSchema = createZodSchemaFromMCPParams(mcpTool.parameters);
+
+        // Log the addition of the tool
+        console.log(`+ Adding MCP tool: ${toolName} from server ${serverId}`);
+
+        // Create the AI SDK tool for all other tools
+        try {
+          aiTools[toolName] = tool({
+            description: mcpTool.description || `Tool: ${toolName}`,
+            parameters: paramSchema,
+            execute: async (params: Record<string, unknown>) => {
+              try {
+                // Call the MCP tool through the manager
+                const client = manager.getClient(serverId);
+                if (!client) {
+                  throw new Error(`Server ${serverId} not available`);
+                }
+                const result = await client.runTool(toolName, params);
+                // Convert result to string if it's not already
+                return typeof result === "string"
+                  ? result
+                  : JSON.stringify(result);
+              } catch (error: unknown) {
+                const errorMessage =
+                  error instanceof Error ? error.message : "Unknown error";
+                console.error(`Error executing MCP tool ${toolName}:`, error);
+                return `Error executing ${toolName}: ${errorMessage}`;
+              }
+            },
+          });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `Error creating AI SDK tool for ${toolName}:`,
+            errorMessage,
+          );
+        }
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `Error processing MCP tool from server ${serverId}:`,
+          errorMessage,
+        );
+      }
+    }
+  }
+
+  // Log summary of available tools
+  const toolNames = Object.keys(aiTools);
+  console.log(
+    `===== Total MCP tools available for chat: ${toolNames.length} =====`,
+  );
+  if (toolNames.length > 0) {
+    console.log(`Available tools: ${toolNames.join(", ")}`);
+  } else {
+    console.log("No MCP tools available for chat");
   }
 
   return aiTools;
@@ -209,8 +355,8 @@ function createZodSchemaFromMCPParams(mcpParams: any): z.ZodObject<any> {
  * Get available predefined MCP servers list
  */
 export function getAvailablePredefinedServers(): PredefinedMCPServer[] {
-  const reg = getMCPRegistry();
-  return reg.getAvailablePredefinedServers();
+  const mgr = getMCPManager();
+  return mgr.getAllPredefinedServers();
 }
 
 /**
@@ -220,22 +366,77 @@ export function getAvailablePredefinedServers(): PredefinedMCPServer[] {
 export function getPredefinedServer(
   id: string,
 ): PredefinedMCPServer | undefined {
-  const reg = getMCPRegistry();
-  return reg.getPredefinedServer(id);
+  const mgr = getMCPManager();
+  return mgr.getPredefinedServerById(id);
 }
 
 /**
- * Install predefined MCP server
- * @param id Predefined server ID
- * @param customConfig Custom configuration (optional)
+ * Install a predefined MCP server
+ * @param id Server ID
+ * @param autoEnableAllTools 如果为true，不再设置enabledTools（默认全部启用），而是设置disabledTools为空数组
  * @returns Whether installation was successful
  */
 export function installPredefinedMCPServer(
   id: string,
-  customConfig?: Partial<MCPServerConfig>,
+  autoEnableAllTools = true,
 ): boolean {
-  const reg = getMCPRegistry();
-  return reg.installPredefinedServer(id, customConfig);
+  const predefinedServer = getPredefinedServer(id);
+  if (!predefinedServer) {
+    return false;
+  }
+
+  const manager = getMCPManager();
+  const { defaultConfig } = predefinedServer;
+
+  // Create a copy of the config
+  const config = { ...defaultConfig };
+
+  // 如果autoEnableAllTools为true，使用黑名单方式
+  if (autoEnableAllTools) {
+    // 使用黑名单方式，默认所有工具都启用
+    config.disabledTools = []; // 设置空的禁用列表，表示没有工具被禁用
+    console.log(
+      `Installing server ${id} with all tools enabled by default (using disabledTools=[])`,
+    );
+
+    // 清除可能存在的旧配置
+    config.enabledTools = undefined;
+    config.autoEnableAllTools = undefined;
+  }
+
+  try {
+    manager.registerServer(id, config);
+
+    // 启动服务器以便发现工具
+    manager
+      .startServer(id)
+      .then(async (success) => {
+        if (success) {
+          console.log(`Server ${id} started successfully`);
+
+          // 获取所有可用工具，仅用于记录
+          const serverStatus = manager.getServerStatus(id);
+          if (
+            serverStatus &&
+            serverStatus.tools &&
+            serverStatus.tools.length > 0
+          ) {
+            const toolNames = serverStatus.tools.map((tool) => tool.name);
+            console.log(
+              `Server ${id} has ${toolNames.length} available tools: ${toolNames.join(", ")}`,
+            );
+          }
+        }
+      })
+      .catch((error) => {
+        console.error(`Error starting server ${id}:`, error);
+      });
+
+    return true;
+  } catch (error) {
+    console.error(`Error installing MCP server ${id}:`, error);
+    return false;
+  }
 }
 
 /**
@@ -243,12 +444,12 @@ export function installPredefinedMCPServer(
  * @param id Predefined server ID
  */
 export function isPredefinedServerInstalled(id: string): boolean {
-  const reg = getMCPRegistry();
-  return reg.isPredefinedServerInstalled(id);
+  const mgr = getMCPManager();
+  return mgr.getServerConfig(id) !== undefined;
 }
 
-// Export all classes and types
-export { MCPRegistry, MCPClient, ServerManager, MCPConfigManager };
+// Export MCPManager and MCPClient classes
+export { MCPManager, MCPClient };
 
 // Re-export types
 export type {

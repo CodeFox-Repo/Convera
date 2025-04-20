@@ -18,13 +18,13 @@ import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
 import { CHANNELS } from "./helpers/ipc/channels";
 import "./global.css";
+
+let lastVisibleBounds: Electron.Rectangle | null = null;
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Default shortcut now comes from ipc-handlers
 const currentActivateShortcut = getCurrentShortcut();
-
-let hasOpenedDevTools = false;
 
 // Separate background process for tracking focused apps
 let trackingAppFocus = false;
@@ -320,9 +320,8 @@ function createMainWindow() {
     });
   }
 
-  if (inDevelopment && mainWindow && !hasOpenedDevTools) {
+  if (inDevelopment && mainWindow) {
     mainWindow.webContents.openDevTools({ mode: "detach" });
-    hasOpenedDevTools = true;
   }
 
   mainWindow?.on("closed", () => {
@@ -428,10 +427,9 @@ function preCreateSettingsWindow() {
     if (settingsWindow) {
       console.log("Settings window ready, but kept hidden");
 
-      if (inDevelopment && !hasOpenedDevTools) {
-        // Only open dev tools if in development and no other devtools are open
+      if (inDevelopment) {
+        // 始终打开设置窗口的开发者工具，不检查全局状态
         settingsWindow.webContents.openDevTools({ mode: "detach" });
-        hasOpenedDevTools = true;
       }
     }
   });
@@ -476,15 +474,17 @@ app.whenReady().then(async () => {
       await installExtensions();
     }
 
+    // 先启动聊天服务器并等待它完成初始化
+    await initializeChatServer();
+    console.log("Chat server is fully initialized");
+
+    // 然后创建主窗口和其他组件
     createMainWindow();
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
-
-    // Start chat server if enabled
-    initializeChatServer();
 
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
@@ -598,25 +598,56 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-// 切换主窗口的可见性
-function toggleMainWindowVisibility() {
+let isHiddenOffscreen = false;
+
+export function toggleMainWindowVisibility() {
   if (!mainWindow) {
     createMainWindow();
     return;
   }
 
-  if (mainWindow.isVisible()) {
-    mainWindow.hide();
+  // Toggle the main window’s visibility by moving it offscreen instead of hiding
+  if (!isHiddenOffscreen) {
+    // === Pseudo-hide ===
+    // 1) Save current window bounds
+    lastVisibleBounds = mainWindow.getBounds();
+
+    // 2) Ignore mouse events so clicks pass through to the app underneath
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    // 3) Make the window fully transparent
+    mainWindow.setOpacity(0);
+
+    // 4) Move the window off the visible screen
+    mainWindow.setBounds({
+      x: -9999,
+      y: -9999,
+      width: lastVisibleBounds.width,
+      height: lastVisibleBounds.height,
+    });
+
+    isHiddenOffscreen = true;
   } else {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
+    // === Restore display ===
+
+    // 1) Restore the saved bounds, or center if no bounds were saved
+    if (lastVisibleBounds) {
+      mainWindow.setBounds(lastVisibleBounds);
+    } else {
+      positionWindowAtCenterBottom(mainWindow);
     }
 
-    positionWindowAtCenterBottom(mainWindow);
+    // 2) Re-enable mouse events so the window can receive input again
+    mainWindow.setIgnoreMouseEvents(false);
 
+    // 3) Make the window opaque again
+    mainWindow.setOpacity(1);
+
+    // 4) Show and focus the window, then send focus event to the chat input
     mainWindow.show();
     mainWindow.focus();
-
     mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
+
+    isHiddenOffscreen = false;
   }
 }

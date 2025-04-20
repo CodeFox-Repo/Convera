@@ -156,7 +156,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
 
   return (
     <div
-      className="flex h-full w-full flex-col overflow-hidden"
+      className="drag-region flex h-full w-full flex-col overflow-hidden"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -164,7 +164,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
       <AnimatePresence>
         {showControls && (
           <motion.div
-            className="control-buttons absolute top-4 z-50 flex w-full justify-between px-4"
+            className="control-buttons control-layer absolute top-4 z-50 flex w-full justify-between px-4"
             initial="hidden"
             animate="visible"
             exit="hidden"
@@ -200,7 +200,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
       </AnimatePresence>
 
       {/* Content and Input layout */}
-      <div className="flex h-full flex-col">
+      <div className="no-drag-region flex h-full flex-col">
         {/* Fixed 70/30 height distribution */}
         <div className="h-[70%] p-4">
           <ChatContent
@@ -214,7 +214,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="h-[30%] p-4">
+        <div className="no-drag-region h-[30%] p-4">
           <ChatInput
             ref={chatInputRef}
             isLoading={isLoading}
@@ -660,7 +660,7 @@ export default function Chat() {
     } as unknown as React.FormEvent<HTMLFormElement>;
 
     // Update input state with HTML content from editor
-    handleInputChangeAdapter(editor.getHTML());
+    handleInputChangeAdapter(editor.getText());
 
     // Submit the message to AI
     aiHandleSubmit(event);

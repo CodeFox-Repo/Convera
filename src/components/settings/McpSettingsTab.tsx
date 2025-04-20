@@ -28,7 +28,13 @@ type McpSettingsTabProps = {
   onMcpConfigChange: (
     id: string,
     field: keyof MCPServerConfig,
-    value: string | number | boolean | string[] | Record<string, string> | undefined
+    value:
+      | string
+      | number
+      | boolean
+      | string[]
+      | Record<string, string>
+      | undefined,
   ) => void;
   onSaveMcpConfig: (id: string) => void;
   onFetchMcpServerTools: (id: string) => void;
@@ -44,12 +50,19 @@ export function McpSettingsTab({
   onSaveMcpConfig,
   onFetchMcpServerTools,
 }: McpSettingsTabProps) {
+  console.log(mcpServerTools);
   const [newArguments, setNewArguments] = useState<Record<string, string>>({});
   const [newEnvKey, setNewEnvKey] = useState<Record<string, string>>({});
   const [newEnvValue, setNewEnvValue] = useState<Record<string, string>>({});
-  const [showNewArgInput, setShowNewArgInput] = useState<Record<string, boolean>>({});
-  const [showNewEnvInput, setShowNewEnvInput] = useState<Record<string, boolean>>({});
-  const [editingEnvKeys, setEditingEnvKeys] = useState<Record<string, Record<string, string>>>({});
+  const [showNewArgInput, setShowNewArgInput] = useState<
+    Record<string, boolean>
+  >({});
+  const [showNewEnvInput, setShowNewEnvInput] = useState<
+    Record<string, boolean>
+  >({});
+  const [editingEnvKeys, setEditingEnvKeys] = useState<
+    Record<string, Record<string, string>>
+  >({});
 
   // When the tab becomes active, refresh the tools data
   useEffect(() => {
@@ -59,9 +72,9 @@ export function McpSettingsTab({
       const enabledServerIds = Object.entries(mcpServerConfigs)
         .filter(([, config]) => config.enabled)
         .map(([id]) => id);
-        
+
       // Fetch tools for each enabled server
-      enabledServerIds.forEach(id => {
+      enabledServerIds.forEach((id) => {
         onFetchMcpServerTools(id);
       });
     }
@@ -69,28 +82,28 @@ export function McpSettingsTab({
 
   // Handle adding a command line argument
   const handleAddArgument = (id: string) => {
-    if (!newArguments[id] || newArguments[id].trim() === '') return;
-    
+    if (!newArguments[id] || newArguments[id].trim() === "") return;
+
     const config = mcpServerConfigs[id];
     const currentArgs = Array.isArray(config.args) ? [...config.args] : [];
-    
-    onMcpConfigChange(id, 'args', [...currentArgs, newArguments[id]]);
-    
+
+    onMcpConfigChange(id, "args", [...currentArgs, newArguments[id]]);
+
     // Reset input and hide the input field
-    setNewArguments(prev => ({ ...prev, [id]: '' }));
-    setShowNewArgInput(prev => ({ ...prev, [id]: false }));
+    setNewArguments((prev) => ({ ...prev, [id]: "" }));
+    setShowNewArgInput((prev) => ({ ...prev, [id]: false }));
   };
 
   // Handle showing the input field for a new argument
   const toggleShowNewArgInput = (id: string) => {
-    setShowNewArgInput(prev => ({ 
-      ...prev, 
-      [id]: !prev[id] 
+    setShowNewArgInput((prev) => ({
+      ...prev,
+      [id]: !prev[id],
     }));
-    
+
     // Reset input when toggling
     if (showNewArgInput[id]) {
-      setNewArguments(prev => ({ ...prev, [id]: '' }));
+      setNewArguments((prev) => ({ ...prev, [id]: "" }));
     }
   };
 
@@ -98,39 +111,39 @@ export function McpSettingsTab({
   const handleRemoveArgument = (id: string, index: number) => {
     const config = mcpServerConfigs[id];
     if (!Array.isArray(config.args)) return;
-    
+
     const newArgs = [...config.args];
     newArgs.splice(index, 1);
-    onMcpConfigChange(id, 'args', newArgs);
+    onMcpConfigChange(id, "args", newArgs);
   };
 
   // Handle adding an environment variable
   const handleAddEnvVar = (id: string) => {
-    if (!newEnvKey[id] || newEnvKey[id].trim() === '') return;
-    
+    if (!newEnvKey[id] || newEnvKey[id].trim() === "") return;
+
     const config = mcpServerConfigs[id];
     const currentEnv = config.env ? { ...config.env } : {};
-    
-    currentEnv[newEnvKey[id]] = newEnvValue[id] || '';
-    onMcpConfigChange(id, 'env', currentEnv);
-    
+
+    currentEnv[newEnvKey[id]] = newEnvValue[id] || "";
+    onMcpConfigChange(id, "env", currentEnv);
+
     // Reset input fields and hide them
-    setNewEnvKey(prev => ({ ...prev, [id]: '' }));
-    setNewEnvValue(prev => ({ ...prev, [id]: '' }));
-    setShowNewEnvInput(prev => ({ ...prev, [id]: false }));
+    setNewEnvKey((prev) => ({ ...prev, [id]: "" }));
+    setNewEnvValue((prev) => ({ ...prev, [id]: "" }));
+    setShowNewEnvInput((prev) => ({ ...prev, [id]: false }));
   };
 
   // Handle showing the input fields for a new environment variable
   const toggleShowNewEnvInput = (id: string) => {
-    setShowNewEnvInput(prev => ({ 
-      ...prev, 
-      [id]: !prev[id] 
+    setShowNewEnvInput((prev) => ({
+      ...prev,
+      [id]: !prev[id],
     }));
-    
+
     // Reset inputs when toggling
     if (showNewEnvInput[id]) {
-      setNewEnvKey(prev => ({ ...prev, [id]: '' }));
-      setNewEnvValue(prev => ({ ...prev, [id]: '' }));
+      setNewEnvKey((prev) => ({ ...prev, [id]: "" }));
+      setNewEnvValue((prev) => ({ ...prev, [id]: "" }));
     }
   };
 
@@ -138,38 +151,31 @@ export function McpSettingsTab({
   const handleRemoveEnvVar = (id: string, key: string) => {
     const config = mcpServerConfigs[id];
     if (!config.env) return;
-    
+
     const newEnv = { ...config.env };
     delete newEnv[key];
-    onMcpConfigChange(id, 'env', newEnv);
+    onMcpConfigChange(id, "env", newEnv);
   };
 
   // Update environment variable value
   const handleUpdateEnvVar = (id: string, key: string, value: string) => {
     const config = mcpServerConfigs[id];
     if (!config.env) return;
-    
+
     const newEnv = { ...config.env };
     newEnv[key] = value;
-    onMcpConfigChange(id, 'env', newEnv);
-  };
-
-  // Add a function to handle starting to edit an environment variable key
-  const startEditingEnvKey = (serverId: string, key: string) => {
-    setEditingEnvKeys(prev => ({
-      ...prev,
-      [serverId]: {
-        ...(prev[serverId] || {}),
-        [key]: key
-      }
-    }));
+    onMcpConfigChange(id, "env", newEnv);
   };
 
   // Add a function to handle updating an environment variable key
-  const handleUpdateEnvKey = (serverId: string, oldKey: string, newKey: string) => {
+  const handleUpdateEnvKey = (
+    serverId: string,
+    oldKey: string,
+    newKey: string,
+  ) => {
     if (!newKey.trim() || oldKey === newKey) {
       // Reset editing state if key is empty or unchanged
-      setEditingEnvKeys(prev => {
+      setEditingEnvKeys((prev) => {
         const result = { ...prev };
         if (result[serverId]) {
           delete result[serverId][oldKey];
@@ -185,22 +191,66 @@ export function McpSettingsTab({
     // Create a new env object with updated key
     const newEnv = { ...config.env };
     const value = newEnv[oldKey];
-    
+
     // Delete the old key and add the new one with the same value
     delete newEnv[oldKey];
     newEnv[newKey] = value;
-    
+
     // Update the config
-    onMcpConfigChange(serverId, 'env', newEnv);
-    
+    onMcpConfigChange(serverId, "env", newEnv);
+
     // Reset editing state
-    setEditingEnvKeys(prev => {
+    setEditingEnvKeys((prev) => {
       const result = { ...prev };
       if (result[serverId]) {
         delete result[serverId][oldKey];
       }
       return result;
     });
+  };
+
+  // Handle toggling a tool's enabled status
+  const handleToolToggle = (
+    serverId: string,
+    toolName: string,
+    enabled: boolean,
+  ) => {
+    const config = mcpServerConfigs[serverId];
+    const disabledTools = Array.isArray(config.disabledTools)
+      ? [...config.disabledTools]
+      : [];
+
+    if (enabled) {
+      // Enable tool by removing from disabled list
+      onMcpConfigChange(
+        serverId,
+        "disabledTools",
+        disabledTools.filter((tool) => tool !== toolName),
+      );
+    } else {
+      // Disable tool by adding to disabled list
+      if (!disabledTools.includes(toolName)) {
+        onMcpConfigChange(serverId, "disabledTools", [
+          ...disabledTools,
+          toolName,
+        ]);
+      }
+    }
+  };
+
+  // Check if a tool is enabled for a server
+  const isToolEnabled = (serverId: string, toolName: string): boolean => {
+    const config = mcpServerConfigs[serverId];
+    console.log(config);
+
+    // Using disabledTools to determine status:
+    // If disabledTools is undefined or empty, all tools are enabled
+    // Otherwise, only tools not in the disabledTools list are enabled
+    if (!config.disabledTools || config.disabledTools.length === 0) {
+      return true;
+    }
+
+    return !config.disabledTools.includes(toolName);
   };
 
   return (
@@ -289,12 +339,19 @@ export function McpSettingsTab({
 
                     {/* Command Line Configuration (Local) */}
                     {config.command !== undefined && (
-                      <Accordion type="single" collapsible className="w-full border-border rounded-md">
-                        <AccordionItem value="command-config" className="border-none">
-                          <AccordionTrigger className="text-foreground text-sm pt-3">
+                      <Accordion
+                        type="single"
+                        collapsible
+                        className="border-border w-full rounded-md"
+                      >
+                        <AccordionItem
+                          value="command-config"
+                          className="border-none"
+                        >
+                          <AccordionTrigger className="text-foreground pt-3 text-sm">
                             Command Line Configuration
                           </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3 pt-1">
+                          <AccordionContent className="px-4 pt-1 pb-3">
                             <div className="space-y-4">
                               {/* Command */}
                               <div className="grid grid-cols-3 items-center gap-4">
@@ -310,14 +367,18 @@ export function McpSettingsTab({
                                   placeholder="node ./server.js"
                                   value={config.command || ""}
                                   onChange={(e) =>
-                                    onMcpConfigChange(id, "command", e.target.value)
+                                    onMcpConfigChange(
+                                      id,
+                                      "command",
+                                      e.target.value,
+                                    )
                                   }
                                 />
                               </div>
 
                               {/* Command Arguments */}
                               <div className="space-y-2">
-                                <div className="flex items-center justify-between mb-1">
+                                <div className="mb-1 flex items-center justify-between">
                                   <Label className="text-foreground text-sm">
                                     Arguments
                                   </Label>
@@ -326,42 +387,54 @@ export function McpSettingsTab({
                                       variant="secondary"
                                       size="sm"
                                       onClick={() => toggleShowNewArgInput(id)}
-                                      className="h-7 px-2 bg-secondary/80 text-foreground hover:bg-secondary/60"
+                                      className="bg-secondary/80 text-foreground hover:bg-secondary/60 h-7 px-2"
                                     >
-                                      <Plus className="h-4 w-4 mr-1" />
+                                      <Plus className="mr-1 h-4 w-4" />
                                       Add Argument
                                     </Button>
                                   )}
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                   {/* List of existing arguments */}
-                                  {Array.isArray(config.args) && config.args.length > 0 && (
-                                    <div className="space-y-2 mb-2">
-                                      {config.args.map((arg, index) => (
-                                        <div key={`${id}-arg-${index}`} className="flex items-center gap-2">
-                                          <Input
-                                            className="border-border bg-secondary/80 text-foreground flex-1"
-                                            value={arg}
-                                            onChange={(e) => {
-                                              const newArgs = [...config.args as string[]];
-                                              newArgs[index] = e.target.value;
-                                              onMcpConfigChange(id, "args", newArgs);
-                                            }}
-                                          />
-                                          <Button
-                                            variant="secondary"
-                                            size="icon"
-                                            onClick={() => handleRemoveArgument(id, index)}
-                                            className="h-8 w-8"
+                                  {Array.isArray(config.args) &&
+                                    config.args.length > 0 && (
+                                      <div className="mb-2 space-y-2">
+                                        {config.args.map((arg, index) => (
+                                          <div
+                                            key={`${id}-arg-${index}`}
+                                            className="flex items-center gap-2"
                                           >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  
+                                            <Input
+                                              className="border-border bg-secondary/80 text-foreground flex-1"
+                                              value={arg}
+                                              onChange={(e) => {
+                                                const newArgs = [
+                                                  ...(config.args as string[]),
+                                                ];
+                                                newArgs[index] = e.target.value;
+                                                onMcpConfigChange(
+                                                  id,
+                                                  "args",
+                                                  newArgs,
+                                                );
+                                              }}
+                                            />
+                                            <Button
+                                              variant="secondary"
+                                              size="icon"
+                                              onClick={() =>
+                                                handleRemoveArgument(id, index)
+                                              }
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="text-destructive h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
                                   {/* Add new argument - only shown when Add button is clicked */}
                                   {showNewArgInput[id] && (
                                     <div className="flex flex-col gap-2">
@@ -369,12 +442,15 @@ export function McpSettingsTab({
                                         <Input
                                           className="border-border bg-secondary/80 text-foreground flex-1"
                                           placeholder="Enter new argument"
-                                          value={newArguments[id] || ''}
-                                          onChange={(e) => 
-                                            setNewArguments(prev => ({ ...prev, [id]: e.target.value }))
+                                          value={newArguments[id] || ""}
+                                          onChange={(e) =>
+                                            setNewArguments((prev) => ({
+                                              ...prev,
+                                              [id]: e.target.value,
+                                            }))
                                           }
                                           onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
+                                            if (e.key === "Enter") {
                                               handleAddArgument(id);
                                             }
                                           }}
@@ -382,10 +458,12 @@ export function McpSettingsTab({
                                         <Button
                                           variant="secondary"
                                           size="icon"
-                                          onClick={() => toggleShowNewArgInput(id)}
+                                          onClick={() =>
+                                            toggleShowNewArgInput(id)
+                                          }
                                           className="h-8 w-8"
                                         >
-                                          <X className="h-4 w-4 text-muted-foreground" />
+                                          <X className="text-muted-foreground h-4 w-4" />
                                         </Button>
                                       </div>
                                       <div className="flex justify-end">
@@ -404,8 +482,8 @@ export function McpSettingsTab({
                               </div>
 
                               {/* Environment Variables */}
-                              <div className="space-y-2 pt-2 border-t border-secondary/30">
-                                <div className="flex items-center justify-between mb-1">
+                              <div className="border-secondary/30 space-y-2 border-t pt-2">
+                                <div className="mb-1 flex items-center justify-between">
                                   <Label className="text-foreground text-sm">
                                     Environment Variables
                                   </Label>
@@ -416,92 +494,137 @@ export function McpSettingsTab({
                                       onClick={() => toggleShowNewEnvInput(id)}
                                       className="h-7 px-2"
                                     >
-                                      <Plus className="h-4 w-4 mr-1" />
+                                      <Plus className="mr-1 h-4 w-4" />
                                       Add Environment Variable
                                     </Button>
                                   )}
                                 </div>
-                                
+
                                 <div className="space-y-3">
                                   {/* List of existing env vars */}
-                                  {config.env && Object.keys(config.env).length > 0 && (
-                                    <div className="space-y-3 mb-3">
-                                      {Object.entries(config.env).map(([key, value]) => (
-                                        <div key={`${id}-env-${key}`} className="grid grid-cols-[1fr_1.5fr_auto] gap-2 items-center">
-                                          <Input
-                                            className="border-border bg-secondary/80 text-foreground"
-                                            value={editingEnvKeys[id]?.[key] !== undefined ? editingEnvKeys[id][key] : key}
-                                            onChange={(e) => {
-                                              setEditingEnvKeys(prev => ({
-                                                ...prev,
-                                                [id]: {
-                                                  ...(prev[id] || {}),
-                                                  [key]: e.target.value
+                                  {config.env &&
+                                    Object.keys(config.env).length > 0 && (
+                                      <div className="mb-3 space-y-3">
+                                        {Object.entries(config.env).map(
+                                          ([key, value]) => (
+                                            <div
+                                              key={`${id}-env-${key}`}
+                                              className="grid grid-cols-[1fr_1.5fr_auto] items-center gap-2"
+                                            >
+                                              <Input
+                                                className="border-border bg-secondary/80 text-foreground"
+                                                value={
+                                                  editingEnvKeys[id]?.[key] !==
+                                                  undefined
+                                                    ? editingEnvKeys[id][key]
+                                                    : key
                                                 }
-                                              }));
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') {
-                                                handleUpdateEnvKey(id, key, editingEnvKeys[id]?.[key] || key);
-                                                e.currentTarget.blur();
-                                              } else if (e.key === 'Escape') {
-                                                setEditingEnvKeys(prev => {
-                                                  const result = { ...prev };
-                                                  if (result[id]) {
-                                                    delete result[id][key];
+                                                onChange={(e) => {
+                                                  setEditingEnvKeys((prev) => ({
+                                                    ...prev,
+                                                    [id]: {
+                                                      ...(prev[id] || {}),
+                                                      [key]: e.target.value,
+                                                    },
+                                                  }));
+                                                }}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === "Enter") {
+                                                    handleUpdateEnvKey(
+                                                      id,
+                                                      key,
+                                                      editingEnvKeys[id]?.[
+                                                        key
+                                                      ] || key,
+                                                    );
+                                                    e.currentTarget.blur();
+                                                  } else if (
+                                                    e.key === "Escape"
+                                                  ) {
+                                                    setEditingEnvKeys(
+                                                      (prev) => {
+                                                        const result = {
+                                                          ...prev,
+                                                        };
+                                                        if (result[id]) {
+                                                          delete result[id][
+                                                            key
+                                                          ];
+                                                        }
+                                                        return result;
+                                                      },
+                                                    );
+                                                    e.currentTarget.blur();
                                                   }
-                                                  return result;
-                                                });
-                                                e.currentTarget.blur();
-                                              }
-                                            }}
-                                            onBlur={() => {
-                                              if (editingEnvKeys[id]?.[key] !== undefined) {
-                                                handleUpdateEnvKey(id, key, editingEnvKeys[id][key]);
-                                              }
-                                            }}
-                                          />
-                                          <Input
-                                            className="border-border bg-secondary/80 text-foreground w-full"
-                                            value={value as string}
-                                            onChange={(e) => 
-                                              handleUpdateEnvVar(id, key, e.target.value)
-                                            }
-                                          />
-                                          <Button
-                                            variant="secondary"
-                                            size="icon"
-                                            onClick={() => handleRemoveEnvVar(id, key)}
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  
+                                                }}
+                                                onBlur={() => {
+                                                  if (
+                                                    editingEnvKeys[id]?.[
+                                                      key
+                                                    ] !== undefined
+                                                  ) {
+                                                    handleUpdateEnvKey(
+                                                      id,
+                                                      key,
+                                                      editingEnvKeys[id][key],
+                                                    );
+                                                  }
+                                                }}
+                                              />
+                                              <Input
+                                                className="border-border bg-secondary/80 text-foreground w-full"
+                                                value={value as string}
+                                                onChange={(e) =>
+                                                  handleUpdateEnvVar(
+                                                    id,
+                                                    key,
+                                                    e.target.value,
+                                                  )
+                                                }
+                                              />
+                                              <Button
+                                                variant="secondary"
+                                                size="icon"
+                                                onClick={() =>
+                                                  handleRemoveEnvVar(id, key)
+                                                }
+                                                className="h-8 w-8"
+                                              >
+                                                <Trash2 className="text-destructive h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    )}
+
                                   {/* Add new env var - only shown when Add button is clicked */}
                                   {showNewEnvInput[id] && (
                                     <div className="flex flex-col gap-2">
-                                      <div className="grid grid-cols-[1fr_1.5fr_auto] gap-2 items-center">
+                                      <div className="grid grid-cols-[1fr_1.5fr_auto] items-center gap-2">
                                         <Input
                                           className="border-border bg-secondary/80 text-foreground"
                                           placeholder="KEY"
-                                          value={newEnvKey[id] || ''}
-                                          onChange={(e) => 
-                                            setNewEnvKey(prev => ({ ...prev, [id]: e.target.value.toUpperCase() }))
+                                          value={newEnvKey[id] || ""}
+                                          onChange={(e) =>
+                                            setNewEnvKey((prev) => ({
+                                              ...prev,
+                                              [id]: e.target.value.toUpperCase(),
+                                            }))
                                           }
                                         />
                                         <Input
                                           className="border-border bg-secondary/80 text-foreground w-full"
                                           placeholder="value"
-                                          value={newEnvValue[id] || ''}
-                                          onChange={(e) => 
-                                            setNewEnvValue(prev => ({ ...prev, [id]: e.target.value }))
+                                          value={newEnvValue[id] || ""}
+                                          onChange={(e) =>
+                                            setNewEnvValue((prev) => ({
+                                              ...prev,
+                                              [id]: e.target.value,
+                                            }))
                                           }
                                           onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
+                                            if (e.key === "Enter") {
                                               handleAddEnvVar(id);
                                             }
                                           }}
@@ -509,10 +632,12 @@ export function McpSettingsTab({
                                         <Button
                                           variant="secondary"
                                           size="icon"
-                                          onClick={() => toggleShowNewEnvInput(id)}
+                                          onClick={() =>
+                                            toggleShowNewEnvInput(id)
+                                          }
                                           className="h-8 w-8"
                                         >
-                                          <X className="h-4 w-4 text-muted-foreground" />
+                                          <X className="text-muted-foreground h-4 w-4" />
                                         </Button>
                                       </div>
                                       <div className="flex justify-end">
@@ -571,11 +696,7 @@ export function McpSettingsTab({
                           placeholder="Optional description"
                           value={config.description || ""}
                           onChange={(e) =>
-                            onMcpConfigChange(
-                              id,
-                              "description",
-                              e.target.value
-                            )
+                            onMcpConfigChange(id, "description", e.target.value)
                           }
                         />
                       </div>
@@ -583,18 +704,25 @@ export function McpSettingsTab({
 
                     {/* Available Tools Section - Show only if server is enabled */}
                     {config.enabled && (
-                      <div className="mt-4 border-t border-secondary/80 pt-4">
-                        <Accordion type="single" collapsible className="w-full border-border rounded-md">
-                          <AccordionItem value="available-tools" className="border-none">
-                            <AccordionTrigger className="text-foreground text-sm pt-3 px-0">
+                      <div className="border-secondary/80 mt-4 border-t pt-4">
+                        <Accordion
+                          type="single"
+                          collapsible
+                          className="border-border w-full rounded-md"
+                        >
+                          <AccordionItem
+                            value="available-tools"
+                            className="border-none"
+                          >
+                            <AccordionTrigger className="text-foreground px-0 pt-3 text-sm">
                               Available Tools
                               {loadingMcpTools[id] && (
                                 <Loader2 className="ml-2 h-3 w-3 animate-spin" />
                               )}
                             </AccordionTrigger>
-                            <AccordionContent className="px-0 pb-3 pt-1">
+                            <AccordionContent className="px-0 pt-1 pb-3">
                               {loadingMcpTools[id] ? (
-                                <div className="flex items-center text-muted-foreground text-sm py-2">
+                                <div className="text-muted-foreground flex items-center py-2 text-sm">
                                   <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                   Loading tools...
                                 </div>
@@ -603,25 +731,73 @@ export function McpSettingsTab({
                                   {mcpServerTools[id].map((tool) => (
                                     <div
                                       key={tool.name}
-                                      className="bg-secondary/80 rounded p-2"
+                                      className="bg-secondary/80 flex items-start justify-between rounded p-3"
                                     >
-                                      <div className="font-medium text-sm">
-                                        {tool.name}
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium">
+                                          {tool.name}
+                                        </div>
+                                        <div className="text-muted-foreground mt-1 text-xs">
+                                          {tool.description}
+                                        </div>
                                       </div>
-                                      <div className="text-muted-foreground text-xs mt-1">
-                                        {tool.description}
+                                      <div className="ml-4 flex items-center">
+                                        <Label
+                                          htmlFor={`tool-${id}-${tool.name}`}
+                                          className="text-foreground mr-2 text-xs"
+                                        >
+                                          {isToolEnabled(id, tool.name)
+                                            ? "Enabled"
+                                            : "Disabled"}
+                                        </Label>
+                                        <Switch
+                                          id={`tool-${id}-${tool.name}`}
+                                          checked={isToolEnabled(id, tool.name)}
+                                          onCheckedChange={(checked) =>
+                                            handleToolToggle(
+                                              id,
+                                              tool.name,
+                                              checked,
+                                            )
+                                          }
+                                          className="data-[state=unchecked]:bg-secondary/60 data-[state=checked]:bg-green-600"
+                                        />
                                       </div>
                                     </div>
                                   ))}
+                                  {/* Tool statistics section */}
+                                  <div className="text-muted-foreground pt-2 text-xs">
+                                    {(mcpServerTools[id] || []).length} tools
+                                    available,{" "}
+                                    {config?.disabledTools?.length || 0}{" "}
+                                    disabled
+                                    {config?.disabledTools &&
+                                      config.disabledTools.length > 0 && (
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          className="text-primary h-auto p-0 pl-2 font-normal"
+                                          onClick={() =>
+                                            onMcpConfigChange(
+                                              id,
+                                              "disabledTools",
+                                              [],
+                                            )
+                                          }
+                                        >
+                                          Enable All
+                                        </Button>
+                                      )}
+                                  </div>
                                 </div>
                               ) : (
-                                <div className="text-muted-foreground text-sm py-2">
+                                <div className="text-muted-foreground py-2 text-sm">
                                   No tools available or server not started.
                                   {config.enabled && (
                                     <Button
                                       variant="link"
                                       size="sm"
-                                      className="p-0 h-auto font-normal"
+                                      className="h-auto p-0 font-normal"
                                       onClick={() => onFetchMcpServerTools(id)}
                                     >
                                       Refresh
@@ -653,4 +829,4 @@ export function McpSettingsTab({
       </CardContent>
     </Card>
   );
-} 
+}

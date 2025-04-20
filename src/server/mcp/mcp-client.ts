@@ -88,7 +88,7 @@ export class MCPClient {
 
         try {
           this.transport = new StdioClientTransport(options);
-          this.client.connect(this.transport);
+          await this.client.connect(this.transport);
           console.log(
             `Connected to MCP server using command: ${this.serverCommand}`,
           );

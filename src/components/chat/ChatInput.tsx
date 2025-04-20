@@ -126,7 +126,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         fetchPreviousApp(); // Still update previous app when focused
       },
       getInput: () => {
-        return editorRef.current?.getHTML() || "";
+        return editorRef.current?.getText() || "";
       },
       setInput: (content: string) => {
         if (editorRef.current) {

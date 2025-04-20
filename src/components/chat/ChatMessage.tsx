@@ -45,7 +45,7 @@ const ChatMessage = memo(
 
     return (
       <motion.div
-        className="group/message drag-region flex w-full"
+        className="group/message no-drag-region flex w-full"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -54,7 +54,7 @@ const ChatMessage = memo(
           <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
             {/* Message content */}
             <div
-              className={`text-foreground overflow-hidden text-sm ${isUser ? "flex flex-col items-end" : ""} no-drag-region max-w-[80%]`}
+              className={`text-foreground overflow-hidden text-sm ${isUser ? "flex flex-col items-end" : ""} max-w-[80%]`}
             >
               <div
                 className={`${
@@ -104,7 +104,7 @@ const ChatMessage = memo(
               {/* Message action buttons - below the message */}
               {(message.content || message.parts) && !isEditing && (
                 <div
-                  className={`mt-2 flex ${isUser ? "justify-end" : "justify-start"}`}
+                  className={`control-layer mt-2 flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   <div
                     className={`flex items-center rounded-md shadow-md transition-opacity duration-200 ${

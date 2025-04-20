@@ -18,6 +18,12 @@ export interface MCPServerConfig {
   cwd?: string;
   env?: Record<string, string>;
 
+  // Tools configuration
+  enabledTools?: string[];
+  disabledTools?: string[];
+  builtInToolsList?: string[]; // List of all available built-in tools
+  autoEnableAllTools?: boolean; // Flag to automatically enable all discovered tools
+
   // Metadata
   name: string;
   description?: string;
@@ -35,6 +41,7 @@ export interface PredefinedMCPServer {
   defaultConfig: MCPServerConfig;
   logoUrl?: string;
   installInstructions?: string;
+  builtIn?: boolean;
 }
 
 /**

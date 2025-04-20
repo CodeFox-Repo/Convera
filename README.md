@@ -1,6 +1,15 @@
-# FoxChat
+# FoxyFox
 
-FoxChat is a lightweight chat application with convenient keyboard shortcuts for quick access.
+ FoxyFox is an all-in-one desktop chat application built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
+
+## Features
+
+- **Multi-Model Support**: Connect to various LLM services including OpenAI, local models, and custom endpoints
+- **Model Context Protocol (MCP)**: Standardized interface for AI services integration
+- **Modern UI**: Built with React, TailwindCSS, and Radix UI components
+- **Desktop Integration**: Global keyboard shortcuts, system tray, theme integration
+- **Tool Execution**: Support for web search, code execution, and more
+- **Internationalization**: Multi-language support via i18next
 
 ## Installation & Setup
 
@@ -11,11 +20,14 @@ yarn
 # Start the development server
 yarn start
 
-# Build the application
-yarn build
-
 # Package the application
 yarn package
+
+# Make distributable installers
+yarn make
+
+# Run chat server
+yarn chat-server
 ```
 
 ## Keyboard Shortcuts
@@ -44,58 +56,51 @@ Your shortcuts are saved automatically and will persist between application rest
 
 ## Model Context Protocol (MCP) Integration
 
-FoxChat will utilize the Model Context Protocol (MCP) for enhanced AI capabilities and integration with various services. We are implementing:
+ FoxyFox uses the Model Context Protocol (MCP) to provide a unified interface for interacting with various AI services. The MCP implementation includes:
 
-- [MCP Registry Client](https://github.com/mastra-ai/mastra/blob/main/explorations/mcp-registry-client/README.md) - For discovering, configuring, and managing MCP servers
-- [MCP Server Registry](https://github.com/orgs/modelcontextprotocol/discussions/159) - For standardized access to MCP servers and tooling
+- **MCP Client**: Communicates with MCP servers using the MCP SDK
+- **MCP Registry**: Manages and discovers available MCP servers
+- **Server Manager**: Handles server lifecycle and configuration
+- **Tool Execution**: Standardized interface for executing tools across different AI models
 
-These integrations will allow FoxChat to discover and use a wide variety of AI services through a standardized protocol, enhancing functionality without requiring custom implementation for each service.
+This integration allows FoxyFox to:
+- Connect to any MCP-compatible service
+- Switch seamlessly between different AI models
+- Use local models through standard protocols
+- Execute tools consistently across different models
 
-## 路线图
+## Architecture
 
-### 基础功能
-- [x] 多模型支持：连接不同的LLM服务
-- [x] 聊天界面与消息历史
-- [ ] 会话管理：分组、导出/导入
-- [ ] 上下文记忆：长期和短期记忆管理
-- [ ] 多模态支持：文本、图像、音频输入/输出
+ FoxyFox is built with the following technologies:
 
-### MCP核心功能
-- [x] 模型控制协议：AI服务的统一接口
-- [ ] 无缝模型切换：针对不同任务
-- [x] 支持通过MCP使用本地模型：无需直接集成Ollama、LM Studio等
+- **Electron**: For cross-platform desktop application
+- **React**: For UI components and state management
+- **TypeScript**: For type-safe code
+- **TailwindCSS**: For styling
+- **Radix UI**: For accessible UI components
+- **Vite**: For fast development and building
+- **Electron Forge**: For packaging and distribution
 
-### Agent系统
-- [ ] 工具框架：统一的工具定义和调用接口
-- [ ] 核心工具集：
-  - [ ] 文件操作
-  - [x] 网络搜索
-  - [x] 代码执行
-  - [ ] 系统操作
-- [ ] 工具权限控制和安全边界
+The application is organized into the following main directories:
+- `src/`: Source code
+  - `components/`: UI components
+  - `pages/`: Application pages
+  - `server/`: Server-side code, including MCP implementation
+  - `utils/`: Utility functions
+  - `hooks/`: React hooks
+  - `localization/`: Internationalization files
+- `mcps/`: MCP server implementations
 
-### 用户自定义Agent
-- [ ] 不同场景的Agent模板系统
-- [ ] 导入机制：
-  - [ ] JSON/YAML定义文件
-  - [ ] 自然语言描述转换
-  - [ ] 从示例对话中学习
-- [ ] 可视化编辑器：构建Agent逻辑
+## Contributing
 
-### 桌面集成
-- [x] 全局快捷键：快速访问
-- [x] 系统主题集成
-- [x] 系统托盘存在
-- [ ] 文件系统访问
-- [ ] 屏幕截图和OCR
-- [ ] 离线功能：基本对话和本地知识库查询
+We welcome contributions to FoxyFox! Please feel free to submit issues, feature requests, or pull requests.
 
-### 隐私与安全
-- [x] 本地数据存储：对话历史
-- [ ] 用户控制发送至模型的数据
-- [ ] 工具执行沙盒
-- [ ] 敏感数据的端到端加密
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m 'Add some feature'`
+4. Push to the branch: `git push origin feature/your-feature-name`
+5. Open a pull request
 
-## Getting Started
+## License
 
-[Installation and usage instructions here]
+This project is licensed under the MIT License - see the LICENSE file for details.
