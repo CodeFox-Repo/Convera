@@ -1,3 +1,8 @@
+
+<p align="center">
+  <img src="images/logo.png" alt="FoxyFox Logo" width="200"/>
+</p>
+
 # FoxyFox
 
  FoxyFox is an all-in-one desktop AI assistant built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
