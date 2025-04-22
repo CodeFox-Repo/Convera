@@ -531,7 +531,6 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       });
     }
 
-    // 获取服务器配置
     const serverConfig = manager.getServerConfig(id);
     const disabledTools = serverConfig?.disabledTools || [];
 
@@ -544,22 +543,24 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
             tools: config.builtInToolsList.map((name) => ({
               name,
               description: serverTools[name]?.description || `Tool: ${name}`,
-              enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+              enabled: !disabledTools.includes(name),
             })),
             serverId: id,
-            disabledTools, // 返回禁用的工具列表
+            disabledTools,
           });
         }
+        console.log("serverTools", serverTools);
         const allTools = Object.keys(serverTools).map((name) => ({
           name,
           description: serverTools[name]?.description || `Tool: ${name}`,
-          enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+          enabled: !disabledTools.includes(name),
         }));
+
         return res.json({
           status: "success",
           tools: allTools,
           serverId: id,
-          disabledTools, // 返回禁用的工具列表
+          disabledTools,
         });
       }
     }

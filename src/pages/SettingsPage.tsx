@@ -22,7 +22,6 @@ import { ToolSet } from "ai";
 import { AIModelTab } from "@/components/settings/AIModelTab";
 import { ShortcutsTab } from "@/components/settings/ShortcutsTab";
 import { MarketplaceTab } from "@/components/settings/MarketplaceTab";
-import { McpSettingsTab } from "@/components/settings/McpSettingsTab";
 import { AgentsTab } from "@/components/settings/AgentsTab";
 
 export interface AgentDefinition {
@@ -70,7 +69,7 @@ export default function SettingsPage() {
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
   >({});
-  const [activeTab, setActiveTab] = useState<string>("mcpsettings");
+  const [activeTab, setActiveTab] = useState<string>("general");
 
   useEffect(() => {
     setSettings(getSettings());
@@ -664,17 +663,6 @@ export default function SettingsPage() {
     onInstallMcpTool: handleInstallMcpTool,
   };
 
-  const mcpSettingsProps = {
-    loadingMcpConfigs,
-    mcpServerConfigs,
-    loadingMcpTools,
-    mcpServerTools,
-    activeTab,
-    onMcpConfigChange: handleMcpConfigChange,
-    onSaveMcpConfig: handleSaveMcpConfig,
-    onFetchMcpServerTools: fetchMcpServerTools,
-  };
-
   return (
     <div className="bg-background/20 relative h-full w-full overflow-y-auto p-10">
       <DragLayer height={10} className="-mx-4" />
@@ -707,68 +695,62 @@ export default function SettingsPage() {
         Settings
       </h1>
 
-      <Tabs defaultValue="aimodel" onValueChange={setActiveTab}>
-        <TabsList className="bg-secondary/80 relative mb-4 grid w-full grid-cols-2 rounded-lg p-1 md:grid-cols-5">
+      <Tabs defaultValue="general" onValueChange={setActiveTab}>
+        <TabsList className="bg-secondary/80 relative mb-4 flex w-full rounded-lg p-1">
           <TabsTrigger
-            value="aimodel"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
+            value="general"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
           >
-            AI Model
-          </TabsTrigger>
-          <TabsTrigger
-            value="shortcuts"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            Shortcuts
+            General
           </TabsTrigger>
           <TabsTrigger
             value="mcpmarket"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
           >
-            Market
-          </TabsTrigger>
-          <TabsTrigger
-            value="mcpsettings"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            Settings
+            MCP Market
           </TabsTrigger>
           <TabsTrigger
             value="agents"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
           >
             Agents
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="aimodel">
-          <AIModelTab
-            settings={settings}
-            onOpenAIChange={handleOpenAIChange}
-            onAddSupportedModel={handleAddSupportedModel}
-            onRemoveSupportedModel={handleRemoveSupportedModel}
-          />
-        </TabsContent>
+        <TabsContent value="general">
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-foreground mb-4 text-xl font-medium">
+                AI Model
+              </h2>
+              <AIModelTab
+                settings={settings}
+                onOpenAIChange={handleOpenAIChange}
+                onAddSupportedModel={handleAddSupportedModel}
+                onRemoveSupportedModel={handleRemoveSupportedModel}
+              />
+            </div>
 
-        <TabsContent value="shortcuts">
-          <ShortcutsTab
-            settings={settings}
-            activeShortcut={activeShortcut}
-            recordingShortcut={recordingShortcut}
-            shortcutInputRef={
-              shortcutInputRef as React.RefObject<HTMLButtonElement>
-            }
-            onStartRecording={startRecording}
-            onResetShortcuts={handleResetShortcuts}
-          />
+            <div>
+              <h2 className="text-foreground mb-4 text-xl font-medium">
+                Shortcuts
+              </h2>
+              <ShortcutsTab
+                settings={settings}
+                activeShortcut={activeShortcut}
+                recordingShortcut={recordingShortcut}
+                shortcutInputRef={
+                  shortcutInputRef as React.RefObject<HTMLButtonElement>
+                }
+                onStartRecording={startRecording}
+                onResetShortcuts={handleResetShortcuts}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="mcpmarket">
           <MarketplaceTab {...marketplaceProps} />
-        </TabsContent>
-
-        <TabsContent value="mcpsettings">
-          <McpSettingsTab {...mcpSettingsProps} />
         </TabsContent>
 
         <TabsContent value="agents">
