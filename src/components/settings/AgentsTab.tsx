@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -105,34 +106,16 @@ export function AgentsTab() {
       const res = await fetch(
         `http://localhost:38000/api/mcp/servers/${id}/tools`,
       );
+      console.log("Fetching tools for MCP server:", id);
       if (!res.ok)
         throw new Error(`Failed to fetch tools for MCP server ${id}`);
       const data = await res.json();
       const tools = data.tools || [];
 
-      // 输出完整的工具数据结构
-      console.log(
-        `Complete tools data for MCP ${id}:`,
-        JSON.stringify(tools, null, 2),
-      );
-
-      // 深入检查每个工具对象的结构
-      tools.forEach((tool: any, index: number) => {
-        console.log(`Tool ${index}: ${tool.name}`, tool);
-        if (tool.parameters && tool.parameters.properties) {
-          Object.keys(tool.parameters.properties).forEach((propKey) => {
-            console.log(
-              `- Property ${propKey}:`,
-              tool.parameters.properties[propKey],
-            );
-          });
-        }
-      });
-
       // 检查工具数据结构并确保description字段正确处理
-      const processedTools = tools.map((tool: any) => {
+      const processedTools = tools.map((tool: ToolDefinition) => {
         // 检查description的位置和类型
-        let description = null;
+        let description: string | undefined;
 
         // 直接检查顶层description
         if (tool.description && typeof tool.description === "string") {
@@ -165,6 +148,7 @@ export function AgentsTab() {
                 // 检查parameters中的每个属性
                 if (!description && tool.parameters?.properties) {
                   Object.values(tool.parameters.properties).forEach(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (prop: any) => {
                       if (
                         !description &&
@@ -403,28 +387,6 @@ export function AgentsTab() {
                     }
                     placeholder="Enter the agent's role, tone, workflow, tool preferences, and any rules or guidelines. (Optional)"
                   />
-                  <button
-                    className="text-muted-foreground hover:text-foreground absolute right-2 bottom-2"
-                    title="Expand"
-                    onClick={() => {
-                      /* Expand functionality */
-                    }}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M15 3h6v6"></path>
-                      <path d="M10 14L21 3"></path>
-                      <path d="M19 10v11H3V5h11"></path>
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
@@ -470,17 +432,16 @@ export function AgentsTab() {
                             type="single"
                             collapsible
                             className="w-full"
+                            defaultValue={id}
                           >
                             <AccordionItem value={id} className="border-0">
                               <div className="flex items-center gap-2">
                                 <div className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                                  <input
-                                    type="checkbox"
+                                  <Checkbox
                                     id={`mcp-checkbox-${id}`}
-                                    className="border-border bg-background text-primary h-4 w-4 rounded"
                                     checked={config.enabled}
-                                    onChange={(e) =>
-                                      handleMcpToggle(id, e.target.checked)
+                                    onCheckedChange={(checked) =>
+                                      handleMcpToggle(id, checked === true)
                                     }
                                   />
                                 </div>
@@ -492,20 +453,24 @@ export function AgentsTab() {
                                 >
                                   {config.name || id}
                                 </span>
-                                <AccordionTrigger className="ml-auto px-0 py-0 hover:no-underline">
+
+                                <AccordionTrigger
+                                  className="px-0 py-0 hover:no-underline"
+                                  style={{ transform: "scaleY(-1)" }}
+                                >
                                   <span className="sr-only">
                                     Toggle details
                                   </span>
                                 </AccordionTrigger>
+
+                                {config.description && (
+                                  <span className="text-muted-foreground mr-2 ml-auto max-w-[40%] truncate text-xs">
+                                    {config.description}
+                                  </span>
+                                )}
                               </div>
 
                               <AccordionContent className="pt-2 pb-2 pl-6">
-                                {config.description && (
-                                  <p className="text-muted-foreground mb-3 pl-0 text-xs">
-                                    {config.description}
-                                  </p>
-                                )}
-
                                 {!config.enabled ? (
                                   <p className="text-muted-foreground pl-0 text-xs">
                                     Enable this MCP server to access its tools
@@ -535,37 +500,27 @@ export function AgentsTab() {
                                 ) : (
                                   <div className="space-y-2 py-1">
                                     {(() => {
-                                      console.log(
-                                        `MCP Server ID: ${id}, isVSCode:`,
-                                        id.toLowerCase().includes("vscode"),
-                                      );
                                       return mcpServerTools[id].map((tool) => {
-                                        console.log(
-                                          `Rendering tool ${tool.name} with description:`,
-                                          tool.description,
-                                        );
                                         return (
                                           <div
                                             key={tool.name}
-                                            className="hover:bg-secondary/10 flex items-center justify-between rounded px-1 py-2"
+                                            className="hover:bg-secondary/10 flex flex-col rounded px-1 py-2"
                                           >
-                                            <div className="flex flex-1 items-center">
+                                            <div className="flex w-full items-center">
                                               <div className="mr-2 inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                                                <input
-                                                  type="checkbox"
+                                                <Checkbox
                                                   id={`tool-${id}-${tool.name}`}
-                                                  className="border-border bg-background text-primary h-4 w-4 rounded"
                                                   checked={
                                                     selectedToolNames[
                                                       id
                                                     ]?.includes(tool.name) ||
                                                     false
                                                   }
-                                                  onChange={(e) =>
+                                                  onCheckedChange={(checked) =>
                                                     handleToolSelection(
                                                       id,
                                                       tool.name,
-                                                      e.target.checked,
+                                                      checked === true,
                                                     )
                                                   }
                                                 />
@@ -575,7 +530,7 @@ export function AgentsTab() {
                                               </span>
                                             </div>
                                             <div
-                                              className="ml-4 max-w-[60%] flex-1"
+                                              className="mt-1 w-full pl-6"
                                               style={{
                                                 opacity: 1,
                                                 visibility: "visible",
@@ -584,22 +539,19 @@ export function AgentsTab() {
                                               <span
                                                 className={`text-muted-foreground text-xs`}
                                                 style={{
-                                                  display: "block",
                                                   padding: "2px 4px",
-                                                  color: id
-                                                    .toLowerCase()
-                                                    .includes("vscode")
-                                                    ? "rgba(180,180,180,0.9)"
-                                                    : "var(--muted-foreground)",
-                                                  textAlign: "right",
-                                                  whiteSpace: "nowrap",
+                                                  color:
+                                                    "var(--muted-foreground)",
+                                                  whiteSpace: "normal",
                                                   overflow: "hidden",
                                                   textOverflow: "ellipsis",
-                                                  background: id
-                                                    .toLowerCase()
-                                                    .includes("vscode")
-                                                    ? "rgba(255,255,255,0.05)"
-                                                    : "transparent",
+                                                  maxHeight: "3rem",
+                                                  lineHeight: "1.2",
+                                                  WebkitLineClamp: 2,
+                                                  display: "-webkit-box",
+                                                  WebkitBoxOrient: "vertical",
+                                                  background: "transparent",
+                                                  borderRadius: "4px",
                                                 }}
                                               >
                                                 {typeof tool.description ===

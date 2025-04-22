@@ -418,6 +418,83 @@ router.get("/api/agents", (req: Request, res: Response) => {
   }
 });
 
+// Manual MCP configuration installation endpoint
+router.post(
+  "/api/mcp/configurations/manual",
+  async (req: Request, res: Response) => {
+    try {
+      const configData = req.body;
+
+      // Validate the configuration structure
+      if (
+        !configData ||
+        !configData.mcpServers ||
+        typeof configData.mcpServers !== "object"
+      ) {
+        return res.status(400).json({
+          status: "error",
+          message: "Invalid configuration format. Expected {mcpServers: {...}}",
+        });
+      }
+
+      const manager = getMCPManager();
+
+      // Process each server in the configuration
+      const serverIds = Object.keys(configData.mcpServers);
+      if (serverIds.length === 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "No MCP servers found in configuration",
+        });
+      }
+
+      // Register each server with the manager
+      for (const id of serverIds) {
+        const serverConfig = configData.mcpServers[id];
+        console.log(
+          `Registering MCP server from manual config: ${id}`,
+          serverConfig,
+        );
+
+        try {
+          // Check if server already exists
+          if (manager.getServerConfig(id)) {
+            // Update existing server config
+            manager.updateServerConfig(id, serverConfig);
+            console.log(`Updated existing MCP server configuration: ${id}`);
+          } else {
+            // Register new server
+            manager.registerServer(id, serverConfig);
+            console.log(`Registered new MCP server: ${id}`);
+          }
+
+          // If the server is configured to be enabled, start it automatically
+          if (serverConfig.enabled) {
+            console.log(`Auto-starting manually configured MCP server: ${id}`);
+            manager.startServer(id).catch((err) => {
+              console.error(`Error auto-starting MCP server ${id}:`, err);
+            });
+          }
+        } catch (err) {
+          console.error(`Error registering MCP server ${id}:`, err);
+          // Continue with other servers even if one fails
+        }
+      }
+
+      res.json({
+        status: "success",
+        message: `Manually configured ${serverIds.length} MCP server(s)`,
+        serverIds,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("Error installing manual MCP configuration:", errorMessage);
+      res.status(500).json({ status: "error", message: errorMessage });
+    }
+  },
+);
+
 // Add endpoint for getting specific agent details
 router.get("/api/agents/:agentId", (req: Request, res: Response) => {
   try {

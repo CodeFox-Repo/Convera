@@ -1088,7 +1088,23 @@
   dependencies:
     cross-spawn "^7.0.1"
 
-"@modelcontextprotocol/sdk@^1.5.0", "@modelcontextprotocol/sdk@^1.9.0":
+"@modelcontextprotocol/sdk@1.10.2":
+  version "1.10.2"
+  resolved "https://registry.yarnpkg.com/@modelcontextprotocol/sdk/-/sdk-1.10.2.tgz#50cdfbf0b6fbea23420388a7b00e64c13adabac8"
+  integrity sha512-rb6AMp2DR4SN+kc6L1ta2NCpApyA9WYNx3CrTSZvGxq9wH71bRur+zRqPfg0vQ9mjywR7qZdX2RGHOPq3ss+tA==
+  dependencies:
+    content-type "^1.0.5"
+    cors "^2.8.5"
+    cross-spawn "^7.0.3"
+    eventsource "^3.0.2"
+    express "^5.0.1"
+    express-rate-limit "^7.5.0"
+    pkce-challenge "^5.0.0"
+    raw-body "^3.0.0"
+    zod "^3.23.8"
+    zod-to-json-schema "^3.24.1"
+
+"@modelcontextprotocol/sdk@^1.5.0":
   version "1.9.0"
   resolved "https://registry.yarnpkg.com/@modelcontextprotocol/sdk/-/sdk-1.9.0.tgz#1bf7a4843870b81da26983b8e69bf398d87055f1"
   integrity sha512-Jq2EUCQpe0iyO5FGpzVYDNFR6oR53AIrwph9yWl7uSc7IWUMsrmpmSaTGra5hQNunXpM+9oit85p924jWuHzUA==

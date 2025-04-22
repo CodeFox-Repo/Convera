@@ -380,6 +380,52 @@ export default function SettingsPage() {
     }
   };
 
+  // Handle manual installation of MCP config
+  const handleManualInstallMcp = async (configJson: string) => {
+    try {
+      // Parse and validate the config JSON
+      let config;
+      try {
+        config = JSON.parse(configJson);
+      } catch (e) {
+        toast.error("Invalid JSON format");
+        throw new Error("Invalid JSON format");
+      }
+
+      // Check if the config has the expected structure
+      if (!config.mcpServers || typeof config.mcpServers !== "object") {
+        toast.error("Invalid configuration: missing 'mcpServers' object");
+        throw new Error("Invalid configuration structure");
+      }
+
+      // Submit the config to the backend
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/configurations/manual",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to install MCP configuration",
+        );
+      }
+
+      toast.success("MCP configuration installed successfully");
+      fetchMcpConfigurations(); // Refresh configurations
+    } catch (error) {
+      console.error("Error installing manual MCP configuration:", error);
+      toast.error(
+        `Failed to install configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      throw error;
+    }
+  };
+
   // Fetch tools for a specific MCP server
   const fetchMcpServerTools = async (
     serverId: string,
@@ -661,6 +707,7 @@ export default function SettingsPage() {
     installingTools,
     onInstallPredefinedServer: handleInstallPredefinedServer,
     onInstallMcpTool: handleInstallMcpTool,
+    onManualInstallMcp: handleManualInstallMcp,
   };
 
   return (

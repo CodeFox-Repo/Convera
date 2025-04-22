@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,9 +9,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Github } from "lucide-react";
+import { Loader2, Github, Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { McpMarketplaceItem, PredefinedMCPServer } from "@/types/settings";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 type MarketplaceTabProps = {
   mcpMarketItems: McpMarketplaceItem[];
@@ -21,6 +29,7 @@ type MarketplaceTabProps = {
   loadingPredefinedServers: boolean;
   onInstallMcpTool: (tool: McpMarketplaceItem) => void;
   onInstallPredefinedServer: (serverId: string) => void;
+  onManualInstallMcp?: (configJson: string) => Promise<void>;
 };
 
 export function MarketplaceTab({
@@ -31,14 +40,48 @@ export function MarketplaceTab({
   loadingPredefinedServers,
   onInstallMcpTool,
   onInstallPredefinedServer,
+  onManualInstallMcp,
 }: MarketplaceTabProps) {
+  const [showManualConfigDialog, setShowManualConfigDialog] = useState(false);
+  const [manualConfig, setManualConfig] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmitManualConfig = async () => {
+    if (!manualConfig.trim() || !onManualInstallMcp) return;
+
+    setIsSubmitting(true);
+    try {
+      await onManualInstallMcp(manualConfig);
+      setShowManualConfigDialog(false);
+      setManualConfig("");
+    } catch (error) {
+      console.error("Error submitting manual config:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Card className="bg-card text-foreground border-none">
       <CardHeader>
-        <CardTitle>MCP Marketplace</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Browse and install MCP tools and servers for enhanced functionality
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>MCP Marketplace</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Browse and install MCP tools and servers for enhanced
+              functionality
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManualConfigDialog(true)}
+            className="flex items-center gap-1"
+          >
+            <Plus className="h-4 w-4" />
+            Manual Install
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Predefined MCP Servers Section */}
@@ -65,7 +108,7 @@ export function MarketplaceTab({
                         {server.isInstalled && (
                           <Badge
                             variant="outline"
-                            className="bg-green-600/10 text-green-600 border-green-600/20"
+                            className="border-green-600/20 bg-green-600/10 text-green-600"
                           >
                             Installed
                           </Badge>
@@ -88,7 +131,7 @@ export function MarketplaceTab({
                         {server.description}
                       </p>
                       {server.installInstructions && (
-                        <div className="mt-2 text-xs text-muted-foreground">
+                        <div className="text-muted-foreground mt-2 text-xs">
                           <p className="font-semibold">Installation Notes:</p>
                           <p>{server.installInstructions}</p>
                         </div>
@@ -200,6 +243,64 @@ export function MarketplaceTab({
           </div>
         </div>
       </CardContent>
+
+      {/* Manual Config Dialog */}
+      <Dialog
+        open={showManualConfigDialog}
+        onOpenChange={setShowManualConfigDialog}
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Configure Manually</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Please copy the configuration JSON from the MCP server's
+              introduction page (preferably use NPX or UVX configuration) and
+              paste it into the input field.
+            </p>
+            <div className="relative">
+              <textarea
+                value={manualConfig}
+                onChange={(e) => setManualConfig(e.target.value)}
+                className="bg-secondary/50 h-[300px] w-full rounded-md border p-4 font-mono text-xs"
+                placeholder={`// Example:
+// {
+//   "mcpServers": {
+//     "example-server": {
+//       "command": "npx",
+//       "args": [
+//         "-y",
+//         "mcp-server-example"
+//       ]
+//     }
+//   }
+// }`}
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={handleSubmitManualConfig}
+              disabled={!manualConfig.trim() || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
-} 
+}
