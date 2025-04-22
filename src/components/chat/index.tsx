@@ -721,13 +721,13 @@ export default function Chat() {
     let messageText = editorText;
     
     if (copiedContent) {
-      // Add copied content to the message
+      // Add copied content to the message wrapped in markdown to distinguish it
       if (messageText) {
-        // If there's already text in the editor, add the copied content after it
-        messageText = `${copiedContent}\n\n${messageText}`;
+        // If there's already text in the editor, add the wrapped copied content before it
+        messageText = `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`;
       } else {
-        // If editor is empty, just use the copied content
-        messageText = copiedContent;
+        // If editor is empty, just use the wrapped copied content
+        messageText = `<copied>\n${copiedContent}\n</copied>`;
       }
       console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
     }
