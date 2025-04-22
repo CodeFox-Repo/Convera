@@ -1,4 +1,4 @@
-import { BrowserWindow, nativeTheme } from "electron";
+import { BrowserWindow, nativeTheme, clipboard } from "electron";
 import { resizeWindowAndMaintainPosition } from "../windows/window-position";
 import { CHANNELS } from "./channels";
 
@@ -257,4 +257,20 @@ export function modelSelected(
     }
     `,
   );
+}
+
+// ========== CLIPBOARD HANDLERS ==========
+
+export function getClipboardText(): string {
+  return clipboard.readText();
+}
+
+export function setInputText(
+  mainWindow: BrowserWindow | null,
+  text: string,
+): void {
+  if (mainWindow) {
+    // Send the text to the renderer to set as input
+    mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_TEXT, text);
+  }
 }

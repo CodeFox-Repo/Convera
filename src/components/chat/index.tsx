@@ -442,6 +442,26 @@ export default function Chat() {
     };
   }, [selectedModelId]);
 
+  // Listen for input text events from the main process
+  useEffect(() => {
+    // Setup listener for setting input text from clipboard
+    if (window.electronAPI?.onSetInputText) {
+      console.log('Setting up input text listener');
+      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
+        console.log('Received text from clipboard:', text.substring(0, 20) + (text.length > 20 ? '...' : ''));
+        if (chatInputRef.current) {
+          chatInputRef.current.setInput(text);
+        } else {
+          console.error('chatInputRef is not available');
+          // Use the adapter function that's already defined for handling input changes
+          handleInputChangeAdapter(text);
+        }
+      });
+      
+      return unsubscribe;
+    }
+  }, []);
+
   const handleRegenerateWithNewAgent = () => {
     console.log(
       `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,

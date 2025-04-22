@@ -5,6 +5,8 @@ export interface IPCServer {
   initGlobalShortcut(shortcut: string): boolean;
 
   getPreviousApp(): string;
+  getClipboardText(): string;
+  setInputText(text: string): void;
 
   getCurrentTheme(): string;
   toggleTheme(): string;
@@ -48,6 +50,10 @@ export const CHANNELS = {
     GET_PREVIOUS: "app:get-previous",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
+    SET_INPUT_TEXT: "app:set-input-text",
+  },
+  CLIPBOARD: {
+    GET_TEXT: "clipboard:get-text",
   },
   THEME: {
     GET_CURRENT: "theme:get-current",
@@ -81,6 +87,8 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
+  setInputText: CHANNELS.APP.SET_INPUT_TEXT,
   // Theme
   getCurrentTheme: CHANNELS.THEME.GET_CURRENT,
   toggleTheme: CHANNELS.THEME.TOGGLE,

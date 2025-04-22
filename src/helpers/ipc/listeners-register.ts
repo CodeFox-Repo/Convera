@@ -20,6 +20,7 @@ import {
   getCurrentWindowPosition,
   toggleModelSelector,
   modelSelected,
+  getClipboardText,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 
@@ -27,6 +28,7 @@ import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 interface ElectronAPI extends IPCServer {
   onFocusChatInput: (callback: () => void) => () => void;
   onAppChanged: (callback: (appName: string) => void) => () => void;
+  onSetInputText: (callback: (text: string) => void) => () => void;
 }
 
 export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
@@ -53,6 +55,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.APP_CHANGED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.APP_CHANGED, handler);
+    };
+  };
+
+  api.onSetInputText = (callback: (text: string) => void) => {
+    const handler = (_: any, text: string) => callback(text);
+    ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
     };
   };
 
@@ -224,6 +234,12 @@ export default function registerListeners(
     // Forward the selected model to the main window
     modelSelected(mainWindow, modelId);
     return true;
+  });
+
+  // Clipboard handlers
+  ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
+    console.log("Handling CLIPBOARD.GET_TEXT");
+    return getClipboardText();
   });
 
   console.log("All IPC listeners registered successfully.");
