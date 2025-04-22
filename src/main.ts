@@ -6,6 +6,7 @@ import {
   getCurrentShortcut,
   getPreviousApp,
   setPreviousApp,
+  setInputText,
 } from "./helpers/ipc/ipc-handlers";
 import path from "path";
 import { exec } from "child_process";
@@ -18,8 +19,8 @@ import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
 import { CHANNELS } from "./helpers/ipc/channels";
 import "./global.css";
-
-let lastVisibleBounds: Electron.Rectangle | null = null;
+import { clipboard } from "electron";
+const robot = require("robotjs");
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -191,6 +192,35 @@ function startAppFocusTracking() {
   }, 200);
 }
 
+/**
+ * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
+ * @returns Promise that resolves when the copy operation is complete
+ */
+function simulateClipboardCopy(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log("Using RobotJS to simulate copy command");
+
+      if (process.platform === "darwin") {
+        // For macOS, use Command+C
+        robot.keyTap("c", "command");
+      } else {
+        // For Windows/Linux, use Control+C
+        robot.keyTap("c", "control");
+      }
+
+      // Add a delay to ensure clipboard has been updated
+      setTimeout(() => {
+        resolve();
+      }, 100); // Slightly longer delay to ensure clipboard has been updated
+    } catch (error) {
+      console.error("Error simulating copy command with RobotJS:", error);
+      // Even if it fails, we'll resolve to allow the app to continue
+      setTimeout(resolve, 50);
+    }
+  });
+}
+
 function registerGlobalShortcuts() {
   // Unregister any existing shortcuts first
   globalShortcut.unregisterAll();
@@ -200,7 +230,7 @@ function registerGlobalShortcuts() {
     `Attempting to register global shortcut: ${currentActivateShortcut}`,
   );
   try {
-    const ret = globalShortcut.register(currentActivateShortcut, () => {
+    const ret = globalShortcut.register(currentActivateShortcut, async () => {
       console.log(`${currentActivateShortcut} pressed globally`);
 
       // Get the previous app but don't use it for auto-switching
@@ -210,8 +240,32 @@ function registerGlobalShortcuts() {
         // No auto-focus back to previous app - intentionally disabled
       }
 
-      // Toggle visibility based on window state
-      toggleMainWindowVisibility();
+      try {
+        // First simulate a copy command to get selected text
+        await simulateClipboardCopy();
+
+        // Now read from clipboard
+        const selectedText = clipboard.readText();
+        console.log(
+          `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
+        );
+
+        // Toggle visibility based on window state
+        toggleMainWindowVisibility();
+
+        // If there's selected text and the main window is now visible, set it as input
+        if (selectedText && mainWindow && mainWindow.isVisible()) {
+          setTimeout(() => {
+            console.log("Setting input text with selected text from clipboard");
+            setInputText(mainWindow, selectedText);
+          }, 100); // Small delay to ensure window is ready
+        }
+      } catch (error) {
+        console.error("Error in clipboard workflow:", error);
+
+        // Even if copy fails, still toggle window
+        toggleMainWindowVisibility();
+      }
     });
 
     if (!ret) {
@@ -598,56 +652,25 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-let isHiddenOffscreen = false;
-
-export function toggleMainWindowVisibility() {
+// 切换主窗口的可见性
+function toggleMainWindowVisibility() {
   if (!mainWindow) {
     createMainWindow();
     return;
   }
 
-  // Toggle the main window’s visibility by moving it offscreen instead of hiding
-  if (!isHiddenOffscreen) {
-    // === Pseudo-hide ===
-    // 1) Save current window bounds
-    lastVisibleBounds = mainWindow.getBounds();
-
-    // 2) Ignore mouse events so clicks pass through to the app underneath
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-    // 3) Make the window fully transparent
-    mainWindow.setOpacity(0);
-
-    // 4) Move the window off the visible screen
-    mainWindow.setBounds({
-      x: -9999,
-      y: -9999,
-      width: lastVisibleBounds.width,
-      height: lastVisibleBounds.height,
-    });
-
-    isHiddenOffscreen = true;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
   } else {
-    // === Restore display ===
-
-    // 1) Restore the saved bounds, or center if no bounds were saved
-    if (lastVisibleBounds) {
-      mainWindow.setBounds(lastVisibleBounds);
-    } else {
-      positionWindowAtCenterBottom(mainWindow);
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
     }
 
-    // 2) Re-enable mouse events so the window can receive input again
-    mainWindow.setIgnoreMouseEvents(false);
+    positionWindowAtCenterBottom(mainWindow);
 
-    // 3) Make the window opaque again
-    mainWindow.setOpacity(1);
-
-    // 4) Show and focus the window, then send focus event to the chat input
     mainWindow.show();
     mainWindow.focus();
-    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
 
-    isHiddenOffscreen = false;
+    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
   }
 }
