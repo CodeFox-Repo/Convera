@@ -250,11 +250,14 @@ function registerGlobalShortcuts() {
           `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
         );
 
+        clipboard.writeText("");
+        console.log("Cleared clipboard data for privacy");
+
         // Toggle visibility based on window state
         toggleMainWindowVisibility();
 
         // If there's selected text and the main window is now visible, set it as input
-        if (selectedText && mainWindow && mainWindow.isVisible()) {
+        if (mainWindow && mainWindow.isVisible()) {
           setTimeout(() => {
             console.log("Setting input text with selected text from clipboard");
             setInputText(mainWindow, selectedText);
