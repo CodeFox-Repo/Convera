@@ -91,7 +91,6 @@ export default function SettingsPage() {
   const fetchAllMcpServers = async () => {
     setLoadingMcpServers(true);
     try {
-      // 并行获取预定义和已安装服务器
       const [predefinedResponse, installedResponse] = await Promise.all([
         fetch("http://localhost:38000/api/mcp/predefined-servers"),
         fetch("http://localhost:38000/api/mcp/installed-servers"),
@@ -104,7 +103,6 @@ export default function SettingsPage() {
       const predefinedData = await predefinedResponse.json();
       const installedData = await installedResponse.json();
 
-      // 合并数据并确保没有重复
       if (
         predefinedData.status === "success" &&
         installedData.status === "success"
@@ -112,13 +110,10 @@ export default function SettingsPage() {
         const predefinedServers = predefinedData.servers || [];
         const installedServers = installedData.servers || [];
 
-        // 合并服务器列表，确保不重复
         const mergedServers: MCPServer[] = [];
 
-        // 添加已安装的服务器
         mergedServers.push(...installedServers);
 
-        // 添加未安装的预定义服务器
         predefinedServers.forEach((server: MCPServer) => {
           if (!server.isInstalled) {
             mergedServers.push(server);
@@ -772,12 +767,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="bg-background/20 relative h-full w-full overflow-y-auto p-10">
-      <DragLayer height={10} className="-mx-4" />
-
-      <div className="box sticky top-0 z-50 -mx-4 flex items-center justify-between bg-transparent px-4 py-2">
+    <div className="bg-background/20 relative h-full w-full overflow-y-auto px-10 pb-5">
+      <div className="box drag-region sticky top-5 z-50 -mx-4 flex items-center justify-between">
         <div
-          className="hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
           onClick={handleCloseSettings}
           role="button"
           aria-label="Close settings"
@@ -786,7 +779,7 @@ export default function SettingsPage() {
         </div>
 
         <div
-          className="hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
           onClick={handleToggleTheme}
           role="button"
           aria-label="Toggle theme"
