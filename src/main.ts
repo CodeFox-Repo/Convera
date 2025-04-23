@@ -19,8 +19,12 @@ import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
 import { CHANNELS } from "./helpers/ipc/channels";
 import "./global.css";
+
+let lastVisibleBounds: Electron.Rectangle | null = null;
+
 import { clipboard } from "electron";
 const robot = require("robotjs");
+
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -36,6 +40,34 @@ let agentPopoverWindow: BrowserWindow | null = null;
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
+/**
+ * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
+ * @returns Promise that resolves when the copy operation is complete
+ */
+function simulateClipboardCopy(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log("Using RobotJS to simulate copy command");
+
+      if (process.platform === "darwin") {
+        // For macOS, use Command+C
+        robot.keyTap("c", "command");
+      } else {
+        // For Windows/Linux, use Control+C
+        robot.keyTap("c", "control");
+      }
+
+      // Add a delay to ensure clipboard has been updated
+      setTimeout(() => {
+        resolve();
+      }, 100); // Slightly longer delay to ensure clipboard has been updated
+    } catch (error) {
+      console.error("Error simulating copy command with RobotJS:", error);
+      // Even if it fails, we'll resolve to allow the app to continue
+      setTimeout(resolve, 50);
+    }
+  });
+}
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
   if (agentPopoverWindow) return agentPopoverWindow;
@@ -192,35 +224,6 @@ function startAppFocusTracking() {
   }, 200);
 }
 
-/**
- * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
- * @returns Promise that resolves when the copy operation is complete
- */
-function simulateClipboardCopy(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      console.log("Using RobotJS to simulate copy command");
-
-      if (process.platform === "darwin") {
-        // For macOS, use Command+C
-        robot.keyTap("c", "command");
-      } else {
-        // For Windows/Linux, use Control+C
-        robot.keyTap("c", "control");
-      }
-
-      // Add a delay to ensure clipboard has been updated
-      setTimeout(() => {
-        resolve();
-      }, 100); // Slightly longer delay to ensure clipboard has been updated
-    } catch (error) {
-      console.error("Error simulating copy command with RobotJS:", error);
-      // Even if it fails, we'll resolve to allow the app to continue
-      setTimeout(resolve, 50);
-    }
-  });
-}
-
 function registerGlobalShortcuts() {
   // Unregister any existing shortcuts first
   globalShortcut.unregisterAll();
@@ -240,34 +243,23 @@ function registerGlobalShortcuts() {
         // No auto-focus back to previous app - intentionally disabled
       }
 
-      try {
-        // First simulate a copy command to get selected text
-        await simulateClipboardCopy();
+      await simulateClipboardCopy();
 
-        // Now read from clipboard
-        const selectedText = clipboard.readText();
-        console.log(
-          `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
-        );
+      // Now read from clipboard
+      const selectedText = clipboard.readText();
+      console.log(
+        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
+      );
 
-        clipboard.writeText("");
-        console.log("Cleared clipboard data for privacy");
+      // Toggle visibility based on window state
+      toggleMainWindowVisibility();
 
-        // Toggle visibility based on window state
-        toggleMainWindowVisibility();
-
-        // If there's selected text and the main window is now visible, set it as input
-        if (mainWindow && mainWindow.isVisible()) {
-          setTimeout(() => {
-            console.log("Setting input text with selected text from clipboard");
-            setInputText(mainWindow, selectedText);
-          }, 100); // Small delay to ensure window is ready
-        }
-      } catch (error) {
-        console.error("Error in clipboard workflow:", error);
-
-        // Even if copy fails, still toggle window
-        toggleMainWindowVisibility();
+      // If there's selected text and the main window is now visible, set it as input
+      if (selectedText && mainWindow && mainWindow.isVisible()) {
+        setTimeout(() => {
+          console.log("Setting input text with selected text from clipboard");
+          setInputText(mainWindow, selectedText);
+        }, 100); // Small delay to ensure window is ready
       }
     });
 
@@ -655,8 +647,9 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-// 切换主窗口的可见性
-function toggleMainWindowVisibility() {
+let isHiddenOffscreen = false;
+
+export function toggleMainWindowVisibility() {
   if (!mainWindow) {
     createMainWindow();
     return;
@@ -685,15 +678,26 @@ function toggleMainWindowVisibility() {
 
     isHiddenOffscreen = true;
   } else {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
+    // === Restore display ===
+
+    // 1) Restore the saved bounds, or center if no bounds were saved
+    if (lastVisibleBounds) {
+      mainWindow.setBounds(lastVisibleBounds);
+    } else {
+      positionWindowAtCenterBottom(mainWindow);
     }
 
-    positionWindowAtCenterBottom(mainWindow);
+    // 2) Re-enable mouse events so the window can receive input again
+    mainWindow.setIgnoreMouseEvents(false);
 
+    // 3) Make the window opaque again
+    mainWindow.setOpacity(1);
+
+    // 4) Show and focus the window, then send focus event to the chat input
     mainWindow.show();
     mainWindow.focus();
-
     mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
+
+    isHiddenOffscreen = false;
   }
 }
