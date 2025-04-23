@@ -176,53 +176,51 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
 
   return (
     <div
-      className="drag-region flex h-full w-full flex-col overflow-hidden"
+      className="no-drag-region bg flex h-full w-full flex-col"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Control buttons with animations */}
-      <AnimatePresence>
-        {showControls && (
-          <motion.div
-            className="control-buttons control-layer absolute top-4 z-50 flex w-full justify-between px-4"
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.button
-              onClick={onExit}
-              className="exit-button text-foreground/70 hover:text-foreground rounded-md p-1"
-              aria-label="Exit"
-              onMouseEnter={onMouseEnter}
-              variants={buttonVariants}
-              initial="visible"
-              whileHover="hover"
-              whileTap="tap"
+      <div className="drag-region pointer-events-auto relative z-[100] h-12 w-full">
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              className="no-drag-region absolute inset-x-0 top-5 flex justify-between px-4"
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+              transition={{ duration: 0.2 }}
             >
-              <X size={22} />
-            </motion.button>
-            <motion.button
-              onClick={onNewHistory}
-              className="new-history-button text-foreground/70 hover:text-foreground rounded-md p-1"
-              aria-label="New chat"
-              onMouseEnter={onMouseEnter}
-              variants={buttonVariants}
-              initial="visible"
-              whileHover="hover"
-              whileTap="tap"
-            >
-              <Plus size={22} />
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Content and Input layout */}
-      <div className="no-drag-region flex h-full flex-col">
-        {/* Content area */}
-        <div className="h-[70%] p-4">
+              <motion.button
+                onClick={onExit}
+                className="bg-background/50 pointer-events-auto rounded-md p-1"
+                aria-label="Exit"
+                variants={buttonVariants}
+                initial="visible"
+                whileHover="hover"
+                whileTap="tap"
+              >
+                <X size={22} />
+              </motion.button>
+              <motion.button
+                onClick={onNewHistory}
+                className="bg-background/50 pointer-events-auto rounded-md p-1"
+                aria-label="New chat"
+                variants={buttonVariants}
+                initial="visible"
+                whileHover="hover"
+                whileTap="tap"
+              >
+                <Plus size={22} />
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {/* Main content */}
+      <div className="drag-region flex flex-1 flex-col overflow-y-auto">
+        {/* Messages area with flex-grow */}
+        <div className="drag-region min-h-0 flex-1 overflow-y-auto p-4">
           <ChatContent
             messages={messages as UIMessage[]}
             messagesEndRef={messagesEndRef}
@@ -234,7 +232,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="no-drag-region h-[30%] p-4 flex flex-col">
+        <div className="drag-region h-[30%] p-4 flex flex-col">
           {/* Show copied content card above the input */}
           {copiedContent && (
             <div className="mb-2 w-full">
