@@ -5,6 +5,8 @@ import {
   AppSettings,
   McpMarketplaceItem,
   PredefinedMCPServer,
+  InstalledMCPServer,
+  MCPServer,
 } from "@/types/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
@@ -48,13 +50,10 @@ export default function SettingsPage() {
   const [mcpMarketItems, setMcpMarketItems] = useState<McpMarketplaceItem[]>(
     [],
   );
-  const [predefinedServers, setPredefinedServers] = useState<
-    PredefinedMCPServer[]
-  >([]);
   const [loadingMarketplace, setLoadingMarketplace] = useState<boolean>(true);
-  const [loadingPredefinedServers, setLoadingPredefinedServers] =
-    useState<boolean>(true);
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null);
+  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
+  const [loadingMcpServers, setLoadingMcpServers] = useState<boolean>(true);
   const [installingTools, setInstallingTools] = useState<
     Record<string, boolean>
   >({});
@@ -75,7 +74,7 @@ export default function SettingsPage() {
     setSettings(getSettings());
     fetchMcpMarketplace();
     fetchMcpConfigurations();
-    fetchPredefinedServers();
+    fetchAllMcpServers();
 
     const fetchTheme = async () => {
       try {
@@ -89,27 +88,53 @@ export default function SettingsPage() {
     fetchTheme();
   }, []);
 
-  const fetchPredefinedServers = async () => {
-    setLoadingPredefinedServers(true);
+  const fetchAllMcpServers = async () => {
+    setLoadingMcpServers(true);
     try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch predefined servers");
+      // 并行获取预定义和已安装服务器
+      const [predefinedResponse, installedResponse] = await Promise.all([
+        fetch("http://localhost:38000/api/mcp/predefined-servers"),
+        fetch("http://localhost:38000/api/mcp/installed-servers"),
+      ]);
+
+      if (!predefinedResponse.ok || !installedResponse.ok) {
+        throw new Error("Failed to fetch MCP servers");
       }
-      const data = await response.json();
-      if (data.status === "success") {
-        setPredefinedServers(data.servers || []);
+
+      const predefinedData = await predefinedResponse.json();
+      const installedData = await installedResponse.json();
+
+      // 合并数据并确保没有重复
+      if (
+        predefinedData.status === "success" &&
+        installedData.status === "success"
+      ) {
+        const predefinedServers = predefinedData.servers || [];
+        const installedServers = installedData.servers || [];
+
+        // 合并服务器列表，确保不重复
+        const mergedServers: MCPServer[] = [];
+
+        // 添加已安装的服务器
+        mergedServers.push(...installedServers);
+
+        // 添加未安装的预定义服务器
+        predefinedServers.forEach((server: MCPServer) => {
+          if (!server.isInstalled) {
+            mergedServers.push(server);
+          }
+        });
+
+        setMcpServers(mergedServers);
       } else {
-        throw new Error(data.message || "Failed to fetch predefined servers");
+        throw new Error("Failed to fetch MCP servers data");
       }
     } catch (error) {
-      console.error("Error fetching predefined servers:", error);
-      toast.error("Failed to load predefined servers");
-      setPredefinedServers([]); // Reset on error
+      console.error("Error fetching MCP servers:", error);
+      toast.error("Failed to load MCP server data");
+      setMcpServers([]); // Reset on error
     } finally {
-      setLoadingPredefinedServers(false);
+      setLoadingMcpServers(false);
     }
   };
 
@@ -176,8 +201,8 @@ export default function SettingsPage() {
       }
 
       toast.success(`Server ${serverId} installed successfully`);
-      fetchPredefinedServers(); // Refresh the predefined servers list
-      fetchMcpConfigurations(); // Refresh configurations
+      fetchAllMcpServers(); // 刷新服务器列表
+      fetchMcpConfigurations(); // 刷新配置
     } catch (error) {
       console.error(`Error installing server ${serverId}:`, error);
       toast.error(
@@ -185,6 +210,41 @@ export default function SettingsPage() {
       );
     } finally {
       setInstallingTools((prev) => ({ ...prev, [serverId]: false }));
+    }
+  };
+
+  const handleUninstallPredefinedServer = async (
+    serverId: string,
+  ): Promise<void> => {
+    try {
+      // Call the new API endpoint to uninstall the server
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/predefined-servers/uninstall",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: serverId }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Failed to uninstall server" }));
+        throw new Error(errorData.message || "Failed to uninstall server");
+      }
+
+      toast.success(`Server ${serverId} uninstalled successfully`);
+
+      // 刷新数据
+      fetchAllMcpServers();
+      fetchMcpConfigurations();
+    } catch (error) {
+      console.error(`Error uninstalling server ${serverId}:`, error);
+      toast.error(
+        `Failed to uninstall server: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      throw error; // Re-throw to let the UI handle the error state
     }
   };
 
@@ -701,13 +761,14 @@ export default function SettingsPage() {
 
   const marketplaceProps = {
     loadingMarketplace,
-    loadingPredefinedServers,
+    loadingMcpServers,
     mcpMarketItems,
-    predefinedServers,
+    mcpServers,
     installingTools,
     onInstallPredefinedServer: handleInstallPredefinedServer,
     onInstallMcpTool: handleInstallMcpTool,
     onManualInstallMcp: handleManualInstallMcp,
+    onUninstallPredefinedServer: handleUninstallPredefinedServer,
   };
 
   return (

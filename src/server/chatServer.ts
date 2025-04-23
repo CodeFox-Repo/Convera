@@ -524,6 +524,7 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
     // Add installation status to each server
     const serversWithStatus = predefinedServers.map((server) => ({
       ...server,
+      kind: "predefined",
       isInstalled: isPredefinedServerInstalled(server.id),
     }));
 
@@ -535,6 +536,55 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching predefined MCP servers:", errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
+// Get all installed MCP servers endpoint (both predefined and manually added)
+app.get("/api/mcp/installed-servers", (req, res) => {
+  try {
+    const manager = getMCPManager();
+    const serverConfigs = manager.getAllServerConfigs();
+    const serverStatuses = manager.getAllServerStatus();
+
+    // Combine configuration and status data
+    const installedServers = Object.keys(serverConfigs).map((id) => {
+      const config = serverConfigs[id];
+      const status = serverStatuses[id] || { running: false };
+      const isPredefined = isPredefinedServerInstalled(id);
+
+      // 获取额外的预定义服务器信息
+      let predefinedInfo = null;
+      if (isPredefined) {
+        const allPredefined = getAvailablePredefinedServers();
+        predefinedInfo =
+          allPredefined.find((server) => server.id === id) || null;
+      }
+
+      return {
+        id,
+        name: config.name || id,
+        description: config.description || "",
+        kind: "installed",
+        enabled: config.enabled || false,
+        running: status.running || false,
+        isPredefined,
+        toolCount: status.tools?.length || 0,
+        serverUrl: status.serverUrl || null,
+        // 如果是预定义服务器，添加额外信息
+        repoUrl: predefinedInfo?.repoUrl || null,
+        logoUrl: predefinedInfo?.logoUrl || null,
+        installInstructions: predefinedInfo?.installInstructions || null,
+      };
+    });
+
+    res.json({
+      status: "success",
+      servers: installedServers,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error fetching installed MCP servers:", errorMessage);
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });
@@ -588,6 +638,48 @@ app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error installing predefined MCP server:", errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+}) as RequestHandler);
+
+// Uninstall predefined MCP server endpoint
+app.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        status: "error",
+        message: "Server ID is required",
+      });
+    }
+
+    const manager = getMCPManager();
+
+    // First, check if the server is running and stop it if needed
+    const serverStatus = manager.getServerStatus(id);
+    if (serverStatus && serverStatus.running) {
+      await manager.stopServer(id);
+      console.log(`Stopped MCP server ${id} before uninstalling`);
+    }
+
+    // Unregister the server
+    const success = manager.unregisterServer(id);
+
+    if (success) {
+      res.json({
+        status: "success",
+        message: `Server ${id} uninstalled successfully`,
+      });
+    } else {
+      res.status(400).json({
+        status: "error",
+        message: `Failed to uninstall server ${id}`,
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error uninstalling predefined MCP server:", errorMessage);
     res.status(500).json({ status: "error", message: errorMessage });
   }
 }) as RequestHandler);
@@ -770,6 +862,9 @@ export function startChatServer() {
     );
     console.log(
       `MCP predefined servers endpoint: http://localhost:${PORT}/api/mcp/predefined-servers`,
+    );
+    console.log(
+      `MCP installed servers endpoint: http://localhost:${PORT}/api/mcp/installed-servers`,
     );
     console.log(
       `MCP marketplace endpoint: http://localhost:${PORT}/api/mcp/marketplace`,
