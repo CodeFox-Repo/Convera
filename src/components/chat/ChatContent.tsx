@@ -196,6 +196,7 @@ export default function ChatContent({
           </CopiedContentBlock>
           {modificationResponse !== 'rejected' && (
             <ModifiedContentBlock 
+              modifiedContent={modifiedContent}
               onAccept={() => handleAcceptModification(messageId)} 
               onReject={() => handleRejectModification(messageId)}
             >
@@ -232,6 +233,7 @@ export default function ChatContent({
         <>
           {otherContent && <Markdown>{otherContent}</Markdown>}
           <ModifiedContentBlock 
+            modifiedContent={modifiedContent}
             onAccept={() => handleAcceptModification(messageId)} 
             onReject={() => handleRejectModification(messageId)}
           >

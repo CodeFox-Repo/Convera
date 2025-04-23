@@ -10,6 +10,7 @@ export interface IElectronAPI {
   // App
   getPreviousApp: () => Promise<string>;
   getClipboardText: () => Promise<string>;
+  pasteModifiedContent: (content: string) => Promise<boolean>;
   // Theme (Assuming theme functions return void or specific theme string)
   getCurrentTheme: () => Promise<{ system: string; user: string }>;
   toggleTheme: () => Promise<void>;

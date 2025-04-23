@@ -21,6 +21,7 @@ import {
   toggleModelSelector,
   modelSelected,
   getClipboardText,
+  pasteModifiedContent,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 
@@ -241,6 +242,15 @@ export default function registerListeners(
     console.log("Handling CLIPBOARD.GET_TEXT");
     return getClipboardText();
   });
+
+  ipcMain.handle(
+    CHANNELS.APP.PASTE_MODIFIED_CONTENT,
+    (event, content: string) => {
+      console.log("Handling APP.PASTE_MODIFIED_CONTENT");
+      pasteModifiedContent(content);
+      return true;
+    },
+  );
 
   console.log("All IPC listeners registered successfully.");
 }

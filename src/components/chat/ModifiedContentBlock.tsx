@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ModifiedContentBlockProps {
   children: React.ReactNode;
+  modifiedContent?: string;
   onAccept?: () => void;
   onReject?: () => void;
 }
@@ -12,12 +13,14 @@ interface ModifiedContentBlockProps {
  */
 const ModifiedContentBlock = memo(({ 
   children, 
+  modifiedContent = "", 
   onAccept = () => {}, 
   onReject = () => {} 
 }: ModifiedContentBlockProps) => {
   const [expanded, setExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  const [isPasting, setIsPasting] = useState(false);
 
   // Get the full height of the content when mounted
   useEffect(() => {
@@ -32,9 +35,28 @@ const ModifiedContentBlock = memo(({
     setExpanded(!expanded);
   };
 
-  const handleAccept = (e: React.MouseEvent) => {
+  const handleAccept = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAccept();
+    setIsPasting(true);
+    
+    try {
+      // Get the raw content (without markdown) for pasting
+      const contentToPaste = modifiedContent.trim();
+      
+      if (contentToPaste) {
+        // Use the IPC API to paste the content in the previous app
+        if (window.electronAPI) {
+          await window.electronAPI.pasteModifiedContent(contentToPaste);
+        }
+      }
+      
+      // Call the onAccept callback
+      onAccept();
+    } catch (error) {
+      console.error("Error pasting content:", error);
+    } finally {
+      setIsPasting(false);
+    }
   };
 
   const handleReject = (e: React.MouseEvent) => {
@@ -68,10 +90,15 @@ const ModifiedContentBlock = memo(({
         <div className="flex items-center gap-2">
           <button 
             onClick={handleAccept}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/30 transition-colors"
+            disabled={isPasting}
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+              isPasting 
+                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" 
+                : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/30"
+            } transition-colors`}
           >
             <CheckCircle size={12} />
-            <span>Accept</span>
+            <span>{isPasting ? "Pasting..." : "Accept"}</span>
           </button>
           <button 
             onClick={handleReject}
