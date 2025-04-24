@@ -154,20 +154,14 @@ export function AgentsTab() {
       const data = await res.json();
       const tools = data.tools || [];
 
-      // 检查工具数据结构并确保description字段正确处理
       const processedTools = tools.map((tool: ToolDefinition) => {
-        // 检查description的位置和类型
         let description: string | undefined;
 
-        // 直接检查顶层description
         if (tool.description && typeof tool.description === "string") {
           description = tool.description;
         } else {
-          // 从json字符串格式中提取描述
           try {
-            // 尝试提取工具描述的几种可能情况
             if (typeof tool === "object") {
-              // 常见的描述字段位置
               if (tool.parameters?.description) {
                 description = tool.parameters.description;
               } else if (
@@ -176,7 +170,6 @@ export function AgentsTab() {
                 description =
                   tool.parameters.properties.description.description;
               } else {
-                // 遍历所有属性寻找描述
                 Object.entries(tool).forEach(([key, value]) => {
                   if (
                     !description &&
@@ -187,7 +180,6 @@ export function AgentsTab() {
                   }
                 });
 
-                // 检查parameters中的每个属性
                 if (!description && tool.parameters?.properties) {
                   Object.values(tool.parameters.properties).forEach(
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -212,10 +204,8 @@ export function AgentsTab() {
           }
         }
 
-        // 记录找到的描述
         console.log(`Final description for ${tool.name}:`, description);
 
-        // 构造处理后的工具对象，确保包含描述
         const processedTool = {
           ...tool,
           description: description || "No description available",
@@ -227,7 +217,6 @@ export function AgentsTab() {
       console.log(`Processed tools for MCP ${id}:`, processedTools);
       setMcpServerTools((prev) => ({ ...prev, [id]: processedTools }));
 
-      // 自动选择所有工具
       if (processedTools.length > 0) {
         setSelectedToolNames((prev) => ({
           ...prev,
@@ -390,44 +379,38 @@ export function AgentsTab() {
     setIsUpdating(true);
 
     try {
-      // 更新时需要重新构建工具信息
-      // 从编辑状态中获取所有选中的工具
       const allToolReferences: ToolReference[] = [];
       const allSelectedTools: string[] = [];
 
       Object.entries(editSelectedTools).forEach(([mcpId, toolNames]) => {
         if (toolNames.length > 0) {
           toolNames.forEach((tool) => {
-            // 添加标准工具引用
             allToolReferences.push({
               mcpName: mcpId,
               toolName: tool,
               isBuiltIn: mcpId === "Dev-MCP" || mcpId === "codefox-mcp",
             });
 
-            // 为了向后兼容保留旧格式
             allSelectedTools.push(`${mcpId}:${tool}`);
           });
         }
       });
 
       if (allToolReferences.length === 0) {
-        toast.error("请至少选择一个工具");
+        toast.error("Please select at least one tool");
         setIsUpdating(false);
         return;
       }
 
       console.log(
-        `更新 Agent ID ${editingAgent.id}，包含 ${allToolReferences.length} 个工具`,
+        `Updating agent ID ${editingAgent.id} with ${allToolReferences.length} tools`,
       );
 
-      // 构建完整的 Agent 数据
       const agentData = {
         id: editingAgent.id,
         name: editingAgent.name,
         description: editingAgent.description,
         systemPrompt: editingAgent.systemPrompt || "",
-        // 重要：确保包含所有工具信息
         toolNames: allSelectedTools,
         toolReferences: allToolReferences,
       };
@@ -448,11 +431,9 @@ export function AgentsTab() {
 
       toast.success(`Agent "${editingAgent.name}" updated successfully`);
 
-      // Close dialog and refresh agents
       setIsEditDialogOpen(false);
       fetchAgents();
 
-      // Dispatch events to notify other components
       window.dispatchEvent(new CustomEvent("agent-list-updated"));
       window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
     } catch (err) {
