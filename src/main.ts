@@ -19,6 +19,8 @@ import {
 } from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
+import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
+
 import "./global.css";
 import { calculateWindowDimensions } from "./helpers/windows/utils";
 
@@ -36,6 +38,9 @@ let agentPopoverWindow: BrowserWindow | null = null;
 
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
+
+// Flag to track window visibility state
+let isHiddenOffscreen = true;
 
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
