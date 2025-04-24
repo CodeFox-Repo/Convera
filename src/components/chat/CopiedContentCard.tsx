@@ -45,10 +45,10 @@ const CopiedContentCard: React.FC<CopiedContentCardProps> = ({
           </button>
         </div>
       </div>
-      <div className="max-h-[90px] overflow-auto p-2 text-xs font-mono border-t border-primary/20">
+      <div className="max-h-[90px] overflow-auto p-2 text-xs font-mono border-primary/20">
         {formatContent()}
       </div>
-      <div className="px-2 py-1 text-xs text-muted-foreground bg-background/80 border-t border-primary/20">
+      <div className="px-2 py-1 text-xs text-muted-foreground bg-background/80">
         {content.length} characters, {content.split("\n").length} lines
       </div>
     </div>
