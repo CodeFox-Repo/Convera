@@ -313,8 +313,12 @@ function createMainWindow() {
 
     mainWindow.once("ready-to-show", () => {
       if (mainWindow) {
-        // Position the window at center-bottom using our preset config
-        positionWindowAtCenterBottom(mainWindow, 100, WINDOW_SIZE_PRESETS.MAIN);
+        // Position the window at center-bottom using our preset config and default percent margin
+        positionWindowAtCenterBottom(
+          mainWindow,
+          undefined,
+          WINDOW_SIZE_PRESETS.MAIN,
+        );
 
         console.log("Main window ready, position set, but hidden initially.");
 
@@ -342,7 +346,7 @@ function preCreateSettingsWindow() {
   // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.SETTINGS,
-    50,
+    undefined,
     true,
     true,
   );
@@ -442,7 +446,6 @@ function preCreateSettingsWindow() {
       console.log("Settings window ready, but kept hidden");
 
       if (inDevelopment) {
-        // 始终打开设置窗口的开发者工具，不检查全局状态
         settingsWindow.webContents.openDevTools({ mode: "detach" });
       }
     }
@@ -499,7 +502,7 @@ function setupScreenResizeHandlers() {
       if (settingsWindow && settingsWindow.isVisible()) {
         const dimensions = calculateWindowDimensions(
           WINDOW_SIZE_PRESETS.SETTINGS,
-          50,
+          undefined,
           true,
           true,
         );
@@ -515,11 +518,9 @@ app.whenReady().then(async () => {
       await installExtensions();
     }
 
-    // 先启动聊天服务器并等待它完成初始化
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
-    // 然后创建主窗口和其他组件
     createMainWindow();
     startAppFocusTracking();
     registerGlobalShortcuts();
