@@ -1,18 +1,28 @@
 import { WindowDimensions, WindowSizeConfig } from "./window-size";
 import { screen } from "electron";
+import { appConfig } from "../config";
+
 /**
  * Calculate window dimensions based on screen size and proportion configuration
  */
 export function calculateWindowDimensions(
   config: WindowSizeConfig,
-  bottomMargin = 100,
+  bottomMarginPixels?: number,
   centerX = true,
   centerY = false,
+  bottomMarginPercent: number = appConfig.window.defaultBottomMarginPercent,
 ): WindowDimensions {
   // Get the primary display's work area
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } =
     primaryDisplay.workAreaSize;
+
+  // Calculate bottom margin in pixels based on percentage of screen height
+  // Or use provided pixel value as fallback
+  const bottomMargin =
+    bottomMarginPercent > 0
+      ? Math.round(screenHeight * (bottomMarginPercent / 100))
+      : bottomMarginPixels || appConfig.window.fallbackBottomMarginPixels;
 
   // Calculate proportional dimensions
   let width = Math.round(screenWidth * config.widthProportion);
@@ -45,17 +55,19 @@ export function calculateWindowDimensions(
 export function updateWindowToScreenSize(
   window: Electron.BrowserWindow,
   config: WindowSizeConfig,
-  bottomMargin = 100,
+  bottomMarginPixels?: number,
   centerX = true,
   centerY = false,
+  bottomMarginPercent: number = appConfig.window.defaultBottomMarginPercent,
 ): void {
   if (!window) return;
 
   const dimensions = calculateWindowDimensions(
     config,
-    bottomMargin,
+    bottomMarginPixels,
     centerX,
     centerY,
+    bottomMarginPercent,
   );
   window.setBounds(dimensions);
 }
