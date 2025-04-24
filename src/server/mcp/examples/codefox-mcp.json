@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "codefox-mcp": {
+      "command": "node",
+      "args": [
+        "/Users/jacksonc/i/foxfoxy/mcps/codefox-mcp/dist/index.js"
+      ],
+      "enabled": true,
+      "description": "Project initialization tools for creating new projects from templates"
+    }
+  }
+}

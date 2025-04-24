@@ -66,6 +66,7 @@ export const CHANNELS = {
   },
   AGENT: {
     TOGGLE_POPOVER: "agent:toggle-popover",
+    LIST_UPDATED: "agent:list-updated",
   },
   MODEL: {
     TOGGLE_SELECTOR: "model:toggle-selector",

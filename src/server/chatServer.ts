@@ -20,8 +20,10 @@ import {
   processAgentChat,
   processChatRequest,
   saveCustomAgent,
+  deleteCustomAgent,
 } from "./agents";
 import { AgentDefinition } from "./agents/types";
+import { ToolReference } from "./agents/types";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
 
@@ -44,8 +46,7 @@ if (!DEFAULT_OPENROUTER_API_KEY) {
   );
 }
 
-// Add this route handler to router:
-router.post("/api/agents/create", async (req: Request, res: Response) => {
+app.post("/api/agents/create", (async (req: Request, res: Response) => {
   try {
     const {
       id,
@@ -53,6 +54,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       description,
       systemPrompt,
       toolNames,
+      toolReferences,
       modelId,
       iconUrl,
       avatar,
@@ -64,21 +66,53 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       !id ||
       !name ||
       !description ||
-      !toolNames ||
-      !Array.isArray(toolNames)
+      (!toolNames && !toolReferences) ||
+      (toolNames && !Array.isArray(toolNames)) ||
+      (toolReferences && !Array.isArray(toolReferences))
     ) {
       return res.status(400).json({ error: "Missing required agent fields" });
     }
 
-    // Map toolNames to ToolSet
-    const tools = getToolsByNames(toolNames);
+    // Use toolReferences if available, otherwise convert toolNames to toolReferences
+    let finalToolReferences = toolReferences;
+    if (!finalToolReferences && toolNames) {
+      finalToolReferences = toolNames.map((name: string) => {
+        const parts = name.split(":");
+        if (parts.length > 1) {
+          return {
+            mcpName: parts[0],
+            toolName: parts[1],
+            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
+          };
+        }
+        return {
+          mcpName: "Dev-MCP",
+          toolName: name,
+          isBuiltIn: true,
+        };
+      });
+    }
+
+    // Log the tool references for debugging
+    console.log(
+      `Creating agent '${name}' with ${finalToolReferences.length} tool references`,
+    );
+
+    // Map tool references to ToolSet
+    const tools = getToolsByNames(finalToolReferences);
+
+    // Format tool names for display in system prompt
+    const formattedToolNames = finalToolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
+    );
 
     // Construct AgentDefinition
     const agent: AgentDefinition = {
       id,
       name,
       description,
-      tools,
+      tools, // Include tools for runtime usage
+      toolReferences: finalToolReferences, // This is the primary field now
       modelId,
       iconUrl,
       avatar,
@@ -86,7 +120,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       type,
       systemPrompt:
         typeof systemPrompt === "string"
-          ? `${systemPrompt}\n\nAvailable tools: ${tools.map((tool) => tool.name).join(", ")}`
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
           : "",
     };
 
@@ -98,7 +132,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
     console.error("Error creating agent:", error);
     res.status(500).json({ error: "Failed to create agent" });
   }
-});
+}) as RequestHandler);
 
 // Chat endpoint
 router.post("/api/chat", async (req: Request, res: Response) => {
@@ -410,7 +444,42 @@ router.put(
 router.get("/api/agents", (req: Request, res: Response) => {
   try {
     const agents = getAgentList();
-    res.json({ status: "success", agents });
+
+    console.log(
+      "Agents from storage:",
+      agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        toolCount: a.toolReferences.length,
+      })),
+    );
+
+    // Log the agents data to help troubleshoot
+    console.log(
+      "Fetched agents details:",
+      agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        toolReferences: a.toolReferences.map(
+          (t) => `${t.toolName} (${t.mcpName})`,
+        ),
+      })),
+    );
+
+    // Make sure agents have consistent toolReferences format
+    const enrichedAgents = agents.map((agent) => {
+      // toolNames are kept for backward compatibility only
+      const toolNames = agent.toolReferences.map(
+        (t) => `${t.mcpName}:${t.toolName}`,
+      );
+
+      return {
+        ...agent,
+        toolNames: toolNames,
+      };
+    });
+
+    res.json({ status: "success", agents: enrichedAgents });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching agents:", errorMessage);
@@ -516,6 +585,142 @@ router.get("/api/agents/:agentId", (req: Request, res: Response) => {
   }
 });
 
+// Add endpoint for deleting an agent
+router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+
+    // Call the deleteCustomAgent function
+    const success = await deleteCustomAgent(agentId);
+
+    if (!success) {
+      return res.status(404).json({
+        status: "error",
+        message: `Agent with ID '${agentId}' not found or cannot be deleted`,
+      });
+    }
+
+    res.json({
+      status: "success",
+      message: `Agent '${agentId}' deleted successfully`,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error deleting agent ${req.params.agentId}:`, errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
+// Add endpoint for updating an agent
+router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+    const {
+      id,
+      name,
+      description,
+      systemPrompt,
+      toolNames,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = req.body;
+
+    // Validate that the ID in the URL matches the ID in the body
+    if (id !== agentId) {
+      return res.status(400).json({
+        status: "error",
+        message: "Agent ID mismatch between URL and request body",
+      });
+    }
+
+    // Check that the agent exists
+    const existingAgent = getAgentById(agentId);
+    if (!existingAgent) {
+      return res.status(404).json({
+        status: "error",
+        message: `Agent with ID '${agentId}' not found`,
+      });
+    }
+
+    // Determine which tools to use - prioritize those from the request, fall back to existing tools
+    let finalToolReferences = toolReferences;
+    if (!finalToolReferences && toolNames) {
+      // Convert toolNames to toolReferences
+      finalToolReferences = toolNames.map((name: string) => {
+        const parts = name.split(":");
+        if (parts.length > 1) {
+          return {
+            mcpName: parts[0],
+            toolName: parts[1],
+            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
+          };
+        }
+        return {
+          mcpName: "Dev-MCP",
+          toolName: name,
+          isBuiltIn: true,
+        };
+      });
+    } else if (!finalToolReferences && !toolNames) {
+      // If no tools provided in the request, use the existing ones
+      finalToolReferences = existingAgent.toolReferences || [];
+    }
+
+    console.log(
+      `Updating agent '${agentId}' with ${finalToolReferences.length} tool references`,
+    );
+
+    // Map tool references to ToolSet
+    const tools = getToolsByNames(finalToolReferences);
+
+    // Format tool names for display in system prompt
+    const formattedToolNames = finalToolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
+    );
+
+    // Create updated agent with new fields and re-mapped tools
+    const updatedAgent: AgentDefinition = {
+      ...existingAgent,
+      id: agentId, // Keep the original ID
+      name: name || existingAgent.name,
+      description: description || existingAgent.description,
+      tools, // Use the re-mapped tools
+      toolReferences: finalToolReferences, // Update tool references
+      modelId: modelId || existingAgent.modelId,
+      iconUrl: iconUrl || existingAgent.iconUrl,
+      avatar: avatar || existingAgent.avatar,
+      category: category || existingAgent.category,
+      type: type || existingAgent.type,
+      systemPrompt:
+        typeof systemPrompt === "string"
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : existingAgent.systemPrompt,
+    };
+
+    // First delete the existing agent
+    const deleteSuccess = await deleteCustomAgent(agentId);
+    if (!deleteSuccess) {
+      return res.status(500).json({
+        status: "error",
+        message: "Failed to update agent: could not remove old version",
+      });
+    }
+
+    // Then save the updated agent with the same ID
+    await saveCustomAgent(updatedAgent);
+
+    res.json({ status: "success", agent: updatedAgent });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error updating agent ${req.params.agentId}:`, errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
 // MCP predefined servers endpoint
 app.get("/api/mcp/predefined-servers", (req, res) => {
   try {
@@ -528,7 +733,6 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
       isInstalled: isPredefinedServerInstalled(server.id),
     }));
 
-    console.log("Predefined servers:", serversWithStatus);
     res.json({
       status: "success",
       servers: serversWithStatus,

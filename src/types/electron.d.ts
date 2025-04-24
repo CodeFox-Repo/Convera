@@ -41,6 +41,7 @@ export interface IElectronAPI {
   onFocusChatInput: (callback: () => void) => () => void; // Returns a cleanup function
   onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
   onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
+  onAgentListUpdated: (callback: () => void) => () => void; // Agent list updated event
 }
 
 // Extend the global Window interface
