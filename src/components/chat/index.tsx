@@ -213,7 +213,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region h-[30%] p-4">
+        <div className="drag-region mb-2 h-36 min-h-[144px] p-4">
           <ChatInput
             ref={chatInputRef}
             isLoading={isLoading}
@@ -484,10 +484,17 @@ export default function Chat() {
 
       if (window.electronAPI && messages.length === 0) {
         try {
-          window.electronAPI.resizeMessageContent(600, 142);
-          console.log(
-            "Chat: Initial window size set to compact mode (600x142)",
-          );
+          window.electronAPI
+            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+            .then((res) => {
+              console.log(
+                `Chat: Current window size: ${res.width}x${res.height}`,
+              );
+              requestAnimationFrame(() => {
+                window.electronAPI.resizeMessageContent(res.width, res.height);
+                console.log("Chat: Initial window size set to compact mode");
+              });
+            });
         } catch (error) {
           console.error("Chat: Error setting initial window size:", error);
         }
