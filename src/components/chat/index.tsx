@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { Message, UIMessage } from "ai";
 import { X, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -735,9 +735,9 @@ export default function Chat() {
     if (typeof window !== "undefined" && window.electronAPI) {
       window.electronAPI
         .getCurrentTheme()
-        .then(({ system, user }) => {
-          console.log(`Theme detected: system=${system}, user=${user}`);
-          const theme = user || system;
+        .then((res) => {
+          console.log(`Theme detected: system=${res}, user=${res}`);
+          const theme = res;
           document.documentElement.dataset.theme = theme;
         })
         .catch((err) => {
@@ -746,7 +746,22 @@ export default function Chat() {
     }
   }, []);
 
-  // Render the appropriate view based on whether we have messages
+  const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
+
+  const toggleViewMode = useCallback((mode: "compact" | "expanded") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined" && window.electronAPI) {
+      window.electronAPI.toggleViewMode(mode === "expanded");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0 && viewMode === "compact") {
+      toggleViewMode("expanded");
+    }
+  }, [messages.length, viewMode, toggleViewMode]);
+
+  // Render the appropriate view based on the current view mode
   return (
     <div className="chat-window h-screen w-full overflow-hidden rounded-xl">
       {initializing ? (
@@ -755,7 +770,7 @@ export default function Chat() {
             <div className="bg-primary/20 h-10 w-10 animate-pulse rounded-full" />
           </div>
         </div>
-      ) : messages.length > 0 ? (
+      ) : viewMode === "expanded" ? (
         <ExpandedChatView
           messages={messages as UIMessage[]}
           messagesEndRef={messagesEndRef}
@@ -793,7 +808,13 @@ export default function Chat() {
           onToggleTranslation={handleToggleTranslation}
           onReset={handleReset}
           onVoiceInput={handleVoiceInput}
-          onSendMessage={handleSendMessage}
+          onSendMessage={() => {
+            handleSendMessage();
+            // 发送消息后切换到扩展模式
+            if (input.trim()) {
+              toggleViewMode("expanded");
+            }
+          }}
           onStopGeneration={handleStopGeneration}
           chatInputRef={chatInputRef}
           selectedAgent={selectedAgent}

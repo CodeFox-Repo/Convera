@@ -2,11 +2,7 @@ import { app, BrowserWindow, globalShortcut, screen } from "electron";
 import registerListeners, {
   ListenerOptions,
 } from "./helpers/ipc/listeners-register";
-import {
-  getCurrentShortcut,
-  getPreviousApp,
-  setPreviousApp,
-} from "./helpers/ipc/ipc-handlers";
+import { getPreviousApp, setPreviousApp } from "./helpers/ipc/ipc-handlers";
 import path from "path";
 import { exec } from "child_process";
 import {
@@ -20,12 +16,13 @@ import {
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
 import "./global.css";
+import { setMainWindowResizable } from "./helpers/windows/window-resize";
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
-// Default shortcut now comes from ipc-handlers
-const currentActivateShortcut = getCurrentShortcut();
+// Use hardcoded default shortcut to avoid circular dependency
+const currentActivateShortcut = "Control+Space";
 
 // Separate background process for tracking focused apps
 let trackingAppFocus = false;
@@ -274,7 +271,7 @@ function createMainWindow() {
     thickFrame: false,
     autoHideMenuBar: true,
     hasShadow: true,
-    resizable: false,
+    resizable: false, // Start in compact mode (not resizable)
     maximizable: false,
     fullscreenable: false,
     roundedCorners: true,
@@ -290,11 +287,8 @@ function createMainWindow() {
     mainWindow.setBackgroundColor("#00000000"); // Transparent background
   }
 
-  // Enforce fixed dimensions
-  mainWindow.on("will-resize", (event) => {
-    // Prevent resizing by canceling the event
-    event.preventDefault();
-  });
+  // Initial state is compact mode, so set up resize prevention
+  setMainWindowResizable(false, mainWindow!);
 
   // Apply consistent window styles
   injectWindowStyles(mainWindow);
