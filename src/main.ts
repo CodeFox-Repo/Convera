@@ -598,7 +598,7 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-let isHiddenOffscreen = false;
+let isHiddenOffscreen = true;
 
 export function toggleMainWindowVisibility() {
   if (!mainWindow) {
