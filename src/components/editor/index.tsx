@@ -85,7 +85,11 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
 
     // Update editor content when prop changes
     useEffect(() => {
-      if (editor && editor.getHTML() !== content) {
+      // Only update content from props if there's a significant difference
+      // and the editor isn't currently focused (to avoid cursor reset)
+      if (editor && 
+          editor.getHTML() !== content && 
+          !editor.isFocused) {
         editor.commands.setContent(content);
       }
     }, [content, editor]);
