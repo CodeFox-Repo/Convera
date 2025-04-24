@@ -1,5 +1,8 @@
 import { BrowserWindow, nativeTheme } from "electron";
-import { resizeWindowAndMaintainPosition } from "../windows/window-position";
+import {
+  resizeWindowAndMaintainPosition,
+  toggleMainWindowVisibility,
+} from "../windows/window-position";
 import { CHANNELS } from "./channels";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
@@ -122,7 +125,7 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
-    mainWindow.hide();
+    toggleMainWindowVisibility(mainWindow);
   }
 }
 
