@@ -232,17 +232,17 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region h-[30%] p-4 flex flex-col">
+        <div className="drag-region flex flex-col p-4">
           {/* Show copied content card above the input */}
           {copiedContent && (
-            <div className="mb-2 w-full overflow-y-auto">
+            <div className="mb-2 w-full">
               <CopiedContentCard
                 content={copiedContent}
                 onReject={onRejectCopiedContent}
               />
             </div>
           )}
-          <div className="flex-1 ">
+          <div className="flex-1">
             <ChatInput
               ref={chatInputRef}
               isLoading={isLoading}
