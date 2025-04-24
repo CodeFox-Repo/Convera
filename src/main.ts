@@ -598,7 +598,7 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-let isHiddenOffscreen = false;
+let isHiddenOffscreen = true;
 
 export function toggleMainWindowVisibility() {
   if (!mainWindow) {
@@ -608,6 +608,7 @@ export function toggleMainWindowVisibility() {
 
   // Toggle the main window’s visibility by moving it offscreen instead of hiding
   if (!isHiddenOffscreen) {
+    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
     // === Pseudo-hide ===
     // 1) Save current window bounds
     lastVisibleBounds = mainWindow.getBounds();
