@@ -1,8 +1,7 @@
 import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
-import { WindowSizeConfig } from "./window-size";
-import { calculateWindowDimensions } from "./utils";
-import { appConfig } from "../config";
+import { CHANNELS } from "../ipc/channels";
+import { getPreviousApp } from "../ipc/ipc-handlers";
 
 /**
  * Position a window at the center bottom of the screen with margin
