@@ -471,12 +471,26 @@ export default function Chat() {
   const controlsTimerRef = useRef<number | null>(null);
   const [initializing, setInitializing] = useState(true);
 
+  // Add state to track if we've already expanded the window
+  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
+
   // Set mounted state when component mounts
   useEffect(() => {
     console.log("Chat component mounting");
     const mountTimer = setTimeout(() => {
       setMounted(true);
       console.log("Chat component mounted");
+
+      if (window.electronAPI && messages.length === 0) {
+        try {
+          window.electronAPI.resizeMessageContent(600, 142);
+          console.log(
+            "Chat: Initial window size set to compact mode (600x142)",
+          );
+        } catch (error) {
+          console.error("Chat: Error setting initial window size:", error);
+        }
+      }
 
       const initTimer = setTimeout(() => {
         setInitializing(false);
@@ -493,7 +507,29 @@ export default function Chat() {
     };
   }, []);
 
-  // Resize window based on messages existence - now the resize happens before component switch
+  // Modify toggleViewMode to track expansion state
+  const toggleViewMode = useCallback(
+    (mode: "compact" | "expanded") => {
+      // First update the local state
+      setViewMode(mode);
+
+      requestAnimationFrame(() => {
+        if (typeof window !== "undefined" && window.electronAPI) {
+          if (mode === "expanded" && !hasExpandedOnce) {
+            window.electronAPI.toggleViewMode(true);
+            setHasExpandedOnce(true);
+            console.log("Chat: First expansion - resizing window");
+          } else if (mode === "compact") {
+            window.electronAPI.toggleViewMode(false);
+            console.log("Chat: Switching to compact mode");
+          }
+        }
+      });
+    },
+    [hasExpandedOnce],
+  );
+
+  // Modify resize effect to only handle initial window size
   useEffect(() => {
     // Skip if not fully mounted or still initializing
     if (!mounted || initializing) {
@@ -506,26 +542,29 @@ export default function Chat() {
       `Chat: Messages count=${messages.length}, electronWindow=${!!window.electronAPI}`,
     );
 
-    // Only resize if window.electronWindow is available
-    if (window.electronAPI) {
+    if (window.electronAPI && !hasExpandedOnce) {
       const newHeight = hasMessages ? 600 : 142;
       console.log(
-        `Chat: Setting window height to ${newHeight}px based on ${messages.length} messages`,
+        `Chat: Setting initial window height to ${newHeight}px based on ${messages.length} messages`,
       );
 
       try {
         requestAnimationFrame(() => {
           window.electronAPI.resizeMessageContent(600, newHeight);
-          console.log("Chat: Resize command sent successfully");
+          if (hasMessages) {
+            setHasExpandedOnce(true);
+          }
+          console.log("Chat: Initial resize command sent successfully");
         });
       } catch (error) {
         console.error("Chat: Error sending resize command:", error);
       }
     } else {
-      console.error("Chat: window.electronWindow is not available!");
-      console.error("Chat: window.electronAPI is not available!");
+      console.log(
+        "Chat: Skipping window resize - window already expanded or API not available",
+      );
     }
-  }, [messages.length, mounted, initializing]);
+  }, [messages.length, mounted, initializing, hasExpandedOnce]);
 
   // Setup IPC listener for window focus event
   useEffect(() => {
@@ -748,13 +787,6 @@ export default function Chat() {
 
   const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
 
-  const toggleViewMode = useCallback((mode: "compact" | "expanded") => {
-    setViewMode(mode);
-    if (typeof window !== "undefined" && window.electronAPI) {
-      window.electronAPI.toggleViewMode(mode === "expanded");
-    }
-  }, []);
-
   useEffect(() => {
     if (messages.length > 0 && viewMode === "compact") {
       toggleViewMode("expanded");
@@ -770,59 +802,66 @@ export default function Chat() {
             <div className="bg-primary/20 h-10 w-10 animate-pulse rounded-full" />
           </div>
         </div>
-      ) : viewMode === "expanded" ? (
-        <ExpandedChatView
-          messages={messages as UIMessage[]}
-          messagesEndRef={messagesEndRef}
-          input={input}
-          setInput={handleInputChangeAdapter}
-          isLoading={isLoading}
-          onAddAttachment={handleAddAttachment}
-          onToggleTranslation={handleToggleTranslation}
-          onReset={handleReset}
-          onVoiceInput={handleVoiceInput}
-          onSendMessage={handleSendMessage}
-          onStopGeneration={handleStopGeneration}
-          onEditMessage={handleEditMessage}
-          onRegenerateMessage={handleRegenerateResponse}
-          chatInputRef={chatInputRef}
-          showControls={showControls}
-          onExit={handleExit}
-          onNewHistory={handleNewHistory}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
-          agentChanged={agentChanged}
-          onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
-          onIgnoreAgentChange={handleIgnoreAgentChange}
-          selectedModelId={selectedModelId}
-          onModelSelect={setSelectedModelId}
-        />
       ) : (
-        <CompactChatView
-          input={input}
-          setInput={handleInputChangeAdapter}
-          isLoading={isLoading}
-          onAddAttachment={handleAddAttachment}
-          onToggleTranslation={handleToggleTranslation}
-          onReset={handleReset}
-          onVoiceInput={handleVoiceInput}
-          onSendMessage={() => {
-            handleSendMessage();
-            // 发送消息后切换到扩展模式
-            if (input.trim()) {
-              toggleViewMode("expanded");
-            }
-          }}
-          onStopGeneration={handleStopGeneration}
-          chatInputRef={chatInputRef}
-          selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
-          selectedModelId={selectedModelId}
-          onModelSelect={setSelectedModelId}
-        />
+        <div className="h-full w-full">
+          {viewMode === "expanded" ? (
+            <ExpandedChatView
+              messages={messages as UIMessage[]}
+              messagesEndRef={messagesEndRef}
+              input={input}
+              setInput={handleInputChangeAdapter}
+              isLoading={isLoading}
+              onAddAttachment={handleAddAttachment}
+              onToggleTranslation={handleToggleTranslation}
+              onReset={handleReset}
+              onVoiceInput={handleVoiceInput}
+              onSendMessage={handleSendMessage}
+              onStopGeneration={handleStopGeneration}
+              onEditMessage={handleEditMessage}
+              onRegenerateMessage={handleRegenerateResponse}
+              chatInputRef={chatInputRef}
+              showControls={showControls}
+              onExit={handleExit}
+              onNewHistory={handleNewHistory}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              selectedAgent={selectedAgent}
+              onAgentSelect={setSelectedAgent}
+              agentChanged={agentChanged}
+              onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
+              onIgnoreAgentChange={handleIgnoreAgentChange}
+              selectedModelId={selectedModelId}
+              onModelSelect={setSelectedModelId}
+            />
+          ) : (
+            <CompactChatView
+              input={input}
+              setInput={handleInputChangeAdapter}
+              isLoading={isLoading}
+              onAddAttachment={handleAddAttachment}
+              onToggleTranslation={handleToggleTranslation}
+              onReset={handleReset}
+              onVoiceInput={handleVoiceInput}
+              onSendMessage={() => {
+                if (input.trim()) {
+                  toggleViewMode("expanded");
+                  setTimeout(() => {
+                    handleSendMessage();
+                  }, 150);
+                }
+              }}
+              onStopGeneration={handleStopGeneration}
+              chatInputRef={chatInputRef}
+              selectedAgent={selectedAgent}
+              onAgentSelect={setSelectedAgent}
+              selectedModelId={selectedModelId}
+              onModelSelect={setSelectedModelId}
+            />
+          )}
+        </div>
       )}
     </div>
   );
 }
+
+export {};

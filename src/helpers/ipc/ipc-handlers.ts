@@ -275,7 +275,7 @@ export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
     if (expanded) {
       // Optionally set a larger size when switching to expanded mode
       const currentBounds = mainWindow.getBounds();
-      const newHeight = Math.max(currentBounds.height, 400); // Minimum expanded height
+      const newHeight = Math.max(currentBounds.height, 600);
 
       // Use resizeWindowAndMaintainPosition instead of directly using setBounds
       resizeWindowAndMaintainPosition(
