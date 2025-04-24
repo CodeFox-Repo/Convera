@@ -66,7 +66,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
     <div className="h-full flex flex-col p-1">
       {/* Show copied content card above the input */}
       {copiedContent && (
-        <div className="mb-2 w-full overflow-y-auto">
+        <div className="mb-2 w-full overflow-y-auto p-1">
           <CopiedContentCard
             content={copiedContent}
             onReject={onRejectCopiedContent}
@@ -232,10 +232,10 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region flex flex-col p-4">
+        <div className="drag-region flex flex-col p-1">
           {/* Show copied content card above the input */}
           {copiedContent && (
-            <div className="mb-2 w-full">
+            <div className="mb-2 w-full p-1">
               <CopiedContentCard
                 content={copiedContent}
                 onReject={onRejectCopiedContent}
