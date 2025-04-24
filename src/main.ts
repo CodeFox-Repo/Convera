@@ -649,7 +649,7 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
   });
 }
 
-let isHiddenOffscreen = false;
+let isHiddenOffscreen = true;
 
 export function toggleMainWindowVisibility() {
   if (!mainWindow) {
@@ -658,8 +658,27 @@ export function toggleMainWindowVisibility() {
   }
 
   // Toggle the main window’s visibility by moving it offscreen instead of hiding
-  if (mainWindow.isVisible()) {
-    mainWindow.hide();
+  if (!isHiddenOffscreen) {
+    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
+    // === Pseudo-hide ===
+    // 1) Save current window bounds
+    lastVisibleBounds = mainWindow.getBounds();
+
+    // 2) Ignore mouse events so clicks pass through to the app underneath
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    // 3) Make the window fully transparent
+    mainWindow.setOpacity(0);
+
+    // 4) Move the window off the visible screen
+    mainWindow.setBounds({
+      x: -9999,
+      y: -9999,
+      width: lastVisibleBounds.width,
+      height: lastVisibleBounds.height,
+    });
+
+    isHiddenOffscreen = true;
   } else {
     // === Restore display ===
 
