@@ -1,5 +1,9 @@
-import { BrowserWindow, nativeTheme, clipboard, app } from "electron";
-import { resizeWindowAndMaintainPosition } from "../windows/window-position";
+import { BrowserWindow, nativeTheme, clipboard } from "electron";
+
+import {
+  resizeWindowAndMaintainPosition,
+  toggleMainWindowVisibility,
+} from "../windows/window-position";
 import { CHANNELS } from "./channels";
 import { exec } from "child_process";
 
@@ -121,7 +125,7 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
-    mainWindow.hide();
+    toggleMainWindowVisibility(mainWindow);
   }
 }
 
@@ -279,6 +283,7 @@ export function setInputText(
 // Function to simulate a paste operation using robotjs
 export function simulateClipboardPaste(): void {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const robot = require("robotjs");
 
     // Write to clipboard first

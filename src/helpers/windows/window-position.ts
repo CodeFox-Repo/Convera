@@ -1,4 +1,7 @@
+import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
+import { CHANNELS } from "../ipc/channels";
+import { getPreviousApp } from "../ipc/ipc-handlers";
 
 /**
  * Position a window at the center bottom of the screen with margin
@@ -114,5 +117,56 @@ export function resizeWindowAndMaintainPosition(
     }, 100);
   } catch (error) {
     console.error("Error in resizeWindowAndMaintainPosition:", error);
+  }
+}
+
+let isHiddenOffscreen = true;
+let lastVisibleBounds: Electron.Rectangle | null = null;
+
+export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
+  // Toggle the main window’s visibility by moving it offscreen instead of hiding
+  if (!isHiddenOffscreen) {
+    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
+    // === Pseudo-hide ===
+    // 1) Save current window bounds
+    lastVisibleBounds = mainWindow.getBounds();
+
+    // 2) Ignore mouse events so clicks pass through to the app underneath
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    // 3) Make the window fully transparent
+    mainWindow.setOpacity(0);
+
+    // 4) Move the window off the visible screen
+    mainWindow.setBounds({
+      x: -9999,
+      y: -9999,
+      width: lastVisibleBounds.width,
+      height: lastVisibleBounds.height,
+    });
+
+    isHiddenOffscreen = true;
+  } else {
+    // === Restore display ===
+
+    // 1) Restore the saved bounds, or center if no bounds were saved
+    if (lastVisibleBounds) {
+      mainWindow.setBounds(lastVisibleBounds);
+    } else {
+      positionWindowAtCenterBottom(mainWindow);
+    }
+
+    // 2) Re-enable mouse events so the window can receive input again
+    mainWindow.setIgnoreMouseEvents(false);
+
+    // 3) Make the window opaque again
+    mainWindow.setOpacity(1);
+
+    // 4) Show and focus the window, then send focus event to the chat input
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
+
+    isHiddenOffscreen = false;
   }
 }

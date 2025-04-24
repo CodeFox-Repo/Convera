@@ -14,10 +14,12 @@ import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
-import { positionWindowAtCenterBottom } from "./helpers/windows/window-position";
+import {
+  positionWindowAtCenterBottom,
+  toggleMainWindowVisibility,
+} from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
-import { CHANNELS } from "./helpers/ipc/channels";
 import "./global.css";
 
 let lastVisibleBounds: Electron.Rectangle | null = null;
@@ -254,8 +256,11 @@ function registerGlobalShortcuts() {
       clipboard.writeText("");
 
       // Toggle visibility based on window state
-      toggleMainWindowVisibility();
-
+      if (!mainWindow) {
+        createMainWindow();
+      } else {
+        toggleMainWindowVisibility(mainWindow);
+      }
       // If there's selected text and the main window is now visible, set it as input
       if (mainWindow && mainWindow.isVisible()) {
         setTimeout(() => {
@@ -647,59 +652,4 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
       // Inject any specific styles or scripts if needed
     }
   });
-}
-
-let isHiddenOffscreen = true;
-
-export function toggleMainWindowVisibility() {
-  if (!mainWindow) {
-    createMainWindow();
-    return;
-  }
-
-  // Toggle the main window’s visibility by moving it offscreen instead of hiding
-  if (!isHiddenOffscreen) {
-    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
-    // === Pseudo-hide ===
-    // 1) Save current window bounds
-    lastVisibleBounds = mainWindow.getBounds();
-
-    // 2) Ignore mouse events so clicks pass through to the app underneath
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-    // 3) Make the window fully transparent
-    mainWindow.setOpacity(0);
-
-    // 4) Move the window off the visible screen
-    mainWindow.setBounds({
-      x: -9999,
-      y: -9999,
-      width: lastVisibleBounds.width,
-      height: lastVisibleBounds.height,
-    });
-
-    isHiddenOffscreen = true;
-  } else {
-    // === Restore display ===
-
-    // 1) Restore the saved bounds, or center if no bounds were saved
-    if (lastVisibleBounds) {
-      mainWindow.setBounds(lastVisibleBounds);
-    } else {
-      positionWindowAtCenterBottom(mainWindow);
-    }
-
-    // 2) Re-enable mouse events so the window can receive input again
-    mainWindow.setIgnoreMouseEvents(false);
-
-    // 3) Make the window opaque again
-    mainWindow.setOpacity(1);
-
-    // 4) Show and focus the window, then send focus event to the chat input
-    mainWindow.show();
-    mainWindow.focus();
-    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
-
-    isHiddenOffscreen = false;
-  }
 }
