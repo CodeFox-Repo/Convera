@@ -5,6 +5,8 @@ import {
 } from "../windows/window-position";
 import { CHANNELS } from "./channels";
 import { setMainWindowResizable } from "../windows/window-resize";
+import { WindowSizeConfig } from "../windows/window-size";
+import { calculateWindowDimensions } from "../windows/utils";
 
 let currentActivateShortcut = "Control+Space";
 let previousAppName = "";
@@ -290,4 +292,12 @@ export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
     console.error("Error toggling view mode:", error);
     return false;
   }
+}
+// ========== WINDOW SIZE HANDLERS ==========
+
+export function getCurrentWindowSize(window: WindowSizeConfig): {
+  width: number;
+  height: number;
+} {
+  return calculateWindowDimensions(window);
 }

@@ -6,6 +6,7 @@ import ChatInput, { ChatInputRef } from "./ChatInput";
 import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
+import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 /**
  * Agent interface definition
@@ -542,23 +543,28 @@ export default function Chat() {
       `Chat: Messages count=${messages.length}, electronWindow=${!!window.electronAPI}`,
     );
 
+    // Only resize if window.electronAPI is available and we haven't expanded yet
     if (window.electronAPI && !hasExpandedOnce) {
-      const newHeight = hasMessages ? 600 : 142;
-      console.log(
-        `Chat: Setting initial window height to ${newHeight}px based on ${messages.length} messages`,
-      );
-
-      try {
-        requestAnimationFrame(() => {
-          window.electronAPI.resizeMessageContent(600, newHeight);
-          if (hasMessages) {
-            setHasExpandedOnce(true);
+      window.electronAPI
+        .getCurrentWindowSize(
+          hasMessages
+            ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+            : WINDOW_SIZE_PRESETS.MAIN,
+        )
+        .then((res) => {
+          console.log(`Chat: Current window size: ${res.width}x${res.height}`);
+          try {
+            requestAnimationFrame(() => {
+              window.electronAPI.resizeMessageContent(res.width, res.height);
+              if (hasMessages) {
+                setHasExpandedOnce(true);
+              }
+              console.log("Chat: Resize command sent successfully");
+            });
+          } catch (error) {
+            console.error("Chat: Error sending resize command:", error);
           }
-          console.log("Chat: Initial resize command sent successfully");
         });
-      } catch (error) {
-        console.error("Chat: Error sending resize command:", error);
-      }
     } else {
       console.log(
         "Chat: Skipping window resize - window already expanded or API not available",

@@ -15,8 +15,11 @@ import {
 } from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
+import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
+
 import "./global.css";
 import { setMainWindowResizable } from "./helpers/windows/window-resize";
+import { calculateWindowDimensions } from "./helpers/windows/utils";
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
@@ -33,6 +36,9 @@ let agentPopoverWindow: BrowserWindow | null = null;
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
+// Flag to track window visibility state
+const isHiddenOffscreen = true;
+
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
   if (agentPopoverWindow) return agentPopoverWindow;
@@ -40,9 +46,14 @@ function preCreateAgentPopoverWindow() {
   console.log("Pre-creating agent popover window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+  );
+
   agentPopoverWindow = new BrowserWindow({
-    width: 240,
-    height: 300,
+    width: dimensions.width,
+    height: dimensions.height,
     x: 0,
     y: 0,
     webPreferences: {
@@ -100,9 +111,14 @@ function preCreateModelSelectorWindow() {
   console.log("Pre-creating model selector window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+  );
+
   modelSelectorWindow = new BrowserWindow({
-    width: 200,
-    height: 250,
+    width: dimensions.width,
+    height: dimensions.height,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -236,26 +252,18 @@ function registerGlobalShortcuts() {
 function createMainWindow() {
   const preload = path.join(__dirname, "preload.js");
 
-  // Get screen dimensions for positioning
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } =
-    primaryDisplay.workAreaSize;
-
-  // Calculate window dimensions and position
-  const windowWidth = 600;
-  const windowHeight = 142;
-  const x = Math.round((screenWidth - windowWidth) / 2);
-  const y = Math.round(screenHeight - windowHeight - 100); // 100px from bottom
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
 
   console.log(
-    `Creating main window with bounds: x=${x}, y=${y}, w=${windowWidth}, h=${windowHeight}`,
+    `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
   );
 
   mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x: x,
-    y: y,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -308,8 +316,12 @@ function createMainWindow() {
 
     mainWindow.once("ready-to-show", () => {
       if (mainWindow) {
-        // Position the window at center-bottom
-        positionWindowAtCenterBottom(mainWindow);
+        // Position the window at center-bottom using our preset config and default percent margin
+        positionWindowAtCenterBottom(
+          mainWindow,
+          undefined,
+          WINDOW_SIZE_PRESETS.MAIN,
+        );
 
         console.log("Main window ready, position set, but hidden initially.");
 
@@ -334,9 +346,19 @@ function preCreateSettingsWindow() {
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS,
+    undefined,
+    true,
+    true,
+  );
+
   settingsWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -427,7 +449,6 @@ function preCreateSettingsWindow() {
       console.log("Settings window ready, but kept hidden");
 
       if (inDevelopment) {
-        // 始终打开设置窗口的开发者工具，不检查全局状态
         settingsWindow.webContents.openDevTools({ mode: "detach" });
       }
     }
@@ -467,23 +488,49 @@ async function installExtensions() {
   }
 }
 
+// Handle screen resize events
+function setupScreenResizeHandlers() {
+  // Listen for primary display metrics change (resolution or scale factor change)
+  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+    if (display.id === screen.getPrimaryDisplay().id) {
+      console.log("Primary display metrics changed:", changedMetrics);
+
+      // Update main window if it exists
+      if (mainWindow && !isHiddenOffscreen) {
+        const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+        mainWindow.setBounds(dimensions);
+      }
+
+      // Update settings window if visible
+      if (settingsWindow && settingsWindow.isVisible()) {
+        const dimensions = calculateWindowDimensions(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+          undefined,
+          true,
+          true,
+        );
+        settingsWindow.setBounds(dimensions);
+      }
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     if (inDevelopment) {
       await installExtensions();
     }
 
-    // 先启动聊天服务器并等待它完成初始化
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
-    // 然后创建主窗口和其他组件
     createMainWindow();
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
+    setupScreenResizeHandlers(); // Setup screen resize handlers
 
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
@@ -522,12 +569,7 @@ app.on("window-all-closed", () => {
 });
 
 // Create agent popover window at a specific position or show existing one
-function createAgentPopoverWindow(
-  x: number,
-  y: number,
-  width = 240,
-  height = 300,
-) {
+function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
   console.log("Showing agent popover window");
   if (!agentPopoverWindow) {
     // Create if it doesn't exist
@@ -535,6 +577,15 @@ function createAgentPopoverWindow(
   }
 
   if (agentPopoverWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning agent popover to: x=${x}, y=${y}, width=${width}, height=${height}`,
@@ -563,8 +614,8 @@ function handleUrlHash(window: BrowserWindow) {
 function createModelSelectorWindow(
   x: number,
   y: number,
-  width = 200,
-  height = 250,
+  width = 0,
+  height = 0,
 ) {
   console.log("Showing model selector window");
   if (!modelSelectorWindow) {
@@ -573,6 +624,15 @@ function createModelSelectorWindow(
   }
 
   if (modelSelectorWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning model selector to: x=${x}, y=${y}, width=${width}, height=${height}`,
