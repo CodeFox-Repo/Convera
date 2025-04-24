@@ -19,7 +19,10 @@ import {
 } from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
+import { CHANNELS } from "./helpers/ipc/channels";
+import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
 import "./global.css";
+import { calculateWindowDimensions } from "./helpers/windows/utils";
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
@@ -43,9 +46,14 @@ function preCreateAgentPopoverWindow() {
   console.log("Pre-creating agent popover window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+  );
+
   agentPopoverWindow = new BrowserWindow({
-    width: 240,
-    height: 300,
+    width: dimensions.width,
+    height: dimensions.height,
     x: 0,
     y: 0,
     webPreferences: {
@@ -103,9 +111,14 @@ function preCreateModelSelectorWindow() {
   console.log("Pre-creating model selector window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+  );
+
   modelSelectorWindow = new BrowserWindow({
-    width: 200,
-    height: 250,
+    width: dimensions.width,
+    height: dimensions.height,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -239,26 +252,18 @@ function registerGlobalShortcuts() {
 function createMainWindow() {
   const preload = path.join(__dirname, "preload.js");
 
-  // Get screen dimensions for positioning
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } =
-    primaryDisplay.workAreaSize;
-
-  // Calculate window dimensions and position
-  const windowWidth = 600;
-  const windowHeight = 142;
-  const x = Math.round((screenWidth - windowWidth) / 2);
-  const y = Math.round(screenHeight - windowHeight - 100); // 100px from bottom
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
 
   console.log(
-    `Creating main window with bounds: x=${x}, y=${y}, w=${windowWidth}, h=${windowHeight}`,
+    `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
   );
 
   mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x: x,
-    y: y,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -314,8 +319,8 @@ function createMainWindow() {
 
     mainWindow.once("ready-to-show", () => {
       if (mainWindow) {
-        // Position the window at center-bottom
-        positionWindowAtCenterBottom(mainWindow);
+        // Position the window at center-bottom using our preset config
+        positionWindowAtCenterBottom(mainWindow, 100, WINDOW_SIZE_PRESETS.MAIN);
 
         console.log("Main window ready, position set, but hidden initially.");
 
@@ -340,9 +345,19 @@ function preCreateSettingsWindow() {
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS,
+    50,
+    true,
+    true,
+  );
+
   settingsWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -473,6 +488,33 @@ async function installExtensions() {
   }
 }
 
+// Handle screen resize events
+function setupScreenResizeHandlers() {
+  // Listen for primary display metrics change (resolution or scale factor change)
+  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+    if (display.id === screen.getPrimaryDisplay().id) {
+      console.log("Primary display metrics changed:", changedMetrics);
+
+      // Update main window if it exists
+      if (mainWindow && !isHiddenOffscreen) {
+        const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+        mainWindow.setBounds(dimensions);
+      }
+
+      // Update settings window if visible
+      if (settingsWindow && settingsWindow.isVisible()) {
+        const dimensions = calculateWindowDimensions(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+          50,
+          true,
+          true,
+        );
+        settingsWindow.setBounds(dimensions);
+      }
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     if (inDevelopment) {
@@ -490,6 +532,7 @@ app.whenReady().then(async () => {
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
+    setupScreenResizeHandlers(); // Setup screen resize handlers
 
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
@@ -528,12 +571,7 @@ app.on("window-all-closed", () => {
 });
 
 // Create agent popover window at a specific position or show existing one
-function createAgentPopoverWindow(
-  x: number,
-  y: number,
-  width = 240,
-  height = 300,
-) {
+function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
   console.log("Showing agent popover window");
   if (!agentPopoverWindow) {
     // Create if it doesn't exist
@@ -541,6 +579,15 @@ function createAgentPopoverWindow(
   }
 
   if (agentPopoverWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning agent popover to: x=${x}, y=${y}, width=${width}, height=${height}`,
@@ -569,8 +616,8 @@ function handleUrlHash(window: BrowserWindow) {
 function createModelSelectorWindow(
   x: number,
   y: number,
-  width = 200,
-  height = 250,
+  width = 0,
+  height = 0,
 ) {
   console.log("Showing model selector window");
   if (!modelSelectorWindow) {
@@ -579,6 +626,15 @@ function createModelSelectorWindow(
   }
 
   if (modelSelectorWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning model selector to: x=${x}, y=${y}, width=${width}, height=${height}`,
@@ -601,4 +657,61 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
       // Inject any specific styles or scripts if needed
     }
   });
+}
+
+let isHiddenOffscreen = true;
+
+export function toggleMainWindowVisibility() {
+  if (!mainWindow) {
+    createMainWindow();
+    return;
+  }
+
+  // Toggle the main window's visibility by moving it offscreen instead of hiding
+  if (!isHiddenOffscreen) {
+    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
+    // === Pseudo-hide ===
+    // 1) Save current window bounds
+    lastVisibleBounds = mainWindow.getBounds();
+
+    // 2) Ignore mouse events so clicks pass through to the app underneath
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    // 3) Make the window fully transparent
+    mainWindow.setOpacity(0);
+
+    // 4) Move the window off the visible screen
+    mainWindow.setBounds({
+      x: -9999,
+      y: -9999,
+      width: lastVisibleBounds.width,
+      height: lastVisibleBounds.height,
+    });
+
+    isHiddenOffscreen = true;
+  } else {
+    // === Restore display ===
+
+    // 1) Restore the saved bounds, or recalculate if no bounds were saved
+    if (lastVisibleBounds) {
+      mainWindow.setBounds(lastVisibleBounds);
+    } else {
+      // If no saved bounds, recalculate based on screen size
+      const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+      mainWindow.setBounds(dimensions);
+    }
+
+    // 2) Re-enable mouse events so the window can receive input again
+    mainWindow.setIgnoreMouseEvents(false);
+
+    // 3) Make the window opaque again
+    mainWindow.setOpacity(1);
+
+    // 4) Show and focus the window, then send focus event to the chat input
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
+
+    isHiddenOffscreen = false;
+  }
 }
