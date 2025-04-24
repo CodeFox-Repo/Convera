@@ -1,6 +1,8 @@
 import { BrowserWindow, nativeTheme } from "electron";
 import { resizeWindowAndMaintainPosition } from "../windows/window-position";
 import { CHANNELS } from "./channels";
+import { WindowSizeConfig } from "../windows/window-size";
+import { calculateWindowDimensions } from "../windows/utils";
 
 let currentActivateShortcut = "Control+Space";
 let previousAppName = "";
@@ -257,4 +259,13 @@ export function modelSelected(
     }
     `,
   );
+}
+
+// ========== WINDOW SIZE HANDLERS ==========
+
+export function getCurrentWindowSize(window: WindowSizeConfig): {
+  width: number;
+  height: number;
+} {
+  return calculateWindowDimensions(window);
 }
