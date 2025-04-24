@@ -52,7 +52,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       autofocus: autoFocus,
       injectCSS: false,
       onUpdate: ({ editor }) => {
-        onChange(editor.getText());
+        onChange(editor.getHTML());
       },
       editorProps: {
         handleKeyDown: (view, event) => {
