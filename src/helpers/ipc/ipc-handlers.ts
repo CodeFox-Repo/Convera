@@ -6,6 +6,8 @@ import {
 } from "../windows/window-position";
 import { CHANNELS } from "./channels";
 import { exec } from "child_process";
+import { WindowSizeConfig } from "../windows/window-size";
+import { calculateWindowDimensions } from "../windows/utils";
 
 let currentActivateShortcut = "Control+Space";
 let previousAppName = "";
@@ -340,4 +342,13 @@ export function pasteModifiedContent(content: string): void {
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }
+}
+
+// ========== WINDOW SIZE HANDLERS ==========
+
+export function getCurrentWindowSize(window: WindowSizeConfig): {
+  width: number;
+  height: number;
+} {
+  return calculateWindowDimensions(window);
 }

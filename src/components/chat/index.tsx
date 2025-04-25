@@ -7,6 +7,7 @@ import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
 import CopiedContentCard from "./CopiedContentCard";
+import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 /**
  * Agent interface definition
@@ -565,24 +566,23 @@ export default function Chat() {
 
     // Only resize if window.electronWindow is available
     if (window.electronAPI) {
-      // Base height calculation
-      const baseHeight = hasMessages ? 600 : 142;
-      // Add extra height if showing copied content
-      const extraHeight = copiedContent ? 140 : 0;
-      const newHeight = baseHeight + extraHeight;
-      
-      console.log(
-        `Chat: Setting window height to ${newHeight}px based on ${messages.length} messages and copied content status`,
-      );
-
-      try {
-        requestAnimationFrame(() => {
-          window.electronAPI.resizeMessageContent(600, newHeight);
-          console.log("Chat: Resize command sent successfully");
+      window.electronAPI
+        .getCurrentWindowSize(
+          hasMessages
+            ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+            : WINDOW_SIZE_PRESETS.MAIN,
+        )
+        .then((res) => {
+          console.log(`Chat: Current window size: ${res.width}x${res.height}`);
+          try {
+            requestAnimationFrame(() => {
+              window.electronAPI.resizeMessageContent(res.width, res.height);
+              console.log("Chat: Resize command sent successfully");
+            });
+          } catch (error) {
+            console.error("Chat: Error sending resize command:", error);
+          }
         });
-      } catch (error) {
-        console.error("Chat: Error sending resize command:", error);
-      }
     } else {
       console.error("Chat: window.electronWindow is not available!");
       console.error("Chat: window.electronAPI is not available!");

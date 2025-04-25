@@ -1,5 +1,7 @@
 // src/types/electron.d.ts
 
+import { WindowSizeConfig } from "@/helpers/windows/window-size";
+
 // Define the structure of the API exposed via contextBridge
 export interface IElectronAPI {
   // Settings
@@ -43,6 +45,10 @@ export interface IElectronAPI {
   onFocusChatInput: (callback: () => void) => () => void; // Returns a cleanup function
   onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
   onSetInputText: (callback: (text: string) => void) => () => void; // Input text event
+  getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
+    width: number;
+    height: number;
+  }>;
 }
 
 // Extend the global Window interface
