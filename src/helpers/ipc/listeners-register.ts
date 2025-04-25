@@ -26,6 +26,7 @@ import {
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { WINDOW_SIZE_PRESETS, WindowSizeConfig } from "../windows/window-size";
+import { WINDOW_SIZE_PRESETS, WindowSizeConfig } from "../windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -191,6 +192,13 @@ export default function registerListeners(
     console.log("Handling THEME.SET_SYSTEM");
     return setSystemTheme();
   });
+
+  ipcMain.handle(
+    CHANNELS.WINDOW.GET_CURRENT_SIZE,
+    (event, window: WindowSizeConfig) => {
+      return getCurrentWindowSize(window);
+    },
+  );
 
   ipcMain.handle(
     CHANNELS.WINDOW.GET_CURRENT_SIZE,

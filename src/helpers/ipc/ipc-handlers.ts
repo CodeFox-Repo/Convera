@@ -5,9 +5,15 @@ import {
   toggleMainWindowVisibility,
 } from "../windows/window-position";
 import { CHANNELS } from "./channels";
+<<<<<<< HEAD
 import { exec } from "child_process";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
+=======
+import { WindowSizeConfig } from "../windows/window-size";
+import { calculateWindowDimensions } from "../windows/utils";
+import { exec } from "child_process";
+>>>>>>> eb5fda3478c990fdea0055adfb0a97023157cdd6
 
 let currentActivateShortcut = "Control+Space";
 let previousAppName = "";

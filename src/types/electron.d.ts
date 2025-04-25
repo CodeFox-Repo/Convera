@@ -45,6 +45,10 @@ export interface IElectronAPI {
   onFocusChatInput: (callback: () => void) => () => void; // Returns a cleanup function
   onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
   onSetInputText: (callback: (text: string) => void) => () => void; // Input text event
+<<<<<<< HEAD
+=======
+  onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
+>>>>>>> eb5fda3478c990fdea0055adfb0a97023157cdd6
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
     width: number;
     height: number;
