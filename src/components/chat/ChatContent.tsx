@@ -197,7 +197,7 @@ export default function ChatContent({
               <ModifiedContentBlock
                 modifiedContent={modifiedContent}
                 onAccept={() => handleAcceptModification(messageId)}
-                onReject={() => handleRejectModification(messageId)}
+                // onReject={() => handleRejectModification(messageId)} (TODO ALLEN: Implement this)
               >
                 <Markdown>{modifiedContent}</Markdown>
               </ModifiedContentBlock>
