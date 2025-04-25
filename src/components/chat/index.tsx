@@ -576,7 +576,9 @@ export default function Chat() {
           console.log(`Chat: Current window size: ${res.width}x${res.height}`);
           try {
             requestAnimationFrame(() => {
-              window.electronAPI.resizeMessageContent(res.width, res.height);
+              const extraHeight = copiedContent ? 140 : 0;
+              const newHeight = res.height + extraHeight;
+              window.electronAPI.resizeMessageContent(res.width, newHeight);
               console.log("Chat: Resize command sent successfully");
             });
           } catch (error) {
