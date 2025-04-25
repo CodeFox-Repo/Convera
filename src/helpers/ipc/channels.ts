@@ -1,3 +1,5 @@
+import { WindowSizeConfig } from "../windows/window-size";
+
 export interface IPCServer {
   toggleSettingsWindow(): void;
   closeSettingsWindow(): void;
@@ -38,6 +40,10 @@ export interface IPCServer {
     height?: number,
   ): void;
   modelSelected(modelId: string): boolean;
+  getCurrentWindowSize(window: WindowSizeConfig): {
+    width: number;
+    height: number;
+  };
 }
 
 export const CHANNELS = {
@@ -71,6 +77,7 @@ export const CHANNELS = {
     RESIZE: "window:resize",
     RESIZE_MESSAGE_CONTENT: "window:resize-message-content",
     GET_POSITION: "window:get-position",
+    GET_CURRENT_SIZE: "window:get-current-size",
   },
   AGENT: {
     TOGGLE_POPOVER: "agent:toggle-popover",
@@ -110,4 +117,5 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // Model Selector
   toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
+  getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
 };

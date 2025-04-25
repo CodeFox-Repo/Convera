@@ -1,32 +1,60 @@
 import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
+import { WindowSizeConfig } from "./window-size";
+import { calculateWindowDimensions } from "./utils";
+import { appConfig } from "../config";
 import { CHANNELS } from "../ipc/channels";
 import { getPreviousApp } from "../ipc/ipc-handlers";
 
 /**
  * Position a window at the center bottom of the screen with margin
+ * bottomMarginPercent: percentage of screen height to use as bottom margin
  */
 export function positionWindowAtCenterBottom(
   window: BrowserWindow,
-  bottomMargin = 100,
+  bottomMarginPixels?: number,
+  config?: WindowSizeConfig,
+  bottomMarginPercent: number = appConfig.window.defaultBottomMarginPercent,
 ) {
   if (!window) return;
 
-  // Get the primary display's work area
+  // Get primary display
   const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workAreaSize;
+  const { height: screenHeight } = primaryDisplay.workAreaSize;
 
-  // Calculate window position
-  const windowSize = window.getSize();
-  const x = Math.round((width - windowSize[0]) / 2);
-  const y = Math.round(height - windowSize[1] - bottomMargin);
+  // Calculate bottom margin in pixels based on percentage of screen height
+  // Or use provided pixel value as fallback
+  const bottomMargin =
+    bottomMarginPercent > 0
+      ? Math.round(screenHeight * (bottomMarginPercent / 100))
+      : bottomMarginPixels || appConfig.window.fallbackBottomMarginPixels;
 
   console.log(
-    `Positioning window at: x=${x}, y=${y}, size=${windowSize[0]}x${windowSize[1]}`,
+    `Using bottom margin: ${bottomMargin}px (${bottomMarginPercent}% of screen height)`,
   );
 
-  // Set the window position
-  window.setPosition(x, y);
+  // Get current window size
+  const windowBounds = window.getBounds();
+
+  // If config is provided, ensure window size matches the config
+  if (config) {
+    // Calculate dimensions based on config
+    const dimensions = calculateWindowDimensions(config, bottomMargin);
+    window.setBounds(dimensions);
+  } else {
+    // Use current size but just reposition
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width } = primaryDisplay.workAreaSize;
+    const x = Math.round((width - windowBounds.width) / 2);
+    const y = Math.round(
+      primaryDisplay.workAreaSize.height - windowBounds.height - bottomMargin,
+    );
+    window.setPosition(x, y);
+  }
+
+  console.log(
+    `Positioned window at: x=${window.getBounds().x}, y=${window.getBounds().y}, size=${window.getBounds().width}x${window.getBounds().height}, margin=${bottomMargin}px`,
+  );
 }
 
 /**
@@ -36,18 +64,17 @@ export function centerWindowHorizontally(window: BrowserWindow) {
   if (!window) return;
 
   // Get current position and size
-  const position = window.getPosition();
-  const windowSize = window.getSize();
+  const bounds = window.getBounds();
 
   // Get the primary display's work area
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width } = primaryDisplay.workAreaSize;
 
   // Calculate new X position to center window horizontally
-  const newX = Math.round((width - windowSize[0]) / 2);
+  const newX = Math.round((width - bounds.width) / 2);
 
   // Keep the same Y position
-  window.setPosition(newX, position[1]);
+  window.setPosition(newX, bounds.y);
 }
 
 /**
@@ -58,10 +85,18 @@ export function resizeWindowAndMaintainPosition(
   window: BrowserWindow,
   width: number,
   height: number,
+  config?: WindowSizeConfig,
 ) {
   if (!window) {
     console.error("resizeWindowAndMaintainPosition: Window is null");
     return;
+  }
+
+  // If config is provided, calculate dimensions based on proportion
+  if (config) {
+    const dimensions = calculateWindowDimensions(config);
+    width = dimensions.width;
+    height = dimensions.height;
   }
 
   console.log(
