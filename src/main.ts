@@ -87,7 +87,14 @@ function preCreateAgentPopoverWindow() {
     WINDOW_SIZE_PRESETS.AGENT_POPOVER,
   );
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+  );
+
   agentPopoverWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
     width: dimensions.width,
     height: dimensions.height,
     x: 0,
@@ -152,7 +159,14 @@ function preCreateModelSelectorWindow() {
     WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
   );
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+  );
+
   modelSelectorWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
     width: dimensions.width,
     height: dimensions.height,
     webPreferences: {
@@ -307,12 +321,19 @@ function createMainWindow() {
 
   // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
 
   console.log(
+    `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
     `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
   );
 
   mainWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     width: dimensions.width,
     height: dimensions.height,
     x: dimensions.x,
@@ -378,6 +399,12 @@ function createMainWindow() {
           undefined,
           WINDOW_SIZE_PRESETS.MAIN,
         );
+        // Position the window at center-bottom using our preset config and default percent margin
+        positionWindowAtCenterBottom(
+          mainWindow,
+          undefined,
+          WINDOW_SIZE_PRESETS.MAIN,
+        );
 
         console.log("Main window ready, position set, but hidden initially.");
 
@@ -410,7 +437,19 @@ function preCreateSettingsWindow() {
     true,
   );
 
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS,
+    undefined,
+    true,
+    true,
+  );
+
   settingsWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     width: dimensions.width,
     height: dimensions.height,
     x: dimensions.x,
@@ -571,6 +610,33 @@ function setupScreenResizeHandlers() {
   });
 }
 
+// Handle screen resize events
+function setupScreenResizeHandlers() {
+  // Listen for primary display metrics change (resolution or scale factor change)
+  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+    if (display.id === screen.getPrimaryDisplay().id) {
+      console.log("Primary display metrics changed:", changedMetrics);
+
+      // Update main window if it exists
+      if (mainWindow && !isHiddenOffscreen) {
+        const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+        mainWindow.setBounds(dimensions);
+      }
+
+      // Update settings window if visible
+      if (settingsWindow && settingsWindow.isVisible()) {
+        const dimensions = calculateWindowDimensions(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+          undefined,
+          true,
+          true,
+        );
+        settingsWindow.setBounds(dimensions);
+      }
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     if (inDevelopment) {
@@ -586,6 +652,7 @@ app.whenReady().then(async () => {
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
+    setupScreenResizeHandlers(); // Setup screen resize handlers
     setupScreenResizeHandlers(); // Setup screen resize handlers
 
     const mainProcessOptions: ListenerOptions = {
@@ -626,6 +693,7 @@ app.on("window-all-closed", () => {
 
 // Create agent popover window at a specific position or show existing one
 function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
+function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
   console.log("Showing agent popover window");
   if (!agentPopoverWindow) {
     // Create if it doesn't exist
@@ -633,6 +701,15 @@ function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
   }
 
   if (agentPopoverWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Get dimensions from presets if not provided
     if (width === 0 || height === 0) {
       const dimensions = calculateWindowDimensions(
@@ -672,6 +749,8 @@ function createModelSelectorWindow(
   y: number,
   width = 0,
   height = 0,
+  width = 0,
+  height = 0,
 ) {
   console.log("Showing model selector window");
   if (!modelSelectorWindow) {
@@ -680,6 +759,15 @@ function createModelSelectorWindow(
   }
 
   if (modelSelectorWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Get dimensions from presets if not provided
     if (width === 0 || height === 0) {
       const dimensions = calculateWindowDimensions(
