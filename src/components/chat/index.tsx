@@ -812,8 +812,7 @@ export default function Chat() {
       console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
     }
 
-    // We need to sync the message immediately rather than relying on async state updates
-    // Set the input manually before submitting
+    // Update input with the combined message text
     handleInputChange({
       target: { value: messageText }
     } as React.ChangeEvent<HTMLInputElement>);
@@ -821,44 +820,22 @@ export default function Chat() {
     // Create a synthetic event for handleSubmit
     const event = {
       preventDefault: () => {},
-      target: {
-        elements: {
-          message: {
-            value: messageText
-          }
-        }
-      }
     } as unknown as React.FormEvent<HTMLFormElement>;
 
-    // Since state updates are asynchronous, we need to make sure the input
-    // is properly set before submitting, so we manually add a message first
-    // (This approach ensures the combined text is actually sent)
-    setMessages(prevMessages => [
-      ...prevMessages,
-      {
-        id: Date.now().toString(),
-        role: 'user',
-        content: messageText,
-      }
-    ]);
-    
     // Clear copied content after using it
     if (copiedContent) {
       setCopiedContent(null);
     }
 
-    // Then trigger a response - use reload instead of aiHandleSubmit
-    // to ensure our manually added message gets a response
+    // Submit the message using aiHandleSubmit (don't use both methods)
+    aiHandleSubmit(event);
+
+    // Clear content directly using the editor instance
     setTimeout(() => {
-      reload();
-      
-      // Clear content directly using the editor instance
       if (chatInputRef.current?.editor) {
         chatInputRef.current.editor.clearContent();
       }
-    }, 50);
-
-    aiHandleSubmit(event);
+    }, 0);
   };
 
   // Handle editing a message and regenerating the response
