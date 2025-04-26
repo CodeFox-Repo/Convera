@@ -6,6 +6,7 @@ import ChatInput, { ChatInputRef } from "./ChatInput";
 import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
+import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 /**
@@ -37,6 +38,8 @@ interface CompactChatViewProps {
   onAgentSelect?: (agent: Agent | null) => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
 }
 
 /**
@@ -57,26 +60,39 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onAgentSelect,
   selectedModelId,
   onModelSelect,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   return (
-    <div className="h-full">
-      <ChatInput
-        ref={chatInputRef}
-        isLoading={isLoading}
-        input={input}
-        setInput={setInput}
-        hasMessages={false}
-        onAddAttachment={onAddAttachment}
-        onToggleTranslation={onToggleTranslation}
-        onReset={onReset}
-        onVoiceInput={onVoiceInput}
-        onSendMessage={onSendMessage}
-        onStopGeneration={onStopGeneration}
-        selectedAgent={selectedAgent}
-        onAgentSelect={onAgentSelect}
-        selectedModelId={selectedModelId}
-        onModelSelect={onModelSelect}
-      />
+    <div className="h-full flex flex-col p-1">
+      {/* Show copied content card above the input */}
+      {copiedContent && (
+        <div className="mb-2 w-full overflow-y-auto p-1">
+          <CopiedContentCard
+            content={copiedContent}
+            onReject={onRejectCopiedContent}
+          />
+        </div>
+      )}
+      <div className="flex-1 min-h-[100px]">
+        <ChatInput
+          ref={chatInputRef}
+          isLoading={isLoading}
+          input={input}
+          setInput={setInput}
+          hasMessages={false}
+          onAddAttachment={onAddAttachment}
+          onToggleTranslation={onToggleTranslation}
+          onReset={onReset}
+          onVoiceInput={onVoiceInput}
+          onSendMessage={onSendMessage}
+          onStopGeneration={onStopGeneration}
+          selectedAgent={selectedAgent}
+          onAgentSelect={onAgentSelect}
+          selectedModelId={selectedModelId}
+          onModelSelect={onModelSelect}
+        />
+      </div>
     </div>
   );
 };
@@ -111,6 +127,8 @@ interface ExpandedChatViewProps {
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
 }
 
 /**
@@ -143,6 +161,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onIgnoreAgentChange,
   selectedModelId,
   onModelSelect,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   const buttonVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -213,25 +233,36 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region mb-2 h-36 min-h-[144px] p-4">
-          <ChatInput
-            ref={chatInputRef}
-            isLoading={isLoading}
-            input={input}
-            setInput={setInput}
-            hasMessages={true}
-            onAddAttachment={onAddAttachment}
-            onToggleTranslation={onToggleTranslation}
-            onReset={onReset}
-            onVoiceInput={onVoiceInput}
-            onSendMessage={onSendMessage}
-            onStopGeneration={onStopGeneration}
-            selectedAgent={selectedAgent}
-            onAgentSelect={onAgentSelect}
-            selectedModelId={selectedModelId}
-            onModelSelect={onModelSelect}
-            placeholder="Message to FoxyChat..."
-          />
+        <div className="drag-region flex flex-col p-1">
+          {/* Show copied content card above the input */}
+          {copiedContent && (
+            <div className="mb-2 w-full p-1">
+              <CopiedContentCard
+                content={copiedContent}
+                onReject={onRejectCopiedContent}
+              />
+            </div>
+          )}
+          <div className="flex-1">
+            <ChatInput
+              ref={chatInputRef}
+              isLoading={isLoading}
+              input={input}
+              setInput={setInput}
+              hasMessages={true}
+              onAddAttachment={onAddAttachment}
+              onToggleTranslation={onToggleTranslation}
+              onReset={onReset}
+              onVoiceInput={onVoiceInput}
+              onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
+              selectedAgent={selectedAgent}
+              onAgentSelect={onAgentSelect}
+              selectedModelId={selectedModelId}
+              onModelSelect={onModelSelect}
+              placeholder="Message to FoxyChat..."
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -244,6 +275,9 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
 export default function Chat() {
   // Get settings to use stored OpenAI configuration
   const settings = getSettings();
+
+  // Add state for copied content preview
+  const [copiedContent, setCopiedContent] = useState<string | null>(null);
 
   // Add state for selected agent
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -441,6 +475,59 @@ export default function Chat() {
     };
   }, [selectedModelId]);
 
+  // Listen for input text events from the main process
+  useEffect(() => {
+    // Setup listener for setting input text from clipboard
+    if (window.electronAPI?.onSetInputText) {
+      console.log('Setting up input text listener');
+      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
+        // Log received text (truncated for large content)
+        console.log('Received text from clipboard:', text?.substring(0, 20) + (text?.length > 20 ? '...' : '') || 'empty');
+        
+        // Clear previous content if clipboard is empty
+        if (!text || !text.trim()) {
+          setCopiedContent(null);
+          
+          // Force resize when clearing clipboard content
+          if (window.electronAPI) {
+            console.log('Clipboard content cleared, resizing window to default');
+            window.electronAPI
+              .getCurrentWindowSize(
+                messages.length > 0
+                  ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+                  : WINDOW_SIZE_PRESETS.MAIN,
+              )
+              .then((res) => {
+                window.electronAPI.resizeMessageContent(res.width, res.height);
+              });
+          }
+          return;
+        }
+        
+        // Show preview card for valid clipboard content
+        setCopiedContent(text);
+        
+        // Force resize immediately when setting clipboard content
+        if (window.electronAPI) {
+          console.log('Clipboard content set, resizing window with extra height');
+          window.electronAPI
+            .getCurrentWindowSize(
+              messages.length > 0
+                ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+                : WINDOW_SIZE_PRESETS.MAIN,
+            )
+            .then((res) => {
+              // Fixed height adjustment of 140px for clipboard content
+              const newHeight = res.height + 140;
+              window.electronAPI.resizeMessageContent(res.width, newHeight);
+            });
+        }
+      });
+      
+      return unsubscribe;
+    }
+  }, [messages.length]);
+
   const handleRegenerateWithNewAgent = () => {
     console.log(
       `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
@@ -537,7 +624,7 @@ export default function Chat() {
     [hasExpandedOnce],
   );
 
-  // Modify resize effect to only handle initial window size
+  // Modify resize effect to handle clipboard sizing more explicitly
   useEffect(() => {
     // Skip if not fully mounted or still initializing
     if (!mounted || initializing) {
@@ -547,11 +634,11 @@ export default function Chat() {
     const hasMessages = messages.length > 0;
 
     console.log(
-      `Chat: Messages count=${messages.length}, electronWindow=${!!window.electronAPI}`,
+      `Chat: Messages count=${messages.length}, clipboard=${!!copiedContent}, electronWindow=${!!window.electronAPI}`,
     );
 
-    // Only resize if window.electronAPI is available and we haven't expanded yet
-    if (window.electronAPI && !hasExpandedOnce) {
+    // Only resize if window.electronAPI is available
+    if (window.electronAPI) {
       window.electronAPI
         .getCurrentWindowSize(
           hasMessages
@@ -561,23 +648,28 @@ export default function Chat() {
         .then((res) => {
           console.log(`Chat: Current window size: ${res.width}x${res.height}`);
           try {
-            requestAnimationFrame(() => {
-              window.electronAPI.resizeMessageContent(res.width, res.height);
-              if (hasMessages) {
-                setHasExpandedOnce(true);
-              }
-              console.log("Chat: Resize command sent successfully");
-            });
+            // Calculate exact height based on clipboard presence
+            let finalHeight = res.height;
+            
+            // Add extra height only if there's actual clipboard content
+            if (copiedContent && copiedContent.trim()) {
+              console.log('Chat: Adding extra height for clipboard content');
+              finalHeight += 140; // Fixed additional height
+            }
+            
+            console.log(`Chat: Setting final size to ${res.width}x${finalHeight}`);
+            
+            window.electronAPI.resizeMessageContent(res.width, finalHeight);
           } catch (error) {
             console.error("Chat: Error sending resize command:", error);
           }
         });
     } else {
       console.log(
-        "Chat: Skipping window resize - window already expanded or API not available",
+        "Chat: Skipping window resize - API not available",
       );
     }
-  }, [messages.length, mounted, initializing, hasExpandedOnce]);
+  }, [messages.length, mounted, initializing, copiedContent]);
 
   // Setup IPC listener for window focus event
   useEffect(() => {
@@ -696,31 +788,77 @@ export default function Chat() {
 
     if (!editor || isLoading) return;
 
-    // Check if the editor is empty
-    if (editor.getText().trim() === "") return;
+    // Check if the editor is empty and there's no copied content
+    const editorText = editor.getText().trim();
+    if (!editorText && !copiedContent) return;
 
     // Log the selected agent information
     console.log(
       `Sending message with agent: ${selectedAgent?.name || "Default"} (${selectedAgent?.id || "none"})`,
     );
 
+    // Prepare the message text - combine editor content with copied content if available
+    let messageText = editorText;
+    
+    if (copiedContent) {
+      // Add copied content to the message wrapped in markdown to distinguish it
+      if (messageText) {
+        // If there's already text in the editor, add the wrapped copied content before it
+        messageText = `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`;
+      } else {
+        // If editor is empty, just use the wrapped copied content
+        messageText = `<copied>\n${copiedContent}\n</copied>`;
+      }
+      console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
+    }
+
+    // We need to sync the message immediately rather than relying on async state updates
+    // Set the input manually before submitting
+    handleInputChange({
+      target: { value: messageText }
+    } as React.ChangeEvent<HTMLInputElement>);
+    
     // Create a synthetic event for handleSubmit
     const event = {
       preventDefault: () => {},
+      target: {
+        elements: {
+          message: {
+            value: messageText
+          }
+        }
+      }
     } as unknown as React.FormEvent<HTMLFormElement>;
 
-    // Update input state with HTML content from editor
-    handleInputChangeAdapter(editor.getText());
+    // Since state updates are asynchronous, we need to make sure the input
+    // is properly set before submitting, so we manually add a message first
+    // (This approach ensures the combined text is actually sent)
+    setMessages(prevMessages => [
+      ...prevMessages,
+      {
+        id: Date.now().toString(),
+        role: 'user',
+        content: messageText,
+      }
+    ]);
+    
+    // Clear copied content after using it
+    if (copiedContent) {
+      setCopiedContent(null);
+    }
 
-    // Submit the message to AI
-    aiHandleSubmit(event);
-
-    // Clear content directly using the editor instance
+    // Then trigger a response - use reload instead of aiHandleSubmit
+    // to ensure our manually added message gets a response
     setTimeout(() => {
+      reload();
+      
+      // Clear content directly using the editor instance
       if (chatInputRef.current?.editor) {
         chatInputRef.current.editor.clearContent();
       }
-    }, 0);
+    }, 50);
+
+    aiHandleSubmit(event);
   };
 
   // Handle editing a message and regenerating the response
@@ -771,6 +909,28 @@ export default function Chat() {
     reload();
   };
 
+  // Functions to handle copied content actions - only keep the reject function
+  const handleRejectCopiedContent = () => {
+    console.log("Rejecting copied content");
+    setCopiedContent(null);
+    
+    // Force window resize after rejecting content
+    if (window.electronAPI) {
+      setTimeout(() => {
+        window.electronAPI
+          .getCurrentWindowSize(
+            messages.length > 0
+              ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+              : WINDOW_SIZE_PRESETS.MAIN,
+          )
+          .then((res) => {
+            window.electronAPI.resizeMessageContent(res.width, res.height);
+            console.log("Chat: Window resized after content rejection");
+          });
+      }, 50);
+    }
+  };
+
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.classList.add("preload");
@@ -815,63 +975,56 @@ export default function Chat() {
             <div className="bg-primary/20 h-10 w-10 animate-pulse rounded-full" />
           </div>
         </div>
+      ) : messages.length > 0 ? (
+        <ExpandedChatView
+          messages={messages as UIMessage[]}
+          messagesEndRef={messagesEndRef}
+          input={input}
+          setInput={handleInputChangeAdapter}
+          isLoading={isLoading}
+          onAddAttachment={handleAddAttachment}
+          onToggleTranslation={handleToggleTranslation}
+          onReset={handleReset}
+          onVoiceInput={handleVoiceInput}
+          onSendMessage={handleSendMessage}
+          onStopGeneration={handleStopGeneration}
+          onEditMessage={handleEditMessage}
+          onRegenerateMessage={handleRegenerateResponse}
+          chatInputRef={chatInputRef}
+          showControls={showControls}
+          onExit={handleExit}
+          onNewHistory={handleNewHistory}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          selectedAgent={selectedAgent}
+          onAgentSelect={setSelectedAgent}
+          agentChanged={agentChanged}
+          onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
+          onIgnoreAgentChange={handleIgnoreAgentChange}
+          selectedModelId={selectedModelId}
+          onModelSelect={setSelectedModelId}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
+        />
       ) : (
-        <div className="h-full w-full">
-          {viewMode === "expanded" ? (
-            <ExpandedChatView
-              messages={messages as UIMessage[]}
-              messagesEndRef={messagesEndRef}
-              input={input}
-              setInput={handleInputChangeAdapter}
-              isLoading={isLoading}
-              onAddAttachment={handleAddAttachment}
-              onToggleTranslation={handleToggleTranslation}
-              onReset={handleReset}
-              onVoiceInput={handleVoiceInput}
-              onSendMessage={handleSendMessage}
-              onStopGeneration={handleStopGeneration}
-              onEditMessage={handleEditMessage}
-              onRegenerateMessage={handleRegenerateResponse}
-              chatInputRef={chatInputRef}
-              showControls={showControls}
-              onExit={handleExit}
-              onNewHistory={handleNewHistory}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              selectedAgent={selectedAgent}
-              onAgentSelect={setSelectedAgent}
-              agentChanged={agentChanged}
-              onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
-              onIgnoreAgentChange={handleIgnoreAgentChange}
-              selectedModelId={selectedModelId}
-              onModelSelect={setSelectedModelId}
-            />
-          ) : (
-            <CompactChatView
-              input={input}
-              setInput={handleInputChangeAdapter}
-              isLoading={isLoading}
-              onAddAttachment={handleAddAttachment}
-              onToggleTranslation={handleToggleTranslation}
-              onReset={handleReset}
-              onVoiceInput={handleVoiceInput}
-              onSendMessage={() => {
-                if (input.trim()) {
-                  toggleViewMode("expanded");
-                  setTimeout(() => {
-                    handleSendMessage();
-                  }, 150);
-                }
-              }}
-              onStopGeneration={handleStopGeneration}
-              chatInputRef={chatInputRef}
-              selectedAgent={selectedAgent}
-              onAgentSelect={setSelectedAgent}
-              selectedModelId={selectedModelId}
-              onModelSelect={setSelectedModelId}
-            />
-          )}
-        </div>
+        <CompactChatView
+          input={input}
+          setInput={handleInputChangeAdapter}
+          isLoading={isLoading}
+          onAddAttachment={handleAddAttachment}
+          onToggleTranslation={handleToggleTranslation}
+          onReset={handleReset}
+          onVoiceInput={handleVoiceInput}
+          onSendMessage={handleSendMessage}
+          onStopGeneration={handleStopGeneration}
+          chatInputRef={chatInputRef}
+          selectedAgent={selectedAgent}
+          onAgentSelect={setSelectedAgent}
+          selectedModelId={selectedModelId}
+          onModelSelect={setSelectedModelId}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
+        />
       )}
     </div>
   );

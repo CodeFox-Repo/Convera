@@ -11,6 +11,8 @@ export interface IElectronAPI {
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
   // App
   getPreviousApp: () => Promise<string>;
+  getClipboardText: () => Promise<string>;
+  pasteModifiedContent: (content: string) => Promise<boolean>;
   // Theme (Assuming theme functions return void or specific theme string)
   getCurrentTheme: () => Promise<string>;
   toggleTheme: () => Promise<void>;
@@ -44,7 +46,7 @@ export interface IElectronAPI {
   // Listener registration (Main -> Renderer)
   onFocusChatInput: (callback: () => void) => () => void; // Returns a cleanup function
   onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
-  onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
+  onSetInputText: (callback: (text: string) => void) => () => void; // Input text event
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
     width: number;
     height: number;

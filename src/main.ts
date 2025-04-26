@@ -2,7 +2,12 @@ import { app, BrowserWindow, globalShortcut, screen } from "electron";
 import registerListeners, {
   ListenerOptions,
 } from "./helpers/ipc/listeners-register";
-import { getPreviousApp, setPreviousApp } from "./helpers/ipc/ipc-handlers";
+import {
+  getCurrentShortcut,
+  getPreviousApp,
+  setPreviousApp,
+  setInputText,
+} from "./helpers/ipc/ipc-handlers";
 import path from "path";
 import { exec } from "child_process";
 import {
@@ -20,6 +25,11 @@ import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
 import "./global.css";
 import { setMainWindowResizable } from "./helpers/windows/window-resize";
 import { calculateWindowDimensions } from "./helpers/windows/utils";
+
+let lastVisibleBounds: Electron.Rectangle | null = null;
+
+import { clipboard } from "electron";
+const robot = require("robotjs");
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
@@ -39,6 +49,34 @@ let modelSelectorWindow: BrowserWindow | null = null;
 // Flag to track window visibility state
 const isHiddenOffscreen = true;
 
+/**
+ * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
+ * @returns Promise that resolves when the copy operation is complete
+ */
+function simulateClipboardCopy(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log("Using RobotJS to simulate copy command");
+
+      if (process.platform === "darwin") {
+        // For macOS, use Command+C
+        robot.keyTap("c", "command");
+      } else {
+        // For Windows/Linux, use Control+C
+        robot.keyTap("c", "control");
+      }
+
+      // Add a delay to ensure clipboard has been updated
+      setTimeout(() => {
+        resolve();
+      }, 100); // Slightly longer delay to ensure clipboard has been updated
+    } catch (error) {
+      console.error("Error simulating copy command with RobotJS:", error);
+      // Even if it fails, we'll resolve to allow the app to continue
+      setTimeout(resolve, 50);
+    }
+  });
+}
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
   if (agentPopoverWindow) return agentPopoverWindow;
@@ -214,7 +252,7 @@ function registerGlobalShortcuts() {
     `Attempting to register global shortcut: ${currentActivateShortcut}`,
   );
   try {
-    const ret = globalShortcut.register(currentActivateShortcut, () => {
+    const ret = globalShortcut.register(currentActivateShortcut, async () => {
       console.log(`${currentActivateShortcut} pressed globally`);
 
       // Get the previous app but don't use it for auto-switching
@@ -224,11 +262,28 @@ function registerGlobalShortcuts() {
         // No auto-focus back to previous app - intentionally disabled
       }
 
+      await simulateClipboardCopy();
+
+      // Now read from clipboard
+      const selectedText = clipboard.readText();
+      console.log(
+        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
+      );
+
+      clipboard.writeText("");
+
       // Toggle visibility based on window state
       if (!mainWindow) {
         createMainWindow();
       } else {
         toggleMainWindowVisibility(mainWindow);
+      }
+      // If there's selected text and the main window is now visible, set it as input
+      if (mainWindow && mainWindow.isVisible()) {
+        setTimeout(() => {
+          console.log("Setting input text with selected text from clipboard");
+          setInputText(mainWindow, selectedText);
+        }, 100); // Small delay to ensure window is ready
       }
     });
 

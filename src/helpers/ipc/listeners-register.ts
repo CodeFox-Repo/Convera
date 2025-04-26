@@ -21,6 +21,8 @@ import {
   toggleModelSelector,
   modelSelected,
   toggleViewMode,
+  getClipboardText,
+  pasteModifiedContent,
   getCurrentWindowSize,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
@@ -30,6 +32,7 @@ import { WindowSizeConfig } from "../windows/window-size";
 interface ElectronAPI extends IPCServer {
   onFocusChatInput: (callback: () => void) => () => void;
   onAppChanged: (callback: (appName: string) => void) => () => void;
+  onSetInputText: (callback: (text: string) => void) => () => void;
 }
 
 export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
@@ -56,6 +59,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.APP_CHANGED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.APP_CHANGED, handler);
+    };
+  };
+
+  api.onSetInputText = (callback: (text: string) => void) => {
+    const handler = (_: any, text: string) => callback(text);
+    ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
     };
   };
 
@@ -243,6 +254,21 @@ export default function registerListeners(
     );
     return toggleViewMode(expanded, mainWindow);
   });
+
+  // Clipboard handlers
+  ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
+    console.log("Handling CLIPBOARD.GET_TEXT");
+    return getClipboardText();
+  });
+
+  ipcMain.handle(
+    CHANNELS.APP.PASTE_MODIFIED_CONTENT,
+    (event, content: string) => {
+      console.log("Handling APP.PASTE_MODIFIED_CONTENT");
+      pasteModifiedContent(content);
+      return true;
+    },
+  );
 
   console.log("All IPC listeners registered successfully.");
 }
