@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
+import React, { useEffect, useState, useCallback, memo, useRef } from "react";
 import { UIMessage } from "ai";
 import { Bot, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ChatMessage from "./ChatMessage";
 import ToolCall from "./ToolCall";
+import CopiedContentBlock from "./CopiedContentBlock";
+import ModifiedContentBlock from "./ModifiedContentBlock";
 
 /**
  * Simple markdown renderer component
@@ -75,6 +77,9 @@ export default function ChatContent({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<string>("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [modifiedResponses, setModifiedResponses] = useState<
+    Record<string, "accepted" | "rejected" | null>
+  >({});
 
   // Track message changes to animate new messages
   useEffect(() => {
@@ -143,11 +148,108 @@ export default function ChatContent({
     }
   }, [onRegenerateMessage]);
 
-  // Renders text content using Markdown
-  const renderMessageContent = useCallback((content: string) => {
-    if (!content) return null;
-    return <Markdown>{content}</Markdown>;
+  const handleAcceptModification = useCallback((messageId: string) => {
+    setModifiedResponses((prev) => ({
+      ...prev,
+      [messageId]: "accepted",
+    }));
+    // Here you could implement logic to apply the modifications
+    console.log(`Accepted modification for message ${messageId}`);
   }, []);
+
+  // Renders text content using Markdown
+  const renderMessageContent = useCallback(
+    (content: string, messageId: string) => {
+      if (!content) return null;
+
+      // Check for copied content tags
+      const copiedContentMatch = content.match(
+        /<copied>\n([\s\S]*?)\n<\/copied>/,
+      );
+
+      // Check for modified content tags
+      const modifiedContentMatch = content.match(
+        /<modified>\n([\s\S]*?)\n<\/modified>/,
+      );
+
+      // Check if this message's modified content has already been responded to
+      const modificationResponse = modifiedResponses[messageId];
+
+      if (copiedContentMatch && modifiedContentMatch) {
+        // Both copied and modified content exist
+        const copiedContent = copiedContentMatch[1];
+        const modifiedContent = modifiedContentMatch[1];
+
+        // Remove both blocks from the original content
+        let otherContent = content
+          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
+          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
+          .trim();
+
+        // Return a fragment with all three sections
+        return (
+          <>
+            {otherContent && <Markdown>{otherContent}</Markdown>}
+            <CopiedContentBlock>
+              <Markdown>{copiedContent}</Markdown>
+            </CopiedContentBlock>
+            {modificationResponse !== "rejected" && (
+              <ModifiedContentBlock
+                modifiedContent={modifiedContent}
+                onAccept={() => handleAcceptModification(messageId)}
+                // onReject={() => handleRejectModification(messageId)} (TODO ALLEN: Implement this)
+              >
+                <Markdown>{modifiedContent}</Markdown>
+              </ModifiedContentBlock>
+            )}
+          </>
+        );
+      } else if (copiedContentMatch) {
+        // Only copied content exists
+        const copiedContent = copiedContentMatch[1];
+
+        // Remove the copied block from the original content
+        const otherContent = content
+          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
+          .trim();
+
+        // Return a fragment with copied content block and regular markdown
+        return (
+          <>
+            {otherContent && <Markdown>{otherContent}</Markdown>}
+            <CopiedContentBlock>
+              <Markdown>{copiedContent}</Markdown>
+            </CopiedContentBlock>
+          </>
+        );
+      } else if (modifiedContentMatch && modificationResponse !== "rejected") {
+        // Only modified content exists and hasn't been rejected
+        const modifiedContent = modifiedContentMatch[1];
+
+        // Remove the modified block from the original content
+        const otherContent = content
+          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
+          .trim();
+
+        // Return a fragment with modified content block and regular markdown
+        return (
+          <>
+            {otherContent && <Markdown>{otherContent}</Markdown>}
+            <ModifiedContentBlock
+              modifiedContent={modifiedContent}
+              onAccept={() => handleAcceptModification(messageId)}
+            >
+              <Markdown>{modifiedContent}</Markdown>
+            </ModifiedContentBlock>
+          </>
+        );
+      }
+
+      // If no special content, just render as normal markdown
+      return <Markdown>{content}</Markdown>;
+    },
+    [modifiedResponses, handleAcceptModification],
+  );
 
   // Render tool calls with detailed information
   const renderToolCall = useCallback((part: ToolPart, index: number) => {
@@ -190,7 +292,8 @@ export default function ChatContent({
   // Renders tool calls and text content in order
   const renderToolCalls = useCallback(
     (message: UIMessage) => {
-      if (!message.parts) return renderMessageContent(message.content);
+      if (!message.parts)
+        return renderMessageContent(message.content, message.id);
 
       const contentElements: React.ReactNode[] = [];
 
@@ -200,7 +303,7 @@ export default function ChatContent({
           // Add text content
           contentElements.push(
             <div key={`text-${index}`} className="my-2">
-              {renderMessageContent(part.text)}
+              {renderMessageContent(part.text, message.id)}
             </div>,
           );
         } else if (
@@ -289,7 +392,7 @@ export default function ChatContent({
         content = renderToolCalls(message);
       } else {
         content = message.content
-          ? renderMessageContent(message.content)
+          ? renderMessageContent(message.content, message.id)
           : null;
       }
 

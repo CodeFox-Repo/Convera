@@ -6,6 +6,7 @@ import ChatInput, { ChatInputRef } from "./ChatInput";
 import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
+import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 /**
@@ -37,6 +38,8 @@ interface CompactChatViewProps {
   onAgentSelect?: (agent: Agent | null) => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
 }
 
 /**
@@ -57,26 +60,39 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onAgentSelect,
   selectedModelId,
   onModelSelect,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   return (
-    <div className="h-full">
-      <ChatInput
-        ref={chatInputRef}
-        isLoading={isLoading}
-        input={input}
-        setInput={setInput}
-        hasMessages={false}
-        onAddAttachment={onAddAttachment}
-        onToggleTranslation={onToggleTranslation}
-        onReset={onReset}
-        onVoiceInput={onVoiceInput}
-        onSendMessage={onSendMessage}
-        onStopGeneration={onStopGeneration}
-        selectedAgent={selectedAgent}
-        onAgentSelect={onAgentSelect}
-        selectedModelId={selectedModelId}
-        onModelSelect={onModelSelect}
-      />
+    <div className="h-full flex flex-col p-1">
+      {/* Show copied content card above the input */}
+      {copiedContent && (
+        <div className="mb-2 w-full overflow-y-auto p-1">
+          <CopiedContentCard
+            content={copiedContent}
+            onReject={onRejectCopiedContent}
+          />
+        </div>
+      )}
+      <div className="flex-1 min-h-[100px]">
+        <ChatInput
+          ref={chatInputRef}
+          isLoading={isLoading}
+          input={input}
+          setInput={setInput}
+          hasMessages={false}
+          onAddAttachment={onAddAttachment}
+          onToggleTranslation={onToggleTranslation}
+          onReset={onReset}
+          onVoiceInput={onVoiceInput}
+          onSendMessage={onSendMessage}
+          onStopGeneration={onStopGeneration}
+          selectedAgent={selectedAgent}
+          onAgentSelect={onAgentSelect}
+          selectedModelId={selectedModelId}
+          onModelSelect={onModelSelect}
+        />
+      </div>
     </div>
   );
 };
@@ -111,6 +127,8 @@ interface ExpandedChatViewProps {
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
 }
 
 /**
@@ -143,6 +161,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onIgnoreAgentChange,
   selectedModelId,
   onModelSelect,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   const buttonVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -213,25 +233,36 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region h-[30%] p-4">
-          <ChatInput
-            ref={chatInputRef}
-            isLoading={isLoading}
-            input={input}
-            setInput={setInput}
-            hasMessages={true}
-            onAddAttachment={onAddAttachment}
-            onToggleTranslation={onToggleTranslation}
-            onReset={onReset}
-            onVoiceInput={onVoiceInput}
-            onSendMessage={onSendMessage}
-            onStopGeneration={onStopGeneration}
-            selectedAgent={selectedAgent}
-            onAgentSelect={onAgentSelect}
-            selectedModelId={selectedModelId}
-            onModelSelect={onModelSelect}
-            placeholder="Message to FoxyChat..."
-          />
+        <div className="drag-region flex flex-col p-1">
+          {/* Show copied content card above the input */}
+          {copiedContent && (
+            <div className="mb-2 w-full p-1">
+              <CopiedContentCard
+                content={copiedContent}
+                onReject={onRejectCopiedContent}
+              />
+            </div>
+          )}
+          <div className="flex-1">
+            <ChatInput
+              ref={chatInputRef}
+              isLoading={isLoading}
+              input={input}
+              setInput={setInput}
+              hasMessages={true}
+              onAddAttachment={onAddAttachment}
+              onToggleTranslation={onToggleTranslation}
+              onReset={onReset}
+              onVoiceInput={onVoiceInput}
+              onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
+              selectedAgent={selectedAgent}
+              onAgentSelect={onAgentSelect}
+              selectedModelId={selectedModelId}
+              onModelSelect={onModelSelect}
+              placeholder="Message to FoxyChat..."
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -244,6 +275,9 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
 export default function Chat() {
   // Get settings to use stored OpenAI configuration
   const settings = getSettings();
+
+  // Add state for copied content preview
+  const [copiedContent, setCopiedContent] = useState<string | null>(null);
 
   // Add state for selected agent
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -441,6 +475,29 @@ export default function Chat() {
     };
   }, [selectedModelId]);
 
+  // Listen for input text events from the main process
+  useEffect(() => {
+    // Setup listener for setting input text from clipboard
+    if (window.electronAPI?.onSetInputText) {
+      console.log('Setting up input text listener');
+      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
+        // Log received text (truncated for large content)
+        console.log('Received text from clipboard:', text?.substring(0, 20) + (text?.length > 20 ? '...' : '') || 'empty');
+        
+        // Clear previous content if clipboard is empty
+        if (!text || !text.trim()) {
+          setCopiedContent(null);
+          return;
+        }
+        
+        // Show preview card for valid clipboard content
+        setCopiedContent(text);
+      });
+      
+      return unsubscribe;
+    }
+  }, []);
+
   const handleRegenerateWithNewAgent = () => {
     console.log(
       `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
@@ -519,7 +576,9 @@ export default function Chat() {
           console.log(`Chat: Current window size: ${res.width}x${res.height}`);
           try {
             requestAnimationFrame(() => {
-              window.electronAPI.resizeMessageContent(res.width, res.height);
+              const extraHeight = copiedContent ? 140 : 0;
+              const newHeight = res.height + extraHeight;
+              window.electronAPI.resizeMessageContent(res.width, newHeight);
               console.log("Chat: Resize command sent successfully");
             });
           } catch (error) {
@@ -530,7 +589,7 @@ export default function Chat() {
       console.error("Chat: window.electronWindow is not available!");
       console.error("Chat: window.electronAPI is not available!");
     }
-  }, [messages.length, mounted, initializing]);
+  }, [messages.length, mounted, initializing, copiedContent]);
 
   // Setup IPC listener for window focus event
   useEffect(() => {
@@ -649,31 +708,75 @@ export default function Chat() {
 
     if (!editor || isLoading) return;
 
-    // Check if the editor is empty
-    if (editor.getText().trim() === "") return;
+    // Check if the editor is empty and there's no copied content
+    const editorText = editor.getText().trim();
+    if (!editorText && !copiedContent) return;
 
     // Log the selected agent information
     console.log(
       `Sending message with agent: ${selectedAgent?.name || "Default"} (${selectedAgent?.id || "none"})`,
     );
 
+    // Prepare the message text - combine editor content with copied content if available
+    let messageText = editorText;
+    
+    if (copiedContent) {
+      // Add copied content to the message wrapped in markdown to distinguish it
+      if (messageText) {
+        // If there's already text in the editor, add the wrapped copied content before it
+        messageText = `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`;
+      } else {
+        // If editor is empty, just use the wrapped copied content
+        messageText = `<copied>\n${copiedContent}\n</copied>`;
+      }
+      console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
+    }
+
+    // We need to sync the message immediately rather than relying on async state updates
+    // Set the input manually before submitting
+    handleInputChange({
+      target: { value: messageText }
+    } as React.ChangeEvent<HTMLInputElement>);
+    
     // Create a synthetic event for handleSubmit
     const event = {
       preventDefault: () => {},
+      target: {
+        elements: {
+          message: {
+            value: messageText
+          }
+        }
+      }
     } as unknown as React.FormEvent<HTMLFormElement>;
 
-    // Update input state with HTML content from editor
-    handleInputChangeAdapter(editor.getText());
+    // Since state updates are asynchronous, we need to make sure the input
+    // is properly set before submitting, so we manually add a message first
+    // (This approach ensures the combined text is actually sent)
+    setMessages(prevMessages => [
+      ...prevMessages,
+      {
+        id: Date.now().toString(),
+        role: 'user',
+        content: messageText,
+      }
+    ]);
+    
+    // Clear copied content after using it
+    if (copiedContent) {
+      setCopiedContent(null);
+    }
 
-    // Submit the message to AI
-    aiHandleSubmit(event);
-
-    // Clear content directly using the editor instance
+    // Then trigger a response - use reload instead of aiHandleSubmit
+    // to ensure our manually added message gets a response
     setTimeout(() => {
+      reload();
+      
+      // Clear content directly using the editor instance
       if (chatInputRef.current?.editor) {
         chatInputRef.current.editor.clearContent();
       }
-    }, 0);
+    }, 50);
   };
 
   // Handle editing a message and regenerating the response
@@ -722,6 +825,11 @@ export default function Chat() {
 
     // Simply use the reload method from useChat
     reload();
+  };
+
+  // Functions to handle copied content actions - only keep the reject function
+  const handleRejectCopiedContent = () => {
+    setCopiedContent(null);
   };
 
   useEffect(() => {
@@ -788,6 +896,8 @@ export default function Chat() {
           onIgnoreAgentChange={handleIgnoreAgentChange}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
         />
       ) : (
         <CompactChatView
@@ -805,6 +915,8 @@ export default function Chat() {
           onAgentSelect={setSelectedAgent}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
         />
       )}
     </div>

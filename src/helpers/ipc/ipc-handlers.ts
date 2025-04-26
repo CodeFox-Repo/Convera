@@ -1,9 +1,11 @@
-import { BrowserWindow, nativeTheme } from "electron";
+import { BrowserWindow, nativeTheme, clipboard } from "electron";
+
 import {
   resizeWindowAndMaintainPosition,
   toggleMainWindowVisibility,
 } from "../windows/window-position";
 import { CHANNELS } from "./channels";
+import { exec } from "child_process";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
 
@@ -271,4 +273,82 @@ export function getCurrentWindowSize(window: WindowSizeConfig): {
   height: number;
 } {
   return calculateWindowDimensions(window);
+}
+
+// ========== CLIPBOARD HANDLERS ==========
+
+export function getClipboardText(): string {
+  return clipboard.readText();
+}
+
+export function setInputText(
+  mainWindow: BrowserWindow | null,
+  text: string,
+): void {
+  if (mainWindow) {
+    // Send the text to the renderer to set as input
+    mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_TEXT, text);
+  }
+}
+
+// Function to simulate a paste operation using robotjs
+export function simulateClipboardPaste(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const robot = require("robotjs");
+
+    // Write to clipboard first
+    if (process.platform === "darwin") {
+      // For macOS, use Command+V
+      robot.keyTap("v", "command");
+    } else {
+      // For Windows/Linux, use Control+V
+      robot.keyTap("v", "control");
+    }
+
+    console.log("Paste operation simulated successfully");
+  } catch (error) {
+    console.error("Error simulating paste operation:", error);
+  }
+}
+
+// Handler for pasting modified content
+export function pasteModifiedContent(content: string): void {
+  try {
+    console.log("Pasting modified content to previous app");
+
+    // Save content to clipboard
+    clipboard.writeText(content);
+
+    // Get the previous app name
+    const prevApp = getPreviousApp();
+
+    if (prevApp) {
+      // Activate the previous app
+      if (process.platform === "darwin") {
+        // For macOS, use AppleScript
+        exec(
+          `osascript -e 'tell application "${prevApp}" to activate'`,
+          (error) => {
+            if (error) {
+              console.error(`Error activating ${prevApp}:`, error);
+              return;
+            }
+
+            // Wait a moment for the app to come to foreground, then paste
+            setTimeout(() => {
+              simulateClipboardPaste();
+            }, 500);
+          },
+        );
+      } else {
+        // For other platforms, just simulate paste (without app switching)
+        simulateClipboardPaste();
+      }
+    } else {
+      console.log("No previous app detected, can't switch focus");
+    }
+  } catch (error) {
+    console.error("Error in pasteModifiedContent:", error);
+  }
 }
