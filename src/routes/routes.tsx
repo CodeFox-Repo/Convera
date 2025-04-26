@@ -3,6 +3,7 @@ import { RootRoute } from "./__root";
 import HomePage from "../pages/HomePage";
 import SettingsPage from "../pages/SettingsPage";
 import AgentPopover from "../components/chat/AgentPopover";
+import ChatHistoryPage from "../pages/ChatHistoryPage";
 
 // TODO: Steps to add a new route:
 // 1. Create a new page component in the '../pages/' directory (e.g., NewPage.tsx)
@@ -41,8 +42,15 @@ export const AgentPopoverRoute = createRoute({
   component: AgentPopover,
 });
 
+export const ChatHistoryRoute = createRoute({
+  getParentRoute: () => RootRoute,
+  path: "/history",
+  component: ChatHistoryPage,
+});
+
 export const rootTree = RootRoute.addChildren([
   HomeRoute,
   SettingsRoute,
   AgentPopoverRoute,
+  ChatHistoryRoute,
 ]);

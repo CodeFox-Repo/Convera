@@ -272,3 +272,32 @@ export function getCurrentWindowSize(window: WindowSizeConfig): {
 } {
   return calculateWindowDimensions(window);
 }
+
+// Add these function after the settings-related functions
+
+export function openHistoryWindow(
+  historyWindow: BrowserWindow | null,
+  createHistoryWindow: () => void,
+): void {
+  console.log("Opening history window");
+  if (historyWindow && historyWindow.isVisible()) {
+    historyWindow.focus();
+  } else {
+    createHistoryWindow();
+  }
+}
+
+export function closeHistoryWindow(historyWindow: BrowserWindow | null): void {
+  if (historyWindow) {
+    // Make sure to just hide the window, not close it
+    historyWindow.hide();
+
+    // Ensure the window remains valid but not visible
+    if (process.platform === "darwin") {
+      // On macOS, we might need to also blur the window
+      historyWindow.blur();
+    }
+
+    console.log("History window hidden");
+  }
+}

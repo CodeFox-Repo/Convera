@@ -21,6 +21,8 @@ import {
   toggleModelSelector,
   modelSelected,
   getCurrentWindowSize,
+  openHistoryWindow,
+  closeHistoryWindow,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { WINDOW_SIZE_PRESETS, WindowSizeConfig } from "../windows/window-size";
@@ -60,9 +62,12 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
 
   return api;
 }
+
 export type ListenerOptions = {
   createSettingsWindow: () => void;
   settingsWindow: BrowserWindow | null;
+  createHistoryWindow: () => void;
+  historyWindow: BrowserWindow | null;
   registerGlobalShortcuts: () => void;
   createAgentPopoverWindow?: (
     x: number,
@@ -95,6 +100,16 @@ export default function registerListeners(
     console.log("Handling SETTINGS.CLOSE");
     console.log("Settings window:", options.settingsWindow);
     closeSettingsWindow(options.settingsWindow);
+  });
+
+  ipcMain.handle(CHANNELS.HISTORY.OPEN, () => {
+    console.log("Handling HISTORY.OPEN");
+    openHistoryWindow(options.historyWindow, options.createHistoryWindow);
+  });
+
+  ipcMain.handle(CHANNELS.HISTORY.CLOSE, () => {
+    console.log("Handling HISTORY.CLOSE");
+    closeHistoryWindow(options.historyWindow);
   });
 
   ipcMain.handle(

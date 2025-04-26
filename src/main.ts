@@ -27,6 +27,7 @@ import { calculateWindowDimensions } from "./helpers/windows/utils";
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
+let historyWindow: BrowserWindow | null = null;
 // Default shortcut now comes from ipc-handlers
 const currentActivateShortcut = getCurrentShortcut();
 
@@ -170,6 +171,129 @@ function preCreateModelSelectorWindow() {
   });
 
   return modelSelectorWindow;
+}
+
+// Pre-create history window
+function preCreateHistoryWindow() {
+  if (historyWindow) return historyWindow;
+
+  console.log("Pre-creating history window");
+  const preload = path.join(__dirname, "preload.js");
+
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS, // Reuse settings size for now
+    undefined,
+    true,
+    true,
+  );
+
+  historyWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
+    webPreferences: {
+      devTools: inDevelopment,
+      contextIsolation: true,
+      nodeIntegration: true,
+      nodeIntegrationInSubFrames: false,
+      preload: preload,
+    },
+    parent: mainWindow || undefined,
+    modal: false,
+    show: false,
+    titleBarStyle: "hiddenInset",
+    transparent: true,
+    frame: false,
+    visualEffectState: "active",
+    thickFrame: false,
+    autoHideMenuBar: true,
+    hasShadow: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    roundedCorners: true,
+    vibrancy: "fullscreen-ui",
+  });
+
+  // For macOS, explicitly hide the traffic light buttons
+  if (historyWindow && process.platform === "darwin") {
+    historyWindow.setWindowButtonVisibility(false);
+  }
+
+  // Enforce fixed dimensions
+  historyWindow.on("will-resize", (event) => {
+    // Prevent resizing by canceling the event
+    event.preventDefault();
+  });
+
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    console.log(
+      "Loading main URL in history window:",
+      MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    );
+    historyWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    const mainPath = path.join(
+      __dirname,
+      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+    );
+    console.log("Loading main path in history window:", mainPath);
+    historyWindow.loadFile(mainPath);
+  }
+
+  historyWindow.webContents.on("did-finish-load", () => {
+    console.log(
+      "Main page loaded in history window, redirecting to history...",
+    );
+
+    historyWindow?.webContents
+      .executeJavaScript(
+        `
+      console.log("Redirecting to history page...");
+      
+      if (window.router) {
+        console.log("Using router API");
+        window.router.navigate({ to: "/history" });
+      } else {
+        console.log("Using location.hash");
+        window.location.hash = "/history";
+      }
+    `,
+      )
+      .catch((err) => {
+        console.error("Failed to execute navigation script:", err);
+      });
+  });
+
+  historyWindow.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription) => {
+      console.error(
+        "History window failed to load:",
+        errorCode,
+        errorDescription,
+      );
+    },
+  );
+
+  historyWindow.once("ready-to-show", () => {
+    if (historyWindow) {
+      console.log("History window ready, but kept hidden");
+
+      if (inDevelopment) {
+        historyWindow.webContents.openDevTools({ mode: "detach" });
+      }
+    }
+  });
+
+  historyWindow.on("closed", () => {
+    console.log("History window closed");
+    historyWindow = null;
+  });
+
+  return historyWindow;
 }
 
 // Start background app tracking only on macOS
@@ -536,6 +660,7 @@ app.whenReady().then(async () => {
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
+    preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
 
     const mainProcessOptions: ListenerOptions = {
@@ -546,6 +671,8 @@ app.whenReady().then(async () => {
       agentPopoverWindow,
       createModelSelectorWindow,
       modelSelectorWindow,
+      createHistoryWindow,
+      historyWindow,
     };
 
     // Register IPC listeners if main window exists
@@ -661,4 +788,15 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
       // Inject any specific styles or scripts if needed
     }
   });
+}
+
+function createHistoryWindow() {
+  if (!historyWindow) {
+    preCreateHistoryWindow();
+  }
+
+  if (historyWindow) {
+    historyWindow.show();
+    historyWindow.focus();
+  }
 }

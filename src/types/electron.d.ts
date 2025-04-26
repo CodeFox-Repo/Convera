@@ -9,6 +9,9 @@ export interface IElectronAPI {
   closeSettingsWindow: () => Promise<void>;
   updateGlobalShortcut: (shortcut: string) => Promise<boolean>;
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
+  // History
+  openHistoryWindow: () => Promise<void>;
+  closeHistoryWindow: () => Promise<void>;
   // App
   getPreviousApp: () => Promise<string>;
   // Theme (Assuming theme functions return void or specific theme string)

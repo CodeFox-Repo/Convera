@@ -37,6 +37,7 @@ interface CompactChatViewProps {
   onAgentSelect?: (agent: Agent | null) => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  onLoadChatHistory?: (chat: any) => void;
 }
 
 /**
@@ -57,6 +58,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onAgentSelect,
   selectedModelId,
   onModelSelect,
+  onLoadChatHistory,
 }) => {
   return (
     <div className="h-full">
@@ -76,6 +78,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
         onAgentSelect={onAgentSelect}
         selectedModelId={selectedModelId}
         onModelSelect={onModelSelect}
+        onLoadChatHistory={onLoadChatHistory}
       />
     </div>
   );
@@ -111,6 +114,7 @@ interface ExpandedChatViewProps {
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  onLoadChatHistory?: (chat: any) => void;
 }
 
 /**
@@ -143,6 +147,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onIgnoreAgentChange,
   selectedModelId,
   onModelSelect,
+  onLoadChatHistory,
 }) => {
   const buttonVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -231,6 +236,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             selectedModelId={selectedModelId}
             onModelSelect={onModelSelect}
             placeholder="Message to FoxyChat..."
+            onLoadChatHistory={onLoadChatHistory}
           />
         </div>
       </div>
@@ -628,10 +634,116 @@ export default function Chat() {
     }
   };
 
+  // Add effect to listen for chat history events directly
+  useEffect(() => {
+    // Function to handle chat history selection
+    const handleChatHistorySelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.chat) {
+        console.log("Chat component received chat-history-selected event:", customEvent.detail.chat);
+        handleLoadChatHistory(customEvent.detail.chat);
+      }
+    };
+
+    // Do NOT automatically check localStorage on component mount
+    // Only listen for explicit user selections
+    
+    // Listen for storage events to catch changes from other windows
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedChatHistory" && event.newValue) {
+        console.log("Detected chat history change in localStorage");
+        try {
+          const chatData = JSON.parse(event.newValue);
+          if (chatData && chatData.chat) {
+            console.log("Loading new chat history from storage event:", chatData.chat.id);
+            handleLoadChatHistory(chatData.chat);
+          }
+        } catch (error) {
+          console.error("Error parsing chat history from storage event:", error);
+        }
+      }
+    };
+    
+    // Add event listeners
+    window.addEventListener("chat-history-selected", handleChatHistorySelected);
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener("chat-history-selected", handleChatHistorySelected);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+  
+  // Handle loading a chat history - simplified version
+  const handleLoadChatHistory = (chatHistory: any) => {
+    console.log("Loading chat history in Chat component:", chatHistory);
+    
+    if (chatHistory && chatHistory.messages && chatHistory.messages.length > 0) {
+      // Reset state first to ensure clean loading
+      setMessages([]);
+      
+      // Add a small delay before setting new messages
+      setTimeout(() => {
+        // Simple direct update approach with fallback IDs
+        const formattedMessages = chatHistory.messages.map((msg: any) => ({
+          id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          content: msg.content,
+          role: msg.role,
+        }));
+        
+        console.log("Setting messages to:", formattedMessages);
+        
+        // Set messages directly
+        setMessages(formattedMessages);
+        
+        // Update model if needed
+        if (chatHistory.model) {
+          setSelectedModelId(chatHistory.model);
+        }
+        
+        // Force a resize after a short delay
+        setTimeout(() => {
+          if (window.electronAPI) {
+            console.log("Forcing window resize for chat history");
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
+              .then((res) => {
+                window.electronAPI.resizeMessageContent(res.width, res.height);
+              })
+              .catch(error => {
+                console.error("Error resizing window:", error);
+              });
+          }
+        }, 500);
+      }, 50);
+    }
+  };
+
+  // Handle opening chat history window
+  const handleOpenChatHistory = () => {
+    console.log("Opening chat history window");
+    try {
+      if (window.electronAPI) {
+        window.electronAPI.openHistoryWindow()
+          .then(() => {
+            console.log("Chat history window opened successfully");
+          })
+          .catch((error: Error) => {
+            console.error("Error opening chat history window:", error);
+          });
+      } else {
+        console.error("electronAPI is not available for opening history window");
+      }
+    } catch (error) {
+      console.error("Error opening chat history window:", error);
+    }
+  };
+
   // Handle new history creation
   const handleNewHistory = () => {
     console.log("Create new history clicked");
-    // Implement new history creation
+    // Reset conversation by refreshing the page - simplest way to clear useChat state
     window.location.reload();
   };
 
@@ -788,6 +900,7 @@ export default function Chat() {
           onIgnoreAgentChange={handleIgnoreAgentChange}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          onLoadChatHistory={handleLoadChatHistory}
         />
       ) : (
         <CompactChatView
@@ -805,6 +918,7 @@ export default function Chat() {
           onAgentSelect={setSelectedAgent}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          onLoadChatHistory={handleLoadChatHistory}
         />
       )}
     </div>

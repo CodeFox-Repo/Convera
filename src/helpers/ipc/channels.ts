@@ -5,6 +5,8 @@ export interface IPCServer {
   closeSettingsWindow(): void;
   updateGlobalShortcut(shortcut: string): boolean;
   initGlobalShortcut(shortcut: string): boolean;
+  openHistoryWindow(): void;
+  closeHistoryWindow(): void;
 
   getPreviousApp(): string;
 
@@ -50,6 +52,10 @@ export const CHANNELS = {
     UPDATE_SHORTCUT: "settings:update-shortcut",
     INIT_SHORTCUT: "settings:init-shortcut",
   },
+  HISTORY: {
+    OPEN: "history:open",
+    CLOSE: "history:close",
+  },
   APP: {
     GET_PREVIOUS: "app:get-previous",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
@@ -86,6 +92,9 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   closeSettingsWindow: CHANNELS.SETTINGS.CLOSE,
   updateGlobalShortcut: CHANNELS.SETTINGS.UPDATE_SHORTCUT,
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
+  // History
+  openHistoryWindow: CHANNELS.HISTORY.OPEN,
+  closeHistoryWindow: CHANNELS.HISTORY.CLOSE,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   // Theme
