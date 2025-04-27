@@ -204,35 +204,24 @@ export function resizeWindowAndMaintainPosition(
   }
 }
 
-let isHiddenOffscreen = true;
-let lastVisibleBounds: Electron.Rectangle | null = null;
+export let isHiddenOffscreen = true;
+export let lastVisibleBounds: Electron.Rectangle | null = null;
 
 export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
-  // Toggle the main window's visibility by moving it offscreen instead of hiding
-  if (!isHiddenOffscreen) {
-    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
-    // === Pseudo-hide ===
-    // 1) Save current window bounds
-    lastVisibleBounds = mainWindow.getBounds();
-
-    // 2) Ignore mouse events so clicks pass through to the app underneath
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-    // 3) Make the window fully transparent
-    mainWindow.setOpacity(0);
-
-    // 4) Move the window off the visible screen
-    mainWindow.setBounds({
-      x: -9999,
-      y: -9999,
-      width: lastVisibleBounds.width,
-      height: lastVisibleBounds.height,
-    });
-
-    isHiddenOffscreen = true;
-  } else {
+  if (!mainWindow) return;
+  
+  // Check actual window state instead of relying only on isHiddenOffscreen
+  const bounds = mainWindow.getBounds();
+  const isCurrentlyOffscreen = bounds.x < -1000 || bounds.y < -1000;
+  
+  // Check opacity as another indicator
+  const isCurrentlyTransparent = mainWindow.getOpacity() < 0.1;
+  
+  // If window is offscreen OR has low opacity, consider it hidden
+  if (isCurrentlyOffscreen || isCurrentlyTransparent) {
+    console.log("Window is currently hidden, making it visible");
+    
     // === Restore display ===
-
     // 1) Restore the saved bounds, or center if no bounds were saved
     if (lastVisibleBounds) {
       mainWindow.setBounds(lastVisibleBounds);
@@ -252,5 +241,65 @@ export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
     mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
 
     isHiddenOffscreen = false;
+  } else {
+    console.log("Window is currently visible, hiding it");
+    
+    // === Pseudo-hide ===
+    // Try to activate previous app
+    try {
+      const prevApp = getPreviousApp();
+      if (prevApp) {
+        exec(`osascript -e 'tell application "${prevApp}" to activate'`);
+      }
+    } catch (error) {
+      console.error("Error activating previous app:", error);
+    }
+    
+    // 1) Save current window bounds
+    lastVisibleBounds = mainWindow.getBounds();
+
+    // 2) Ignore mouse events so clicks pass through to the app underneath
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    // 3) Make the window fully transparent
+    mainWindow.setOpacity(0);
+
+    // 4) Move the window off the visible screen
+    mainWindow.setBounds({
+      x: -9999,
+      y: -9999,
+      width: lastVisibleBounds.width,
+      height: lastVisibleBounds.height,
+    });
+
+    isHiddenOffscreen = true;
   }
+}
+
+/**
+ * Set window to hidden state without toggling
+ * This is used for initial setup of the window
+ */
+export function setWindowHidden(mainWindow: BrowserWindow) {
+  if (!mainWindow) return;
+  
+  // Save current bounds before hiding
+  lastVisibleBounds = mainWindow.getBounds();
+  
+  // Make window ignore mouse events
+  mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  
+  // Make window transparent
+  mainWindow.setOpacity(0);
+  
+  // Move window off-screen
+  mainWindow.setBounds({
+    x: -9999,
+    y: -9999,
+    width: lastVisibleBounds.width,
+    height: lastVisibleBounds.height,
+  });
+  
+  // Set state to hidden
+  isHiddenOffscreen = true;
 }
