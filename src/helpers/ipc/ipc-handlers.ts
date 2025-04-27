@@ -10,7 +10,8 @@ import { exec } from "child_process";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
 
-let currentActivateShortcut = "Control+Space";
+let currentActivateShortcut =
+  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 let previousAppName = "";
 
 // ========== APP HANDLERS ==========
