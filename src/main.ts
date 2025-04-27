@@ -30,14 +30,14 @@ import { calculateWindowDimensions } from "./helpers/windows/utils";
 
 import { clipboard } from "electron";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require("robotjs"); // do not change this line
+const robot = require("@hurdlegroup/robotjs"); // do not change this line
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
-let currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
+const currentActivateShortcut =
+  process.platform === "darwin" ? "Alt+Space" : "Control+space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;

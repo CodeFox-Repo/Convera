@@ -11,7 +11,7 @@ import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
 
 let currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
+  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
 let previousAppName = "";
 
 // ========== APP HANDLERS ==========
