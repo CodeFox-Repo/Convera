@@ -214,8 +214,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }, [onAgentSelect]);
 
     // Handle editor content change
-    const handleEditorChange = (html: string) => {
-      setInput(html);
+    const handleEditorChange = (content: string) => {
+      setInput(content);
+      console.log("handleEditorChange", content);
       // Get the text content from the editor for enabling/disabling the send button
       if (editorRef.current) {
         setEditorContent(editorRef.current.getText());
@@ -226,11 +227,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const handleSubmit = () => {
       if (onSendMessage && !isLoading && editorContent.trim()) {
         onSendMessage();
-        // Clear content after sending
-        setTimeout(() => {
-          editorRef.current?.clearContent();
-          setEditorContent("");
-        }, 0);
       }
     };
 

@@ -26,10 +26,10 @@ import "./global.css";
 import { setMainWindowResizable } from "./helpers/windows/window-resize";
 import { calculateWindowDimensions } from "./helpers/windows/utils";
 
-let lastVisibleBounds: Electron.Rectangle | null = null;
 
 import { clipboard } from "electron";
-const robot = require("robotjs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const robot = require("robotjs"); // do not change this line
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
@@ -37,7 +37,7 @@ let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut = "Control+Space";
 
-// Separate background process for tracking focused apps
+// Separate background process for tracking focused appss
 let trackingAppFocus = false;
 
 // Agent popover window

@@ -313,11 +313,11 @@ export default function Chat() {
     messages,
     input,
     handleInputChange,
-    handleSubmit: aiHandleSubmit,
     isLoading,
     setMessages,
     reload,
     stop,
+    append,
   } = useChat({
     api: "http://localhost:38000/api/chat",
     headers: {
@@ -332,10 +332,6 @@ export default function Chat() {
 
   // Add effect to determine when clipboard height should be added
   useEffect(() => {
-    // Only add clipboard height if:
-    // 1. We have clipboard content
-    // 2. We have NO messages
-    // 3. We're in compact mode
     const hasClipboardContent = Boolean(copiedContent && copiedContent.trim().length > 0);
     const hasNoMessages = messages.length === 0;
     const isCompactMode = viewMode === "compact";
@@ -472,7 +468,7 @@ export default function Chat() {
 
   const handleInputChangeAdapter = (value: string) => {
     handleInputChange({
-      target: { value },
+      target: { value: value  },
     } as React.ChangeEvent<HTMLInputElement>);
 
     if (!value && chatInputRef.current?.editor) {
@@ -797,30 +793,24 @@ export default function Chat() {
       console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
     }
 
-    // Update input with the combined message text
-    handleInputChange({
-      target: { value: messageText }
-    } as React.ChangeEvent<HTMLInputElement>);
-    
-    // Create a synthetic event for handleSubmit
-    const event = {
-      preventDefault: () => {},
-    } as unknown as React.FormEvent<HTMLFormElement>;
+    console.log("Final message with clipboard:", messageText);
+
+    // Use the append method from the existing useChat hook to directly
+    // add the user message with the combined content
+    append({
+      role: "user",
+      content: messageText,
+    });
 
     // Clear copied content after using it
     if (copiedContent) {
       setCopiedContent(null);
     }
-
-    // Submit the message using aiHandleSubmit (don't use both methods)
-    aiHandleSubmit(event);
-
+      
     // Clear content directly using the editor instance
-    setTimeout(() => {
-      if (chatInputRef.current?.editor) {
-        chatInputRef.current.editor.clearContent();
-      }
-    }, 0);
+    if (chatInputRef.current?.editor) {
+      chatInputRef.current.editor.clearContent();
+    }
   };
 
   // Handle editing a message and regenerating the response
