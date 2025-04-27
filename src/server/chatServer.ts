@@ -20,8 +20,10 @@ import {
   processAgentChat,
   processChatRequest,
   saveCustomAgent,
+  deleteCustomAgent,
 } from "./agents";
 import { AgentDefinition } from "./agents/types";
+import { ToolReference } from "./agents/types";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
 
@@ -44,8 +46,7 @@ if (!DEFAULT_OPENROUTER_API_KEY) {
   );
 }
 
-// Add this route handler to router:
-router.post("/api/agents/create", async (req: Request, res: Response) => {
+app.post("/api/agents/create", (async (req: Request, res: Response) => {
   try {
     const {
       id,
@@ -53,6 +54,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       description,
       systemPrompt,
       toolNames,
+      toolReferences,
       modelId,
       iconUrl,
       avatar,
@@ -64,21 +66,53 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       !id ||
       !name ||
       !description ||
-      !toolNames ||
-      !Array.isArray(toolNames)
+      (!toolNames && !toolReferences) ||
+      (toolNames && !Array.isArray(toolNames)) ||
+      (toolReferences && !Array.isArray(toolReferences))
     ) {
       return res.status(400).json({ error: "Missing required agent fields" });
     }
 
-    // Map toolNames to ToolSet
-    const tools = getToolsByNames(toolNames);
+    // Use toolReferences if available, otherwise convert toolNames to toolReferences
+    let finalToolReferences = toolReferences;
+    if (!finalToolReferences && toolNames) {
+      finalToolReferences = toolNames.map((name: string) => {
+        const parts = name.split(":");
+        if (parts.length > 1) {
+          return {
+            mcpName: parts[0],
+            toolName: parts[1],
+            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
+          };
+        }
+        return {
+          mcpName: "Dev-MCP",
+          toolName: name,
+          isBuiltIn: true,
+        };
+      });
+    }
+
+    // Log the tool references for debugging
+    console.log(
+      `Creating agent '${name}' with ${finalToolReferences.length} tool references`,
+    );
+
+    // Map tool references to ToolSet
+    const tools = getToolsByNames(finalToolReferences);
+
+    // Format tool names for display in system prompt
+    const formattedToolNames = finalToolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
+    );
 
     // Construct AgentDefinition
     const agent: AgentDefinition = {
       id,
       name,
       description,
-      tools,
+      tools, // Include tools for runtime usage
+      toolReferences: finalToolReferences, // This is the primary field now
       modelId,
       iconUrl,
       avatar,
@@ -86,7 +120,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
       type,
       systemPrompt:
         typeof systemPrompt === "string"
-          ? `${systemPrompt}\n\nAvailable tools: ${tools.map((tool) => tool.name).join(", ")}`
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
           : "",
     };
 
@@ -98,7 +132,7 @@ router.post("/api/agents/create", async (req: Request, res: Response) => {
     console.error("Error creating agent:", error);
     res.status(500).json({ error: "Failed to create agent" });
   }
-});
+}) as RequestHandler);
 
 // Chat endpoint
 router.post("/api/chat", async (req: Request, res: Response) => {
@@ -410,13 +444,125 @@ router.put(
 router.get("/api/agents", (req: Request, res: Response) => {
   try {
     const agents = getAgentList();
-    res.json({ status: "success", agents });
+
+    console.log(
+      "Agents from storage:",
+      agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        toolCount: a.toolReferences.length,
+      })),
+    );
+
+    // Log the agents data to help troubleshoot
+    console.log(
+      "Fetched agents details:",
+      agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        toolReferences: a.toolReferences.map(
+          (t) => `${t.toolName} (${t.mcpName})`,
+        ),
+      })),
+    );
+
+    // Make sure agents have consistent toolReferences format
+    const enrichedAgents = agents.map((agent) => {
+      // toolNames are kept for backward compatibility only
+      const toolNames = agent.toolReferences.map(
+        (t) => `${t.mcpName}:${t.toolName}`,
+      );
+
+      return {
+        ...agent,
+        toolNames: toolNames,
+      };
+    });
+
+    res.json({ status: "success", agents: enrichedAgents });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching agents:", errorMessage);
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });
+
+// Manual MCP configuration installation endpoint
+router.post(
+  "/api/mcp/configurations/manual",
+  async (req: Request, res: Response) => {
+    try {
+      const configData = req.body;
+
+      // Validate the configuration structure
+      if (
+        !configData ||
+        !configData.mcpServers ||
+        typeof configData.mcpServers !== "object"
+      ) {
+        return res.status(400).json({
+          status: "error",
+          message: "Invalid configuration format. Expected {mcpServers: {...}}",
+        });
+      }
+
+      const manager = getMCPManager();
+
+      // Process each server in the configuration
+      const serverIds = Object.keys(configData.mcpServers);
+      if (serverIds.length === 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "No MCP servers found in configuration",
+        });
+      }
+
+      // Register each server with the manager
+      for (const id of serverIds) {
+        const serverConfig = configData.mcpServers[id];
+        console.log(
+          `Registering MCP server from manual config: ${id}`,
+          serverConfig,
+        );
+
+        try {
+          // Check if server already exists
+          if (manager.getServerConfig(id)) {
+            // Update existing server config
+            manager.updateServerConfig(id, serverConfig);
+            console.log(`Updated existing MCP server configuration: ${id}`);
+          } else {
+            // Register new server
+            manager.registerServer(id, serverConfig);
+            console.log(`Registered new MCP server: ${id}`);
+          }
+
+          // If the server is configured to be enabled, start it automatically
+          if (serverConfig.enabled) {
+            console.log(`Auto-starting manually configured MCP server: ${id}`);
+            manager.startServer(id).catch((err) => {
+              console.error(`Error auto-starting MCP server ${id}:`, err);
+            });
+          }
+        } catch (err) {
+          console.error(`Error registering MCP server ${id}:`, err);
+          // Continue with other servers even if one fails
+        }
+      }
+
+      res.json({
+        status: "success",
+        message: `Manually configured ${serverIds.length} MCP server(s)`,
+        serverIds,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("Error installing manual MCP configuration:", errorMessage);
+      res.status(500).json({ status: "error", message: errorMessage });
+    }
+  },
+);
 
 // Add endpoint for getting specific agent details
 router.get("/api/agents/:agentId", (req: Request, res: Response) => {
@@ -439,6 +585,142 @@ router.get("/api/agents/:agentId", (req: Request, res: Response) => {
   }
 });
 
+// Add endpoint for deleting an agent
+router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+
+    // Call the deleteCustomAgent function
+    const success = await deleteCustomAgent(agentId);
+
+    if (!success) {
+      return res.status(404).json({
+        status: "error",
+        message: `Agent with ID '${agentId}' not found or cannot be deleted`,
+      });
+    }
+
+    res.json({
+      status: "success",
+      message: `Agent '${agentId}' deleted successfully`,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error deleting agent ${req.params.agentId}:`, errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
+// Add endpoint for updating an agent
+router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
+  try {
+    const { agentId } = req.params;
+    const {
+      id,
+      name,
+      description,
+      systemPrompt,
+      toolNames,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = req.body;
+
+    // Validate that the ID in the URL matches the ID in the body
+    if (id !== agentId) {
+      return res.status(400).json({
+        status: "error",
+        message: "Agent ID mismatch between URL and request body",
+      });
+    }
+
+    // Check that the agent exists
+    const existingAgent = getAgentById(agentId);
+    if (!existingAgent) {
+      return res.status(404).json({
+        status: "error",
+        message: `Agent with ID '${agentId}' not found`,
+      });
+    }
+
+    // Determine which tools to use - prioritize those from the request, fall back to existing tools
+    let finalToolReferences = toolReferences;
+    if (!finalToolReferences && toolNames) {
+      // Convert toolNames to toolReferences
+      finalToolReferences = toolNames.map((name: string) => {
+        const parts = name.split(":");
+        if (parts.length > 1) {
+          return {
+            mcpName: parts[0],
+            toolName: parts[1],
+            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
+          };
+        }
+        return {
+          mcpName: "Dev-MCP",
+          toolName: name,
+          isBuiltIn: true,
+        };
+      });
+    } else if (!finalToolReferences && !toolNames) {
+      // If no tools provided in the request, use the existing ones
+      finalToolReferences = existingAgent.toolReferences || [];
+    }
+
+    console.log(
+      `Updating agent '${agentId}' with ${finalToolReferences.length} tool references`,
+    );
+
+    // Map tool references to ToolSet
+    const tools = getToolsByNames(finalToolReferences);
+
+    // Format tool names for display in system prompt
+    const formattedToolNames = finalToolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
+    );
+
+    // Create updated agent with new fields and re-mapped tools
+    const updatedAgent: AgentDefinition = {
+      ...existingAgent,
+      id: agentId, // Keep the original ID
+      name: name || existingAgent.name,
+      description: description || existingAgent.description,
+      tools, // Use the re-mapped tools
+      toolReferences: finalToolReferences, // Update tool references
+      modelId: modelId || existingAgent.modelId,
+      iconUrl: iconUrl || existingAgent.iconUrl,
+      avatar: avatar || existingAgent.avatar,
+      category: category || existingAgent.category,
+      type: type || existingAgent.type,
+      systemPrompt:
+        typeof systemPrompt === "string"
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : existingAgent.systemPrompt,
+    };
+
+    // First delete the existing agent
+    const deleteSuccess = await deleteCustomAgent(agentId);
+    if (!deleteSuccess) {
+      return res.status(500).json({
+        status: "error",
+        message: "Failed to update agent: could not remove old version",
+      });
+    }
+
+    // Then save the updated agent with the same ID
+    await saveCustomAgent(updatedAgent);
+
+    res.json({ status: "success", agent: updatedAgent });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error updating agent ${req.params.agentId}:`, errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
 // MCP predefined servers endpoint
 app.get("/api/mcp/predefined-servers", (req, res) => {
   try {
@@ -447,10 +729,10 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
     // Add installation status to each server
     const serversWithStatus = predefinedServers.map((server) => ({
       ...server,
+      kind: "predefined",
       isInstalled: isPredefinedServerInstalled(server.id),
     }));
 
-    console.log("Predefined servers:", serversWithStatus);
     res.json({
       status: "success",
       servers: serversWithStatus,
@@ -458,6 +740,55 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching predefined MCP servers:", errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+});
+
+// Get all installed MCP servers endpoint (both predefined and manually added)
+app.get("/api/mcp/installed-servers", (req, res) => {
+  try {
+    const manager = getMCPManager();
+    const serverConfigs = manager.getAllServerConfigs();
+    const serverStatuses = manager.getAllServerStatus();
+
+    // Combine configuration and status data
+    const installedServers = Object.keys(serverConfigs).map((id) => {
+      const config = serverConfigs[id];
+      const status = serverStatuses[id] || { running: false };
+      const isPredefined = isPredefinedServerInstalled(id);
+
+      // 获取额外的预定义服务器信息
+      let predefinedInfo = null;
+      if (isPredefined) {
+        const allPredefined = getAvailablePredefinedServers();
+        predefinedInfo =
+          allPredefined.find((server) => server.id === id) || null;
+      }
+
+      return {
+        id,
+        name: config.name || id,
+        description: config.description || "",
+        kind: "installed",
+        enabled: config.enabled || false,
+        running: status.running || false,
+        isPredefined,
+        toolCount: status.tools?.length || 0,
+        serverUrl: status.serverUrl || null,
+        // 如果是预定义服务器，添加额外信息
+        repoUrl: predefinedInfo?.repoUrl || null,
+        logoUrl: predefinedInfo?.logoUrl || null,
+        installInstructions: predefinedInfo?.installInstructions || null,
+      };
+    });
+
+    res.json({
+      status: "success",
+      servers: installedServers,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error fetching installed MCP servers:", errorMessage);
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });
@@ -515,6 +846,48 @@ app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
   }
 }) as RequestHandler);
 
+// Uninstall predefined MCP server endpoint
+app.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        status: "error",
+        message: "Server ID is required",
+      });
+    }
+
+    const manager = getMCPManager();
+
+    // First, check if the server is running and stop it if needed
+    const serverStatus = manager.getServerStatus(id);
+    if (serverStatus && serverStatus.running) {
+      await manager.stopServer(id);
+      console.log(`Stopped MCP server ${id} before uninstalling`);
+    }
+
+    // Unregister the server
+    const success = manager.unregisterServer(id);
+
+    if (success) {
+      res.json({
+        status: "success",
+        message: `Server ${id} uninstalled successfully`,
+      });
+    } else {
+      res.status(400).json({
+        status: "error",
+        message: `Failed to uninstall server ${id}`,
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error uninstalling predefined MCP server:", errorMessage);
+    res.status(500).json({ status: "error", message: errorMessage });
+  }
+}) as RequestHandler);
+
 // Get tools for a specific MCP server
 app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
   try {
@@ -531,7 +904,6 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       });
     }
 
-    // 获取服务器配置
     const serverConfig = manager.getServerConfig(id);
     const disabledTools = serverConfig?.disabledTools || [];
 
@@ -544,22 +916,24 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
             tools: config.builtInToolsList.map((name) => ({
               name,
               description: serverTools[name]?.description || `Tool: ${name}`,
-              enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+              enabled: !disabledTools.includes(name),
             })),
             serverId: id,
-            disabledTools, // 返回禁用的工具列表
+            disabledTools,
           });
         }
+        console.log("serverTools", serverTools);
         const allTools = Object.keys(serverTools).map((name) => ({
           name,
           description: serverTools[name]?.description || `Tool: ${name}`,
-          enabled: !disabledTools.includes(name), // 使用disabledTools判断是否启用
+          enabled: !disabledTools.includes(name),
         }));
+
         return res.json({
           status: "success",
           tools: allTools,
           serverId: id,
-          disabledTools, // 返回禁用的工具列表
+          disabledTools,
         });
       }
     }
@@ -692,6 +1066,9 @@ export function startChatServer() {
     );
     console.log(
       `MCP predefined servers endpoint: http://localhost:${PORT}/api/mcp/predefined-servers`,
+    );
+    console.log(
+      `MCP installed servers endpoint: http://localhost:${PORT}/api/mcp/installed-servers`,
     );
     console.log(
       `MCP marketplace endpoint: http://localhost:${PORT}/api/mcp/marketplace`,

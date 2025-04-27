@@ -578,4 +578,37 @@ export class MCPManager extends EventEmitter {
       return false;
     }
   }
+
+  /**
+   * Uninstall predefined server
+   * @param id Server ID
+   * @returns Whether uninstallation was successful
+   */
+  public uninstallPredefinedServer(id: string): boolean {
+    // Check if this server is registered
+    if (!this.servers.has(id)) {
+      console.warn(`Server with ID ${id} not found, cannot uninstall`);
+      return false;
+    }
+
+    // Stop the server if it's running
+    const server = this.servers.get(id);
+    if (server && server.status.running) {
+      this.stopServer(id).catch((error) =>
+        console.error(`Error stopping server ${id} during uninstall:`, error),
+      );
+    }
+
+    // Unregister the server
+    const result = this.unregisterServer(id);
+    if (result) {
+      console.log(`Successfully uninstalled server ${id}`);
+      // Emit server uninstalled event
+      this.emit("server:uninstalled", id);
+    } else {
+      console.error(`Failed to uninstall server ${id}`);
+    }
+
+    return result;
+  }
 }

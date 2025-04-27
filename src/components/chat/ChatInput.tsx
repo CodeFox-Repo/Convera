@@ -239,9 +239,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <div className="drag-region h-full p-1">
-        <div className="h-full w-full">
+        <div className="h-full min-h-[120px] w-full">
           <div
-            className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"}`}
+            className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
             <div className="drag-region mb-2 w-full flex-1">
@@ -257,7 +257,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             </div>
 
             {/* Buttons row - Bottom row */}
-            <div className="drag-region flex items-center justify-between">
+            <div className="drag-region flex min-h-[30px] items-center justify-between">
               {/* Left icons - use space-x here */}
               <div className="flex flex-1 items-center space-x-4">
                 <button
@@ -266,14 +266,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 >
                   <Plus size={24} />
                 </button>
-
-                <button
-                  onClick={onToggleTranslation}
-                  className="no-drag-region text-foreground/70 hover:text-foreground"
-                >
-                  <Globe size={20} />
-                </button>
-
                 <button
                   onClick={onReset}
                   className="no-drag-region text-foreground/70 hover:text-foreground"
@@ -350,9 +342,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
                 {/* Previous app badge */}
                 {previousApp && (
-                  <div className="no-drag-region bg-primary/20 text-primary flex items-center rounded px-2 py-0.5 text-xs font-medium">
+                  <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
                     <Monitor size={12} className="mr-1" />
-                    {formatAppName(previousApp)}
+                   {formatAppName(previousApp)}
                   </div>
                 )}
               </div>

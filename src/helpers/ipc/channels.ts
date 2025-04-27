@@ -7,6 +7,9 @@ export interface IPCServer {
   initGlobalShortcut(shortcut: string): boolean;
 
   getPreviousApp(): string;
+  getClipboardText(): string;
+  setInputText(text: string): void;
+  pasteModifiedContent(content: string): void;
 
   getCurrentTheme(): string;
   toggleTheme(): string;
@@ -20,6 +23,9 @@ export interface IPCServer {
   resizeWindow(width: number, height: number): void;
   resizeMessageContent(width: number, height: number): void;
   getCurrentWindowPosition(): { x: number; y: number };
+
+  // View Mode
+  toggleViewMode(expanded: boolean): boolean;
 
   // Agent Popover
   toggleAgentPopover(
@@ -54,6 +60,12 @@ export const CHANNELS = {
     GET_PREVIOUS: "app:get-previous",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
+    TOGGLE_VIEW_MODE: "app:toggle-view-mode",
+    SET_INPUT_TEXT: "app:set-input-text",
+    PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
+  },
+  CLIPBOARD: {
+    GET_TEXT: "clipboard:get-text",
   },
   THEME: {
     GET_CURRENT: "theme:get-current",
@@ -73,6 +85,7 @@ export const CHANNELS = {
   },
   AGENT: {
     TOGGLE_POPOVER: "agent:toggle-popover",
+    LIST_UPDATED: "agent:list-updated",
   },
   MODEL: {
     TOGGLE_SELECTOR: "model:toggle-selector",
@@ -88,6 +101,9 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
+  setInputText: CHANNELS.APP.SET_INPUT_TEXT,
+  pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
   // Theme
   getCurrentTheme: CHANNELS.THEME.GET_CURRENT,
   toggleTheme: CHANNELS.THEME.TOGGLE,
@@ -101,10 +117,13 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   resizeWindow: CHANNELS.WINDOW.RESIZE,
   resizeMessageContent: CHANNELS.WINDOW.RESIZE_MESSAGE_CONTENT,
   getCurrentWindowPosition: CHANNELS.WINDOW.GET_POSITION,
-  // Agent Popover
+  // View Mode
+  toggleViewMode: CHANNELS.APP.TOGGLE_VIEW_MODE,
+  // Agent
   toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
   // Model Selector
   toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
+  // Model
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
 };
