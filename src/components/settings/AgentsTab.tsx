@@ -287,14 +287,12 @@ export function AgentsTab() {
     }
 
     // Combine all selected tools from all MCPs
-    let hasTools = false;
     const allToolReferences: ToolReference[] = [];
     // For backward compatibility
     const allSelectedTools: string[] = [];
 
     Object.entries(selectedToolNames).forEach(([mcpId, toolNames]) => {
       if (toolNames.length > 0) {
-        hasTools = true;
         toolNames.forEach((tool) => {
           // Add standardized tool reference
           allToolReferences.push({
@@ -308,11 +306,6 @@ export function AgentsTab() {
         });
       }
     });
-
-    if (!hasTools) {
-      toast.error("Please select at least one tool");
-      return;
-    }
 
     console.log("Saving agent with tools:", allSelectedTools);
     console.log("Saving agent with toolReferences:", allToolReferences);
@@ -395,12 +388,6 @@ export function AgentsTab() {
           });
         }
       });
-
-      if (allToolReferences.length === 0) {
-        toast.error("Please select at least one tool");
-        setIsUpdating(false);
-        return;
-      }
 
       console.log(
         `Updating agent ID ${editingAgent.id} with ${allToolReferences.length} tools`,

@@ -450,6 +450,8 @@ export async function processChatRequest(
   // Create the OpenRouter client
   const model = getOpenRouterClient(apiKey).chat(modelId);
 
+  console.log("systemPrompt:", systemPrompt);
+  console.log("messages:", messages);
   // Stream the response
   const result = streamText({
     model,
