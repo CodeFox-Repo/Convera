@@ -325,7 +325,7 @@ export function setInputText(
 export function simulateClipboardPaste(): void {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const robot = require("robotjs");
+    const robot = require("@hurdlegroup/robotjs");
 
     // Write to clipboard first
     if (process.platform === "darwin") {
