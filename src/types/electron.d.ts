@@ -14,7 +14,7 @@ export interface IElectronAPI {
   getClipboardText: () => Promise<string>;
   pasteModifiedContent: (content: string) => Promise<boolean>;
   // Theme (Assuming theme functions return void or specific theme string)
-  getCurrentTheme: () => Promise<{ system: string; user: string }>;
+  getCurrentTheme: () => Promise<string>;
   toggleTheme: () => Promise<void>;
   setThemeDark: () => Promise<void>;
   setThemeLight: () => Promise<void>;
@@ -26,6 +26,8 @@ export interface IElectronAPI {
   resizeWindow: (width: number, height: number) => Promise<void>;
   resizeMessageContent: (width: number, height: number) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
+  // View Mode
+  toggleViewMode: (expanded: boolean) => Promise<boolean>;
   // Agent Popover
   toggleAgentPopover: (
     x?: number,

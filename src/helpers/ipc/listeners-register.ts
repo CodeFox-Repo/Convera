@@ -20,12 +20,13 @@ import {
   getCurrentWindowPosition,
   toggleModelSelector,
   modelSelected,
+  toggleViewMode,
   getClipboardText,
   pasteModifiedContent,
   getCurrentWindowSize,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
-import { WINDOW_SIZE_PRESETS, WindowSizeConfig } from "../windows/window-size";
+import { WindowSizeConfig } from "../windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -244,6 +245,14 @@ export default function registerListeners(
     // Forward the selected model to the main window
     modelSelected(mainWindow, modelId);
     return true;
+  });
+
+  // View mode toggle
+  ipcMain.handle(CHANNELS.APP.TOGGLE_VIEW_MODE, (_event, expanded: boolean) => {
+    console.log(
+      `Handling APP.TOGGLE_VIEW_MODE: ${expanded ? "expanded" : "compact"}`,
+    );
+    return toggleViewMode(expanded, mainWindow);
   });
 
   // Clipboard handlers

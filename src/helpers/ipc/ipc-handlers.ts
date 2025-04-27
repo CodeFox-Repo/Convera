@@ -5,6 +5,7 @@ import {
   toggleMainWindowVisibility,
 } from "../windows/window-position";
 import { CHANNELS } from "./channels";
+import { setMainWindowResizable } from "../windows/window-resize";
 import { exec } from "child_process";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
@@ -266,6 +267,34 @@ export function modelSelected(
   );
 }
 
+// Toggle window view mode between compact and expanded
+export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
+  console.log(`Toggling view mode to: ${expanded ? "expanded" : "compact"}`);
+
+  try {
+    // Call setMainWindowResizable with the mainWindow parameter
+    setMainWindowResizable(expanded, mainWindow);
+
+    // You might want to also adjust the window size when toggling to expanded mode
+    if (expanded) {
+      // Optionally set a larger size when switching to expanded mode
+      const currentBounds = mainWindow.getBounds();
+      const newHeight = Math.max(currentBounds.height, 600);
+
+      // Use resizeWindowAndMaintainPosition instead of directly using setBounds
+      resizeWindowAndMaintainPosition(
+        mainWindow,
+        currentBounds.width,
+        newHeight,
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error toggling view mode:", error);
+    return false;
+  }
+}
 // ========== WINDOW SIZE HANDLERS ==========
 
 export function getCurrentWindowSize(window: WindowSizeConfig): {

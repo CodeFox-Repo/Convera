@@ -24,6 +24,9 @@ export interface IPCServer {
   resizeMessageContent(width: number, height: number): void;
   getCurrentWindowPosition(): { x: number; y: number };
 
+  // View Mode
+  toggleViewMode(expanded: boolean): boolean;
+
   // Agent Popover
   toggleAgentPopover(
     x?: number,
@@ -57,6 +60,7 @@ export const CHANNELS = {
     GET_PREVIOUS: "app:get-previous",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
+    TOGGLE_VIEW_MODE: "app:toggle-view-mode",
     SET_INPUT_TEXT: "app:set-input-text",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
   },
@@ -112,10 +116,13 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   resizeWindow: CHANNELS.WINDOW.RESIZE,
   resizeMessageContent: CHANNELS.WINDOW.RESIZE_MESSAGE_CONTENT,
   getCurrentWindowPosition: CHANNELS.WINDOW.GET_POSITION,
-  // Agent Popover
+  // View Mode
+  toggleViewMode: CHANNELS.APP.TOGGLE_VIEW_MODE,
+  // Agent
   toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
   // Model Selector
   toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
+  // Model
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
 };
