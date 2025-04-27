@@ -59,6 +59,7 @@ export function AgentsTab() {
   }>({});
   const [newAgent, setNewAgent] = useState({
     name: "",
+    description: "",
     systemPrompt: "",
   });
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
@@ -313,7 +314,7 @@ export function AgentsTab() {
     const agentData = {
       id: uuidv4(),
       name: newAgent.name,
-      description: newAgent.name, // Use name as description
+      description: newAgent.description || newAgent.name, // Use description or fall back to name
       systemPrompt: newAgent.systemPrompt || "", // Ensure systemPrompt is always a string
       toolNames: allSelectedTools,
       toolReferences: allToolReferences,
@@ -336,6 +337,7 @@ export function AgentsTab() {
       // Reset form
       setNewAgent({
         name: "",
+        description: "",
         systemPrompt: "",
       });
       setSelectedToolNames({});
@@ -750,6 +752,25 @@ export function AgentsTab() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="agent-description">Description</Label>
+                <div className="relative">
+                  <Input
+                    id="agent-description"
+                    value={newAgent.description}
+                    onChange={(e) =>
+                      setNewAgent({ ...newAgent, description: e.target.value })
+                    }
+                    placeholder="Enter agent description"
+                    maxLength={50}
+                    className="pr-12"
+                  />
+                  <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
+                    {newAgent.description.length}/50
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="agent-prompt">Prompt</Label>
                 <div className="relative">
                   <textarea
@@ -895,6 +916,28 @@ export function AgentsTab() {
                     />
                     <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
                       {editingAgent.name.length}/20
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-agent-description">Description</Label>
+                  <div className="relative">
+                    <Input
+                      id="edit-agent-description"
+                      value={editingAgent.description}
+                      onChange={(e) =>
+                        setEditingAgent({
+                          ...editingAgent,
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder="Enter agent description"
+                      maxLength={50}
+                      className="pr-12"
+                    />
+                    <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
+                      {editingAgent.description.length}/50
                     </span>
                   </div>
                 </div>
