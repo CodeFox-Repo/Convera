@@ -495,13 +495,10 @@ function preCreateSettingsWindow() {
     if (settingsWindow) {
       console.log("Settings window ready, but kept hidden");
 
-      if (inDevelopment) {
-        settingsWindow.webContents.openDevTools({ mode: "detach" });
-      }
+
     }
   });
 
-  // 处理窗口关闭事件
   settingsWindow.on("closed", () => {
     console.log("Settings window closed, setting reference to null");
     settingsWindow = null;

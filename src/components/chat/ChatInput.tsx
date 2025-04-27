@@ -232,7 +232,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <div className="drag-region h-full p-1">
-        <div className="h-full min-h-[120px] w-full">
+        <div className="h-full  w-full">
           <div
             className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
