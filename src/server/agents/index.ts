@@ -11,9 +11,15 @@ import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 import { getMCPToolsForChat } from "../mcp";
 import { AppSettings } from "@/types/settings";
 import { codefoxTools } from "../mcp/dev-mcp/tools";
+import path from "path";
+import os from "os";
+import fs from "fs";
 
-// Available agents with different personalities and capabilities
-export const predefinedAgents: AgentDefinition[] = [
+// Define a path for agents configuration file
+const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
+
+// Built-in predefined agents
+const builtInAgents: AgentDefinition[] = [
   {
     id: "coder",
     name: "Code Fox",
@@ -124,21 +130,144 @@ Do not hesitate to extensively use console logs to follow the flow of the code. 
 DO NOT OVERENGINEER THE CODE. You take great pride in keeping things simple and elegant. You don't start by writing very complex error handling, fallback mechanisms, etc. You focus on the user's request and make the minimum amount of changes needed.
 DON'T DO MORE THAN WHAT THE USER ASKS FOR.`,
     tools: codefoxTools,
+    toolReferences: [
+      { mcpName: "codefox-mcp", toolName: "initProject", isBuiltIn: true },
+      { mcpName: "codefox-mcp", toolName: "writefileTool", isBuiltIn: true },
+      { mcpName: "codefox-mcp", toolName: "renameFileTool", isBuiltIn: true },
+      {
+        mcpName: "codefox-mcp",
+        toolName: "addDependencyTool",
+        isBuiltIn: true,
+      },
+    ],
   },
 ];
+
+// Available agents with different personalities and capabilities
+// Combines built-in and custom agents
+export const predefinedAgents: AgentDefinition[] = [...builtInAgents];
+
+// Load custom agents on module initialization
+loadCustomAgents();
+
+/**
+ * Load custom agents from the config file
+ */
+function loadCustomAgents(): void {
+  try {
+    // Ensure the .foxychat directory exists
+    const configDir = path.dirname(AGENTS_CONFIG_PATH);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    // Check if the config file exists
+    if (fs.existsSync(AGENTS_CONFIG_PATH)) {
+      const data = fs.readFileSync(AGENTS_CONFIG_PATH, "utf8");
+      const customAgents = JSON.parse(data) as AgentDefinition[];
+      console.log("customAgents", customAgents);
+
+      // Clear any existing custom agents (keeping built-ins)
+      predefinedAgents.length = builtInAgents.length;
+
+      // Add loaded custom agents
+      predefinedAgents.push(...customAgents);
+
+      console.log(
+        `Loaded ${customAgents.length} custom agents from ${AGENTS_CONFIG_PATH}`,
+      );
+    } else {
+      console.log(`No custom agents found at ${AGENTS_CONFIG_PATH}`);
+      // Create empty file for future use
+      fs.writeFileSync(AGENTS_CONFIG_PATH, JSON.stringify([], null, 2));
+    }
+  } catch (error) {
+    console.error("Error loading custom agents:", error);
+  }
+}
+
+/**
+ * Save custom agents to the config file
+ */
+function saveCustomAgents(): void {
+  try {
+    // Filter out built-in agents
+    const builtInIds = builtInAgents.map((agent) => agent.id);
+    const customAgents = predefinedAgents.filter(
+      (agent) => !builtInIds.includes(agent.id),
+    );
+
+    // Write to file
+    fs.writeFileSync(AGENTS_CONFIG_PATH, JSON.stringify(customAgents, null, 2));
+    console.log(
+      `Saved ${customAgents.length} custom agents to ${AGENTS_CONFIG_PATH}`,
+    );
+  } catch (error) {
+    console.error("Error saving custom agents:", error);
+  }
+}
 
 /**
  * Get a list of all available agents
  * @returns Array of agent list items
  */
 export function getAgentList(): AgentListItem[] {
-  return predefinedAgents.map((agent) => ({
-    id: agent.id,
-    name: agent.name,
-    description: agent.description,
-    category: agent.category || "General",
-    iconUrl: agent.iconUrl,
-  }));
+  return predefinedAgents.map((agent) => {
+    // Prepare toolReferences (primary field) and toolNames (backward compatibility)
+    let toolReferences = agent.toolReferences || [];
+    let toolNames: string[] = agent.toolNames || [];
+
+    // If no tool references but has tools object, extract names and create references
+    if (toolReferences.length === 0 && !toolNames.length && agent.tools) {
+      toolNames = Object.keys(agent.tools);
+      console.log(`Agent [${agent.id}]: Created toolNames from tools object`);
+
+      // Create toolReferences from tool names
+      toolReferences = toolNames.map((name) => ({
+        mcpName: "Dev-MCP", // Default to Dev-MCP
+        toolName: name,
+        isBuiltIn: true,
+      }));
+    }
+    // If no tool references but has toolNames, convert them to references
+    else if (toolReferences.length === 0 && toolNames.length > 0) {
+      console.log(
+        `Agent [${agent.id}]: Converting toolNames to toolReferences`,
+      );
+
+      toolReferences = toolNames.map((name) => {
+        // Check if it's in format "mcpName:toolName"
+        const parts = name.split(":");
+        if (parts.length > 1) {
+          return {
+            mcpName: parts[0],
+            toolName: parts[1],
+            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
+          };
+        }
+        // Default to Dev-MCP if no prefix
+        return {
+          mcpName: "Dev-MCP",
+          toolName: name,
+          isBuiltIn: true,
+        };
+      });
+    }
+
+    console.log(
+      `Agent [${agent.id}]: Has ${toolReferences.length} tool references`,
+    );
+
+    return {
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      category: agent.category || "General",
+      iconUrl: agent.iconUrl,
+      toolReferences: toolReferences,
+      toolNames: toolNames,
+    };
+  });
 }
 
 /**
@@ -159,7 +288,33 @@ export function getAgentSystemPrompt(agentId?: string): string | undefined {
   if (!agentId) return undefined;
 
   const agent = getAgentById(agentId);
-  return agent?.systemPrompt;
+  if (!agent) return undefined;
+
+  let prompt = agent.systemPrompt;
+
+  // If the prompt doesn't already include tool information, append it
+  if (prompt && !prompt.includes("Available tools:")) {
+    const toolsList: string[] = [];
+
+    // Use toolReferences if available
+    if (agent.toolReferences && agent.toolReferences.length > 0) {
+      agent.toolReferences.forEach((ref) => {
+        toolsList.push(`${ref.toolName} (${ref.mcpName})`);
+      });
+    }
+    // Fall back to tool names from the tools object
+    else if (agent.tools) {
+      Object.keys(agent.tools).forEach((toolName) => {
+        toolsList.push(toolName);
+      });
+    }
+
+    if (toolsList.length > 0) {
+      prompt += `\n\nAvailable tools: ${toolsList.join(", ")}`;
+    }
+  }
+
+  return prompt;
 }
 
 /**
@@ -269,16 +424,34 @@ export async function processChatRequest(
 
   // Determine the system prompt
   let systemPrompt: string | undefined;
+  let toolsList: string[] = [];
 
   if (options.agentId) {
-    systemPrompt = getAgentSystemPrompt(options.agentId);
+    const agent = getAgentById(options.agentId);
+
+    if (agent) {
+      systemPrompt = agent.systemPrompt;
+
+      // Format tool references for display in system prompt if needed
+      if (agent.toolReferences && agent.toolReferences.length > 0) {
+        toolsList = agent.toolReferences.map(
+          (ref) => `${ref.toolName} (${ref.mcpName})`,
+        );
+      } else if (agent.tools) {
+        toolsList = Object.keys(agent.tools);
+      }
+    }
   } else {
-    systemPrompt = getDefaultSystemPrompt(Object.keys(mcpTools));
+    // Get tool names from all available MCP tools
+    toolsList = Object.keys(mcpTools);
+    systemPrompt = getDefaultSystemPrompt(toolsList);
   }
 
   // Create the OpenRouter client
   const model = getOpenRouterClient(apiKey).chat(modelId);
 
+  console.log("systemPrompt:", systemPrompt);
+  console.log("messages:", messages);
   // Stream the response
   const result = streamText({
     model,
@@ -314,12 +487,61 @@ export async function processAgentChat(
 
 /**
  * Save a custom agent by adding it to predefinedAgents.
- * NOTE: This does not persist to disk, only in-memory.
+ * Also persists to disk at ~/.foxychat/agents.json
  */
 export async function saveCustomAgent(agent: AgentDefinition): Promise<void> {
-  // Add to in-memory predefinedAgents
-  predefinedAgents.push(agent);
-  console.log(
-    `[Agent Saved] ${agent.name} (${agent.id}) added to predefinedAgents`,
+  // Check if agent with this ID already exists
+  const existingIndex = predefinedAgents.findIndex((a) => a.id === agent.id);
+
+  if (existingIndex >= 0) {
+    // Update existing agent
+    predefinedAgents[existingIndex] = agent;
+    console.log(
+      `[Agent Updated] ${agent.name} (${agent.id}) updated in predefinedAgents`,
+    );
+  } else {
+    // Add new agent
+    predefinedAgents.push(agent);
+    console.log(
+      `[Agent Saved] ${agent.name} (${agent.id}) added to predefinedAgents`,
+    );
+  }
+
+  // Persist to disk
+  saveCustomAgents();
+}
+
+/**
+ * Delete a custom agent by ID
+ * Removes from both in-memory array and disk storage
+ * @param agentId The ID of the agent to delete
+ * @returns True if the agent was found and deleted, false otherwise
+ */
+export async function deleteCustomAgent(agentId: string): Promise<boolean> {
+  // Find the agent index
+  const agentIndex = predefinedAgents.findIndex(
+    (agent) => agent.id === agentId,
   );
+
+  // Check if it's a built-in agent (which cannot be deleted)
+  const builtInIds = builtInAgents.map((agent) => agent.id);
+  if (builtInIds.includes(agentId)) {
+    console.log(`Cannot delete built-in agent: ${agentId}`);
+    return false;
+  }
+
+  // Check if agent exists
+  if (agentIndex === -1) {
+    console.log(`Agent not found: ${agentId}`);
+    return false;
+  }
+
+  // Remove from array
+  predefinedAgents.splice(agentIndex, 1);
+  console.log(`Agent deleted: ${agentId}`);
+
+  // Update file storage
+  saveCustomAgents();
+
+  return true;
 }

@@ -5,6 +5,8 @@ import {
   AppSettings,
   McpMarketplaceItem,
   PredefinedMCPServer,
+  InstalledMCPServer,
+  MCPServer,
 } from "@/types/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
@@ -22,7 +24,6 @@ import { ToolSet } from "ai";
 import { AIModelTab } from "@/components/settings/AIModelTab";
 import { ShortcutsTab } from "@/components/settings/ShortcutsTab";
 import { MarketplaceTab } from "@/components/settings/MarketplaceTab";
-import { McpSettingsTab } from "@/components/settings/McpSettingsTab";
 import { AgentsTab } from "@/components/settings/AgentsTab";
 
 export interface AgentDefinition {
@@ -49,13 +50,10 @@ export default function SettingsPage() {
   const [mcpMarketItems, setMcpMarketItems] = useState<McpMarketplaceItem[]>(
     [],
   );
-  const [predefinedServers, setPredefinedServers] = useState<
-    PredefinedMCPServer[]
-  >([]);
   const [loadingMarketplace, setLoadingMarketplace] = useState<boolean>(true);
-  const [loadingPredefinedServers, setLoadingPredefinedServers] =
-    useState<boolean>(true);
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null);
+  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
+  const [loadingMcpServers, setLoadingMcpServers] = useState<boolean>(true);
   const [installingTools, setInstallingTools] = useState<
     Record<string, boolean>
   >({});
@@ -70,13 +68,13 @@ export default function SettingsPage() {
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
   >({});
-  const [activeTab, setActiveTab] = useState<string>("mcpsettings");
+  const [activeTab, setActiveTab] = useState<string>("general");
 
   useEffect(() => {
     setSettings(getSettings());
     fetchMcpMarketplace();
     fetchMcpConfigurations();
-    fetchPredefinedServers();
+    fetchAllMcpServers();
 
     const fetchTheme = async () => {
       try {
@@ -90,27 +88,48 @@ export default function SettingsPage() {
     fetchTheme();
   }, []);
 
-  const fetchPredefinedServers = async () => {
-    setLoadingPredefinedServers(true);
+  const fetchAllMcpServers = async () => {
+    setLoadingMcpServers(true);
     try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch predefined servers");
+      const [predefinedResponse, installedResponse] = await Promise.all([
+        fetch("http://localhost:38000/api/mcp/predefined-servers"),
+        fetch("http://localhost:38000/api/mcp/installed-servers"),
+      ]);
+
+      if (!predefinedResponse.ok || !installedResponse.ok) {
+        throw new Error("Failed to fetch MCP servers");
       }
-      const data = await response.json();
-      if (data.status === "success") {
-        setPredefinedServers(data.servers || []);
+
+      const predefinedData = await predefinedResponse.json();
+      const installedData = await installedResponse.json();
+
+      if (
+        predefinedData.status === "success" &&
+        installedData.status === "success"
+      ) {
+        const predefinedServers = predefinedData.servers || [];
+        const installedServers = installedData.servers || [];
+
+        const mergedServers: MCPServer[] = [];
+
+        mergedServers.push(...installedServers);
+
+        predefinedServers.forEach((server: MCPServer) => {
+          if (!server.isInstalled) {
+            mergedServers.push(server);
+          }
+        });
+
+        setMcpServers(mergedServers);
       } else {
-        throw new Error(data.message || "Failed to fetch predefined servers");
+        throw new Error("Failed to fetch MCP servers data");
       }
     } catch (error) {
-      console.error("Error fetching predefined servers:", error);
-      toast.error("Failed to load predefined servers");
-      setPredefinedServers([]); // Reset on error
+      console.error("Error fetching MCP servers:", error);
+      toast.error("Failed to load MCP server data");
+      setMcpServers([]); // Reset on error
     } finally {
-      setLoadingPredefinedServers(false);
+      setLoadingMcpServers(false);
     }
   };
 
@@ -177,8 +196,8 @@ export default function SettingsPage() {
       }
 
       toast.success(`Server ${serverId} installed successfully`);
-      fetchPredefinedServers(); // Refresh the predefined servers list
-      fetchMcpConfigurations(); // Refresh configurations
+      fetchAllMcpServers(); // 刷新服务器列表
+      fetchMcpConfigurations(); // 刷新配置
     } catch (error) {
       console.error(`Error installing server ${serverId}:`, error);
       toast.error(
@@ -186,6 +205,41 @@ export default function SettingsPage() {
       );
     } finally {
       setInstallingTools((prev) => ({ ...prev, [serverId]: false }));
+    }
+  };
+
+  const handleUninstallPredefinedServer = async (
+    serverId: string,
+  ): Promise<void> => {
+    try {
+      // Call the new API endpoint to uninstall the server
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/predefined-servers/uninstall",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: serverId }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Failed to uninstall server" }));
+        throw new Error(errorData.message || "Failed to uninstall server");
+      }
+
+      toast.success(`Server ${serverId} uninstalled successfully`);
+
+      // 刷新数据
+      fetchAllMcpServers();
+      fetchMcpConfigurations();
+    } catch (error) {
+      console.error(`Error uninstalling server ${serverId}:`, error);
+      toast.error(
+        `Failed to uninstall server: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      throw error; // Re-throw to let the UI handle the error state
     }
   };
 
@@ -378,6 +432,52 @@ export default function SettingsPage() {
       toast.error(`Failed to install ${tool.name}`);
     } finally {
       setInstallingTools((prev) => ({ ...prev, [tool.mcpId]: false }));
+    }
+  };
+
+  // Handle manual installation of MCP config
+  const handleManualInstallMcp = async (configJson: string) => {
+    try {
+      // Parse and validate the config JSON
+      let config;
+      try {
+        config = JSON.parse(configJson);
+      } catch (e) {
+        toast.error("Invalid JSON format");
+        throw new Error("Invalid JSON format");
+      }
+
+      // Check if the config has the expected structure
+      if (!config.mcpServers || typeof config.mcpServers !== "object") {
+        toast.error("Invalid configuration: missing 'mcpServers' object");
+        throw new Error("Invalid configuration structure");
+      }
+
+      // Submit the config to the backend
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/configurations/manual",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to install MCP configuration",
+        );
+      }
+
+      toast.success("MCP configuration installed successfully");
+      fetchMcpConfigurations(); // Refresh configurations
+    } catch (error) {
+      console.error("Error installing manual MCP configuration:", error);
+      toast.error(
+        `Failed to install configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      throw error;
     }
   };
 
@@ -656,32 +756,21 @@ export default function SettingsPage() {
 
   const marketplaceProps = {
     loadingMarketplace,
-    loadingPredefinedServers,
+    loadingMcpServers,
     mcpMarketItems,
-    predefinedServers,
+    mcpServers,
     installingTools,
     onInstallPredefinedServer: handleInstallPredefinedServer,
     onInstallMcpTool: handleInstallMcpTool,
-  };
-
-  const mcpSettingsProps = {
-    loadingMcpConfigs,
-    mcpServerConfigs,
-    loadingMcpTools,
-    mcpServerTools,
-    activeTab,
-    onMcpConfigChange: handleMcpConfigChange,
-    onSaveMcpConfig: handleSaveMcpConfig,
-    onFetchMcpServerTools: fetchMcpServerTools,
+    onManualInstallMcp: handleManualInstallMcp,
+    onUninstallPredefinedServer: handleUninstallPredefinedServer,
   };
 
   return (
-    <div className="bg-background/20 relative h-full w-full overflow-y-auto p-10">
-      <DragLayer height={10} className="-mx-4" />
-
-      <div className="box sticky top-0 z-50 -mx-4 flex items-center justify-between bg-transparent px-4 py-2">
+    <div className="bg-background/20 relative h-full w-full overflow-y-auto px-10 pb-5">
+      <div className="box drag-region sticky top-5 z-50 -mx-4 flex items-center justify-between">
         <div
-          className="hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
           onClick={handleCloseSettings}
           role="button"
           aria-label="Close settings"
@@ -690,7 +779,7 @@ export default function SettingsPage() {
         </div>
 
         <div
-          className="hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
           onClick={handleToggleTheme}
           role="button"
           aria-label="Toggle theme"
@@ -707,68 +796,62 @@ export default function SettingsPage() {
         Settings
       </h1>
 
-      <Tabs defaultValue="aimodel" onValueChange={setActiveTab}>
-        <TabsList className="bg-secondary/80 relative mb-4 grid w-full grid-cols-2 rounded-lg p-1 md:grid-cols-5">
+      <Tabs defaultValue="general" onValueChange={setActiveTab}>
+        <TabsList className="bg-secondary/80 relative mb-4 flex w-full rounded-lg p-1">
           <TabsTrigger
-            value="aimodel"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
+            value="general"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
           >
-            AI Model
-          </TabsTrigger>
-          <TabsTrigger
-            value="shortcuts"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            Shortcuts
+            General
           </TabsTrigger>
           <TabsTrigger
             value="mcpmarket"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
           >
-            Market
-          </TabsTrigger>
-          <TabsTrigger
-            value="mcpsettings"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            Settings
+            MCP Market
           </TabsTrigger>
           <TabsTrigger
             value="agents"
-            className="text-foreground data-[state=active]:bg-card text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
           >
             Agents
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="aimodel">
-          <AIModelTab
-            settings={settings}
-            onOpenAIChange={handleOpenAIChange}
-            onAddSupportedModel={handleAddSupportedModel}
-            onRemoveSupportedModel={handleRemoveSupportedModel}
-          />
-        </TabsContent>
+        <TabsContent value="general">
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-foreground mb-4 text-xl font-medium">
+                AI Model
+              </h2>
+              <AIModelTab
+                settings={settings}
+                onOpenAIChange={handleOpenAIChange}
+                onAddSupportedModel={handleAddSupportedModel}
+                onRemoveSupportedModel={handleRemoveSupportedModel}
+              />
+            </div>
 
-        <TabsContent value="shortcuts">
-          <ShortcutsTab
-            settings={settings}
-            activeShortcut={activeShortcut}
-            recordingShortcut={recordingShortcut}
-            shortcutInputRef={
-              shortcutInputRef as React.RefObject<HTMLButtonElement>
-            }
-            onStartRecording={startRecording}
-            onResetShortcuts={handleResetShortcuts}
-          />
+            <div>
+              <h2 className="text-foreground mb-4 text-xl font-medium">
+                Shortcuts
+              </h2>
+              <ShortcutsTab
+                settings={settings}
+                activeShortcut={activeShortcut}
+                recordingShortcut={recordingShortcut}
+                shortcutInputRef={
+                  shortcutInputRef as React.RefObject<HTMLButtonElement>
+                }
+                onStartRecording={startRecording}
+                onResetShortcuts={handleResetShortcuts}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="mcpmarket">
           <MarketplaceTab {...marketplaceProps} />
-        </TabsContent>
-
-        <TabsContent value="mcpsettings">
-          <McpSettingsTab {...mcpSettingsProps} />
         </TabsContent>
 
         <TabsContent value="agents">

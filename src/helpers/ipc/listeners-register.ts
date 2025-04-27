@@ -32,6 +32,8 @@ import { WindowSizeConfig } from "../windows/window-size";
 interface ElectronAPI extends IPCServer {
   onFocusChatInput: (callback: () => void) => () => void;
   onAppChanged: (callback: (appName: string) => void) => () => void;
+  onToggleSettings: (callback: () => void) => () => void;
+  onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
 }
 
@@ -59,6 +61,22 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.APP_CHANGED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.APP_CHANGED, handler);
+    };
+  };
+
+  api.onToggleSettings = (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on(CHANNELS.SETTINGS.TOGGLE, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.SETTINGS.TOGGLE, handler);
+    };
+  };
+
+  api.onAgentListUpdated = (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on(CHANNELS.AGENT.LIST_UPDATED, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.AGENT.LIST_UPDATED, handler);
     };
   };
 
@@ -217,6 +235,16 @@ export default function registerListeners(
       }
     },
   );
+
+  // Handle agent list updated events - relay to agent popover window if it exists
+  ipcMain.on(CHANNELS.AGENT.LIST_UPDATED, () => {
+    console.log(
+      "Handling AGENT.LIST_UPDATED - relaying to agent popover window",
+    );
+    if (options.agentPopoverWindow && options.agentPopoverWindow.isVisible()) {
+      options.agentPopoverWindow.webContents.send(CHANNELS.AGENT.LIST_UPDATED);
+    }
+  });
 
   // Model selector handlers
   ipcMain.handle(
