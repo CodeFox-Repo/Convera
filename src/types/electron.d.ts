@@ -1,5 +1,7 @@
 // src/types/electron.d.ts
 
+import { WindowSizeConfig } from "@/helpers/windows/window-size";
+
 // Define the structure of the API exposed via contextBridge
 export interface IElectronAPI {
   // Settings
@@ -9,8 +11,10 @@ export interface IElectronAPI {
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
   // App
   getPreviousApp: () => Promise<string>;
+  getClipboardText: () => Promise<string>;
+  pasteModifiedContent: (content: string) => Promise<boolean>;
   // Theme (Assuming theme functions return void or specific theme string)
-  getCurrentTheme: () => Promise<{ system: string; user: string }>;
+  getCurrentTheme: () => Promise<string>;
   toggleTheme: () => Promise<void>;
   setThemeDark: () => Promise<void>;
   setThemeLight: () => Promise<void>;
@@ -22,6 +26,8 @@ export interface IElectronAPI {
   resizeWindow: (width: number, height: number) => Promise<void>;
   resizeMessageContent: (width: number, height: number) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
+  // View Mode
+  toggleViewMode: (expanded: boolean) => Promise<boolean>;
   // Agent Popover
   toggleAgentPopover: (
     x?: number,
@@ -42,6 +48,11 @@ export interface IElectronAPI {
   onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
   onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
   onAgentListUpdated: (callback: () => void) => () => void; // Agent list updated event
+  onSetInputText: (callback: (text: string) => void) => () => void; // Input text event
+  getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
+    width: number;
+    height: number;
+  }>;
 }
 
 // Extend the global Window interface

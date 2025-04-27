@@ -20,8 +20,13 @@ import {
   getCurrentWindowPosition,
   toggleModelSelector,
   modelSelected,
+  toggleViewMode,
+  getClipboardText,
+  pasteModifiedContent,
+  getCurrentWindowSize,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
+import { WindowSizeConfig } from "../windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -29,6 +34,7 @@ interface ElectronAPI extends IPCServer {
   onAppChanged: (callback: (appName: string) => void) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
+  onSetInputText: (callback: (text: string) => void) => () => void;
 }
 
 export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
@@ -71,6 +77,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.AGENT.LIST_UPDATED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.AGENT.LIST_UPDATED, handler);
+    };
+  };
+
+  api.onSetInputText = (callback: (text: string) => void) => {
+    const handler = (_: any, text: string) => callback(text);
+    ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
     };
   };
 
@@ -197,6 +211,13 @@ export default function registerListeners(
     return setSystemTheme();
   });
 
+  ipcMain.handle(
+    CHANNELS.WINDOW.GET_CURRENT_SIZE,
+    (event, window: WindowSizeConfig) => {
+      return getCurrentWindowSize(window);
+    },
+  );
+
   // Agent popover handlers
   ipcMain.handle(
     CHANNELS.AGENT.TOGGLE_POPOVER,
@@ -253,6 +274,29 @@ export default function registerListeners(
     modelSelected(mainWindow, modelId);
     return true;
   });
+
+  // View mode toggle
+  ipcMain.handle(CHANNELS.APP.TOGGLE_VIEW_MODE, (_event, expanded: boolean) => {
+    console.log(
+      `Handling APP.TOGGLE_VIEW_MODE: ${expanded ? "expanded" : "compact"}`,
+    );
+    return toggleViewMode(expanded, mainWindow);
+  });
+
+  // Clipboard handlers
+  ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
+    console.log("Handling CLIPBOARD.GET_TEXT");
+    return getClipboardText();
+  });
+
+  ipcMain.handle(
+    CHANNELS.APP.PASTE_MODIFIED_CONTENT,
+    (event, content: string) => {
+      console.log("Handling APP.PASTE_MODIFIED_CONTENT");
+      pasteModifiedContent(content);
+      return true;
+    },
+  );
 
   console.log("All IPC listeners registered successfully.");
 }

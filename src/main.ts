@@ -6,6 +6,7 @@ import {
   getCurrentShortcut,
   getPreviousApp,
   setPreviousApp,
+  setInputText,
 } from "./helpers/ipc/ipc-handlers";
 import path from "path";
 import { exec } from "child_process";
@@ -13,18 +14,28 @@ import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
-import { positionWindowAtCenterBottom } from "./helpers/windows/window-position";
+import {
+  positionWindowAtCenterBottom,
+  toggleMainWindowVisibility,
+} from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
-import { CHANNELS } from "./helpers/ipc/channels";
+import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
+
 import "./global.css";
+import { setMainWindowResizable } from "./helpers/windows/window-resize";
+import { calculateWindowDimensions } from "./helpers/windows/utils";
 
 let lastVisibleBounds: Electron.Rectangle | null = null;
+
+import { clipboard } from "electron";
+const robot = require("robotjs");
+
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
-// Default shortcut now comes from ipc-handlers
-const currentActivateShortcut = getCurrentShortcut();
+// Use hardcoded default shortcut to avoid circular dependency
+const currentActivateShortcut = "Control+Space";
 
 // Separate background process for tracking focused apps
 let trackingAppFocus = false;
@@ -35,6 +46,37 @@ let agentPopoverWindow: BrowserWindow | null = null;
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
+// Flag to track window visibility state
+const isHiddenOffscreen = true;
+
+/**
+ * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
+ * @returns Promise that resolves when the copy operation is complete
+ */
+function simulateClipboardCopy(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log("Using RobotJS to simulate copy command");
+
+      if (process.platform === "darwin") {
+        // For macOS, use Command+C
+        robot.keyTap("c", "command");
+      } else {
+        // For Windows/Linux, use Control+C
+        robot.keyTap("c", "control");
+      }
+
+      // Add a delay to ensure clipboard has been updated
+      setTimeout(() => {
+        resolve();
+      }, 100); // Slightly longer delay to ensure clipboard has been updated
+    } catch (error) {
+      console.error("Error simulating copy command with RobotJS:", error);
+      // Even if it fails, we'll resolve to allow the app to continue
+      setTimeout(resolve, 50);
+    }
+  });
+}
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
   if (agentPopoverWindow) return agentPopoverWindow;
@@ -42,9 +84,14 @@ function preCreateAgentPopoverWindow() {
   console.log("Pre-creating agent popover window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+  );
+
   agentPopoverWindow = new BrowserWindow({
-    width: 240,
-    height: 300,
+    width: dimensions.width,
+    height: dimensions.height,
     x: 0,
     y: 0,
     webPreferences: {
@@ -102,9 +149,14 @@ function preCreateModelSelectorWindow() {
   console.log("Pre-creating model selector window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Get dimensions from presets
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+  );
+
   modelSelectorWindow = new BrowserWindow({
-    width: 200,
-    height: 250,
+    width: dimensions.width,
+    height: dimensions.height,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -200,7 +252,7 @@ function registerGlobalShortcuts() {
     `Attempting to register global shortcut: ${currentActivateShortcut}`,
   );
   try {
-    const ret = globalShortcut.register(currentActivateShortcut, () => {
+    const ret = globalShortcut.register(currentActivateShortcut, async () => {
       console.log(`${currentActivateShortcut} pressed globally`);
 
       // Get the previous app but don't use it for auto-switching
@@ -210,8 +262,29 @@ function registerGlobalShortcuts() {
         // No auto-focus back to previous app - intentionally disabled
       }
 
+      await simulateClipboardCopy();
+
+      // Now read from clipboard
+      const selectedText = clipboard.readText();
+      console.log(
+        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
+      );
+
+      clipboard.writeText("");
+
       // Toggle visibility based on window state
-      toggleMainWindowVisibility();
+      if (!mainWindow) {
+        createMainWindow();
+      } else {
+        toggleMainWindowVisibility(mainWindow);
+      }
+      // If there's selected text and the main window is now visible, set it as input
+      if (mainWindow && mainWindow.isVisible()) {
+        setTimeout(() => {
+          console.log("Setting input text with selected text from clipboard");
+          setInputText(mainWindow, selectedText);
+        }, 100); // Small delay to ensure window is ready
+      }
     });
 
     if (!ret) {
@@ -234,26 +307,18 @@ function registerGlobalShortcuts() {
 function createMainWindow() {
   const preload = path.join(__dirname, "preload.js");
 
-  // Get screen dimensions for positioning
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } =
-    primaryDisplay.workAreaSize;
-
-  // Calculate window dimensions and position
-  const windowWidth = 600;
-  const windowHeight = 142;
-  const x = Math.round((screenWidth - windowWidth) / 2);
-  const y = Math.round(screenHeight - windowHeight - 100); // 100px from bottom
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
 
   console.log(
-    `Creating main window with bounds: x=${x}, y=${y}, w=${windowWidth}, h=${windowHeight}`,
+    `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
   );
 
   mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x: x,
-    y: y,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -269,7 +334,7 @@ function createMainWindow() {
     thickFrame: false,
     autoHideMenuBar: true,
     hasShadow: true,
-    resizable: false,
+    resizable: false, // Start in compact mode (not resizable)
     maximizable: false,
     fullscreenable: false,
     roundedCorners: true,
@@ -285,11 +350,8 @@ function createMainWindow() {
     mainWindow.setBackgroundColor("#00000000"); // Transparent background
   }
 
-  // Enforce fixed dimensions
-  mainWindow.on("will-resize", (event) => {
-    // Prevent resizing by canceling the event
-    event.preventDefault();
-  });
+  // Initial state is compact mode, so set up resize prevention
+  setMainWindowResizable(false, mainWindow!);
 
   // Apply consistent window styles
   injectWindowStyles(mainWindow);
@@ -309,8 +371,12 @@ function createMainWindow() {
 
     mainWindow.once("ready-to-show", () => {
       if (mainWindow) {
-        // Position the window at center-bottom
-        positionWindowAtCenterBottom(mainWindow);
+        // Position the window at center-bottom using our preset config and default percent margin
+        positionWindowAtCenterBottom(
+          mainWindow,
+          undefined,
+          WINDOW_SIZE_PRESETS.MAIN,
+        );
 
         console.log("Main window ready, position set, but hidden initially.");
 
@@ -335,9 +401,19 @@ function preCreateSettingsWindow() {
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS,
+    undefined,
+    true,
+    true,
+  );
+
   settingsWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -428,7 +504,6 @@ function preCreateSettingsWindow() {
       console.log("Settings window ready, but kept hidden");
 
       if (inDevelopment) {
-        // 始终打开设置窗口的开发者工具，不检查全局状态
         settingsWindow.webContents.openDevTools({ mode: "detach" });
       }
     }
@@ -468,23 +543,49 @@ async function installExtensions() {
   }
 }
 
+// Handle screen resize events
+function setupScreenResizeHandlers() {
+  // Listen for primary display metrics change (resolution or scale factor change)
+  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+    if (display.id === screen.getPrimaryDisplay().id) {
+      console.log("Primary display metrics changed:", changedMetrics);
+
+      // Update main window if it exists
+      if (mainWindow && !isHiddenOffscreen) {
+        const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+        mainWindow.setBounds(dimensions);
+      }
+
+      // Update settings window if visible
+      if (settingsWindow && settingsWindow.isVisible()) {
+        const dimensions = calculateWindowDimensions(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+          undefined,
+          true,
+          true,
+        );
+        settingsWindow.setBounds(dimensions);
+      }
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     if (inDevelopment) {
       await installExtensions();
     }
 
-    // 先启动聊天服务器并等待它完成初始化
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
-    // 然后创建主窗口和其他组件
     createMainWindow();
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
+    setupScreenResizeHandlers(); // Setup screen resize handlers
 
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
@@ -523,12 +624,7 @@ app.on("window-all-closed", () => {
 });
 
 // Create agent popover window at a specific position or show existing one
-function createAgentPopoverWindow(
-  x: number,
-  y: number,
-  width = 240,
-  height = 300,
-) {
+function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
   console.log("Showing agent popover window");
   if (!agentPopoverWindow) {
     // Create if it doesn't exist
@@ -536,6 +632,15 @@ function createAgentPopoverWindow(
   }
 
   if (agentPopoverWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning agent popover to: x=${x}, y=${y}, width=${width}, height=${height}`,
@@ -564,8 +669,8 @@ function handleUrlHash(window: BrowserWindow) {
 function createModelSelectorWindow(
   x: number,
   y: number,
-  width = 200,
-  height = 250,
+  width = 0,
+  height = 0,
 ) {
   console.log("Showing model selector window");
   if (!modelSelectorWindow) {
@@ -574,6 +679,15 @@ function createModelSelectorWindow(
   }
 
   if (modelSelectorWindow) {
+    // Get dimensions from presets if not provided
+    if (width === 0 || height === 0) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+      );
+      width = dimensions.width;
+      height = dimensions.height;
+    }
+
     // Reposition and show
     console.log(
       `Repositioning model selector to: x=${x}, y=${y}, width=${width}, height=${height}`,
@@ -596,59 +710,4 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
       // Inject any specific styles or scripts if needed
     }
   });
-}
-
-let isHiddenOffscreen = true;
-
-export function toggleMainWindowVisibility() {
-  if (!mainWindow) {
-    createMainWindow();
-    return;
-  }
-
-  // Toggle the main window’s visibility by moving it offscreen instead of hiding
-  if (!isHiddenOffscreen) {
-    exec(`osascript -e 'tell application "${getPreviousApp()}" to activate'`);
-    // === Pseudo-hide ===
-    // 1) Save current window bounds
-    lastVisibleBounds = mainWindow.getBounds();
-
-    // 2) Ignore mouse events so clicks pass through to the app underneath
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-    // 3) Make the window fully transparent
-    mainWindow.setOpacity(0);
-
-    // 4) Move the window off the visible screen
-    mainWindow.setBounds({
-      x: -9999,
-      y: -9999,
-      width: lastVisibleBounds.width,
-      height: lastVisibleBounds.height,
-    });
-
-    isHiddenOffscreen = true;
-  } else {
-    // === Restore display ===
-
-    // 1) Restore the saved bounds, or center if no bounds were saved
-    if (lastVisibleBounds) {
-      mainWindow.setBounds(lastVisibleBounds);
-    } else {
-      positionWindowAtCenterBottom(mainWindow);
-    }
-
-    // 2) Re-enable mouse events so the window can receive input again
-    mainWindow.setIgnoreMouseEvents(false);
-
-    // 3) Make the window opaque again
-    mainWindow.setOpacity(1);
-
-    // 4) Show and focus the window, then send focus event to the chat input
-    mainWindow.show();
-    mainWindow.focus();
-    mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
-
-    isHiddenOffscreen = false;
-  }
 }
