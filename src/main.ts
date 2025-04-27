@@ -248,15 +248,13 @@ function registerGlobalShortcuts() {
   // Unregister any existing shortcuts first
   globalShortcut.unregisterAll();
 
-  // Get platform-specific shortcut
-  const shortcutToRegister =
-    process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
-
   // Attempt to register the activate shortcut
-  console.log(`Attempting to register global shortcut: ${shortcutToRegister}`);
+  console.log(
+    `Attempting to register global shortcut: ${currentActivateShortcut}`,
+  );
   try {
-    const ret = globalShortcut.register(shortcutToRegister, async () => {
-      console.log(`${shortcutToRegister} pressed globally`);
+    const ret = globalShortcut.register(currentActivateShortcut, async () => {
+      console.log(`${currentActivateShortcut} pressed globally`);
 
       // Get the previous app but don't use it for auto-switching
       const prevApp = getPreviousApp();
@@ -292,16 +290,16 @@ function registerGlobalShortcuts() {
 
     if (!ret) {
       console.error(
-        `Failed to register global shortcut: ${shortcutToRegister}. It might be already in use.`,
+        `Failed to register global shortcut: ${currentActivateShortcut}. It might be already in use.`,
       );
     } else {
       console.log(
-        `Global shortcut ${shortcutToRegister} registered successfully.`,
+        `Global shortcut ${currentActivateShortcut} registered successfully.`,
       );
     }
   } catch (error) {
     console.error(
-      `Error registering global shortcut ${shortcutToRegister}:`,
+      `Error registering global shortcut ${currentActivateShortcut}:`,
       error,
     );
   }
