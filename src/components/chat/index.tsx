@@ -337,30 +337,21 @@ export default function Chat() {
     const isCompactMode = viewMode === "compact";
     
     const shouldAdd = hasClipboardContent && hasNoMessages && isCompactMode;
-    
-    console.log(`Clipboard height calculation: content=${hasClipboardContent}, noMessages=${hasNoMessages}, compact=${isCompactMode} => shouldAdd=${shouldAdd}`);
-    
     setShouldAddClipboardHeight(shouldAdd);
   }, [copiedContent, messages.length, viewMode]);
 
   // Set mounted state when component mounts
   useEffect(() => {
-    console.log("Chat component mounting");
     const mountTimer = setTimeout(() => {
       setMounted(true);
-      console.log("Chat component mounted");
 
       if (window.electronAPI && messages.length === 0) {
         try {
           window.electronAPI
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
             .then((res) => {
-              console.log(`Chat: Current window size: ${res.width}x${res.height}`);
               requestAnimationFrame(() => {
-                // Only add height if explicitly flagged
                 const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
-                console.log(`Chat: Initial size ${res.width}x${finalHeight} (clipboard=${shouldAddClipboardHeight})`);
-                
                 window.electronAPI.resizeMessageContent(res.width, finalHeight);
               });
             });
@@ -371,7 +362,6 @@ export default function Chat() {
 
       const initTimer = setTimeout(() => {
         setInitializing(false);
-        console.log("Chat component initialization complete");
       }, 150);
 
       return () => clearTimeout(initTimer);
@@ -380,14 +370,12 @@ export default function Chat() {
     return () => {
       clearTimeout(mountTimer);
       setMounted(false);
-      console.log("Chat component unmounting");
     };
   }, [shouldAddClipboardHeight, messages.length]);
 
   // Modify toggleViewMode to track expansion state
   const toggleViewMode = useCallback(
     (mode: "compact" | "expanded") => {
-      // First update the local state
       setViewMode(mode);
 
       requestAnimationFrame(() => {
@@ -395,18 +383,14 @@ export default function Chat() {
           if (mode === "expanded" && !hasExpandedOnce) {
             window.electronAPI.toggleViewMode(true);
             setHasExpandedOnce(true);
-            console.log("Chat: First expansion - resizing window");
             
-            // Do the resize on first expansion - NEVER add clipboard height in expanded mode
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
               .then((res) => {
-                console.log(`Chat: First expansion resize to ${res.width}x${res.height} (no clipboard height)`);
                 window.electronAPI.resizeMessageContent(res.width, res.height);
               });
           } else if (mode === "compact") {
             window.electronAPI.toggleViewMode(false);
-            console.log("Chat: Switching to compact mode");
           }
         }
       });
@@ -416,35 +400,22 @@ export default function Chat() {
 
   // Listen for clipboard changes
   useEffect(() => {
-    // Setup listener for setting input text from clipboard
     if (window.electronAPI?.onSetInputText) {
-      console.log('Setting up input text listener');
       const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
-        // Log received text (truncated for large content)
-        console.log('Received text from clipboard:', text?.substring(0, 20) + (text?.length > 20 ? '...' : '') || 'empty');
-        
         if (!text || !text.trim()) {
-          console.log('Clearing clipboard content');
           setCopiedContent(null);
         } else {
-          console.log('Setting clipboard content');
           setCopiedContent(text);
         }
         
-        // Force update window size based on current state - use a small delay to ensure state is updated
         setTimeout(() => {
           if (window.electronAPI && !hasExpandedOnce && messages.length === 0) {
-            console.log('Updating window size after clipboard change');
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
               .then((res) => {
-                // Use the shouldAddClipboardHeight state (will be updated by useEffect)
                 const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
-                console.log(`New window size: ${res.width}x${finalHeight} (clipboard=${shouldAddClipboardHeight})`);
                 window.electronAPI.resizeMessageContent(res.width, finalHeight);
               });
-          } else {
-            console.log('Not updating window size after clipboard change - expanded or has messages');
           }
         }, 50);
       });
@@ -454,15 +425,11 @@ export default function Chat() {
   }, [shouldAddClipboardHeight, hasExpandedOnce, messages.length]);
 
   const handleRegenerateWithNewAgent = () => {
-    console.log(
-      `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
-    );
     setAgentChanged(false);
     reload();
   };
 
   const handleIgnoreAgentChange = () => {
-    console.log("Ignoring Agent change, not regenerating conversation");
     setAgentChanged(false);
   };
 
@@ -476,10 +443,8 @@ export default function Chat() {
     }
   };
 
-  // Add effect to handle first message (if not already expanded)
   useEffect(() => {
     if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
-      console.log("Chat: First message - expanding window");
       toggleViewMode("expanded");
     }
   }, [messages.length, hasExpandedOnce, mounted, initializing, toggleViewMode]);
@@ -490,108 +455,26 @@ export default function Chat() {
     }
   }, [messages.length, viewMode, toggleViewMode]);
 
-  // Add effect to initialize agent from localStorage and handle agent selection events
   useEffect(() => {
-    // Initialize agent from localStorage
-    try {
-      const savedAgent = localStorage.getItem("selectedAgent");
-      if (savedAgent) {
-        const parsedAgent = JSON.parse(savedAgent);
-        console.log(`Loading agent from localStorage: ${parsedAgent.name}`);
-        setSelectedAgent(parsedAgent);
-        prevAgentIdRef.current = parsedAgent.id;
-      } else {
-        console.log("No saved agent found in localStorage");
-        prevAgentIdRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error loading agent from localStorage:", error);
-    }
-
-    // Register event listeners - for agent selection events
-    const handleAgentSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail) {
-        const newAgent = customEvent.detail.agent;
-        console.log(
-          `Received agent-selected event: ${newAgent?.name || "Default"}`,
-        );
-        setSelectedAgent(newAgent);
-      }
-    };
-
-    // Listen for storage events - handle cross-window sync
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedAgent") {
-        console.log(`Received storage change event, key=${event.key}`);
-        if (event.newValue) {
-          try {
-            const newAgent = JSON.parse(event.newValue);
-            console.log(`Loading agent from other window: ${newAgent.name}`);
-            setSelectedAgent(newAgent);
-          } catch (error) {
-            console.error("Error parsing agent from storage event:", error);
-          }
-        } else {
-          console.log("Agent selection cleared from other window");
-          setSelectedAgent(null);
-        }
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener("agent-selected", handleAgentSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    // Cleanup function
-    return () => {
-      window.removeEventListener("agent-selected", handleAgentSelected);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  // Monitor selectedAgent changes, but don't auto-regenerate chat
-  useEffect(() => {
-    // Skip on initial mount
     if (isInitialMount.current) {
-      console.log("Initial mount, just recording current agent");
       isInitialMount.current = false;
-      // Update previous agent ID
       prevAgentIdRef.current = selectedAgent?.id || null;
       return;
     }
 
-    // Get current agent ID
     const currentAgentId = selectedAgent?.id || null;
-
-    console.log(
-      `Agent change check: previous=${prevAgentIdRef.current || "Default"}, current=${currentAgentId || "Default"}`,
-    );
-
-    // Compare current with previous agent ID
     const hasAgentChanged = prevAgentIdRef.current !== currentAgentId;
 
-    // If agent changed and there are existing messages, set state to show regeneration option
-    if (hasAgentChanged) {
-      console.log(
-        `Agent changed to: ${selectedAgent?.name || "Default"}, next message will use new Agent`,
-      );
-
-      if (messages.length > 0) {
-        // Set agent changed state, UI can show regeneration option based on this
-        setAgentChanged(true);
-      }
+    if (hasAgentChanged && messages.length > 0) {
+      setAgentChanged(true);
     }
 
     prevAgentIdRef.current = currentAgentId;
   }, [selectedAgent, messages.length]);
 
-  // Monitor model changes and save to localStorage
   useEffect(() => {
-    // Save selected model to localStorage
     try {
       if (selectedModelId !== settings.openai.modelId) {
-        console.log(`Model changed to: ${selectedModelId}`);
         localStorage.setItem("selectedModelId", selectedModelId);
       }
     } catch (error) {
@@ -599,52 +482,41 @@ export default function Chat() {
     }
   }, [selectedModelId, settings.openai.modelId]);
 
-  // Initialize selected model from localStorage and listen for model selection events
   useEffect(() => {
     try {
       const savedModel = localStorage.getItem("selectedModelId");
       if (savedModel) {
-        console.log(`Loading model from localStorage: ${savedModel}`);
         setSelectedModelId(savedModel);
       }
     } catch (error) {
       console.error("Error loading model from localStorage:", error);
     }
 
-    // Add handler for model-selected event from popover window
     const handleModelSelected = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail && customEvent.detail.modelId) {
         const newModelId = customEvent.detail.modelId;
-        console.log(`Model selected via event: ${newModelId}`);
         setSelectedModelId(newModelId);
         localStorage.setItem("selectedModelId", newModelId);
       }
     };
 
-    // Set up storage event listener for cross-window communication
     const handleStorageChange = (event: StorageEvent) => {
-      console.log(`Storage change event: ${event.key}`);
       if (event.key === "selectedModelId" && event.newValue) {
-        console.log(`Model selected via localStorage: ${event.newValue}`);
         setSelectedModelId(event.newValue);
       }
     };
 
-    // Add event listeners
     window.addEventListener("model-selected", handleModelSelected);
     window.addEventListener("storage", handleStorageChange);
 
-    // Check for model changes every second as a fallback
     const intervalId = setInterval(() => {
       const storedModel = localStorage.getItem("selectedModelId");
       if (storedModel && storedModel !== selectedModelId) {
-        console.log(`Model changed in localStorage: ${storedModel}`);
         setSelectedModelId(storedModel);
       }
     }, 1000);
 
-    // Cleanup function
     return () => {
       window.removeEventListener("model-selected", handleModelSelected);
       window.removeEventListener("storage", handleStorageChange);
@@ -654,14 +526,11 @@ export default function Chat() {
 
   // Setup IPC listener for window focus event
   useEffect(() => {
-    // Only setup if window.require is available (in Electron environment)
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
-        console.log("Received focus-chat-input event via contextBridge");
         chatInputRef.current?.focus();
       });
 
-      // Cleanup listener on component unmount
       return () => {
         removeListener?.();
       };
@@ -670,7 +539,6 @@ export default function Chat() {
 
   // Focus the input field when component mounts
   useEffect(() => {
-    // Small delay to ensure the component is fully rendered
     const timer = setTimeout(() => {
       chatInputRef.current?.focus();
     }, 100);
@@ -713,50 +581,37 @@ export default function Chat() {
 
   // Handle attachments
   const handleAddAttachment = () => {
-    console.log("Add attachment clicked");
     // Implement attachment functionality
   };
 
   // Handle translation
   const handleToggleTranslation = () => {
-    console.log("Toggle translation clicked");
     // Implement translation functionality
   };
 
   // Reset the chat conversation
   const handleReset = () => {
-    // Reset conversation by refreshing the page - simplest way to clear useChat state
     window.location.reload();
   };
 
   // Handle voice input
   const handleVoiceInput = () => {
-    console.log("Voice input clicked");
     // Implement voice input functionality
   };
 
   // Handle exit button click
   const handleExit = () => {
-    console.log("Exit clicked");
-    // Implement exit functionality
     if (window.electronAPI) {
       window.electronAPI.closeWindow();
-    } else {
-      console.error(
-        "Chat: window.electronAPI is not available for closeWindow!",
-      );
     }
   };
 
   // Handle new history creation
   const handleNewHistory = () => {
-    console.log("Create new history clicked");
-    // Implement new history creation
     window.location.reload();
   };
 
   const handleStopGeneration = () => {
-    console.log("Stopping message generation");
     if (isLoading) {
       stop();
     }
@@ -764,50 +619,29 @@ export default function Chat() {
 
   // Handle sending a message to the AI using Vercel AI SDK
   const handleSendMessage = () => {
-    // Access editor directly through the ref
     const editor = chatInputRef.current?.editor;
-
     if (!editor || isLoading) return;
 
-    // Check if the editor is empty and there's no copied content
     const editorText = editor.getText().trim();
     if (!editorText && !copiedContent) return;
 
-    // Log the selected agent information
-    console.log(
-      `Sending message with agent: ${selectedAgent?.name || "Default"} (${selectedAgent?.id || "none"})`,
-    );
-
-    // Prepare the message text - combine editor content with copied content if available
     let messageText = editorText;
     
     if (copiedContent) {
-      // Add copied content to the message wrapped in markdown to distinguish it
-      if (messageText) {
-        // If there's already text in the editor, add the wrapped copied content before it
-        messageText = `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`;
-      } else {
-        // If editor is empty, just use the wrapped copied content
-        messageText = `<copied>\n${copiedContent}\n</copied>`;
-      }
-      console.log("Including copied content in message:", copiedContent.substring(0, 30) + (copiedContent.length > 30 ? "..." : ""));
+      messageText = messageText
+        ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
+        : `<copied>\n${copiedContent}\n</copied>`;
     }
 
-    console.log("Final message with clipboard:", messageText);
-
-    // Use the append method from the existing useChat hook to directly
-    // add the user message with the combined content
     append({
       role: "user",
       content: messageText,
     });
 
-    // Clear copied content after using it
     if (copiedContent) {
       setCopiedContent(null);
     }
       
-    // Clear content directly using the editor instance
     if (chatInputRef.current?.editor) {
       chatInputRef.current.editor.clearContent();
     }
@@ -816,37 +650,26 @@ export default function Chat() {
   // Handle editing a message and regenerating the response
   const handleEditMessage = async (message: Message, newContent: string) => {
     if (isLoading) return;
-    console.log(
-      `Editing message: ${message.id} with new content: ${newContent}`,
-    );
 
-    // Find the message index
     const messageIndex = messages.findIndex((m) => m.id === message.id);
     if (messageIndex === -1) return;
 
-    // Create a copy of messages array
     const updatedMessages = [...messages];
-
-    // Update the message content
     updatedMessages[messageIndex] = {
       ...updatedMessages[messageIndex],
       content: newContent,
     };
 
-    // Remove all messages after this message (if it's not the last one)
     if (messageIndex < updatedMessages.length - 1) {
       updatedMessages.splice(messageIndex + 1);
     }
 
-    // Update messages
     setMessages(updatedMessages);
 
-    // Clear editor content using the direct editor reference
     if (chatInputRef.current?.editor) {
       chatInputRef.current.editor.clearContent();
     }
 
-    // Reload to regenerate AI response
     setTimeout(() => {
       reload();
     }, 100);
@@ -855,18 +678,13 @@ export default function Chat() {
   // Handle regenerating the last AI response
   const handleRegenerateResponse = async () => {
     if (isLoading) return;
-    console.log("Regenerating AI response");
-
-    // Simply use the reload method from useChat
     reload();
   };
 
   // Functions to handle copied content actions - only keep the reject function
   const handleRejectCopiedContent = () => {
-    console.log("Rejecting copied content");
     setCopiedContent(null);
     
-    // Force window resize after rejecting content
     if (window.electronAPI) {
       setTimeout(() => {
         window.electronAPI
@@ -877,7 +695,6 @@ export default function Chat() {
           )
           .then((res) => {
             window.electronAPI.resizeMessageContent(res.width, res.height);
-            console.log("Chat: Window resized after content rejection");
           });
       }, 50);
     }
@@ -900,7 +717,6 @@ export default function Chat() {
       window.electronAPI
         .getCurrentTheme()
         .then((res) => {
-          console.log(`Theme detected: system=${res}, user=${res}`);
           const theme = res;
           document.documentElement.dataset.theme = theme;
         })
