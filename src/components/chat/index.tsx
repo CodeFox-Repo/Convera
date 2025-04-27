@@ -291,6 +291,209 @@ export default function Chat() {
   // Add state to track if agent has changed and might need regeneration
   const [agentChanged, setAgentChanged] = useState(false);
 
+  // Keep state for UI management
+  const [mounted, setMounted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<ChatInputRef>(null);
+  const controlsTimerRef = useRef<number | null>(null);
+  const [initializing, setInitializing] = useState(true);
+
+  // Add state to track if we've already expanded the window
+  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
+  
+  // View mode state
+  const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
+
+  // Add state to explicitly track if clipboard height should be added
+  const [shouldAddClipboardHeight, setShouldAddClipboardHeight] = useState(false);
+
+  // Use Vercel AI SDK's useChat hook instead of managing state manually
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit: aiHandleSubmit,
+    isLoading,
+    setMessages,
+    reload,
+    stop,
+  } = useChat({
+    api: "http://localhost:38000/api/chat",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: {
+      config: settings,
+      agentId: selectedAgent?.id,
+      modelId: selectedModelId,
+    },
+  });
+
+  // Add effect to determine when clipboard height should be added
+  useEffect(() => {
+    // Only add clipboard height if:
+    // 1. We have clipboard content
+    // 2. We have NO messages
+    // 3. We're in compact mode
+    const hasClipboardContent = Boolean(copiedContent && copiedContent.trim().length > 0);
+    const hasNoMessages = messages.length === 0;
+    const isCompactMode = viewMode === "compact";
+    
+    const shouldAdd = hasClipboardContent && hasNoMessages && isCompactMode;
+    
+    console.log(`Clipboard height calculation: content=${hasClipboardContent}, noMessages=${hasNoMessages}, compact=${isCompactMode} => shouldAdd=${shouldAdd}`);
+    
+    setShouldAddClipboardHeight(shouldAdd);
+  }, [copiedContent, messages.length, viewMode]);
+
+  // Set mounted state when component mounts
+  useEffect(() => {
+    console.log("Chat component mounting");
+    const mountTimer = setTimeout(() => {
+      setMounted(true);
+      console.log("Chat component mounted");
+
+      if (window.electronAPI && messages.length === 0) {
+        try {
+          window.electronAPI
+            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+            .then((res) => {
+              console.log(`Chat: Current window size: ${res.width}x${res.height}`);
+              requestAnimationFrame(() => {
+                // Only add height if explicitly flagged
+                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
+                console.log(`Chat: Initial size ${res.width}x${finalHeight} (clipboard=${shouldAddClipboardHeight})`);
+                
+                window.electronAPI.resizeMessageContent(res.width, finalHeight);
+              });
+            });
+        } catch (error) {
+          console.error("Chat: Error setting initial window size:", error);
+        }
+      }
+
+      const initTimer = setTimeout(() => {
+        setInitializing(false);
+        console.log("Chat component initialization complete");
+      }, 150);
+
+      return () => clearTimeout(initTimer);
+    }, 50);
+
+    return () => {
+      clearTimeout(mountTimer);
+      setMounted(false);
+      console.log("Chat component unmounting");
+    };
+  }, [shouldAddClipboardHeight, messages.length]);
+
+  // Modify toggleViewMode to track expansion state
+  const toggleViewMode = useCallback(
+    (mode: "compact" | "expanded") => {
+      // First update the local state
+      setViewMode(mode);
+
+      requestAnimationFrame(() => {
+        if (typeof window !== "undefined" && window.electronAPI) {
+          if (mode === "expanded" && !hasExpandedOnce) {
+            window.electronAPI.toggleViewMode(true);
+            setHasExpandedOnce(true);
+            console.log("Chat: First expansion - resizing window");
+            
+            // Do the resize on first expansion - NEVER add clipboard height in expanded mode
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
+              .then((res) => {
+                console.log(`Chat: First expansion resize to ${res.width}x${res.height} (no clipboard height)`);
+                window.electronAPI.resizeMessageContent(res.width, res.height);
+              });
+          } else if (mode === "compact") {
+            window.electronAPI.toggleViewMode(false);
+            console.log("Chat: Switching to compact mode");
+          }
+        }
+      });
+    },
+    [hasExpandedOnce],
+  );
+
+  // Listen for clipboard changes
+  useEffect(() => {
+    // Setup listener for setting input text from clipboard
+    if (window.electronAPI?.onSetInputText) {
+      console.log('Setting up input text listener');
+      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
+        // Log received text (truncated for large content)
+        console.log('Received text from clipboard:', text?.substring(0, 20) + (text?.length > 20 ? '...' : '') || 'empty');
+        
+        if (!text || !text.trim()) {
+          console.log('Clearing clipboard content');
+          setCopiedContent(null);
+        } else {
+          console.log('Setting clipboard content');
+          setCopiedContent(text);
+        }
+        
+        // Force update window size based on current state - use a small delay to ensure state is updated
+        setTimeout(() => {
+          if (window.electronAPI && !hasExpandedOnce && messages.length === 0) {
+            console.log('Updating window size after clipboard change');
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+              .then((res) => {
+                // Use the shouldAddClipboardHeight state (will be updated by useEffect)
+                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
+                console.log(`New window size: ${res.width}x${finalHeight} (clipboard=${shouldAddClipboardHeight})`);
+                window.electronAPI.resizeMessageContent(res.width, finalHeight);
+              });
+          } else {
+            console.log('Not updating window size after clipboard change - expanded or has messages');
+          }
+        }, 50);
+      });
+      
+      return unsubscribe;
+    }
+  }, [shouldAddClipboardHeight, hasExpandedOnce, messages.length]);
+
+  const handleRegenerateWithNewAgent = () => {
+    console.log(
+      `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
+    );
+    setAgentChanged(false);
+    reload();
+  };
+
+  const handleIgnoreAgentChange = () => {
+    console.log("Ignoring Agent change, not regenerating conversation");
+    setAgentChanged(false);
+  };
+
+  const handleInputChangeAdapter = (value: string) => {
+    handleInputChange({
+      target: { value },
+    } as React.ChangeEvent<HTMLInputElement>);
+
+    if (!value && chatInputRef.current?.editor) {
+      chatInputRef.current.editor.clearContent();
+    }
+  };
+
+  // Add effect to handle first message (if not already expanded)
+  useEffect(() => {
+    if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
+      console.log("Chat: First message - expanding window");
+      toggleViewMode("expanded");
+    }
+  }, [messages.length, hasExpandedOnce, mounted, initializing, toggleViewMode]);
+
+  useEffect(() => {
+    if (messages.length > 0 && viewMode === "compact") {
+      toggleViewMode("expanded");
+    }
+  }, [messages.length, viewMode, toggleViewMode]);
+
   // Add effect to initialize agent from localStorage and handle agent selection events
   useEffect(() => {
     // Initialize agent from localStorage
@@ -350,28 +553,6 @@ export default function Chat() {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-
-  // Use Vercel AI SDK's useChat hook instead of managing state manually
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit: aiHandleSubmit,
-    isLoading,
-    setMessages,
-    reload,
-    stop,
-  } = useChat({
-    api: "http://localhost:38000/api/chat",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: {
-      config: settings,
-      agentId: selectedAgent?.id,
-      modelId: selectedModelId,
-    },
-  });
 
   // Monitor selectedAgent changes, but don't auto-regenerate chat
   useEffect(() => {
@@ -474,202 +655,6 @@ export default function Chat() {
       clearInterval(intervalId);
     };
   }, [selectedModelId]);
-
-  // Listen for input text events from the main process
-  useEffect(() => {
-    // Setup listener for setting input text from clipboard
-    if (window.electronAPI?.onSetInputText) {
-      console.log('Setting up input text listener');
-      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
-        // Log received text (truncated for large content)
-        console.log('Received text from clipboard:', text?.substring(0, 20) + (text?.length > 20 ? '...' : '') || 'empty');
-        
-        // Clear previous content if clipboard is empty
-        if (!text || !text.trim()) {
-          setCopiedContent(null);
-          
-          // Force resize when clearing clipboard content
-          if (window.electronAPI) {
-            console.log('Clipboard content cleared, resizing window to default');
-            window.electronAPI
-              .getCurrentWindowSize(
-                messages.length > 0
-                  ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-                  : WINDOW_SIZE_PRESETS.MAIN,
-              )
-              .then((res) => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
-              });
-          }
-          return;
-        }
-        
-        // Show preview card for valid clipboard content
-        setCopiedContent(text);
-        
-        // Force resize immediately when setting clipboard content
-        if (window.electronAPI) {
-          console.log('Clipboard content set, resizing window with extra height');
-          window.electronAPI
-            .getCurrentWindowSize(
-              messages.length > 0
-                ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-                : WINDOW_SIZE_PRESETS.MAIN,
-            )
-            .then((res) => {
-              // Fixed height adjustment of 140px for clipboard content
-              const newHeight = res.height + 140;
-              window.electronAPI.resizeMessageContent(res.width, newHeight);
-            });
-        }
-      });
-      
-      return unsubscribe;
-    }
-  }, [messages.length]);
-
-  const handleRegenerateWithNewAgent = () => {
-    console.log(
-      `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
-    );
-    setAgentChanged(false);
-    reload();
-  };
-
-  const handleIgnoreAgentChange = () => {
-    console.log("Ignoring Agent change, not regenerating conversation");
-    setAgentChanged(false);
-  };
-
-  const handleInputChangeAdapter = (value: string) => {
-    handleInputChange({
-      target: { value },
-    } as React.ChangeEvent<HTMLInputElement>);
-
-    if (!value && chatInputRef.current?.editor) {
-      chatInputRef.current.editor.clearContent();
-    }
-  };
-
-  // Keep state for UI management
-  const [mounted, setMounted] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<ChatInputRef>(null);
-  const controlsTimerRef = useRef<number | null>(null);
-  const [initializing, setInitializing] = useState(true);
-
-  // Add state to track if we've already expanded the window
-  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
-
-  // Set mounted state when component mounts
-  useEffect(() => {
-    console.log("Chat component mounting");
-    const mountTimer = setTimeout(() => {
-      setMounted(true);
-      console.log("Chat component mounted");
-
-      if (window.electronAPI && messages.length === 0) {
-        try {
-          window.electronAPI
-            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
-            .then((res) => {
-              console.log(
-                `Chat: Current window size: ${res.width}x${res.height}`,
-              );
-              requestAnimationFrame(() => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
-                console.log("Chat: Initial window size set to compact mode");
-              });
-            });
-        } catch (error) {
-          console.error("Chat: Error setting initial window size:", error);
-        }
-      }
-
-      const initTimer = setTimeout(() => {
-        setInitializing(false);
-        console.log("Chat component initialization complete");
-      }, 150);
-
-      return () => clearTimeout(initTimer);
-    }, 50);
-
-    return () => {
-      clearTimeout(mountTimer);
-      setMounted(false);
-      console.log("Chat component unmounting");
-    };
-  }, []);
-
-  // Modify toggleViewMode to track expansion state
-  const toggleViewMode = useCallback(
-    (mode: "compact" | "expanded") => {
-      // First update the local state
-      setViewMode(mode);
-
-      requestAnimationFrame(() => {
-        if (typeof window !== "undefined" && window.electronAPI) {
-          if (mode === "expanded" && !hasExpandedOnce) {
-            window.electronAPI.toggleViewMode(true);
-            setHasExpandedOnce(true);
-            console.log("Chat: First expansion - resizing window");
-          } else if (mode === "compact") {
-            window.electronAPI.toggleViewMode(false);
-            console.log("Chat: Switching to compact mode");
-          }
-        }
-      });
-    },
-    [hasExpandedOnce],
-  );
-
-  // Modify resize effect to handle clipboard sizing more explicitly
-  useEffect(() => {
-    // Skip if not fully mounted or still initializing
-    if (!mounted || initializing) {
-      return;
-    }
-
-    const hasMessages = messages.length > 0;
-
-    console.log(
-      `Chat: Messages count=${messages.length}, clipboard=${!!copiedContent}, electronWindow=${!!window.electronAPI}`,
-    );
-
-    // Only resize if window.electronAPI is available
-    if (window.electronAPI) {
-      window.electronAPI
-        .getCurrentWindowSize(
-          hasMessages
-            ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-            : WINDOW_SIZE_PRESETS.MAIN,
-        )
-        .then((res) => {
-          console.log(`Chat: Current window size: ${res.width}x${res.height}`);
-          try {
-            // Calculate exact height based on clipboard presence
-            let finalHeight = res.height;
-            
-            // Add extra height only if there's actual clipboard content
-            if (copiedContent && copiedContent.trim()) {
-              console.log('Chat: Adding extra height for clipboard content');
-              finalHeight += 140; // Fixed additional height
-            }
-            
-            console.log(`Chat: Setting final size to ${res.width}x${finalHeight}`);
-            
-            window.electronAPI.resizeMessageContent(res.width, finalHeight);
-          } catch (error) {
-            console.error("Chat: Error sending resize command:", error);
-          }
-        });
-    } else {
-      console.log(
-        "Chat: Skipping window resize - API not available",
-      );
-    }
-  }, [messages.length, mounted, initializing, copiedContent]);
 
   // Setup IPC listener for window focus event
   useEffect(() => {
@@ -934,14 +919,6 @@ export default function Chat() {
         });
     }
   }, []);
-
-  const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
-
-  useEffect(() => {
-    if (messages.length > 0 && viewMode === "compact") {
-      toggleViewMode("expanded");
-    }
-  }, [messages.length, viewMode, toggleViewMode]);
 
   // Render the appropriate view based on the current view mode
   return (
