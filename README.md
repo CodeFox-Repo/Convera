@@ -45,6 +45,11 @@ yarn package
 yarn make
 ```
 
+For Mac make sure you have Xcode Command Line Tools
+
+For Windows make sure you have
+windows-build-tools npm package (`npm install --global --production windows-build-tools` from an elevated PowerShell or CMD.exe)
+
 ## Keyboard Shortcuts
 
 ### Quick Launch
