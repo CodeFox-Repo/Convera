@@ -31,6 +31,8 @@ import { calculateWindowDimensions } from "./helpers/windows/utils";
 import { clipboard } from "electron";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const robot = require("@hurdlegroup/robotjs"); // do not change this line
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { activeWindowSync } = process.platform === "win32" ? require("get-windows") : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
@@ -206,10 +208,10 @@ function preCreateModelSelectorWindow() {
   return modelSelectorWindow;
 }
 
-// Start background app tracking only on macOS
+// Start background app tracking on macOS and Windows
 function startAppFocusTracking() {
-  // Only run on macOS and only start once
-  if (process.platform !== "darwin" || trackingAppFocus) {
+  // Only run on supported platforms and only start once
+  if ((process.platform !== "darwin" && process.platform !== "win32") || trackingAppFocus) {
     return;
   }
 
@@ -225,21 +227,40 @@ function startAppFocusTracking() {
       return;
     }
 
-    // Use a simpler, faster script just to get the name and store it
-    const script =
-      'tell application "System Events" to get name of first application process whose frontmost is true';
-    exec(`osascript -e '${script}'`, (error, stdout) => {
-      if (!error && stdout) {
-        const appName = stdout.trim();
+    if (process.platform === "darwin") {
+      // macOS implementation
+      const script =
+        'tell application "System Events" to get name of first application process whose frontmost is true';
+      exec(`osascript -e '${script}'`, (error, stdout) => {
+        if (!error && stdout) {
+          const appName = stdout.trim();
 
-        // Ignore self-referential applications
-        const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
-        if (appName && !ignoreList.some((name) => appName.includes(name))) {
-          setPreviousApp(appName);
+          // Ignore self-referential applications
+          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          if (appName && !ignoreList.some((name) => appName.includes(name))) {
+            setPreviousApp(appName);
+          }
         }
+      });
+    } else if (process.platform === "win32") {
+      // Windows implementation using get-windows package
+      try {
+        const activeWindow = activeWindowSync();
+        if (activeWindow && activeWindow.owner) {
+          const appName = activeWindow.owner.name;
+          console.log(`Detected active application: ${appName}`);
+          
+          // Ignore self-referential applications
+          const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
+          if (appName && !ignoreList.some((name) => appName.toLowerCase().includes(name.toLowerCase()))) {
+            setPreviousApp(appName);
+          }
+        }
+      } catch (error) {
+        console.error("Error using get-windows:", error);
       }
-    });
-  }, 200);
+    }
+  }, 500);
 }
 
 function registerGlobalShortcuts() {
