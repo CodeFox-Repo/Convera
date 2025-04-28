@@ -25,7 +25,7 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
   {
     id: "activate",
     name: "Activate App",
-    shortcut: "Control+Shift+Enter",
+    shortcut: "Control+Shift+Space",
     enabled: true,
   },
   {
