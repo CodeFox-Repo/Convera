@@ -3,9 +3,9 @@ import registerListeners, {
   ListenerOptions,
 } from "./helpers/ipc/listeners-register";
 import {
-  getCurrentShortcut,
   getPreviousApp,
   setPreviousApp,
+  setInputText,
 } from "./helpers/ipc/ipc-handlers";
 import path from "path";
 import { exec } from "child_process";
@@ -16,22 +16,29 @@ import {
 import {
   positionWindowAtCenterBottom,
   toggleMainWindowVisibility,
+  setWindowHidden,
+  isHiddenOffscreen,
 } from "./helpers/windows/window-position";
 import { injectWindowStyles } from "./helpers/windows/window-styles";
 import { initializeChatServer } from "./helpers/chatServer";
 import { WINDOW_SIZE_PRESETS } from "./helpers/windows/window-size";
 
 import "./global.css";
+import { setMainWindowResizable } from "./helpers/windows/window-resize";
 import { calculateWindowDimensions } from "./helpers/windows/utils";
+
+import { clipboard } from "electron";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const robot = require("robotjs"); // do not change this line
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
-// Default shortcut now comes from ipc-handlers
-const currentActivateShortcut = getCurrentShortcut();
+// Use hardcoded default shortcut to avoid circular dependency
+const currentActivateShortcut = "Control+Space";
 
-// Separate background process for tracking focused apps
+// Separate background process for tracking focused appss
 let trackingAppFocus = false;
 
 // Agent popover window
@@ -40,9 +47,34 @@ let agentPopoverWindow: BrowserWindow | null = null;
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
-// Flag to track window visibility state
-let isHiddenOffscreen = true;
+/**
+ * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
+ * @returns Promise that resolves when the copy operation is complete
+ */
+function simulateClipboardCopy(): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      console.log("Using RobotJS to simulate copy command");
 
+      if (process.platform === "darwin") {
+        // For macOS, use Command+C
+        robot.keyTap("c", "command");
+      } else {
+        // For Windows/Linux, use Control+C
+        robot.keyTap("c", "control");
+      }
+
+      // Add a delay to ensure clipboard has been updated
+      setTimeout(() => {
+        resolve();
+      }, 100); // Slightly longer delay to ensure clipboard has been updated
+    } catch (error) {
+      console.error("Error simulating copy command with RobotJS:", error);
+      // Even if it fails, we'll resolve to allow the app to continue
+      setTimeout(resolve, 50);
+    }
+  });
+}
 // Pre-create agent popover window
 function preCreateAgentPopoverWindow() {
   if (agentPopoverWindow) return agentPopoverWindow;
@@ -333,29 +365,40 @@ function startAppFocusTracking() {
 }
 
 function registerGlobalShortcuts() {
-  // Unregister any existing shortcuts first
   globalShortcut.unregisterAll();
 
-  // Attempt to register the activate shortcut
   console.log(
     `Attempting to register global shortcut: ${currentActivateShortcut}`,
   );
   try {
-    const ret = globalShortcut.register(currentActivateShortcut, () => {
+    const ret = globalShortcut.register(currentActivateShortcut, async () => {
       console.log(`${currentActivateShortcut} pressed globally`);
 
-      // Get the previous app but don't use it for auto-switching
       const prevApp = getPreviousApp();
       if (prevApp) {
         console.log(`Previously focused application: ${prevApp}`);
-        // No auto-focus back to previous app - intentionally disabled
       }
 
-      // Toggle visibility based on window state
+      await simulateClipboardCopy();
+
+      const selectedText = clipboard.readText();
+      console.log(
+        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
+      );
+
+      clipboard.writeText("");
+
       if (!mainWindow) {
         createMainWindow();
       } else {
         toggleMainWindowVisibility(mainWindow);
+      }
+
+      if (mainWindow && mainWindow.isVisible()) {
+        setTimeout(() => {
+          console.log("Setting input text with selected text from clipboard");
+          setInputText(mainWindow, selectedText);
+        }, 100);
       }
     });
 
@@ -379,7 +422,6 @@ function registerGlobalShortcuts() {
 function createMainWindow() {
   const preload = path.join(__dirname, "preload.js");
 
-  // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
 
   console.log(
@@ -414,28 +456,18 @@ function createMainWindow() {
     alwaysOnTop: true,
   });
 
-  // Apply custom window styling
   if (mainWindow && process.platform === "darwin") {
-    // macOS specific configuration
     mainWindow.setWindowButtonVisibility(false);
-    // On macOS, set a specific corner radius
-    mainWindow.setBackgroundColor("#00000000"); // Transparent background
+    mainWindow.setBackgroundColor("#00000000");
   }
 
-  // Enforce fixed dimensions
-  mainWindow.on("will-resize", (event) => {
-    // Prevent resizing by canceling the event
-    event.preventDefault();
-  });
-
-  // Apply consistent window styles
+  setMainWindowResizable(false, mainWindow!);
   injectWindowStyles(mainWindow);
 
   if (mainWindow) {
     mainWindow.setMenuBarVisibility(false);
     mainWindow.setMenu(null);
 
-    // Load the main app interface
     if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
       mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
     } else {
@@ -446,17 +478,15 @@ function createMainWindow() {
 
     mainWindow.once("ready-to-show", () => {
       if (mainWindow) {
-        // Position the window at center-bottom using our preset config and default percent margin
         positionWindowAtCenterBottom(
           mainWindow,
           undefined,
           WINDOW_SIZE_PRESETS.MAIN,
         );
 
-        console.log("Main window ready, position set, but hidden initially.");
+        console.log("Main window ready, position set, keeping hidden.");
 
-        // Uncomment the line below to show the window on startup
-        // mainWindow.show();
+        setWindowHidden(mainWindow);
       }
     });
   }
@@ -468,6 +498,22 @@ function createMainWindow() {
   mainWindow?.on("closed", () => {
     mainWindow = null;
   });
+
+  const mainProcessOptions: ListenerOptions = {
+    createSettingsWindow,
+    settingsWindow,
+    registerGlobalShortcuts,
+    createAgentPopoverWindow,
+    agentPopoverWindow,
+    createModelSelectorWindow,
+    modelSelectorWindow,
+    createHistoryWindow,
+    historyWindow,
+  };
+  console.log("Registering listeners: ", mainProcessOptions);
+  registerListeners(mainWindow, mainProcessOptions);
+
+  return mainWindow;
 }
 
 function preCreateSettingsWindow() {
@@ -476,7 +522,6 @@ function preCreateSettingsWindow() {
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
-  // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.SETTINGS,
     undefined,
@@ -513,14 +558,11 @@ function preCreateSettingsWindow() {
     vibrancy: "fullscreen-ui",
   });
 
-  // For macOS, explicitly hide the traffic light buttons
   if (settingsWindow && process.platform === "darwin") {
     settingsWindow.setWindowButtonVisibility(false);
   }
 
-  // Enforce fixed dimensions
   settingsWindow.on("will-resize", (event) => {
-    // Prevent resizing by canceling the event
     event.preventDefault();
   });
 
@@ -577,22 +619,12 @@ function preCreateSettingsWindow() {
   settingsWindow.once("ready-to-show", () => {
     if (settingsWindow) {
       console.log("Settings window ready, but kept hidden");
-
-      if (inDevelopment) {
-        settingsWindow.webContents.openDevTools({ mode: "detach" });
-      }
     }
   });
 
   settingsWindow.on("closed", () => {
-    console.log("Settings window closed");
+    console.log("Settings window closed, setting reference to null");
     settingsWindow = null;
-
-    // Ensure main window stays open
-    if (mainWindow && !mainWindow.isVisible()) {
-      // If main window was hidden, make it visible again
-      mainWindow.show();
-    }
   });
 
   return settingsWindow;
@@ -654,7 +686,6 @@ app.whenReady().then(async () => {
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
-    createMainWindow();
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
@@ -662,6 +693,7 @@ app.whenReady().then(async () => {
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
+    createMainWindow();
 
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,

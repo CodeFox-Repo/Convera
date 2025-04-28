@@ -15,6 +15,7 @@ import {
   Bot,
   Square,
   History,
+  Settings,
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import TiptapEditor, { TiptapEditorRef } from "@/components/editor";
@@ -57,6 +58,7 @@ interface ChatInputProps {
   onVoiceInput?: () => void;
   onSendMessage?: () => void;
   onStopGeneration?: () => void;
+  onOpenSettings?: () => void;
   selectedAgent?: Agent | null;
   onAgentSelect?: (agent: Agent | null) => void;
   placeholder?: string;
@@ -89,6 +91,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onVoiceInput,
       onSendMessage,
       onStopGeneration,
+      onOpenSettings,
       selectedAgent,
       onAgentSelect,
       placeholder = "Message FoxyChat...",
@@ -257,8 +260,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }, [onAgentSelect]);
 
     // Handle editor content change
-    const handleEditorChange = (html: string) => {
-      setInput(html);
+    const handleEditorChange = (content: string) => {
+      setInput(content);
+      console.log("handleEditorChange", content);
       // Get the text content from the editor for enabling/disabling the send button
       if (editorRef.current) {
         setEditorContent(editorRef.current.getText());
@@ -269,11 +273,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const handleSubmit = () => {
       if (onSendMessage && !isLoading && editorContent.trim()) {
         onSendMessage();
-        // Clear content after sending
-        setTimeout(() => {
-          editorRef.current?.clearContent();
-          setEditorContent("");
-        }, 0);
       }
     };
 
@@ -298,9 +297,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <div className="drag-region h-full p-1">
-        <div className="h-full w-full">
+        <div className="h-full  w-full">
           <div
-            className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"}`}
+            className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
             <div className="drag-region mb-2 w-full flex-1">
@@ -316,7 +315,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             </div>
 
             {/* Buttons row - Bottom row */}
-            <div className="drag-region flex items-center justify-between">
+            <div className="drag-region flex min-h-[30px] items-center justify-between">
               {/* Left icons - use space-x here */}
               <div className="flex flex-1 items-center space-x-4">
                 <button
@@ -325,14 +324,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 >
                   <Plus size={24} />
                 </button>
-
-                <button
-                  onClick={onToggleTranslation}
-                  className="no-drag-region text-foreground/70 hover:text-foreground"
-                >
-                  <Globe size={20} />
-                </button>
-
                 <button
                   onClick={onReset}
                   className="no-drag-region text-foreground/70 hover:text-foreground"
@@ -347,6 +338,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   title="View chat history"
                 >
                   <History size={20} />
+                </button>
+
+                <button
+                  onClick={onOpenSettings}
+                  className="no-drag-region text-foreground/70 hover:text-foreground"
+                >
+                  <Settings size={20} />
                 </button>
 
                 {/* Combined Agent selector button */}
@@ -411,9 +409,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
                 {/* Previous app badge */}
                 {previousApp && (
-                  <div className="no-drag-region bg-primary/20 text-primary flex items-center rounded px-2 py-0.5 text-xs font-medium">
+                  <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
                     <Monitor size={12} className="mr-1" />
-                    {formatAppName(previousApp)}
+                   {formatAppName(previousApp)}
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { Message, UIMessage } from "ai";
 import { X, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,6 +6,7 @@ import ChatInput, { ChatInputRef } from "./ChatInput";
 import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
+import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 /**
@@ -38,6 +39,9 @@ interface CompactChatViewProps {
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
   onLoadChatHistory?: (chat: any) => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -59,27 +63,42 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   selectedModelId,
   onModelSelect,
   onLoadChatHistory,
+  onOpenSettings,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   return (
-    <div className="h-full">
-      <ChatInput
-        ref={chatInputRef}
-        isLoading={isLoading}
-        input={input}
-        setInput={setInput}
-        hasMessages={false}
-        onAddAttachment={onAddAttachment}
-        onToggleTranslation={onToggleTranslation}
-        onReset={onReset}
-        onVoiceInput={onVoiceInput}
-        onSendMessage={onSendMessage}
-        onStopGeneration={onStopGeneration}
-        selectedAgent={selectedAgent}
-        onAgentSelect={onAgentSelect}
-        selectedModelId={selectedModelId}
-        onModelSelect={onModelSelect}
+    <div className="h-full flex flex-col p-1">
+      {/* Show copied content card above the input */}
+      {copiedContent && (
+        <div className="mb-2 w-full overflow-y-auto p-1">
+          <CopiedContentCard
+            content={copiedContent}
+            onReject={onRejectCopiedContent}
+          />
+        </div>
+      )}
+      <div className="flex-1 min-h-[100px]">
+        <ChatInput
+          ref={chatInputRef}
+          isLoading={isLoading}
+          input={input}
+          setInput={setInput}
+          hasMessages={false}
+          onAddAttachment={onAddAttachment}
+          onToggleTranslation={onToggleTranslation}
+          onReset={onReset}
+          onVoiceInput={onVoiceInput}
+          onSendMessage={onSendMessage}
+          onStopGeneration={onStopGeneration}
+          selectedAgent={selectedAgent}
+          onAgentSelect={onAgentSelect}
+          selectedModelId={selectedModelId}
+          onModelSelect={onModelSelect}
         onLoadChatHistory={onLoadChatHistory}
-      />
+        onOpenSettings={onOpenSettings}
+        />
+      </div>
     </div>
   );
 };
@@ -115,6 +134,9 @@ interface ExpandedChatViewProps {
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
   onLoadChatHistory?: (chat: any) => void;
+  onOpenSettings: () => void;
+  copiedContent: string | null;
+  onRejectCopiedContent: () => void;
 }
 
 /**
@@ -148,6 +170,9 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   selectedModelId,
   onModelSelect,
   onLoadChatHistory,
+  onOpenSettings,
+  copiedContent,
+  onRejectCopiedContent,
 }) => {
   const buttonVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -218,26 +243,38 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        <div className="drag-region h-[30%] p-4">
-          <ChatInput
-            ref={chatInputRef}
-            isLoading={isLoading}
-            input={input}
-            setInput={setInput}
-            hasMessages={true}
-            onAddAttachment={onAddAttachment}
-            onToggleTranslation={onToggleTranslation}
-            onReset={onReset}
-            onVoiceInput={onVoiceInput}
-            onSendMessage={onSendMessage}
-            onStopGeneration={onStopGeneration}
-            selectedAgent={selectedAgent}
-            onAgentSelect={onAgentSelect}
-            selectedModelId={selectedModelId}
-            onModelSelect={onModelSelect}
-            placeholder="Message to FoxyChat..."
+        <div className="drag-region flex flex-col p-1">
+          {/* Show copied content card above the input */}
+          {copiedContent && (
+            <div className="mb-2 w-full p-1">
+              <CopiedContentCard
+                content={copiedContent}
+                onReject={onRejectCopiedContent}
+              />
+            </div>
+          )}
+          <div className="flex-1">
+            <ChatInput
+              ref={chatInputRef}
+              isLoading={isLoading}
+              input={input}
+              setInput={setInput}
+              hasMessages={true}
+              onAddAttachment={onAddAttachment}
+              onToggleTranslation={onToggleTranslation}
+              onReset={onReset}
+              onVoiceInput={onVoiceInput}
+              onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
+              selectedAgent={selectedAgent}
+              onAgentSelect={onAgentSelect}
+              selectedModelId={selectedModelId}
+              onModelSelect={onModelSelect}
+            onOpenSettings={onOpenSettings}
+              placeholder="Message to FoxyChat..."
             onLoadChatHistory={onLoadChatHistory}
-          />
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -251,6 +288,9 @@ export default function Chat() {
   // Get settings to use stored OpenAI configuration
   const settings = getSettings();
 
+  // Add state for copied content preview
+  const [copiedContent, setCopiedContent] = useState<string | null>(null);
+
   // Add state for selected agent
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string>(
@@ -263,76 +303,33 @@ export default function Chat() {
   // Add state to track if agent has changed and might need regeneration
   const [agentChanged, setAgentChanged] = useState(false);
 
-  // Add effect to initialize agent from localStorage and handle agent selection events
-  useEffect(() => {
-    // Initialize agent from localStorage
-    try {
-      const savedAgent = localStorage.getItem("selectedAgent");
-      if (savedAgent) {
-        const parsedAgent = JSON.parse(savedAgent);
-        console.log(`Loading agent from localStorage: ${parsedAgent.name}`);
-        setSelectedAgent(parsedAgent);
-        prevAgentIdRef.current = parsedAgent.id;
-      } else {
-        console.log("No saved agent found in localStorage");
-        prevAgentIdRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error loading agent from localStorage:", error);
-    }
+  // Keep state for UI management
+  const [mounted, setMounted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<ChatInputRef>(null);
+  const controlsTimerRef = useRef<number | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
-    // Register event listeners - for agent selection events
-    const handleAgentSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail) {
-        const newAgent = customEvent.detail.agent;
-        console.log(
-          `Received agent-selected event: ${newAgent?.name || "Default"}`,
-        );
-        setSelectedAgent(newAgent);
-      }
-    };
+  // Add state to track if we've already expanded the window
+  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
+  
+  // View mode state
+  const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
 
-    // Listen for storage events - handle cross-window sync
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedAgent") {
-        console.log(`Received storage change event, key=${event.key}`);
-        if (event.newValue) {
-          try {
-            const newAgent = JSON.parse(event.newValue);
-            console.log(`Loading agent from other window: ${newAgent.name}`);
-            setSelectedAgent(newAgent);
-          } catch (error) {
-            console.error("Error parsing agent from storage event:", error);
-          }
-        } else {
-          console.log("Agent selection cleared from other window");
-          setSelectedAgent(null);
-        }
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener("agent-selected", handleAgentSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    // Cleanup function
-    return () => {
-      window.removeEventListener("agent-selected", handleAgentSelected);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
+  // Add state to explicitly track if clipboard height should be added
+  const [shouldAddClipboardHeight, setShouldAddClipboardHeight] = useState(false);
 
   // Use Vercel AI SDK's useChat hook instead of managing state manually
   const {
     messages,
     input,
     handleInputChange,
-    handleSubmit: aiHandleSubmit,
     isLoading,
     setMessages,
     reload,
     stop,
+    append,
   } = useChat({
     api: "http://localhost:38000/api/chat",
     headers: {
@@ -345,149 +342,38 @@ export default function Chat() {
     },
   });
 
-  // Monitor selectedAgent changes, but don't auto-regenerate chat
+  // Add effect to determine when clipboard height should be added
   useEffect(() => {
-    // Skip on initial mount
-    if (isInitialMount.current) {
-      console.log("Initial mount, just recording current agent");
-      isInitialMount.current = false;
-      // Update previous agent ID
-      prevAgentIdRef.current = selectedAgent?.id || null;
-      return;
-    }
-
-    // Get current agent ID
-    const currentAgentId = selectedAgent?.id || null;
-
-    console.log(
-      `Agent change check: previous=${prevAgentIdRef.current || "Default"}, current=${currentAgentId || "Default"}`,
-    );
-
-    // Compare current with previous agent ID
-    const hasAgentChanged = prevAgentIdRef.current !== currentAgentId;
-
-    // If agent changed and there are existing messages, set state to show regeneration option
-    if (hasAgentChanged) {
-      console.log(
-        `Agent changed to: ${selectedAgent?.name || "Default"}, next message will use new Agent`,
-      );
-
-      if (messages.length > 0) {
-        // Set agent changed state, UI can show regeneration option based on this
-        setAgentChanged(true);
-      }
-    }
-
-    prevAgentIdRef.current = currentAgentId;
-  }, [selectedAgent, messages.length]);
-
-  // Monitor model changes and save to localStorage
-  useEffect(() => {
-    // Save selected model to localStorage
-    try {
-      if (selectedModelId !== settings.openai.modelId) {
-        console.log(`Model changed to: ${selectedModelId}`);
-        localStorage.setItem("selectedModelId", selectedModelId);
-      }
-    } catch (error) {
-      console.error("Error saving model to localStorage:", error);
-    }
-  }, [selectedModelId, settings.openai.modelId]);
-
-  // Initialize selected model from localStorage and listen for model selection events
-  useEffect(() => {
-    try {
-      const savedModel = localStorage.getItem("selectedModelId");
-      if (savedModel) {
-        console.log(`Loading model from localStorage: ${savedModel}`);
-        setSelectedModelId(savedModel);
-      }
-    } catch (error) {
-      console.error("Error loading model from localStorage:", error);
-    }
-
-    // Add handler for model-selected event from popover window
-    const handleModelSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.modelId) {
-        const newModelId = customEvent.detail.modelId;
-        console.log(`Model selected via event: ${newModelId}`);
-        setSelectedModelId(newModelId);
-        localStorage.setItem("selectedModelId", newModelId);
-      }
-    };
-
-    // Set up storage event listener for cross-window communication
-    const handleStorageChange = (event: StorageEvent) => {
-      console.log(`Storage change event: ${event.key}`);
-      if (event.key === "selectedModelId" && event.newValue) {
-        console.log(`Model selected via localStorage: ${event.newValue}`);
-        setSelectedModelId(event.newValue);
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener("model-selected", handleModelSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    // Check for model changes every second as a fallback
-    const intervalId = setInterval(() => {
-      const storedModel = localStorage.getItem("selectedModelId");
-      if (storedModel && storedModel !== selectedModelId) {
-        console.log(`Model changed in localStorage: ${storedModel}`);
-        setSelectedModelId(storedModel);
-      }
-    }, 1000);
-
-    // Cleanup function
-    return () => {
-      window.removeEventListener("model-selected", handleModelSelected);
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(intervalId);
-    };
-  }, [selectedModelId]);
-
-  const handleRegenerateWithNewAgent = () => {
-    console.log(
-      `Regenerating conversation with new Agent(${selectedAgent?.name || "Default"})`,
-    );
-    setAgentChanged(false);
-    reload();
-  };
-
-  const handleIgnoreAgentChange = () => {
-    console.log("Ignoring Agent change, not regenerating conversation");
-    setAgentChanged(false);
-  };
-
-  const handleInputChangeAdapter = (value: string) => {
-    handleInputChange({
-      target: { value },
-    } as React.ChangeEvent<HTMLInputElement>);
-
-    if (!value && chatInputRef.current?.editor) {
-      chatInputRef.current.editor.clearContent();
-    }
-  };
-
-  // Keep state for UI management
-  const [mounted, setMounted] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<ChatInputRef>(null);
-  const controlsTimerRef = useRef<number | null>(null);
-  const [initializing, setInitializing] = useState(true);
+    const hasClipboardContent = Boolean(copiedContent && copiedContent.trim().length > 0);
+    const hasNoMessages = messages.length === 0;
+    const isCompactMode = viewMode === "compact";
+    
+    const shouldAdd = hasClipboardContent && hasNoMessages && isCompactMode;
+    setShouldAddClipboardHeight(shouldAdd);
+  }, [copiedContent, messages.length, viewMode]);
 
   // Set mounted state when component mounts
   useEffect(() => {
-    console.log("Chat component mounting");
     const mountTimer = setTimeout(() => {
       setMounted(true);
-      console.log("Chat component mounted");
+
+      if (window.electronAPI && messages.length === 0) {
+        try {
+          window.electronAPI
+            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+            .then((res) => {
+              requestAnimationFrame(() => {
+                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
+                window.electronAPI.resizeMessageContent(res.width, finalHeight);
+              });
+            });
+        } catch (error) {
+          console.error("Chat: Error setting initial window size:", error);
+        }
+      }
 
       const initTimer = setTimeout(() => {
         setInitializing(false);
-        console.log("Chat component initialization complete");
       }, 150);
 
       return () => clearTimeout(initTimer);
@@ -496,58 +382,167 @@ export default function Chat() {
     return () => {
       clearTimeout(mountTimer);
       setMounted(false);
-      console.log("Chat component unmounting");
     };
-  }, []);
+  }, [shouldAddClipboardHeight, messages.length]);
 
-  // Resize window based on messages existence - now the resize happens before component switch
+  // Modify toggleViewMode to track expansion state
+  const toggleViewMode = useCallback(
+    (mode: "compact" | "expanded") => {
+      setViewMode(mode);
+
+      requestAnimationFrame(() => {
+        if (typeof window !== "undefined" && window.electronAPI) {
+          if (mode === "expanded" && !hasExpandedOnce) {
+            window.electronAPI.toggleViewMode(true);
+            setHasExpandedOnce(true);
+            
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
+              .then((res) => {
+                window.electronAPI.resizeMessageContent(res.width, res.height);
+              });
+          } else if (mode === "compact") {
+            window.electronAPI.toggleViewMode(false);
+          }
+        }
+      });
+    },
+    [hasExpandedOnce],
+  );
+
+  // Listen for clipboard changes
   useEffect(() => {
-    // Skip if not fully mounted or still initializing
-    if (!mounted || initializing) {
+    if (window.electronAPI?.onSetInputText) {
+      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
+        if (!text || !text.trim()) {
+          setCopiedContent(null);
+        } else {
+          setCopiedContent(text);
+        }
+        
+        setTimeout(() => {
+          if (window.electronAPI && !hasExpandedOnce && messages.length === 0) {
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+              .then((res) => {
+                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
+                window.electronAPI.resizeMessageContent(res.width, finalHeight);
+              });
+          }
+        }, 50);
+      });
+      
+      return unsubscribe;
+    }
+  }, [shouldAddClipboardHeight, hasExpandedOnce, messages.length]);
+
+  const handleRegenerateWithNewAgent = () => {
+    setAgentChanged(false);
+    reload();
+  };
+
+  const handleIgnoreAgentChange = () => {
+    setAgentChanged(false);
+  };
+
+  const handleInputChangeAdapter = (value: string) => {
+    handleInputChange({
+      target: { value: value  },
+    } as React.ChangeEvent<HTMLInputElement>);
+
+    if (!value && chatInputRef.current?.editor) {
+      chatInputRef.current.editor.clearContent();
+    }
+  };
+
+  useEffect(() => {
+    if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
+      toggleViewMode("expanded");
+    }
+  }, [messages.length, hasExpandedOnce, mounted, initializing, toggleViewMode]);
+
+  useEffect(() => {
+    if (messages.length > 0 && viewMode === "compact") {
+      toggleViewMode("expanded");
+    }
+  }, [messages.length, viewMode, toggleViewMode]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevAgentIdRef.current = selectedAgent?.id || null;
       return;
     }
 
-    const hasMessages = messages.length > 0;
+    const currentAgentId = selectedAgent?.id || null;
+    const hasAgentChanged = prevAgentIdRef.current !== currentAgentId;
 
-    console.log(
-      `Chat: Messages count=${messages.length}, electronWindow=${!!window.electronAPI}`,
-    );
-
-    // Only resize if window.electronWindow is available
-    if (window.electronAPI) {
-      window.electronAPI
-        .getCurrentWindowSize(
-          hasMessages
-            ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-            : WINDOW_SIZE_PRESETS.MAIN,
-        )
-        .then((res) => {
-          console.log(`Chat: Current window size: ${res.width}x${res.height}`);
-          try {
-            requestAnimationFrame(() => {
-              window.electronAPI.resizeMessageContent(res.width, res.height);
-              console.log("Chat: Resize command sent successfully");
-            });
-          } catch (error) {
-            console.error("Chat: Error sending resize command:", error);
-          }
-        });
-    } else {
-      console.error("Chat: window.electronWindow is not available!");
-      console.error("Chat: window.electronAPI is not available!");
+    if (hasAgentChanged && messages.length > 0) {
+      setAgentChanged(true);
     }
-  }, [messages.length, mounted, initializing]);
+
+    prevAgentIdRef.current = currentAgentId;
+  }, [selectedAgent, messages.length]);
+
+  useEffect(() => {
+    try {
+      if (selectedModelId !== settings.openai.modelId) {
+        localStorage.setItem("selectedModelId", selectedModelId);
+      }
+    } catch (error) {
+      console.error("Error saving model to localStorage:", error);
+    }
+  }, [selectedModelId, settings.openai.modelId]);
+
+  useEffect(() => {
+    try {
+      const savedModel = localStorage.getItem("selectedModelId");
+      if (savedModel) {
+        setSelectedModelId(savedModel);
+      }
+    } catch (error) {
+      console.error("Error loading model from localStorage:", error);
+    }
+
+    const handleModelSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.modelId) {
+        const newModelId = customEvent.detail.modelId;
+        setSelectedModelId(newModelId);
+        localStorage.setItem("selectedModelId", newModelId);
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedModelId" && event.newValue) {
+        setSelectedModelId(event.newValue);
+      }
+    };
+
+    window.addEventListener("model-selected", handleModelSelected);
+    window.addEventListener("storage", handleStorageChange);
+
+    const intervalId = setInterval(() => {
+      const storedModel = localStorage.getItem("selectedModelId");
+      if (storedModel && storedModel !== selectedModelId) {
+        setSelectedModelId(storedModel);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener("model-selected", handleModelSelected);
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(intervalId);
+    };
+  }, [selectedModelId]);
 
   // Setup IPC listener for window focus event
   useEffect(() => {
-    // Only setup if window.require is available (in Electron environment)
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
-        console.log("Received focus-chat-input event via contextBridge");
         chatInputRef.current?.focus();
       });
 
-      // Cleanup listener on component unmount
       return () => {
         removeListener?.();
       };
@@ -556,7 +551,6 @@ export default function Chat() {
 
   // Focus the input field when component mounts
   useEffect(() => {
-    // Small delay to ensure the component is fully rendered
     const timer = setTimeout(() => {
       chatInputRef.current?.focus();
     }, 100);
@@ -599,38 +593,41 @@ export default function Chat() {
 
   // Handle attachments
   const handleAddAttachment = () => {
-    console.log("Add attachment clicked");
     // Implement attachment functionality
   };
 
   // Handle translation
   const handleToggleTranslation = () => {
-    console.log("Toggle translation clicked");
     // Implement translation functionality
   };
 
   // Reset the chat conversation
   const handleReset = () => {
-    // Reset conversation by refreshing the page - simplest way to clear useChat state
     window.location.reload();
   };
 
   // Handle voice input
   const handleVoiceInput = () => {
-    console.log("Voice input clicked");
     // Implement voice input functionality
+  };
+
+  // Handle opening settings
+  const handleOpenSettings = () => {
+    console.log("Opening settings window");
+    if (window.electronAPI) {
+      window.electronAPI.toggleSettingsWindow()
+        .catch(error => {
+          console.error("Error opening settings window:", error);
+        });
+    } else {
+      console.error("electronAPI is not available for toggleSettingsWindow!");
+    }
   };
 
   // Handle exit button click
   const handleExit = () => {
-    console.log("Exit clicked");
-    // Implement exit functionality
     if (window.electronAPI) {
       window.electronAPI.closeWindow();
-    } else {
-      console.error(
-        "Chat: window.electronAPI is not available for closeWindow!",
-      );
     }
   };
 
@@ -748,7 +745,6 @@ export default function Chat() {
   };
 
   const handleStopGeneration = () => {
-    console.log("Stopping message generation");
     if (isLoading) {
       stop();
     }
@@ -756,72 +752,57 @@ export default function Chat() {
 
   // Handle sending a message to the AI using Vercel AI SDK
   const handleSendMessage = () => {
-    // Access editor directly through the ref
     const editor = chatInputRef.current?.editor;
-
     if (!editor || isLoading) return;
 
-    // Check if the editor is empty
-    if (editor.getText().trim() === "") return;
+    const editorText = editor.getText().trim();
+    if (!editorText && !copiedContent) return;
 
-    // Log the selected agent information
-    console.log(
-      `Sending message with agent: ${selectedAgent?.name || "Default"} (${selectedAgent?.id || "none"})`,
-    );
+    let messageText = editorText;
+    
+    if (copiedContent) {
+      messageText = messageText
+        ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
+        : `<copied>\n${copiedContent}\n</copied>`;
+    }
 
-    // Create a synthetic event for handleSubmit
-    const event = {
-      preventDefault: () => {},
-    } as unknown as React.FormEvent<HTMLFormElement>;
+    append({
+      role: "user",
+      content: messageText,
+    });
 
-    // Update input state with HTML content from editor
-    handleInputChangeAdapter(editor.getText());
-
-    // Submit the message to AI
-    aiHandleSubmit(event);
-
-    // Clear content directly using the editor instance
-    setTimeout(() => {
-      if (chatInputRef.current?.editor) {
-        chatInputRef.current.editor.clearContent();
-      }
-    }, 0);
+    if (copiedContent) {
+      setCopiedContent(null);
+    }
+      
+    if (chatInputRef.current?.editor) {
+      chatInputRef.current.editor.clearContent();
+    }
   };
 
   // Handle editing a message and regenerating the response
   const handleEditMessage = async (message: Message, newContent: string) => {
     if (isLoading) return;
-    console.log(
-      `Editing message: ${message.id} with new content: ${newContent}`,
-    );
 
-    // Find the message index
     const messageIndex = messages.findIndex((m) => m.id === message.id);
     if (messageIndex === -1) return;
 
-    // Create a copy of messages array
     const updatedMessages = [...messages];
-
-    // Update the message content
     updatedMessages[messageIndex] = {
       ...updatedMessages[messageIndex],
       content: newContent,
     };
 
-    // Remove all messages after this message (if it's not the last one)
     if (messageIndex < updatedMessages.length - 1) {
       updatedMessages.splice(messageIndex + 1);
     }
 
-    // Update messages
     setMessages(updatedMessages);
 
-    // Clear editor content using the direct editor reference
     if (chatInputRef.current?.editor) {
       chatInputRef.current.editor.clearContent();
     }
 
-    // Reload to regenerate AI response
     setTimeout(() => {
       reload();
     }, 100);
@@ -830,10 +811,26 @@ export default function Chat() {
   // Handle regenerating the last AI response
   const handleRegenerateResponse = async () => {
     if (isLoading) return;
-    console.log("Regenerating AI response");
-
-    // Simply use the reload method from useChat
     reload();
+  };
+
+  // Functions to handle copied content actions - only keep the reject function
+  const handleRejectCopiedContent = () => {
+    setCopiedContent(null);
+    
+    if (window.electronAPI) {
+      setTimeout(() => {
+        window.electronAPI
+          .getCurrentWindowSize(
+            messages.length > 0
+              ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+              : WINDOW_SIZE_PRESETS.MAIN,
+          )
+          .then((res) => {
+            window.electronAPI.resizeMessageContent(res.width, res.height);
+          });
+      }, 50);
+    }
   };
 
   useEffect(() => {
@@ -852,9 +849,8 @@ export default function Chat() {
     if (typeof window !== "undefined" && window.electronAPI) {
       window.electronAPI
         .getCurrentTheme()
-        .then(({ system, user }) => {
-          console.log(`Theme detected: system=${system}, user=${user}`);
-          const theme = user || system;
+        .then((res) => {
+          const theme = res;
           document.documentElement.dataset.theme = theme;
         })
         .catch((err) => {
@@ -863,7 +859,7 @@ export default function Chat() {
     }
   }, []);
 
-  // Render the appropriate view based on whether we have messages
+  // Render the appropriate view based on the current view mode
   return (
     <div className="chat-window h-screen w-full overflow-hidden rounded-xl">
       {initializing ? (
@@ -901,6 +897,9 @@ export default function Chat() {
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
           onLoadChatHistory={handleLoadChatHistory}
+          onOpenSettings={handleOpenSettings}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
         />
       ) : (
         <CompactChatView
@@ -919,8 +918,13 @@ export default function Chat() {
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
           onLoadChatHistory={handleLoadChatHistory}
+          onOpenSettings={handleOpenSettings}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={handleRejectCopiedContent}
         />
       )}
     </div>
   );
 }
+
+export {};

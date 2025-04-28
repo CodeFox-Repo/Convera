@@ -448,6 +448,37 @@ export function isPredefinedServerInstalled(id: string): boolean {
   return mgr.getServerConfig(id) !== undefined;
 }
 
+/**
+ * Uninstall a predefined MCP server
+ * @param id Server ID
+ * @returns Whether uninstallation was successful
+ */
+export function uninstallPredefinedMCPServer(id: string): boolean {
+  const manager = getMCPManager();
+
+  try {
+    // Check if the server is installed first
+    if (!isPredefinedServerInstalled(id)) {
+      console.warn(`Server ${id} is not installed, cannot uninstall`);
+      return false;
+    }
+
+    // Attempt to uninstall the server
+    const result = manager.uninstallPredefinedServer(id);
+
+    if (result) {
+      console.log(`Successfully uninstalled MCP server ${id}`);
+    } else {
+      console.error(`Failed to uninstall MCP server ${id}`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`Error uninstalling MCP server ${id}:`, error);
+    return false;
+  }
+}
+
 // Export MCPManager and MCPClient classes
 export { MCPManager, MCPClient };
 

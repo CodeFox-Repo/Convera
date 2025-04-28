@@ -6,6 +6,8 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { ToolDefinition } from "./types";
 
 /**
@@ -13,7 +15,11 @@ import { ToolDefinition } from "./types";
  */
 export class MCPClient {
   private client: Client | null = null;
-  private transport: StdioClientTransport | null = null;
+  private transport:
+    | StdioClientTransport
+    | StreamableHTTPClientTransport
+    | SSEClientTransport
+    | null = null;
   private tools: ToolDefinition[] = [];
   private baseUrl?: string;
   private apiKey?: string;
@@ -115,9 +121,51 @@ export class MCPClient {
           throw error;
         }
       } else if (this.baseUrl) {
-        // For future HTTP transport implementation
-        console.warn("HTTP transport not yet implemented in the MCP SDK");
-        return false;
+        // Try connecting using Streamable HTTP transport first
+        try {
+          const url = new URL(this.baseUrl);
+          console.log(`Connecting to MCP server at ${url.href}`);
+
+          this.transport = new StreamableHTTPClientTransport(url);
+
+          // Add API key as bearer token if available
+          if (this.apiKey) {
+            (this.transport as any).headers = {
+              ...(this.transport as any).headers,
+              Authorization: `Bearer ${this.apiKey}`,
+            };
+          }
+
+          await this.client.connect(this.transport);
+          console.log(
+            `Connected to MCP server at ${url.href} using Streamable HTTP transport`,
+          );
+        } catch (error) {
+          // If Streamable HTTP fails, try falling back to SSE transport
+          console.warn(
+            "Streamable HTTP connection failed, falling back to SSE transport",
+          );
+          try {
+            const url = new URL(this.baseUrl);
+            this.transport = new SSEClientTransport(url);
+
+            // Add API key as bearer token if available
+            if (this.apiKey) {
+              (this.transport as any).headers = {
+                ...(this.transport as any).headers,
+                Authorization: `Bearer ${this.apiKey}`,
+              };
+            }
+
+            await this.client.connect(this.transport);
+            console.log(
+              `Connected to MCP server at ${url.href} using SSE transport`,
+            );
+          } catch (sseError) {
+            console.error("Failed to connect using SSE transport:", sseError);
+            throw sseError;
+          }
+        }
       } else {
         throw new Error("Invalid server configuration");
       }

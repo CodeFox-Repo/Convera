@@ -54,6 +54,47 @@ export interface McpToolSettings {
   };
 }
 
+/**
+ * Installed MCP Server (from /api/mcp/installed-servers endpoint)
+ */
+export interface InstalledMCPServer {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  running: boolean;
+  isPredefined: boolean;
+  toolCount: number;
+  serverUrl: string | null;
+}
+
+/**
+ * Unified MCP Server type that includes all server information
+ * kind: 'predefined' - Available predefined server
+ * kind: 'installed' - Installed server (can be predefined or manual)
+ */
+export interface MCPServer {
+  id: string;
+  name: string;
+  description: string;
+  kind: "predefined" | "installed";
+  // Common fields
+  enabled?: boolean;
+  running?: boolean;
+  toolCount?: number;
+  serverUrl?: string | null;
+
+  // Predefined specific fields
+  repoUrl?: string;
+  logoUrl?: string;
+  installInstructions?: string;
+  isInstalled?: boolean;
+  defaultConfig?: Record<string, any>;
+
+  // Installation specific fields
+  isPredefined?: boolean; // If installed, was it from predefined list?
+}
+
 export interface McpServerSettings {
   serverUrl: string;
   requestTimeout: number;
