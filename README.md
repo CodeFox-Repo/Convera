@@ -54,8 +54,8 @@ windows-build-tools npm package (`npm install --global --production windows-buil
 
 ### Quick Launch
 
-- Press `Control+Shift+Space` to activate Foxyfox from anywhere on your system
-- If Foxyfox is already visible and focused, pressing `Control+Shift+Space` will hide it
+- Press `Control+Shift+Enter` to activate Foxyfox from anywhere on your system
+- If Foxyfox is already visible and focused, pressing `Control+Shift+Enter` will hide it
 - When the app appears, the chat input will be automatically focused
 
 ### Settings
