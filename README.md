@@ -54,20 +54,20 @@ windows-build-tools npm package (`npm install --global --production windows-buil
 
 ### Quick Launch
 
-- Press `Control+Space` to activate Foxyfox from anywhere on your system
-- If Foxyfox is already visible and focused, pressing `Control+Space` will hide it
+- Press `Control+Shift+Space` to activate Foxyfox from anywhere on your system
+- If Foxyfox is already visible and focused, pressing `Control+Shift+Space` will hide it
 - When the app appears, the chat input will be automatically focused
 
 ### Settings
 
-- Press `Command+.` to open the Settings window
+- Press `Command+e` to open the Settings window
 - In Settings, you can customize keyboard shortcuts under the "Keyboard Shortcuts" tab
 - Click on any shortcut to record a new key combination
 
 ### Customization
 
 You can change the global activation shortcut in the Settings:
-1. Open Settings (`Command+.`)
+1. Open Settings (`Command+e`)
 2. Go to "Keyboard Shortcuts" tab
 3. Click on "Activate App" and press your preferred key combination
 4. The new shortcut will take effect immediately

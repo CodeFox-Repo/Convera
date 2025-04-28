@@ -37,7 +37,7 @@ let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
+  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;
