@@ -37,7 +37,7 @@ let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+space";
+  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;
@@ -394,7 +394,6 @@ function createMainWindow() {
 
 function preCreateSettingsWindow() {
   if (settingsWindow) return settingsWindow;
-
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
@@ -494,9 +493,6 @@ function preCreateSettingsWindow() {
 
   settingsWindow.once("ready-to-show", () => {
     if (settingsWindow) {
-      console.log("Settings window ready, but kept hidden");
-
-
     }
   });
 

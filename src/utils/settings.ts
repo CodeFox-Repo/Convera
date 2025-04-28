@@ -31,7 +31,7 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
   {
     id: "open_settings",
     name: "Open Settings",
-    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+." : "Control+.",
+    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+E" : "Control+E",
     enabled: true,
   },
 ];
