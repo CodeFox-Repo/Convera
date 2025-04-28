@@ -40,6 +40,7 @@ interface CompactChatViewProps {
   onModelSelect: (modelId: string) => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -60,6 +61,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onAgentSelect,
   selectedModelId,
   onModelSelect,
+  onOpenSettings,
   copiedContent,
   onRejectCopiedContent,
 }) => {
@@ -91,6 +93,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
           onAgentSelect={onAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={onModelSelect}
+        onOpenSettings={onOpenSettings}
         />
       </div>
     </div>
@@ -127,6 +130,7 @@ interface ExpandedChatViewProps {
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
+  onOpenSettings: () => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
 }
@@ -161,6 +165,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onIgnoreAgentChange,
   selectedModelId,
   onModelSelect,
+  onOpenSettings,
   copiedContent,
   onRejectCopiedContent,
 }) => {
@@ -260,6 +265,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               onAgentSelect={onAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
+            onOpenSettings={onOpenSettings}
               placeholder="Message to FoxyChat..."
             />
           </div>
@@ -599,6 +605,19 @@ export default function Chat() {
     // Implement voice input functionality
   };
 
+  // Handle opening settings
+  const handleOpenSettings = () => {
+    console.log("Opening settings window");
+    if (window.electronAPI) {
+      window.electronAPI.toggleSettingsWindow()
+        .catch(error => {
+          console.error("Error opening settings window:", error);
+        });
+    } else {
+      console.error("electronAPI is not available for toggleSettingsWindow!");
+    }
+  };
+
   // Handle exit button click
   const handleExit = () => {
     if (window.electronAPI) {
@@ -763,6 +782,7 @@ export default function Chat() {
           onIgnoreAgentChange={handleIgnoreAgentChange}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
         />
@@ -782,6 +802,7 @@ export default function Chat() {
           onAgentSelect={setSelectedAgent}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
+          onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
         />

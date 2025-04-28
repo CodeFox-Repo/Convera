@@ -14,6 +14,7 @@ import {
   Monitor,
   Bot,
   Square,
+  Settings,
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import TiptapEditor, { TiptapEditorRef } from "@/components/editor";
@@ -37,6 +38,7 @@ interface ChatInputProps {
   onVoiceInput?: () => void;
   onSendMessage?: () => void;
   onStopGeneration?: () => void;
+  onOpenSettings?: () => void;
   selectedAgent?: Agent | null;
   onAgentSelect?: (agent: Agent | null) => void;
   placeholder?: string;
@@ -67,6 +69,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onVoiceInput,
       onSendMessage,
       onStopGeneration,
+      onOpenSettings,
       selectedAgent,
       onAgentSelect,
       placeholder = "Message FoxyChat...",
@@ -264,6 +267,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   className="no-drag-region text-foreground/70 hover:text-foreground"
                 >
                   <RotateCcw size={20} />
+                </button>
+
+                <button
+                  onClick={onOpenSettings}
+                  className="no-drag-region text-foreground/70 hover:text-foreground"
+                >
+                  <Settings size={20} />
                 </button>
 
                 {/* Combined Agent selector button */}
