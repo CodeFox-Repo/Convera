@@ -7,6 +7,7 @@ export interface IPCServer {
   initGlobalShortcut(shortcut: string): boolean;
 
   getPreviousApp(): string;
+  getPreviousAppID(): number;
   getClipboardText(): string;
   setInputText(text: string): void;
   pasteModifiedContent(content: string): void;
@@ -58,6 +59,7 @@ export const CHANNELS = {
   },
   APP: {
     GET_PREVIOUS: "app:get-previous",
+    GET_PREVIOUS_ID: "app:get-previous-id",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
@@ -101,6 +103,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputText: CHANNELS.APP.SET_INPUT_TEXT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,

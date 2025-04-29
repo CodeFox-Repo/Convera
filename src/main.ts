@@ -39,7 +39,7 @@ let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
+process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;
@@ -248,12 +248,13 @@ function startAppFocusTracking() {
         const activeWindow = activeWindowSync();
         if (activeWindow && activeWindow.owner) {
           const appName = activeWindow.owner.name;
-          console.log(`Detected active application: ${appName}`);
+          const appId = activeWindow.owner.processId;
+          // console.log(`Detected active application: ${appName}`);
           
           // Ignore self-referential applications
           const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
           if (appName && !ignoreList.some((name) => appName.toLowerCase().includes(name.toLowerCase()))) {
-            setPreviousApp(appName);
+            setPreviousApp(appName, appId);
           }
         }
       } catch (error) {

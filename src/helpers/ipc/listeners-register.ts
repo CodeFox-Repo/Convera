@@ -24,6 +24,7 @@ import {
   getClipboardText,
   pasteModifiedContent,
   getCurrentWindowSize,
+  getPreviousAppID,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { WindowSizeConfig } from "../windows/window-size";
@@ -31,7 +32,7 @@ import { WindowSizeConfig } from "../windows/window-size";
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
   onFocusChatInput: (callback: () => void) => () => void;
-  onAppChanged: (callback: (appName: string) => void) => () => void;
+  onAppChanged: (callback: (appName: string, appId?: number) => void) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
@@ -56,8 +57,8 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onAppChanged = (callback: (appName: string) => void) => {
-    const handler = (_: any, appName: string) => callback(appName);
+  api.onAppChanged = (callback: (appName: string, appId?: number) => void) => {
+    const handler = (_: any, appName: string, appId?: number) => callback(appName, appId);
     ipcRenderer.on(CHANNELS.APP.APP_CHANGED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.APP_CHANGED, handler);
@@ -143,6 +144,11 @@ export default function registerListeners(
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, () => {
     console.log("Handling APP.GET_PREVIOUS");
     return getPreviousApp();
+  });
+
+  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, () => {
+    console.log("Handling APP.GET_PREVIOUS_ID");
+    return getPreviousAppID();
   });
 
   ipcMain.handle(CHANNELS.WINDOW.MINIMIZE, () => {
