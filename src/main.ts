@@ -59,18 +59,26 @@ function simulateClipboardCopy(): Promise<void> {
     try {
       console.log("Using RobotJS to simulate copy command");
 
-      if (process.platform === "darwin") {
-        // For macOS, use Command+C
-        robot.keyTap("c", "command");
-      } else {
-        // For Windows/Linux, use Control+C
-        robot.keyTap("c", "control");
-      }
-
-      // Add a delay to ensure clipboard has been updated
+      // Release modifier keys first to prevent conflicts
+      robot.keyToggle("shift", "up");
+      robot.keyToggle("control", "up");
+      robot.keyToggle("alt", "up");
+      
+      // Small delay to ensure modifiers are released
       setTimeout(() => {
-        resolve();
-      }, 100); // Slightly longer delay to ensure clipboard has been updated
+        if (process.platform === "darwin") {
+          // For macOS, use Command+C
+          robot.keyTap("c", "command");
+        } else {
+          // For Windows/Linux, use Control+C
+          robot.keyTap("c", "control");
+        }
+
+        // Add a delay to ensure clipboard has been updated
+        setTimeout(() => {
+          resolve();
+        }, 100); // Slightly longer delay to ensure clipboard has been updated
+      }, 50);
     } catch (error) {
       console.error("Error simulating copy command with RobotJS:", error);
       // Even if it fails, we'll resolve to allow the app to continue
