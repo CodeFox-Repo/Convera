@@ -26,6 +26,9 @@ import { AgentDefinition } from "./agents/types";
 import { ToolReference } from "./agents/types";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
+import path from "path";
+import fs from "fs";
+import os from "os";
 
 // Initialize dotenv
 dotenv.config();
@@ -1019,6 +1022,402 @@ router.post(
     }
   },
 );
+
+// Memory API endpoints
+app.get("/api/memory", (req, res) => {
+  try {
+    const memoryFilePath = path.join(os.homedir(), ".foxychat", "memory.json");
+
+    // Check if memory file exists, if not return empty array
+    if (!fs.existsSync(memoryFilePath)) {
+      return res.json({
+        status: "success",
+        memories: [],
+      });
+    }
+
+    const memoryData = fs.readFileSync(memoryFilePath, "utf8");
+    let memories;
+
+    try {
+      memories = JSON.parse(memoryData);
+
+      // Handle case where memory data is an object but not an array
+      if (
+        memories &&
+        typeof memories === "object" &&
+        !Array.isArray(memories)
+      ) {
+        console.warn(
+          "Memory data is an object, not an array. Converting to array.",
+        );
+
+        // If it's an entity with name and entityType (knowledge graph structure)
+        if (memories.name && memories.entityType) {
+          console.log(
+            "Found entity object:",
+            memories.name,
+            memories.entityType,
+          );
+          memories = [
+            {
+              id: `entity-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              type: memories.entityType || "entity", // Use the entityType provided or default to "entity"
+              content: `Entity: ${memories.name}`,
+              entityData: memories,
+              timestamp: Date.now(),
+              tags: ["entity", memories.entityType || "unknown"], // Tag with the entity type for filtering
+            },
+          ];
+        }
+        // If it's a relation between entities
+        else if (memories.from && memories.to && memories.relationType) {
+          console.log(
+            "Found relation:",
+            memories.from,
+            memories.relationType,
+            memories.to,
+          );
+          memories = [
+            {
+              id: `relation-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              type: "relation",
+              content: `Relation: ${memories.from} ${memories.relationType} ${memories.to}`,
+              relationData: memories,
+              timestamp: Date.now(),
+              tags: ["relation", memories.relationType],
+            },
+          ];
+        }
+        // If it contains any type property, store as entity
+        else if (
+          memories.type ||
+          (typeof memories === "object" &&
+            Object.keys(memories).some(
+              (key) => key === "type" || key === "entityType",
+            ))
+        ) {
+          console.warn("Found typed data in memory, storing as entity");
+
+          // Create a generic entity from the object
+          memories = [
+            {
+              id: `entity-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              type: memories.type || memories.entityType || "entity",
+              content: `Entity: ${memories.name || "Unknown Entity"}`,
+              entityData: memories,
+              timestamp: Date.now(),
+              tags: [
+                "entity",
+                memories.type || memories.entityType || "unknown",
+              ],
+            },
+          ];
+        }
+        // If it's an object with numeric keys, convert to array
+        else if (Object.keys(memories).some((key) => !isNaN(Number(key)))) {
+          console.log("Found object with numeric keys, converting to array");
+          memories = Object.values(memories);
+        }
+        // Last resort: wrap as generic entity
+        else {
+          // Last resort: wrap the entire object as a generic entity
+          console.warn(
+            "Unknown object structure in memory, creating generic entity",
+          );
+          memories = [
+            {
+              id: `entity-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              type: "entity",
+              content: `Entity: ${memories.name || "Unknown"}`,
+              entityData: memories,
+              timestamp: Date.now(),
+              tags: ["entity", "auto-converted"],
+            },
+          ];
+        }
+      }
+
+      // Additional validation to ensure each item has required properties
+      if (Array.isArray(memories)) {
+        memories = memories.filter((item) => {
+          if (!item || typeof item !== "object") return false;
+          if (!item.id || !item.type || !item.content) {
+            console.warn("Filtering out invalid memory item:", item);
+            return false;
+          }
+          return true;
+        });
+      }
+    } catch (error) {
+      console.error("Error parsing memory data:", error);
+      memories = [];
+    }
+
+    // Final check to ensure memories is an array
+    if (!Array.isArray(memories)) {
+      console.error("Memory data is not an array:", typeof memories);
+      memories = [];
+    }
+
+    res.json({
+      status: "success",
+      memories,
+    });
+  } catch (error) {
+    console.error("Error reading memory file:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to read memory data",
+    });
+  }
+});
+
+app.delete("/api/memory/:id", (req, res) => {
+  try {
+    const memoryId = req.params.id;
+    const memoryFilePath = path.join(os.homedir(), ".foxychat", "memory.json");
+
+    // Check if memory file exists
+    if (!fs.existsSync(memoryFilePath)) {
+      return res.status(404).json({
+        status: "error",
+        message: "Memory file not found",
+      });
+    }
+
+    const memoryData = fs.readFileSync(memoryFilePath, "utf8");
+    let memories;
+
+    try {
+      memories = JSON.parse(memoryData);
+
+      // Handle case where memory data is an object but not an array
+      if (
+        memories &&
+        typeof memories === "object" &&
+        !Array.isArray(memories)
+      ) {
+        console.warn(
+          "Memory data is an object, not an array. Converting to array.",
+        );
+
+        // If it has id, type, content properties, it might be a single memory item
+        if (memories.id && memories.type && memories.content) {
+          memories = [memories];
+        }
+        // If it's an object with numeric keys, convert to array
+        else if (Object.keys(memories).some((key) => !isNaN(Number(key)))) {
+          memories = Object.values(memories);
+        } else {
+          // Default to empty array if we can't convert properly
+          console.error("Cannot convert memory data to array properly");
+          memories = [];
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing memory data:", error);
+      memories = [];
+    }
+
+    // Ensure memories is an array
+    if (!Array.isArray(memories)) {
+      console.error("Memory data is not an array:", typeof memories);
+      memories = [];
+    }
+
+    // Filter out the memory to be deleted
+    const filteredMemories = memories.filter(
+      (memory) => memory.id !== memoryId,
+    );
+
+    // Check if anything was actually deleted
+    if (filteredMemories.length === memories.length) {
+      console.warn(`Memory item with id ${memoryId} not found`);
+    }
+
+    // Write the updated memories back to the file
+    fs.writeFileSync(memoryFilePath, JSON.stringify(filteredMemories, null, 2));
+
+    res.json({
+      status: "success",
+      message: "Memory item deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting memory item:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete memory item",
+    });
+  }
+});
+
+app.delete("/api/memory", (req, res) => {
+  try {
+    const memoryFilePath = path.join(os.homedir(), ".foxychat", "memory.json");
+
+    // Check if memory directory exists, if not create it
+    const memoryDir = path.join(os.homedir(), ".foxychat");
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+
+    // Write empty array to memory file
+    fs.writeFileSync(memoryFilePath, JSON.stringify([], null, 2));
+
+    res.json({
+      status: "success",
+      message: "All memory items cleared successfully",
+    });
+  } catch (error) {
+    console.error("Error clearing memory:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to clear memory",
+    });
+  }
+});
+
+app.post("/api/memory", (req, res) => {
+  try {
+    const newMemory = req.body;
+    const memoryFilePath = path.join(os.homedir(), ".foxychat", "memory.json");
+
+    // Check if memory directory exists, if not create it
+    const memoryDir = path.join(os.homedir(), ".foxychat");
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+
+    // Validate the new memory object
+    if (!newMemory || typeof newMemory !== "object") {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid memory data: must be an object",
+      });
+    }
+
+    // Ensure required fields exist
+    if (!newMemory.id || !newMemory.type || !newMemory.content) {
+      return res.status(400).json({
+        status: "error",
+        message:
+          "Invalid memory data: missing required fields (id, type, content)",
+      });
+    }
+
+    let memories = [];
+
+    // If memory file exists, read existing memories
+    if (fs.existsSync(memoryFilePath)) {
+      try {
+        const memoryData = fs.readFileSync(memoryFilePath, "utf8");
+        let parsedData = JSON.parse(memoryData);
+
+        // Handle case where memory data is an object but not an array
+        if (
+          parsedData &&
+          typeof parsedData === "object" &&
+          !Array.isArray(parsedData)
+        ) {
+          console.warn(
+            "Existing memory data is an object, not an array. Converting to array.",
+          );
+
+          // If it has id, type, content properties, it might be a single memory item
+          if (parsedData.id && parsedData.type && parsedData.content) {
+            parsedData = [parsedData];
+          }
+          // If it's an object with numeric keys, convert to array
+          else if (Object.keys(parsedData).some((key) => !isNaN(Number(key)))) {
+            parsedData = Object.values(parsedData);
+          } else {
+            // If we can't determine structure, start fresh with empty array
+            console.warn(
+              "Unknown memory data structure, starting with empty array",
+            );
+            parsedData = [];
+          }
+        }
+
+        // Final check to ensure parsedData is an array
+        if (Array.isArray(parsedData)) {
+          memories = parsedData;
+        }
+      } catch (error) {
+        console.error("Error parsing existing memory data:", error);
+        // Continue with empty memories array
+      }
+    }
+
+    // Check for duplicate ID
+    const existingIndex = memories.findIndex(
+      (item) => item.id === newMemory.id,
+    );
+    if (existingIndex >= 0) {
+      console.warn(
+        `Memory with ID ${newMemory.id} already exists, replacing it`,
+      );
+      memories[existingIndex] = newMemory;
+    } else {
+      // Add new memory
+      memories.push(newMemory);
+    }
+
+    // Write updated memories back to file
+    fs.writeFileSync(memoryFilePath, JSON.stringify(memories, null, 2));
+
+    res.json({
+      status: "success",
+      message: "Memory item added successfully",
+    });
+  } catch (error) {
+    console.error("Error adding memory item:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to add memory item",
+    });
+  }
+});
+
+app.put("/api/memory", (req, res) => {
+  try {
+    const updatedMemories = req.body;
+    const memoryFilePath = path.join(os.homedir(), ".foxychat", "memory.json");
+
+    // Check if memory directory exists, if not create it
+    const memoryDir = path.join(os.homedir(), ".foxychat");
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+
+    // Ensure memories is an array
+    if (!Array.isArray(updatedMemories)) {
+      console.error(
+        "Updated memory data is not an array:",
+        typeof updatedMemories,
+      );
+      return res.status(400).json({
+        status: "error",
+        message: "Memory data must be an array",
+      });
+    }
+
+    // Write updated memories to file
+    fs.writeFileSync(memoryFilePath, JSON.stringify(updatedMemories, null, 2));
+
+    res.json({
+      status: "success",
+      message: "Memory updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating memory:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to update memory",
+    });
+  }
+});
 
 const PORT = 38000;
 

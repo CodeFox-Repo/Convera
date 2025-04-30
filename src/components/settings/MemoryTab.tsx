@@ -55,7 +55,7 @@ export function MemoryTab({ settings, onMemorySettingChange }: MemoryTabProps) {
   const [isLoadingServerStatus, setIsLoadingServerStatus] = useState(false);
   const [isTogglingServer, setIsTogglingServer] = useState(false);
 
-  const MEMORY_SERVER_ID = "memory-mcp"; // Server ID for Memory-MCP
+  const MEMORY_SERVER_ID = "Memory-MCP"; // Server ID for Memory-MCP
 
   // Fetch MCP server configurations and status
   const fetchMemoryServerStatus = async () => {
@@ -67,7 +67,7 @@ export function MemoryTab({ settings, onMemorySettingChange }: MemoryTabProps) {
       const data = await res.json();
       const configs = data.configurations || {};
       
-      // Find the memory-mcp server config
+      // Find the Memory-MCP server config
       const memoryConfig = configs[MEMORY_SERVER_ID];
       
       // Also fetch running status
@@ -327,27 +327,6 @@ export function MemoryTab({ settings, onMemorySettingChange }: MemoryTabProps) {
                     {promptInstructions || DEFAULT_MEMORY_INSTRUCTIONS}
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 mt-4">
-              <Checkbox 
-                id="include-in-prompt"
-                checked={settings.includePromptInstructions !== false}
-                onCheckedChange={(checked) => 
-                  onMemorySettingChange("includePromptInstructions", !!checked)
-                }
-              />
-              <div className="grid gap-1.5 leading-none">
-                <label
-                  htmlFor="include-in-prompt"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Include memory instructions in system prompt
-                </label>
-                <p className="text-sm text-muted-foreground">
-                  When enabled, the above instructions will be included in the system prompt
-                </p>
               </div>
             </div>
           </CardContent>
