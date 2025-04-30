@@ -9,7 +9,7 @@ import { CoreMessage, streamText, ToolSet } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 import { getMCPToolsForChat } from "../mcp";
-import { AppSettings } from "@/types/settings";
+import type { AppSettings } from "@/types/settings";
 import { codefoxTools } from "../mcp/dev-mcp/tools";
 import path from "path";
 import os from "os";
@@ -330,7 +330,24 @@ export function getOpenRouterClient(apiKey: string, endpoint?: string) {
 /**
  * Default system prompt for non-agent chats
  */
-export function getDefaultSystemPrompt(mcpToolNames: string[] = []): string {
+export function getDefaultSystemPrompt(
+  mcpToolNames: string[] = [],
+  config?: AppSettings,
+): string {
+  // Get the default memory prompt instructions
+  const defaultMemoryInstructions = `While conversing with the user, be attentive to any new information that falls into these categories:
+  a) Basic Identity (age, gender, location, job title, education level, etc.)
+  b) Behaviors (interests, habits, etc.)
+  c) Preferences (communication style, preferred language, etc.)
+  d) Goals (goals, targets, aspirations, etc.)
+  e) Relationships (personal and professional relationships up to 3 degrees of separation)`;
+
+  // Use memory prompt instructions from config if available and enabled
+  const memoryInstructions =
+    config?.memory?.includePromptInstructions !== false
+      ? config?.memory?.promptInstructions || defaultMemoryInstructions
+      : defaultMemoryInstructions;
+
   return `You are Foxy, a friendly and intelligent assistant created to help users with various tasks efficiently.
 
 Your key capabilities include:
@@ -375,6 +392,24 @@ Your key capabilities include:
   - If user input have <copied> tags, you should read the content inside the tags and think about if user want to modify it or just provide content for you to use.
   - If user want to modify it(Example: translate, improve, eg), you should use the content as a base and modify it and must wrap the result in <modified> tags.
   - Users can iterate multiple times on improving the same content through successive modification requests.
+
+8 **Memory**:
+  . User Identification:
+   - You should assume that you are interacting with default_user
+   - If you have not identified default_user, proactively try to do so.
+
+  . Memory Retrieval:
+   - Always begin your chat by saying only "Remembering..." and retrieve all relevant information from your knowledge graph
+   - Always refer to your knowledge graph as your "memory"
+
+  . Memory
+   ${memoryInstructions}
+
+  . Memory Update:
+   - If any new information was gathered during the interaction, update your memory as follows:
+     a) Create entities for recurring organizations, people, and significant events
+     b) Connect them to the current entities using relations
+     b) Store facts about them as observations
 
 For web searches, follow this process:
 1. Determine if the query needs current information
@@ -444,7 +479,7 @@ export async function processChatRequest(
   } else {
     // Get tool names from all available MCP tools
     toolsList = Object.keys(mcpTools);
-    systemPrompt = getDefaultSystemPrompt(toolsList);
+    systemPrompt = getDefaultSystemPrompt(toolsList, options.config);
   }
 
   // Create the OpenRouter client

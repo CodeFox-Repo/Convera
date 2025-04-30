@@ -28,6 +28,17 @@ export function initializeMCP(configPath?: string): MCPManager {
   if (!manager) {
     manager = MCPManager.getInstance(configPath);
     console.log("MCP system initialized");
+
+    // Automatically install predefined servers if not already installed
+    const serversToAutoInstall = ["Memory-MCP", "sequential-thinking-MCP"];
+    for (const serverId of serversToAutoInstall) {
+      if (!isPredefinedServerInstalled(serverId)) {
+        console.log(`Auto-installing predefined server: ${serverId}`);
+        installPredefinedMCPServer(serverId, true);
+      } else {
+        console.log(`Predefined server already installed: ${serverId}`);
+      }
+    }
   }
   return manager;
 }
@@ -152,6 +163,9 @@ export async function getMCPToolsForChat(): Promise<Record<string, any>> {
     webSearch: webSearch,
   };
 
+  // Priority servers that should be treated as built-in tools
+  const priorityServers = ["Memory-MCP", "sequential-thinking-MCP"];
+
   // Special handling for built-in tools that need direct access
   // We add these first so they can be overridden by MCP servers if needed
   if (serverConfigs["Dev-MCP"] && serverConfigs["Dev-MCP"].enabled) {
@@ -175,13 +189,105 @@ export async function getMCPToolsForChat(): Promise<Record<string, any>> {
     }
   }
 
-  // Process each running server
-  for (const serverStatus of serverStatuses) {
-    // Skip servers that aren't running
-    if (!serverStatus.running) {
+  // Process priority servers first (Memory-MCP and sequential-thinking-MCP)
+  for (const priorityServerId of priorityServers) {
+    const serverStatus = serverStatuses.find((s) => s.id === priorityServerId);
+
+    // Skip if server isn't found or isn't running
+    if (!serverStatus || !serverStatus.running) {
       console.log(
-        `- Skipping MCP server that's not running: ${serverStatus.id}`,
+        `- Priority server ${priorityServerId} is not running, attempting to start it`,
       );
+      // Try to start the server if it's not running
+      const started = await manager.startServer(priorityServerId);
+      if (!started) {
+        console.log(`- Failed to start priority server ${priorityServerId}`);
+        continue;
+      }
+    }
+
+    const serverConfig = serverConfigs[priorityServerId];
+    if (!serverConfig) {
+      console.log(
+        `- No configuration found for priority server: ${priorityServerId}`,
+      );
+      continue;
+    }
+
+    // Get updated server status after potentially starting it
+    const updatedStatus = manager.getServerStatus(priorityServerId);
+    if (!updatedStatus || !updatedStatus.running) {
+      console.log(`- Priority server ${priorityServerId} is not available`);
+      continue;
+    }
+
+    // Get the tools for this server
+    const tools = updatedStatus.tools || [];
+    console.log(
+      `Priority server ${priorityServerId} has ${tools.length} available tools`,
+    );
+
+    const disabledTools = serverConfig.disabledTools || [];
+
+    // Process each tool from this server
+    for (const mcpTool of tools) {
+      try {
+        const toolName = mcpTool.name;
+
+        if (disabledTools.includes(toolName)) {
+          console.log(
+            `- Skipping disabled tool: ${toolName} from priority server ${priorityServerId}`,
+          );
+          continue;
+        }
+
+        // Create a Zod schema from the MCP tool parameters
+        const paramSchema = createZodSchemaFromMCPParams(mcpTool.parameters);
+
+        // Log the addition of the tool
+        console.log(
+          `+ Adding priority tool: ${toolName} from server ${priorityServerId}`,
+        );
+
+        // Create the AI SDK tool
+        aiTools[toolName] = tool({
+          description: mcpTool.description || `Tool: ${toolName}`,
+          parameters: paramSchema,
+          execute: async (params: Record<string, unknown>) => {
+            try {
+              // Call the MCP tool through the manager
+              const client = manager.getClient(priorityServerId);
+              if (!client) {
+                throw new Error(`Server ${priorityServerId} not available`);
+              }
+              const result = await client.runTool(toolName, params);
+              // Convert result to string if it's not already
+              return typeof result === "string"
+                ? result
+                : JSON.stringify(result);
+            } catch (error: unknown) {
+              const errorMessage =
+                error instanceof Error ? error.message : "Unknown error";
+              console.error(`Error executing MCP tool ${toolName}:`, error);
+              return `Error executing ${toolName}: ${errorMessage}`;
+            }
+          },
+        });
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `Error processing tool from priority server ${priorityServerId}:`,
+          errorMessage,
+        );
+      }
+    }
+  }
+
+  // Process each running server (non-priority servers)
+  for (const serverStatus of serverStatuses) {
+    // Skip servers that aren't running or are priority servers
+    if (!serverStatus.running || priorityServers.includes(serverStatus.id)) {
       continue;
     }
 
@@ -219,6 +325,14 @@ export async function getMCPToolsForChat(): Promise<Record<string, any>> {
         if (disabledTools.includes(toolName)) {
           console.log(
             `- Skipping disabled MCP tool: ${toolName} from server ${serverId}`,
+          );
+          continue;
+        }
+
+        // Skip if we already have this tool from a priority server
+        if (toolName in aiTools) {
+          console.log(
+            `- Skipping ${toolName} from server ${serverId} as it was already added from a priority server`,
           );
           continue;
         }

@@ -4,6 +4,7 @@ import {
   ShortcutSettings,
   McpSettings,
   McpServerSettings,
+  MemorySettings,
 } from "@/types/settings";
 
 const SETTINGS_KEY = "foxchat_settings";
@@ -46,10 +47,29 @@ const DEFAULT_MCP_SETTINGS: McpSettings = {
   server: DEFAULT_MCP_SERVER_SETTINGS,
 };
 
+const DEFAULT_MEMORY_SETTINGS: MemorySettings = {
+  enabled: true,
+  rememberUserInfo: true,
+  rememberConversationContext: true,
+  rememberPreviousInteractions: true,
+  maxMemoryItems: 100,
+  memoryLifespan: "session",
+  prioritizeRecent: true,
+  rememberCodeContext: true,
+  promptInstructions: `While conversing with the user, be attentive to any new information that falls into these categories:
+a) Basic Identity (age, gender, location, job title, education level, etc.)
+b) Behaviors (interests, habits, etc.)
+c) Preferences (communication style, preferred language, etc.)
+d) Goals (goals, targets, aspirations, etc.)
+e) Relationships (personal and professional relationships up to 3 degrees of separation)`,
+  includePromptInstructions: true,
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   openai: DEFAULT_OPENAI_SETTINGS,
   shortcuts: DEFAULT_SHORTCUTS,
   mcp: DEFAULT_MCP_SETTINGS,
+  memory: DEFAULT_MEMORY_SETTINGS,
 };
 
 /**
@@ -88,10 +108,17 @@ export function getMergedConfig(): AppSettings {
     },
   };
 
+  // Merge Memory settings
+  const mergedMemorySettings: MemorySettings = {
+    ...DEFAULT_MEMORY_SETTINGS,
+    ...(userSettings.memory || {}),
+  };
+
   return {
     openai: mergedOpenAI,
     shortcuts: mergedShortcuts,
     mcp: mergedMcpSettings,
+    memory: mergedMemorySettings,
   };
 }
 
@@ -151,6 +178,14 @@ export function saveSettings(settings: AppSettings): void {
     // Save MCP settings if they exist and differ from default
     if (settings.mcp) {
       settingsToSave.mcp = settings.mcp;
+    }
+
+    // Save Memory settings if they exist and differ from default
+    if (
+      JSON.stringify(settings.memory) !==
+      JSON.stringify(DEFAULT_SETTINGS.memory)
+    ) {
+      settingsToSave.memory = settings.memory;
     }
 
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsToSave));
@@ -295,6 +330,22 @@ export function updateMcpServerSettings(
     mcp: updatedMcp,
   };
 
+  saveSettings(updatedSettings);
+  return updatedSettings;
+}
+
+/**
+ * Update Memory settings
+ */
+export function updateMemorySettings(
+  memoryPartial: Partial<MemorySettings>,
+): AppSettings {
+  const currentSettings = getMergedConfig();
+  const updatedMemorySettings = { ...currentSettings.memory, ...memoryPartial };
+  const updatedSettings = {
+    ...currentSettings,
+    memory: updatedMemorySettings,
+  };
   saveSettings(updatedSettings);
   return updatedSettings;
 }

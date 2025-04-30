@@ -14,6 +14,7 @@ import {
   updateOpenAISettings,
   updateShortcut,
   resetShortcutsToDefault,
+  updateMemorySettings,
 } from "@/utils/settings";
 import { X, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ import { AIModelTab } from "@/components/settings/AIModelTab";
 import { ShortcutsTab } from "@/components/settings/ShortcutsTab";
 import { MarketplaceTab } from "@/components/settings/MarketplaceTab";
 import { AgentsTab } from "@/components/settings/AgentsTab";
+import { MemoryTab } from "@/components/settings/MemoryTab";
 
 export interface AgentDefinition {
   id: string;
@@ -754,6 +756,18 @@ export default function SettingsPage() {
     }
   };
 
+  // New Memory settings handling
+  const handleMemorySettingChange = (field: string, value: any) => {
+    try {
+      const updated = updateMemorySettings({ ...settings.memory, [field]: value });
+      setSettings(updated);
+      toast.success("Memory settings saved");
+    } catch (error) {
+      console.error("Error updating memory settings:", error);
+      toast.error("Failed to save memory settings");
+    }
+  };
+
   const marketplaceProps = {
     loadingMarketplace,
     loadingMcpServers,
@@ -805,6 +819,12 @@ export default function SettingsPage() {
             General
           </TabsTrigger>
           <TabsTrigger
+            value="memory"
+            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
+          >
+            Memory
+          </TabsTrigger>
+          <TabsTrigger
             value="mcpmarket"
             className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
           >
@@ -848,6 +868,13 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="memory">
+          <MemoryTab 
+            settings={settings.memory} 
+            onMemorySettingChange={handleMemorySettingChange} 
+          />
         </TabsContent>
 
         <TabsContent value="mcpmarket">

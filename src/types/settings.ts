@@ -109,4 +109,19 @@ export interface AppSettings {
   openai: OpenAISettings;
   shortcuts: ShortcutSettings[];
   mcp?: McpSettings;
+  memory: MemorySettings;
+}
+
+export interface MemorySettings {
+  enabled: boolean;
+  rememberUserInfo: boolean;
+  rememberConversationContext: boolean;
+  rememberPreviousInteractions: boolean;
+  maxMemoryItems: number;
+  memoryLifespan: string; // 'session', 'permanent', 'custom'
+  customLifespanDays?: number;
+  prioritizeRecent: boolean;
+  rememberCodeContext: boolean;
+  promptInstructions?: string;
+  includePromptInstructions?: boolean;
 }
