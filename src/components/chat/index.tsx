@@ -668,37 +668,9 @@ export default function Chat() {
         : `<copied>\n${copiedContent}\n</copied>`;
     }
 
-    // Add user message to memory if memory is enabled
-    if (settings.memory?.enabled) {
-      // Store the user message as a previous interaction
-      memoryService.addMemoryItem(
-        "previous_interaction",
-        `User asked: ${messageText}`,
-        ["user_message"]
-      );
-      
-      // Try to extract conversation context from user message
-      if (settings.memory.rememberConversationContext && messageText.length > 50) {
-        memoryService.addMemoryItem(
-          "conversation_context",
-          `Topic discussed: ${messageText.substring(0, 100)}...`,
-          ["topic"]
-        );
-      }
-    }
-
-    // Append memory context to the message if available
-    const memoryContext = memoryService.generateMemoryContext();
-    let messageWithContext = messageText;
-    
-    if (memoryContext) {
-      // Add memory context with a visual separator
-      messageWithContext = `${messageText}\n\n[MEMORY CONTEXT (HIDDEN FROM USER)]\n${memoryContext}\n[END MEMORY CONTEXT]`;
-    }
-
     append({
       role: "user",
-      content: messageWithContext,
+      content: messageText,
     });
 
     if (copiedContent) {
