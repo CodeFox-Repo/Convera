@@ -2,6 +2,8 @@
  * Predefined MCP Servers
  * Contains a list of installable MCP servers
  */
+import path from "path";
+import * as os from "os";
 import { PredefinedMCPServer } from "./types";
 
 /**
@@ -9,6 +11,26 @@ import { PredefinedMCPServer } from "./types";
  * Used to provide installable MCP server options
  */
 export const PREDEFINED_SERVERS: PredefinedMCPServer[] = [
+  {
+    id: "Memory-MCP",
+    name: "Talk To Memory MCP",
+    repoUrl:
+      "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+    description: "A MCP server that allows agents to use Memory",
+    logoUrl: "/icons/Memory-logo.png",
+    defaultConfig: {
+      name: "Memory MCP",
+      enabled: true,
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-memory"],
+      env: {
+        MEMORY_FILE_PATH: "/Users/allenz/.foxychat/memory.json",
+      },
+      description: "Connect to Memory via MCP",
+    },
+    installInstructions:
+      "Ensure Memory is installed and bunx is set up with the MCP package.",
+  },
   {
     id: "Dev-MCP",
     name: "Development Tools MCP",
