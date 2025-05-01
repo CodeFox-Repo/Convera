@@ -13,11 +13,17 @@ export default function ModelSelector({
 }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [supportedModels, setSupportedModels] = useState<string[]>([]);
+  const [currentModel, setCurrentModel] = useState(selectedModel);
 
   useEffect(() => {
     const settings = getSettings();
     setSupportedModels(settings.openai.supportedModels || []);
   }, []);
+
+  // Update internal state when prop changes
+  useEffect(() => {
+    setCurrentModel(selectedModel);
+  }, [selectedModel]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -39,10 +45,40 @@ export default function ModelSelector({
     return modelId.split("/").pop() || modelId;
   };
 
+  const handleModelSelect = (model: string) => {
+    setCurrentModel(model);
+    onSelectModel(model);
+    localStorage.setItem("selectedModelId", model);
+
+    // Try to communicate with opener window if it exists
+    if (window.opener) {
+      try {
+        window.opener.dispatchEvent(
+          new CustomEvent("model-selected", {
+            detail: { modelId: model },
+          })
+        );
+      } catch (error) {
+        console.error("Error communicating with opener window:", error);
+      }
+    }
+
+    // Use IPC if available
+    if (window.electronAPI) {
+      try {
+        window.electronAPI.modelSelected(model);
+        window.electronAPI.toggleModelSelector();
+      } catch (error) {
+        console.error("Error using IPC for model selection:", error);
+      }
+    }
+
+    setIsOpen(false);
+  };
+
   const isPopover =
     window.location.hash === "#model-selector" ||
-    new URLSearchParams(window.location.search).get("view") ===
-      "model-selector";
+    new URLSearchParams(window.location.search).get("view") === "model-selector";
 
   if (isPopover) {
     return (
@@ -55,79 +91,14 @@ export default function ModelSelector({
             <button
               key={model}
               className={`hover:bg-primary/10 flex w-full items-center justify-between rounded px-2 py-1.5 text-xs ${
-                model === selectedModel
+                model === currentModel
                   ? "bg-primary/20 text-primary"
                   : "text-foreground"
               }`}
-              onClick={() => {
-                onSelectModel(model);
-
-                // Communicate with the opener window
-                if (window.opener) {
-                  try {
-                    console.log(
-                      "Sending model selection to opener window:",
-                      model,
-                    );
-                    // Try to dispatch a custom event to the opener window
-                    window.opener.dispatchEvent(
-                      new CustomEvent("model-selected", {
-                        detail: { modelId: model },
-                      }),
-                    );
-
-                    // Also try to save to localStorage as a fallback
-                    localStorage.setItem("selectedModelId", model);
-
-                    // Use direct IPC communication to ensure the event is received
-                    if (window.electronAPI) {
-                      console.log(
-                        "Using IPC to send model selection event:",
-                        model,
-                      );
-                      window.electronAPI.toggleModelSelector();
-
-                      try {
-                        window.electronAPI
-                          .modelSelected(model)
-                          .then(() => {
-                            console.log("Model selection IPC call successful");
-                          })
-                          .catch((err: Error) => {
-                            console.error("Error in IPC model selection:", err);
-                          });
-                      } catch (ipcError) {
-                        console.error(
-                          "Failed to call IPC modelSelected:",
-                          ipcError,
-                        );
-                      }
-                    }
-                  } catch (error) {
-                    console.error(
-                      "Error communicating with opener window:",
-                      error,
-                    );
-                  }
-                } else {
-                  console.warn("No opener window found, using IPC directly");
-                  // Try IPC even if opener is not available
-                  if (window.electronAPI) {
-                    try {
-                      window.electronAPI.modelSelected(model);
-                      window.electronAPI.toggleModelSelector();
-                    } catch (err) {
-                      console.error(
-                        "Error using IPC for model selection:",
-                        err,
-                      );
-                    }
-                  }
-                }
-              }}
+              onClick={() => handleModelSelect(model)}
             >
               <span>{formatModelName(model)}</span>
-              {model === selectedModel && <Check size={12} />}
+              {model === currentModel && <Check size={12} />}
             </button>
           ))}
         </div>
@@ -153,18 +124,13 @@ export default function ModelSelector({
                 const absY = Math.round(winY + rect.bottom - 200);
 
                 console.log(
-                  `Model selector button position: window(${winX},${winY}) + local(${rect.left},${rect.bottom}) = abs(${absX},${absY})`,
+                  `Model selector button position: window(${winX},${winY}) + local(${rect.left},${rect.bottom}) = abs(${absX},${absY})`
                 );
 
                 const width = 200;
                 const height = 250;
 
-                window.electronAPI.toggleModelSelector(
-                  absX,
-                  absY,
-                  width,
-                  height,
-                );
+                window.electronAPI.toggleModelSelector(absX, absY, width, height);
               })
               .catch((err: Error) => {
                 console.error("Failed to get window position:", err);
@@ -175,30 +141,27 @@ export default function ModelSelector({
           }
         }}
       >
-        {formatModelName(selectedModel)}
+        {formatModelName(currentModel)}
         <ChevronDown
           size={12}
           className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
-      {isOpen && supportedModels.length > 0 && (
+      {isOpen && !window.electronAPI && (
         <div className="border-border bg-background absolute top-full left-0 z-10 mt-1 w-40 rounded-md border p-1 shadow-lg">
           {supportedModels.map((model) => (
             <button
               key={model}
               className={`hover:bg-primary/10 flex w-full items-center justify-between rounded px-2 py-1.5 text-xs ${
-                model === selectedModel
+                model === currentModel
                   ? "bg-primary/20 text-primary"
                   : "text-foreground"
               }`}
-              onClick={() => {
-                onSelectModel(model);
-                setIsOpen(false);
-              }}
+              onClick={() => handleModelSelect(model)}
             >
               <span>{formatModelName(model)}</span>
-              {model === selectedModel && <Check size={12} />}
+              {model === currentModel && <Check size={12} />}
             </button>
           ))}
         </div>
