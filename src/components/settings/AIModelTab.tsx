@@ -12,6 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { AppSettings } from "@/types/settings";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type AIModelTabProps = {
   settings: AppSettings;
@@ -66,17 +73,25 @@ export function AIModelTab({
           <Label htmlFor="modelId" className="text-foreground">
             Model ID
           </Label>
-          <Input
-            id="modelId"
+          <Select
             value={settings.openai.modelId}
-            onChange={(e) => onOpenAIChange("modelId", e.target.value)}
-            placeholder="gpt-4o"
-            className="border-input bg-background text-foreground"
-          />
+            onValueChange={(value) => onOpenAIChange("modelId", value)}
+          >
+            <SelectTrigger className="border-input bg-background text-foreground w-full">
+              <SelectValue placeholder="Select a model" />
+            </SelectTrigger>
+            <SelectContent className="w-full">
+              {settings.openai.supportedModels.map((model) => (
+                <SelectItem key={model} value={model}>
+                  {model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Supported Models list */}
-        <div className="mt-6">
+        <div>
           <Label>Supported Models</Label>
           <div className="mt-2 flex flex-wrap gap-2">
             {settings.openai.supportedModels.map((model) => (
