@@ -5,7 +5,7 @@
  * that can be used within the chat interface.
  */
 
-import { CoreMessage, streamText, ToolSet } from "ai";
+import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 import { getMCPToolsForChat } from "../mcp";
@@ -14,6 +14,7 @@ import { codefoxTools } from "../mcp/dev-mcp/tools";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import { saveChat } from "../service/chat";
 
 // Define a path for agents configuration file
 const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
@@ -402,13 +403,14 @@ export const openRouterHeaders = {
  * @returns Stream response
  */
 export async function processChatRequest(
-  messages: CoreMessage[],
+  messages: Message[],
   apiKey: string,
   options: {
     agentId?: string;
     modelId?: string;
     endpoint?: string;
     config?: AppSettings;
+    id?: string;
   } = {},
 ) {
   // Get all MCP tools
@@ -460,6 +462,18 @@ export async function processChatRequest(
     headers: openRouterHeaders,
     tools,
     maxSteps: 25,
+    onFinish: async (response) => {
+      console.log("responsehahaha:", response);
+      if (options.id) {
+        await saveChat({
+          id: options.id,
+          messages: appendResponseMessages({
+            messages,
+            responseMessages: response.response.messages,
+          }),
+        });
+      }
+    },
   });
 
   return result.toDataStreamResponse();
@@ -473,15 +487,17 @@ export async function processChatRequest(
  * @returns Stream response
  */
 export async function processAgentChat(
-  messages: CoreMessage[],
+  messages: Message[],
   apiKey: string,
-  options?: AgentChatOptions,
+  options: AgentChatOptions,
   endpoint?: string,
+  id?: string,
 ) {
   return processChatRequest(messages, apiKey, {
     agentId: options?.agentId,
     modelId: options?.modelId,
     endpoint,
+    id,
   });
 }
 
