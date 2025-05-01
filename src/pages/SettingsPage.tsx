@@ -68,6 +68,41 @@ export default function SettingsPage() {
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
 
+  // Add effect to listen for model selection changes
+  useEffect(() => {
+    const handleModelSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.modelId) {
+        const newModelId = customEvent.detail.modelId;
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: newModelId,
+        };
+        const updated = updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedModelId" && event.newValue) {
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: event.newValue,
+        };
+        const updated = updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    window.addEventListener("model-selected", handleModelSelected);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("model-selected", handleModelSelected);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [settings.openai]);
+
   useEffect(() => {
     setSettings(getSettings());
     fetchMcpMarketplace();
