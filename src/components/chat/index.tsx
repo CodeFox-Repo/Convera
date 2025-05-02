@@ -8,6 +8,7 @@ import { useChat } from "@ai-sdk/react";
 import { getSettings } from "@/utils/settings";
 import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
+import { ChatData } from "@/server/service/chat";
 
 /**
  * Agent interface definition
@@ -38,7 +39,7 @@ interface CompactChatViewProps {
   onAgentSelect?: (agent: Agent | null) => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
-  onLoadChatHistory?: (chat: any) => void;
+  onLoadChatHistory?: (chat: ChatData) => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
   onOpenSettings: () => void;
@@ -133,7 +134,7 @@ interface ExpandedChatViewProps {
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
-  onLoadChatHistory?: (chat: any) => void;
+  onLoadChatHistory?: (chat: ChatData) => void;
   onOpenSettings: () => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
@@ -672,8 +673,8 @@ export default function Chat() {
     };
   }, []);
   
-  // Handle loading a chat history - simplified version
-  const handleLoadChatHistory = (chatHistory: any) => {
+  // Handle loading a chat history
+  const handleLoadChatHistory = (chatHistory: ChatData) => {
     console.log("Loading chat history in Chat component:", chatHistory);
     
     if (chatHistory && chatHistory.messages && chatHistory.messages.length > 0) {
@@ -683,7 +684,7 @@ export default function Chat() {
       // Add a small delay before setting new messages
       setTimeout(() => {
         // Simple direct update approach with fallback IDs
-        const formattedMessages = chatHistory.messages.map((msg: any) => ({
+        const formattedMessages = chatHistory.messages.map((msg) => ({
           id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           content: msg.content,
           role: msg.role,
@@ -693,11 +694,6 @@ export default function Chat() {
         
         // Set messages directly
         setMessages(formattedMessages);
-        
-        // Update model if needed
-        if (chatHistory.model) {
-          setSelectedModelId(chatHistory.model);
-        }
         
         // Force a resize after a short delay
         setTimeout(() => {

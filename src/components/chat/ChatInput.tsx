@@ -19,25 +19,7 @@ import {
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import TiptapEditor, { TiptapEditorRef } from "@/components/editor";
-
-// Add interface for chat message type
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: string;
-}
-
-// Add interface for loaded chat history
-interface ChatHistory {
-  id: string;
-  title: string;
-  date: string;
-  created_at: string;
-  updated_at: string;
-  model: string;
-  messages: ChatMessage[];
-}
+import { ChatData } from "@/server/service/chat";
 
 interface Agent {
   id: string;
@@ -64,8 +46,8 @@ interface ChatInputProps {
   placeholder?: string;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
-  // Add new prop for loading chat history
-  onLoadChatHistory?: (chat: ChatHistory) => void;
+  // Updated prop for loading chat history using ChatData
+  onLoadChatHistory?: (chat: ChatData) => void;
 }
 
 export interface ChatInputRef {
