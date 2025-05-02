@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Trash2, MessageSquare, ArrowLeft, X } from "lucide-react";
+import { Search, Trash2, MessageSquare, ArrowLeft, X, RefreshCw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 
 // Interface for chat data
@@ -22,35 +22,74 @@ const ChatHistoryPage: React.FC = () => {
   const [chatHistory, setChatHistory] = useState<ChatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
   
-  // Fetch chat history from the backend
+  // Function to fetch chat history
+  const fetchChatHistory = async () => {
+    try {
+      setRefreshing(true);
+      const response = await fetch('http://localhost:38000/api/chats');
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setChatHistory(data.chats);
+        setError(null);
+      } else {
+        setError("Failed to load chat history");
+      }
+    } catch (err) {
+      console.error("Error fetching chat history:", err);
+      setError("Error connecting to server");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+  
+  // Fetch on initial load
   useEffect(() => {
-    const fetchChatHistory = async () => {
-      try {
-        const response = await fetch('http://localhost:38000/api/chats');
-        const data = await response.json();
-        
-        if (data.status === "success") {
-          setChatHistory(data.chats);
-        } else {
-          setError("Failed to load chat history");
-        }
-      } catch (err) {
-        console.error("Error fetching chat history:", err);
-        setError("Error connecting to server");
-      } finally {
-        setLoading(false);
+    fetchChatHistory();
+    
+    // Add event listeners for window focus and visibility
+    const handleFocus = () => {
+      console.log("Window focused, refreshing chat history");
+      fetchChatHistory();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Window visible, refreshing chat history");
+        fetchChatHistory();
       }
     };
     
-    fetchChatHistory();
+    // Listen for when the window gets focus
+    window.addEventListener('focus', handleFocus);
+    
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Custom event for Electron window show
+    window.addEventListener('window-show', handleFocus);
+    
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('window-show', handleFocus);
+    };
   }, []);
   
   // Filter chats based on search query
   const filteredHistory = chatHistory.filter((chat) =>
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  // Handle refreshing chat list manually
+  const handleRefresh = () => {
+    fetchChatHistory();
+  };
   
   // Handle selecting a chat
   const handleSelectChat = async (chatId: string) => {
@@ -161,6 +200,14 @@ const ChatHistoryPage: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-semibold">Chat History</h1>
+          <button 
+            onClick={handleRefresh}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            aria-label="Refresh chat history"
+            disabled={refreshing}
+          >
+            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+          </button>
         </div>
         <button 
           onClick={handleCloseHistory}
@@ -183,16 +230,16 @@ const ChatHistoryPage: React.FC = () => {
       </div>
       
       <div className="flex-1 overflow-y-auto pr-2">
-        {loading ? (
+        {loading && chatHistory.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p>Loading chat history...</p>
           </div>
-        ) : error ? (
+        ) : error && chatHistory.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <p className="text-red-500 mb-2">{error}</p>
             <button 
               className="px-4 py-2 bg-primary text-white rounded-md"
-              onClick={() => window.location.reload()}
+              onClick={handleRefresh}
             >
               Retry
             </button>
