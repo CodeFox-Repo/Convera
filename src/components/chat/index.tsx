@@ -713,26 +713,6 @@ export default function Chat() {
     }
   };
 
-  // Handle opening chat history window
-  const handleOpenChatHistory = () => {
-    console.log("Opening chat history window");
-    try {
-      if (window.electronAPI) {
-        window.electronAPI.openHistoryWindow()
-          .then(() => {
-            console.log("Chat history window opened successfully");
-          })
-          .catch((error: Error) => {
-            console.error("Error opening chat history window:", error);
-          });
-      } else {
-        console.error("electronAPI is not available for opening history window");
-      }
-    } catch (error) {
-      console.error("Error opening chat history window:", error);
-    }
-  };
-
   // Handle new history creation
   const handleNewHistory = () => {
     console.log("Create new history clicked");

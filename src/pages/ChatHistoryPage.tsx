@@ -115,7 +115,7 @@ const ChatHistoryPage: React.FC = () => {
 
           // If we have the Electron API, try to close the window
           if (window.electronAPI) {
-            window.electronAPI.closeHistoryWindow();
+            window.electronAPI.toggleHistoryWindow();
           }
         } catch (error) {
           console.error("Error dispatching chat selection event:", error);
@@ -156,18 +156,18 @@ const ChatHistoryPage: React.FC = () => {
     try {
       if (window.electronAPI) {
         console.log("Closing history window...");
-        window.electronAPI.closeHistoryWindow()
+        window.electronAPI.toggleHistoryWindow()
           .then(() => {
-            console.log("History window closed successfully");
+            console.log("History window toggled successfully");
           })
           .catch((error: Error) => {
-            console.error("Error closing history window:", error);
+            console.error("Error toggling history window:", error);
           });
       } else {
         console.error("electronAPI is not available!");
       }
     } catch (error: unknown) {
-      console.error("Error closing history window:", error);
+      console.error("Error toggling history window:", error);
     }
   };
   

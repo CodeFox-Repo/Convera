@@ -24,8 +24,7 @@ import {
   getClipboardText,
   pasteModifiedContent,
   getCurrentWindowSize,
-  openHistoryWindow,
-  closeHistoryWindow,
+  toggleWindow,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { WindowSizeConfig } from "../windows/window-size";
@@ -134,12 +133,12 @@ export default function registerListeners(
 
   ipcMain.handle(CHANNELS.HISTORY.OPEN, () => {
     console.log("Handling HISTORY.OPEN");
-    openHistoryWindow(options.historyWindow, options.createHistoryWindow);
+    toggleWindow(options.historyWindow, options.createHistoryWindow);
   });
 
   ipcMain.handle(CHANNELS.HISTORY.CLOSE, () => {
     console.log("Handling HISTORY.CLOSE");
-    closeHistoryWindow(options.historyWindow);
+    toggleWindow(options.historyWindow);
   });
 
   ipcMain.handle(

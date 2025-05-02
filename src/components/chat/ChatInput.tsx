@@ -262,18 +262,18 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const openChatHistoryWindow = () => {
       try {
         if (window.electronAPI) {
-          window.electronAPI.openHistoryWindow()
+          window.electronAPI.toggleHistoryWindow()
             .then(() => {
-              console.log("Chat history window opened successfully");
+              console.log("Chat history window toggled successfully");
             })
             .catch((error: Error) => {
-              console.error("Error opening chat history window:", error);
+              console.error("Error toggling chat history window:", error);
             });
         } else {
           console.error("electronAPI is not available");
         }
       } catch (error: unknown) {
-        console.error("Error opening chat history window:", error);
+        console.error("Error toggling chat history window:", error);
       }
     };
 

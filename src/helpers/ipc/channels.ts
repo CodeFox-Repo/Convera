@@ -5,8 +5,7 @@ export interface IPCServer {
   closeSettingsWindow(): void;
   updateGlobalShortcut(shortcut: string): boolean;
   initGlobalShortcut(shortcut: string): boolean;
-  openHistoryWindow(): void;
-  closeHistoryWindow(): void;
+  toggleHistoryWindow(): void;
 
   getPreviousApp(): string;
   getClipboardText(): string;
@@ -106,8 +105,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   updateGlobalShortcut: CHANNELS.SETTINGS.UPDATE_SHORTCUT,
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
   // History
-  openHistoryWindow: CHANNELS.HISTORY.OPEN,
-  closeHistoryWindow: CHANNELS.HISTORY.CLOSE,
+  toggleHistoryWindow: CHANNELS.HISTORY.OPEN,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
