@@ -227,6 +227,46 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
+    // Track if we've already expanded the window
+    const [hasExpandedForContent, setHasExpandedForContent] = useState(false);
+    
+    // Monitor content length and expand window once when it exceeds threshold
+    useEffect(() => {
+      // Skip if we've already expanded or if no content
+      if (hasExpandedForContent || !editorContent || !window.electronAPI) return;
+      
+      const textLength = editorContent.length;
+      
+      // Only expand once when text exceeds threshold
+      if (textLength > 100) {
+        window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+          .then((res) => {
+            // Calculate appropriate height based on content
+            const expandedHeight = Math.min(
+              WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400,
+              Math.max(WINDOW_SIZE_PRESETS.MAIN.minHeight, 250) // Expand to at least 250px
+            );
+            
+            // Only resize if current height is significantly smaller
+            if (expandedHeight > res.height + 50) {
+              console.log(`One-time resize for content: ${res.height}px → ${expandedHeight}px`);
+              window.electronAPI.resizeMessageContent(res.width, expandedHeight);
+              
+              // Mark that we've expanded this input session
+              setHasExpandedForContent(true);
+            }
+          })
+          .catch(err => console.error("Failed to resize for content:", err));
+      }
+    }, [editorContent, hasExpandedForContent]);
+    
+    // Reset expansion tracking when content is cleared
+    useEffect(() => {
+      if (editorContent === "" && hasExpandedForContent) {
+        setHasExpandedForContent(false);
+      }
+    }, [editorContent, hasExpandedForContent]);
+
     // Only set the initial window size once on component mount
     useEffect(() => {
       // Only run this effect once on mount
