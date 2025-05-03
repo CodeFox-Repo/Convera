@@ -11,6 +11,7 @@ export interface IElectronAPI {
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
   // History
   toggleHistoryWindow: () => Promise<void>;
+  getPlatform: () => string;
   // App
   getPreviousApp: () => Promise<string>;
   getClipboardText: () => Promise<string>;

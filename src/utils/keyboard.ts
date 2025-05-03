@@ -72,9 +72,11 @@ export function useGlobalShortcuts() {
     // Handle keyboard shortcuts
     const handleKeyDown = (event: KeyboardEvent) => {
       console.log(`Key pressed: ${event.key}, metaKey: ${event.metaKey}`);
+      console.log(`Key pressed: ${event.key}, ctrlKey: ${event.ctrlKey}`);
 
-      // Command+. (period) or Command+, (comma) to open settings
-      if (event.metaKey && (event.key === "." || event.key === ",")) {
+      // Command+. (period) or Command+, (comma) or Control+E to open settings
+      if ((event.metaKey && (event.key === "." || event.key === ",")) || 
+          (event.ctrlKey && (event.key === "." || event.key === "," || event.key.toLowerCase() === "e"))) {
         event.preventDefault();
         console.log(
           "Settings shortcut triggered, calling window.electronAPI.toggleSettingsWindow()",
