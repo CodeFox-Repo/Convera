@@ -239,8 +239,8 @@
     display: flex;
     flex-direction: column;
     min-height: 10px;
-    max-height: 80px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     width: 100%;
   }
 
@@ -254,7 +254,7 @@
     line-height: 1.5;
     word-break: break-word;
     overflow-y: auto;
-    max-height: 70px;
+    max-height: none;
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
   }

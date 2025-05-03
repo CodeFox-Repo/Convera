@@ -31,6 +31,7 @@ export const WINDOW_SIZE_PRESETS = {
     minWidth: 500,
     minHeight: 90,
     maxWidth: 800,
+    maxHeight: 400,
   },
   EXPANDED_CHAT: {
     widthProportion: 0.3,

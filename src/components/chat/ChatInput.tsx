@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import TiptapEditor, { TiptapEditorRef } from "@/components/editor";
+import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 
 interface Agent {
   id: string;
@@ -226,6 +227,39 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
+    // Resize window based on content length
+    useEffect(() => {
+      if (!editorContent || !window.electronAPI) return;
+      
+      // Only resize if we have a reasonable amount of text
+      const textLength = editorContent.length;
+      
+      if (textLength > 100) {
+        window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+          .then((res) => {
+            // Simple formula: base height + extra height based on text length
+            const baseHeight = 150;
+            const extraHeight = Math.floor(textLength / 5);
+            
+            // Calculate new height while respecting min/max constraints from presets
+            const newHeight = Math.min(
+              WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400, // Use preset maxHeight or default to 400
+              Math.max(
+                WINDOW_SIZE_PRESETS.MAIN.minHeight, // Never go below minHeight
+                baseHeight + extraHeight
+              )
+            ); 
+            
+            // Only resize if the change is significant
+            if (Math.abs(newHeight - res.height) > 30) {
+              console.log(`Resizing window to ${newHeight}px (limited by preset constraints)`);
+              window.electronAPI.resizeMessageContent(res.width, newHeight);
+            }
+          })
+          .catch(err => console.error("Failed to resize window:", err));
+      }
+    }, [editorContent]);
+
     // Handle form submission
     const handleSubmit = () => {
       if (onSendMessage && !isLoading && editorContent.trim()) {
@@ -240,7 +274,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
-            <div className="drag-region mb-2 w-full flex-1">
+            <div className="drag-region mb-2 w-full flex-1 overflow-y-auto">
               <TiptapEditor
                 ref={editorRef}
                 content={input}
