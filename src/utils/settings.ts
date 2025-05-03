@@ -25,13 +25,13 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
   {
     id: "activate",
     name: "Activate App",
-    shortcut: "Control+Space",
+    shortcut: "Control+Shift+Space",
     enabled: true,
   },
   {
     id: "open_settings",
     name: "Open Settings",
-    shortcut: "Command+.",
+    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+E" : "Control+E",
     enabled: true,
   },
 ];

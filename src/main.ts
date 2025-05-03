@@ -30,13 +30,16 @@ import { calculateWindowDimensions } from "./helpers/windows/utils";
 
 import { clipboard } from "electron";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require("robotjs"); // do not change this line
+const robot = require("@hurdlegroup/robotjs"); // do not change this line
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { activeWindowSync } = process.platform === "win32" ? require("get-windows") : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
-const currentActivateShortcut = "Control+Space";
+const currentActivateShortcut =
+process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;
@@ -56,18 +59,26 @@ function simulateClipboardCopy(): Promise<void> {
     try {
       console.log("Using RobotJS to simulate copy command");
 
-      if (process.platform === "darwin") {
-        // For macOS, use Command+C
-        robot.keyTap("c", "command");
-      } else {
-        // For Windows/Linux, use Control+C
-        robot.keyTap("c", "control");
-      }
-
-      // Add a delay to ensure clipboard has been updated
+      // Release modifier keys first to prevent conflicts
+      robot.keyToggle("shift", "up");
+      robot.keyToggle("control", "up");
+      robot.keyToggle("alt", "up");
+      
+      // Small delay to ensure modifiers are released
       setTimeout(() => {
-        resolve();
-      }, 100); // Slightly longer delay to ensure clipboard has been updated
+        if (process.platform === "darwin") {
+          // For macOS, use Command+C
+          robot.keyTap("c", "command");
+        } else {
+          // For Windows/Linux, use Control+C
+          robot.keyTap("c", "control");
+        }
+
+        // Add a delay to ensure clipboard has been updated
+        setTimeout(() => {
+          resolve();
+        }, 100); // Slightly longer delay to ensure clipboard has been updated
+      }, 50);
     } catch (error) {
       console.error("Error simulating copy command with RobotJS:", error);
       // Even if it fails, we'll resolve to allow the app to continue
@@ -205,10 +216,10 @@ function preCreateModelSelectorWindow() {
   return modelSelectorWindow;
 }
 
-// Start background app tracking only on macOS
+// Start background app tracking on macOS and Windows
 function startAppFocusTracking() {
-  // Only run on macOS and only start once
-  if (process.platform !== "darwin" || trackingAppFocus) {
+  // Only run on supported platforms and only start once
+  if ((process.platform !== "darwin" && process.platform !== "win32") || trackingAppFocus) {
     return;
   }
 
@@ -224,21 +235,41 @@ function startAppFocusTracking() {
       return;
     }
 
-    // Use a simpler, faster script just to get the name and store it
-    const script =
-      'tell application "System Events" to get name of first application process whose frontmost is true';
-    exec(`osascript -e '${script}'`, (error, stdout) => {
-      if (!error && stdout) {
-        const appName = stdout.trim();
+    if (process.platform === "darwin") {
+      // macOS implementation
+      const script =
+        'tell application "System Events" to get name of first application process whose frontmost is true';
+      exec(`osascript -e '${script}'`, (error, stdout) => {
+        if (!error && stdout) {
+          const appName = stdout.trim();
 
-        // Ignore self-referential applications
-        const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
-        if (appName && !ignoreList.some((name) => appName.includes(name))) {
-          setPreviousApp(appName);
+          // Ignore self-referential applications
+          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          if (appName && !ignoreList.some((name) => appName.includes(name))) {
+            setPreviousApp(appName);
+          }
         }
+      });
+    } else if (process.platform === "win32") {
+      // Windows implementation using get-windows package
+      try {
+        const activeWindow = activeWindowSync();
+        if (activeWindow && activeWindow.owner) {
+          const appName = activeWindow.owner.name;
+          const appId = activeWindow.owner.processId;
+          // console.log(`Detected active application: ${appName}`);
+          
+          // Ignore self-referential applications
+          const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
+          if (appName && !ignoreList.some((name) => appName.toLowerCase().includes(name.toLowerCase()))) {
+            setPreviousApp(appName, appId);
+          }
+        }
+      } catch (error) {
+        console.error("Error using get-windows:", error);
       }
-    });
-  }, 200);
+    }
+  }, 500);
 }
 
 function registerGlobalShortcuts() {
@@ -393,7 +424,6 @@ function createMainWindow() {
 
 function preCreateSettingsWindow() {
   if (settingsWindow) return settingsWindow;
-
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
@@ -493,9 +523,6 @@ function preCreateSettingsWindow() {
 
   settingsWindow.once("ready-to-show", () => {
     if (settingsWindow) {
-      console.log("Settings window ready, but kept hidden");
-
-
     }
   });
 

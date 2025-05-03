@@ -4,7 +4,10 @@ import { CHANNELS } from "./helpers/ipc/channels";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
 // expose electronAPI to renderer process
-contextBridge.exposeInMainWorld("electronAPI", createElectronAPI(ipcRenderer));
+contextBridge.exposeInMainWorld("electronAPI", {
+  ...createElectronAPI(ipcRenderer),
+  getPlatform: () => process.platform,
+});
 
 // Listen for the custom event to relay agent list updates via IPC
 window.addEventListener("agent-list-updated-ipc", () => {
