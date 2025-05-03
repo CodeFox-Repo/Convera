@@ -4,6 +4,7 @@ import React, {
   useRef,
   useState,
   useEffect,
+  useCallback,
 } from "react";
 import {
   Send,
@@ -220,43 +221,29 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     // Handle editor content change
     const handleEditorChange = (content: string) => {
       setInput(content);
-      console.log("handleEditorChange", content);
       // Get the text content from the editor for enabling/disabling the send button
       if (editorRef.current) {
         setEditorContent(editorRef.current.getText());
       }
     };
 
-    // Resize window based on content length
+    // Only set the initial window size once on component mount
     useEffect(() => {
-      if (!editorContent || !window.electronAPI) return;
-      
-      // Only resize if we have a reasonable amount of text
-      const textLength = editorContent.length;
-      
-      if (textLength > 100) {
+      // Only run this effect once on mount
+      if (window.electronAPI) {
+        // Ensure window has enough height for the editor
         window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
           .then((res) => {
-            const extraHeight = Math.floor(textLength / 5);
-            
-            // Calculate new height while respecting min/max constraints from presets
-            const newHeight = Math.min(
-              WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400, // Use preset maxHeight or default to 400
-              Math.max(
-                WINDOW_SIZE_PRESETS.MAIN.minHeight, // Never go below minHeight
-                res.height + extraHeight // Add to current height instead of using a fixed base
-              )
-            );
-            
-            // Only resize if the change is significant
-            if (Math.abs(newHeight - res.height) > 30) {
-              console.log(`Resizing window from ${res.height}px to ${newHeight}px`);
-              window.electronAPI.resizeMessageContent(res.width, newHeight);
+            // Ensure we have at least the minimum height defined in presets
+            const minHeight = WINDOW_SIZE_PRESETS.MAIN.minHeight;
+            if (res.height < minHeight) {
+              window.electronAPI.resizeMessageContent(res.width, minHeight);
+              console.log(`Initial resize to ensure minimum height: ${minHeight}px`);
             }
           })
-          .catch(err => console.error("Failed to resize window:", err));
+          .catch(err => console.error("Failed to set initial window size:", err));
       }
-    }, [editorContent]);
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     // Handle form submission
     const handleSubmit = () => {
