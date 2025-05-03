@@ -237,8 +237,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       if (textLength > 100) {
         window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
           .then((res) => {
-            // Simple formula: base height + extra height based on text length
-            const baseHeight = 150;
             const extraHeight = Math.floor(textLength / 5);
             
             // Calculate new height while respecting min/max constraints from presets
@@ -246,13 +244,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400, // Use preset maxHeight or default to 400
               Math.max(
                 WINDOW_SIZE_PRESETS.MAIN.minHeight, // Never go below minHeight
-                baseHeight + extraHeight
+                res.height + extraHeight // Add to current height instead of using a fixed base
               )
-            ); 
+            );
             
             // Only resize if the change is significant
             if (Math.abs(newHeight - res.height) > 30) {
-              console.log(`Resizing window to ${newHeight}px (limited by preset constraints)`);
+              console.log(`Resizing window from ${res.height}px to ${newHeight}px`);
               window.electronAPI.resizeMessageContent(res.width, newHeight);
             }
           })
