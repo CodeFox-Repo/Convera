@@ -36,16 +36,18 @@ export function AIModelTab({
 }: AIModelTabProps) {
   const [newModelInput, setNewModelInput] = useState("");
   const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // 动态拉取 OpenRouter 模型
   useEffect(() => {
     fetchOpenRouterModels()
       .then((models) => {
-        setOfficialModels(models);
+        // 按字母顺序排序模型
+        setOfficialModels([...models].sort());
       })
       .catch(() => {
         // 拉取失败时用静态列表兜底
-        setOfficialModels(OFFICIAL_MODELS);
+        setOfficialModels([...OFFICIAL_MODELS].sort());
       });
   }, []);
 
@@ -55,6 +57,13 @@ export function AIModelTab({
       m.toLowerCase().includes(newModelInput.toLowerCase()) &&
       !settings.openai.supportedModels.includes(m)
   );
+
+  // 获取可用模型列表
+  const getAvailableModels = () => {
+    return officialModels.filter(
+      (m) => !settings.openai.supportedModels.includes(m)
+    );
+  };
 
   // 封装添加模型的逻辑
   const handleAddModel = (model: string) => {
@@ -79,6 +88,9 @@ export function AIModelTab({
     localStorage.setItem("supportedModels", JSON.stringify(newModels));
     window.dispatchEvent(new Event("supportedModels-updated"));
   };
+
+  // 可用模型列表
+  const availableModels = getAvailableModels();
 
   return (
     <Card className="bg-card text-foreground border-none">
@@ -165,6 +177,11 @@ export function AIModelTab({
                 className="w-full border px-2 py-1 rounded"
                 value={newModelInput}
                 onChange={(e) => setNewModelInput(e.target.value)}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={(e) => {
+                  // 延迟关闭下拉菜单，以便可以点击选项
+                  setTimeout(() => setShowDropdown(false), 200);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newModelInput.trim()) {
                     handleAddModel(newModelInput.trim());
@@ -173,20 +190,33 @@ export function AIModelTab({
                 }}
                 autoComplete="off"
               />
-              {newModelInput && filteredModels.length > 0 && (
+              {showDropdown && (
                 <ul className="absolute z-10 mt-1 w-full bg-background border rounded shadow max-h-40 overflow-auto">
-                  {filteredModels.map((model) => (
-                    <li
-                      key={model}
-                      className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
-                      onClick={() => {
-                        handleAddModel(model);
-                        setNewModelInput("");
-                      }}
-                    >
-                      {model}
-                    </li>
-                  ))}
+                  {newModelInput
+                    ? filteredModels.map((model) => (
+                        <li
+                          key={model}
+                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
+                          onClick={() => {
+                            handleAddModel(model);
+                            setNewModelInput("");
+                          }}
+                        >
+                          {model}
+                        </li>
+                      ))
+                    : availableModels.map((model) => (
+                        <li
+                          key={model}
+                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
+                          onClick={() => {
+                            handleAddModel(model);
+                            setNewModelInput("");
+                          }}
+                        >
+                          {model}
+                        </li>
+                      ))}
                 </ul>
               )}
             </div>
