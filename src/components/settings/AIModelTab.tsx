@@ -113,9 +113,9 @@ export function AIModelTab({
           </Select>
         </div>
 
-        {/* Supported Models list */}
+        {/*  New Models list */}
         <div>
-          <Label>Supported Models</Label>
+          <Label>Add New Models</Label>
           <div className="mt-2 flex flex-wrap gap-2">
             {settings.openai.supportedModels.map((model) => (
               <Badge
