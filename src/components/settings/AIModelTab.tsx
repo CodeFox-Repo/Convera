@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { OFFICIAL_MODELS, fetchOpenRouterModels } from "@/constants/officialModels";
 
 type AIModelTabProps = {
   settings: AppSettings;
@@ -33,6 +34,28 @@ export function AIModelTab({
   onAddSupportedModel,
   onRemoveSupportedModel,
 }: AIModelTabProps) {
+  const [newModelInput, setNewModelInput] = useState("");
+  const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
+
+  // 动态拉取 OpenRouter 模型
+  useEffect(() => {
+    fetchOpenRouterModels()
+      .then((models) => {
+        setOfficialModels(models);
+      })
+      .catch(() => {
+        // 拉取失败时用静态列表兜底
+        setOfficialModels(OFFICIAL_MODELS);
+      });
+  }, []);
+
+  // 过滤下拉
+  const filteredModels = officialModels.filter(
+    (m) =>
+      m.toLowerCase().includes(newModelInput.toLowerCase()) &&
+      !settings.openai.supportedModels.includes(m)
+  );
+
   return (
     <Card className="bg-card text-foreground border-none">
       <CardHeader>
@@ -110,25 +133,45 @@ export function AIModelTab({
             ))}
           </div>
           <div className="mt-3 flex gap-2">
-            <Input
-              id="new-model"
-              name="new-model"
-              placeholder="Add a new model ID"
-              className="flex-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onAddSupportedModel((e.target as HTMLInputElement).value);
-                  (e.target as HTMLInputElement).value = "";
-                }
-              }}
-            />
+            <div className="relative flex-1">
+              <input
+                id="new-model"
+                name="new-model"
+                placeholder="Add a new model ID"
+                className="w-full border px-2 py-1 rounded"
+                value={newModelInput}
+                onChange={(e) => setNewModelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newModelInput.trim()) {
+                    onAddSupportedModel(newModelInput.trim());
+                    setNewModelInput("");
+                  }
+                }}
+                autoComplete="off"
+              />
+              {newModelInput && filteredModels.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full bg-background border rounded shadow max-h-40 overflow-auto">
+                  {filteredModels.map((model) => (
+                    <li
+                      key={model}
+                      className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
+                      onClick={() => {
+                        onAddSupportedModel(model);
+                        setNewModelInput("");
+                      }}
+                    >
+                      {model}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <Button
               onClick={() => {
-                const input = document.getElementById(
-                  "new-model"
-                ) as HTMLInputElement;
-                onAddSupportedModel(input.value);
-                input.value = "";
+                if (newModelInput.trim()) {
+                  onAddSupportedModel(newModelInput.trim());
+                  setNewModelInput("");
+                }
               }}
             >
               Add
