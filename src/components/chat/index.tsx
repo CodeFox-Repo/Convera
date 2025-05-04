@@ -310,6 +310,10 @@ export default function Chat() {
   
   // View mode state
   const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
+  
+  // Add protection against unwanted mode changes during resize
+  const isResizingRef = useRef<boolean>(false);
+  const lastModeChangeTimeRef = useRef<number>(0);
 
   // Add state to explicitly track if clipboard height should be added
   const [shouldAddClipboardHeight, setShouldAddClipboardHeight] = useState(false);
@@ -379,10 +383,24 @@ export default function Chat() {
     };
   }, [shouldAddClipboardHeight, messages.length]);
 
-  // Modify toggleViewMode to track expansion state
+  // Modify toggleViewMode to track expansion state with protection against frequent changes
   const toggleViewMode = useCallback(
     (mode: "compact" | "expanded") => {
+      // Prevent toggling view mode if we're currently resizing or toggled recently
+      if (isResizingRef.current || Date.now() - lastModeChangeTimeRef.current < 1000) {
+        console.log("Ignoring view mode change request during resize operation");
+        return;
+      }
+      
+      // Don't toggle if already in the requested mode
+      if (mode === viewMode) {
+        return;
+      }
+      
+      console.log(`Toggling view mode: ${viewMode} -> ${mode}`);
       setViewMode(mode);
+      lastModeChangeTimeRef.current = Date.now();
+      isResizingRef.current = true;
 
       requestAnimationFrame(() => {
         if (typeof window !== "undefined" && window.electronAPI) {
@@ -393,15 +411,34 @@ export default function Chat() {
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
               .then((res) => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
+                window.electronAPI.resizeMessageContent(res.width, res.height)
+                  .then(() => {
+                    // Reset resize flag after a short delay
+                    setTimeout(() => {
+                      isResizingRef.current = false;
+                    }, 500);
+                  });
+              })
+              .catch(() => {
+                isResizingRef.current = false;
               });
           } else if (mode === "compact") {
-            window.electronAPI.toggleViewMode(false);
+            window.electronAPI.toggleViewMode(false)
+              .then(() => {
+                setTimeout(() => {
+                  isResizingRef.current = false;
+                }, 500);
+              })
+              .catch(() => {
+                isResizingRef.current = false;
+              });
+          } else {
+            isResizingRef.current = false;
           }
         }
       });
     },
-    [hasExpandedOnce],
+    [hasExpandedOnce, viewMode],
   );
 
   // Listen for clipboard changes

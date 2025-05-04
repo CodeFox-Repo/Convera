@@ -289,10 +289,10 @@ export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
       );
     }
 
-    return true;
+    return Promise.resolve(true);
   } catch (error) {
     console.error("Error toggling view mode:", error);
-    return false;
+    return Promise.reject(error);
   }
 }
 // ========== WINDOW SIZE HANDLERS ==========

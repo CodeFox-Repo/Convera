@@ -227,38 +227,80 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
-    // Track if we've already expanded the window
+    // Track resize status to prevent conflicts
     const [hasExpandedForContent, setHasExpandedForContent] = useState(false);
+    const lastResizeTimeRef = useRef<number>(0);
+    const isResizingRef = useRef<boolean>(false);
+    
+    // Check if we're already in expanded chat mode (messages exist)
+    const isInExpandedMode = hasMessages === true;
     
     // Monitor content length and expand window once when it exceeds threshold
     useEffect(() => {
-      // Skip if we've already expanded or if no content
-      if (hasExpandedForContent || !editorContent || !window.electronAPI) return;
+      // Skip if:
+      // - already expanded for content
+      // - no content
+      // - no electronAPI
+      // - in expanded mode (has messages)
+      // - recently resized (prevent rapid changes)
+      if (
+        hasExpandedForContent || 
+        !editorContent || 
+        !window.electronAPI ||
+        isInExpandedMode ||
+        isResizingRef.current ||
+        Date.now() - lastResizeTimeRef.current < 1000
+      ) return;
       
       const textLength = editorContent.length;
       
       // Only expand once when text exceeds threshold
       if (textLength > 100) {
+        isResizingRef.current = true;
+        
         window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
           .then((res) => {
-            // Calculate appropriate height based on content
-            const expandedHeight = Math.min(
-              WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400,
-              Math.max(WINDOW_SIZE_PRESETS.MAIN.minHeight, 250) // Expand to at least 250px
-            );
-            
-            // Only resize if current height is significantly smaller
-            if (expandedHeight > res.height + 50) {
-              console.log(`One-time resize for content: ${res.height}px → ${expandedHeight}px`);
-              window.electronAPI.resizeMessageContent(res.width, expandedHeight);
+            // Only proceed if we're still in compact mode
+            if (!isInExpandedMode) {
+              // Calculate a fixed target height (don't vary with content length)
+              const targetHeight = Math.min(
+                WINDOW_SIZE_PRESETS.MAIN.maxHeight || 400,
+                250 // Fixed height target
+              );
               
-              // Mark that we've expanded this input session
-              setHasExpandedForContent(true);
+              // Only resize if current height is significantly smaller
+              if (targetHeight > res.height + 50) {
+                console.log(`One-time resize for content: ${res.height}px → ${targetHeight}px`);
+                
+                // Set timestamp to prevent future resize attempts
+                lastResizeTimeRef.current = Date.now();
+                
+                // Add a slight delay before resizing
+                setTimeout(() => {
+                  window.electronAPI.resizeMessageContent(res.width, targetHeight)
+                    .then(() => {
+                      // Mark that we've expanded this input session
+                      setHasExpandedForContent(true);
+                      
+                      // Reset resize flag after a delay
+                      setTimeout(() => {
+                        isResizingRef.current = false;
+                      }, 500);
+                    });
+                }, 100);
+              } else {
+                isResizingRef.current = false;
+              }
+            } else {
+              isResizingRef.current = false;
             }
           })
-          .catch(err => console.error("Failed to resize for content:", err));
+          .catch(err => {
+            console.error("Failed to resize for content:", err);
+            isResizingRef.current = false;
+          });
       }
-    }, [editorContent, hasExpandedForContent]);
+    }, [editorContent, hasExpandedForContent, isInExpandedMode]);
     
     // Reset expansion tracking when content is cleared
     useEffect(() => {
@@ -269,8 +311,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Only set the initial window size once on component mount
     useEffect(() => {
-      // Only run this effect once on mount
-      if (window.electronAPI) {
+      // Only run this effect once on mount and only in compact mode
+      if (window.electronAPI && !isInExpandedMode) {
         // Ensure window has enough height for the editor
         window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
           .then((res) => {
@@ -283,7 +325,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           })
           .catch(err => console.error("Failed to set initial window size:", err));
       }
-    }, []); // Empty dependency array ensures this runs only once on mount
+    }, [isInExpandedMode]); // Depend on isInExpandedMode to prevent running in expanded mode
 
     // Handle form submission
     const handleSubmit = () => {
@@ -299,7 +341,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
-            <div className="drag-region mb-2 w-full flex-1 overflow-y-auto">
+            <div className={`drag-region mb-2 w-full flex-1 overflow-y-auto ${isInExpandedMode ? 'max-h-[150px]' : ''}`}>
               <TiptapEditor
                 ref={editorRef}
                 content={input}
