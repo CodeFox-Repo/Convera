@@ -56,6 +56,30 @@ export function AIModelTab({
       !settings.openai.supportedModels.includes(m)
   );
 
+  // 封装添加模型的逻辑
+  const handleAddModel = (model: string) => {
+    if (!model.trim()) return;
+    
+    // 调用父组件的添加方法
+    onAddSupportedModel(model);
+    
+    // 更新 localStorage 并触发事件
+    const newModels = [...settings.openai.supportedModels, model];
+    localStorage.setItem("supportedModels", JSON.stringify(newModels));
+    window.dispatchEvent(new Event("supportedModels-updated"));
+  };
+
+  // 封装删除模型的逻辑
+  const handleRemoveModel = (model: string) => {
+    // 调用父组件的删除方法
+    onRemoveSupportedModel(model);
+    
+    // 更新 localStorage 并触发事件
+    const newModels = settings.openai.supportedModels.filter(m => m !== model);
+    localStorage.setItem("supportedModels", JSON.stringify(newModels));
+    window.dispatchEvent(new Event("supportedModels-updated"));
+  };
+
   return (
     <Card className="bg-card text-foreground border-none">
       <CardHeader>
@@ -113,7 +137,7 @@ export function AIModelTab({
           </Select>
         </div>
 
-        {/*  New Models list */}
+        {/* Add New Models */}
         <div>
           <Label>Add New Models</Label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -125,7 +149,7 @@ export function AIModelTab({
                 {model}
                 <button
                   className="hover:bg-destructive/20 ml-1 rounded-full"
-                  onClick={() => onRemoveSupportedModel(model)}
+                  onClick={() => handleRemoveModel(model)}
                 >
                   <X size={14} />
                 </button>
@@ -143,7 +167,7 @@ export function AIModelTab({
                 onChange={(e) => setNewModelInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newModelInput.trim()) {
-                    onAddSupportedModel(newModelInput.trim());
+                    handleAddModel(newModelInput.trim());
                     setNewModelInput("");
                   }
                 }}
@@ -156,7 +180,7 @@ export function AIModelTab({
                       key={model}
                       className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
                       onClick={() => {
-                        onAddSupportedModel(model);
+                        handleAddModel(model);
                         setNewModelInput("");
                       }}
                     >
@@ -169,7 +193,7 @@ export function AIModelTab({
             <Button
               onClick={() => {
                 if (newModelInput.trim()) {
-                  onAddSupportedModel(newModelInput.trim());
+                  handleAddModel(newModelInput.trim());
                   setNewModelInput("");
                 }
               }}
