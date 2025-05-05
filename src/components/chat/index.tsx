@@ -698,7 +698,7 @@ export default function Chat() {
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
               .then((res) => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
+                window.electronAPI.resizeMessageContent(res.width, res.height, true);
               })
               .catch(error => {
                 console.error("Error resizing window:", error);
