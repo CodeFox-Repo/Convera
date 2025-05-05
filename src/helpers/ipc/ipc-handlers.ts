@@ -149,9 +149,10 @@ export function resizeMessageContent(
   mainWindow: BrowserWindow | null,
   width: number,
   height: number,
+  preserveX: boolean = false, // Default to false for backward compatibility
 ): void {
   if (mainWindow) {
-    resizeWindowAndMaintainPosition(mainWindow, width, height);
+    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
   }
 }
 
