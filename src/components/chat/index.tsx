@@ -394,14 +394,10 @@ export default function Chat() {
       requestAnimationFrame(() => {
         if (typeof window !== "undefined" && window.electronAPI) {
           if (mode === "expanded" && !hasExpandedOnce) {
+            // First, toggle resizable mode
             window.electronAPI.toggleViewMode(true);
             setHasExpandedOnce(true);
             
-            window.electronAPI
-              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
-              .then((res) => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
-              });
           } else if (mode === "compact") {
             window.electronAPI.toggleViewMode(false);
           }
