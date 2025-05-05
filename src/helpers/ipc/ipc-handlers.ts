@@ -10,8 +10,10 @@ import { exec } from "child_process";
 import { WindowSizeConfig } from "../windows/window-size";
 import { calculateWindowDimensions } from "../windows/utils";
 
-let currentActivateShortcut = "Control+Space";
+let currentActivateShortcut =
+  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
 let previousAppName = "";
+let previousAppId = 0;
 
 // ========== APP HANDLERS ==========
 
@@ -19,13 +21,21 @@ export function getPreviousApp(): string {
   return previousAppName;
 }
 
-export function setPreviousApp(appName: string): void {
-  if (appName !== previousAppName) {
+export function getPreviousAppID(): number {
+  return previousAppId;
+}
+
+export function setPreviousApp(appName: string, appId?: number): void {
+  if (appName !== previousAppName || (appId !== undefined && appId !== previousAppId)) {
     previousAppName = appName;
+    
+    if (appId !== undefined) {
+      previousAppId = appId;
+    }
 
     BrowserWindow.getAllWindows().forEach((win) => {
       if (!win.isDestroyed()) {
-        win.webContents.send(CHANNELS.APP.APP_CHANGED, appName);
+        win.webContents.send(CHANNELS.APP.APP_CHANGED, appName, previousAppId);
       }
     });
   }
@@ -324,7 +334,7 @@ export function setInputText(
 export function simulateClipboardPaste(): void {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const robot = require("robotjs");
+    const robot = require("@hurdlegroup/robotjs");
 
     // Write to clipboard first
     if (process.platform === "darwin") {
@@ -349,8 +359,9 @@ export function pasteModifiedContent(content: string): void {
     // Save content to clipboard
     clipboard.writeText(content);
 
-    // Get the previous app name
+    // Get the previous app name and ID
     const prevApp = getPreviousApp();
+    const prevAppId = getPreviousAppID();
 
     if (prevApp) {
       // Activate the previous app
@@ -370,6 +381,51 @@ export function pasteModifiedContent(content: string): void {
             }, 500);
           },
         );
+      } else if (process.platform === "win32" && prevAppId) {
+        // For Windows, use node-window-manager
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { windowManager, Window } = require("node-window-manager");
+          
+          // Get all windows
+          const windows = windowManager.getWindows();
+          
+          // Find the target window
+          const targetWindow = windows.find((w: any) => {
+            // Try to match by process ID first (most reliable)
+            if (prevAppId && w.processId === prevAppId) {
+              return true;
+            }
+            
+            // Fall back to title matching
+            const title = w.getTitle();
+            return title && title.includes(prevApp);
+          });
+
+          if (targetWindow) {
+            console.log(`Found window for ${prevApp}, activating...`);
+            
+            // Restore if minimized
+            if (!targetWindow.isVisible()) {
+              targetWindow.restore();
+            }
+            
+            // Bring window to top (activate it)
+            targetWindow.bringToTop();
+            
+            // Wait a moment for the window to activate, then paste
+            setTimeout(() => {
+              simulateClipboardPaste();
+            }, 300);
+          } else {
+            console.warn(`Window for "${prevApp}" not found; pasting anyway`);
+            simulateClipboardPaste();
+          }
+        } catch (error) {
+          console.error("Error using window-manager:", error);
+          // Fallback to just pasting
+          simulateClipboardPaste();
+        }
       } else {
         // For other platforms, just simulate paste (without app switching)
         simulateClipboardPaste();

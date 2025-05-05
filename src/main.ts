@@ -27,16 +27,22 @@ import "./global.css";
 import { setMainWindowResizable } from "./helpers/windows/window-resize";
 import { calculateWindowDimensions } from "./helpers/windows/utils";
 
-
 import { clipboard } from "electron";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require("robotjs"); // do not change this line
+const robot = require("@hurdlegroup/robotjs"); // do not change this line
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { activeWindowSync } =
+  process.platform === "win32"
+    ? require("get-windows")
+    : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
+let historyWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
-const currentActivateShortcut = "Control+Space";
+const currentActivateShortcut =
+  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
 // Separate background process for tracking focused appss
 let trackingAppFocus = false;
@@ -56,18 +62,26 @@ function simulateClipboardCopy(): Promise<void> {
     try {
       console.log("Using RobotJS to simulate copy command");
 
-      if (process.platform === "darwin") {
-        // For macOS, use Command+C
-        robot.keyTap("c", "command");
-      } else {
-        // For Windows/Linux, use Control+C
-        robot.keyTap("c", "control");
-      }
+      // Release modifier keys first to prevent conflicts
+      robot.keyToggle("shift", "up");
+      robot.keyToggle("control", "up");
+      robot.keyToggle("alt", "up");
 
-      // Add a delay to ensure clipboard has been updated
+      // Small delay to ensure modifiers are released
       setTimeout(() => {
-        resolve();
-      }, 100); // Slightly longer delay to ensure clipboard has been updated
+        if (process.platform === "darwin") {
+          // For macOS, use Command+C
+          robot.keyTap("c", "command");
+        } else {
+          // For Windows/Linux, use Control+C
+          robot.keyTap("c", "control");
+        }
+
+        // Add a delay to ensure clipboard has been updated
+        setTimeout(() => {
+          resolve();
+        }, 100); // Slightly longer delay to ensure clipboard has been updated
+      }, 50);
     } catch (error) {
       console.error("Error simulating copy command with RobotJS:", error);
       // Even if it fails, we'll resolve to allow the app to continue
@@ -205,10 +219,136 @@ function preCreateModelSelectorWindow() {
   return modelSelectorWindow;
 }
 
-// Start background app tracking only on macOS
+// Pre-create history window
+function preCreateHistoryWindow() {
+  if (historyWindow) return historyWindow;
+
+  console.log("Pre-creating history window");
+  const preload = path.join(__dirname, "preload.js");
+
+  // Calculate window dimensions using the utility
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS, // Reuse settings size for now
+    undefined,
+    true,
+    true,
+  );
+
+  historyWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
+    webPreferences: {
+      devTools: inDevelopment,
+      contextIsolation: true,
+      nodeIntegration: true,
+      nodeIntegrationInSubFrames: false,
+      preload: preload,
+    },
+    parent: mainWindow || undefined,
+    modal: false,
+    show: false,
+    titleBarStyle: "hiddenInset",
+    transparent: true,
+    frame: false,
+    visualEffectState: "active",
+    thickFrame: false,
+    autoHideMenuBar: true,
+    hasShadow: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    roundedCorners: true,
+    vibrancy: "fullscreen-ui",
+  });
+
+  // For macOS, explicitly hide the traffic light buttons
+  if (historyWindow && process.platform === "darwin") {
+    historyWindow.setWindowButtonVisibility(false);
+  }
+
+  // Enforce fixed dimensions
+  historyWindow.on("will-resize", (event) => {
+    // Prevent resizing by canceling the event
+    event.preventDefault();
+  });
+
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    console.log(
+      "Loading main URL in history window:",
+      MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    );
+    historyWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    const mainPath = path.join(
+      __dirname,
+      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+    );
+    console.log("Loading main path in history window:", mainPath);
+    historyWindow.loadFile(mainPath);
+  }
+
+  historyWindow.webContents.on("did-finish-load", () => {
+    console.log(
+      "Main page loaded in history window, redirecting to history...",
+    );
+
+    historyWindow?.webContents
+      .executeJavaScript(
+        `
+      console.log("Redirecting to history page...");
+      
+      if (window.router) {
+        console.log("Using router API");
+        window.router.navigate({ to: "/history" });
+      } else {
+        console.log("Using location.hash");
+        window.location.hash = "/history";
+      }
+    `,
+      )
+      .catch((err) => {
+        console.error("Failed to execute navigation script:", err);
+      });
+  });
+
+  historyWindow.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription) => {
+      console.error(
+        "History window failed to load:",
+        errorCode,
+        errorDescription,
+      );
+    },
+  );
+
+  historyWindow.once("ready-to-show", () => {
+    if (historyWindow) {
+      console.log("History window ready, but kept hidden");
+
+      if (inDevelopment) {
+        historyWindow.webContents.openDevTools({ mode: "detach" });
+      }
+    }
+  });
+
+  historyWindow.on("closed", () => {
+    console.log("History window closed");
+    historyWindow = null;
+  });
+
+  return historyWindow;
+}
+
+// Start background app tracking on macOS and Windows
 function startAppFocusTracking() {
-  // Only run on macOS and only start once
-  if (process.platform !== "darwin" || trackingAppFocus) {
+  // Only run on supported platforms and only start once
+  if (
+    (process.platform !== "darwin" && process.platform !== "win32") ||
+    trackingAppFocus
+  ) {
     return;
   }
 
@@ -224,21 +364,46 @@ function startAppFocusTracking() {
       return;
     }
 
-    // Use a simpler, faster script just to get the name and store it
-    const script =
-      'tell application "System Events" to get name of first application process whose frontmost is true';
-    exec(`osascript -e '${script}'`, (error, stdout) => {
-      if (!error && stdout) {
-        const appName = stdout.trim();
+    if (process.platform === "darwin") {
+      // macOS implementation
+      const script =
+        'tell application "System Events" to get name of first application process whose frontmost is true';
+      exec(`osascript -e '${script}'`, (error, stdout) => {
+        if (!error && stdout) {
+          const appName = stdout.trim();
 
-        // Ignore self-referential applications
-        const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
-        if (appName && !ignoreList.some((name) => appName.includes(name))) {
-          setPreviousApp(appName);
+          // Ignore self-referential applications
+          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          if (appName && !ignoreList.some((name) => appName.includes(name))) {
+            setPreviousApp(appName);
+          }
         }
+      });
+    } else if (process.platform === "win32") {
+      // Windows implementation using get-windows package
+      try {
+        const activeWindow = activeWindowSync();
+        if (activeWindow && activeWindow.owner) {
+          const appName = activeWindow.owner.name;
+          const appId = activeWindow.owner.processId;
+          // console.log(`Detected active application: ${appName}`);
+
+          // Ignore self-referential applications
+          const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
+          if (
+            appName &&
+            !ignoreList.some((name) =>
+              appName.toLowerCase().includes(name.toLowerCase()),
+            )
+          ) {
+            setPreviousApp(appName, appId);
+          }
+        }
+      } catch (error) {
+        console.error("Error using get-windows:", error);
       }
-    });
-  }, 200);
+    }
+  }, 500);
 }
 
 function registerGlobalShortcuts() {
@@ -270,7 +435,7 @@ function registerGlobalShortcuts() {
       } else {
         toggleMainWindowVisibility(mainWindow);
       }
-      
+
       if (mainWindow && mainWindow.isVisible()) {
         setTimeout(() => {
           console.log("Setting input text with selected text from clipboard");
@@ -362,7 +527,7 @@ function createMainWindow() {
         );
 
         console.log("Main window ready, position set, keeping hidden.");
-        
+
         setWindowHidden(mainWindow);
       }
     });
@@ -375,7 +540,7 @@ function createMainWindow() {
   mainWindow?.on("closed", () => {
     mainWindow = null;
   });
-  
+
   const mainProcessOptions: ListenerOptions = {
     createSettingsWindow,
     settingsWindow,
@@ -384,16 +549,17 @@ function createMainWindow() {
     agentPopoverWindow,
     createModelSelectorWindow,
     modelSelectorWindow,
+    createHistoryWindow,
+    historyWindow,
   };
   console.log("Registering listeners: ", mainProcessOptions);
   registerListeners(mainWindow, mainProcessOptions);
-  
+
   return mainWindow;
 }
 
 function preCreateSettingsWindow() {
   if (settingsWindow) return settingsWindow;
-
   console.log("Pre-creating settings window");
   const preload = path.join(__dirname, "preload.js");
 
@@ -494,8 +660,6 @@ function preCreateSettingsWindow() {
   settingsWindow.once("ready-to-show", () => {
     if (settingsWindow) {
       console.log("Settings window ready, but kept hidden");
-
-
     }
   });
 
@@ -515,7 +679,7 @@ function createSettingsWindow() {
   if (settingsWindow) {
     settingsWindow.show();
     settingsWindow.focus();
-  } 
+  }
 }
 
 async function installExtensions() {
@@ -563,15 +727,33 @@ app.whenReady().then(async () => {
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
-    
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
-    preCreateModelSelectorWindow();
-    setupScreenResizeHandlers();
+    preCreateModelSelectorWindow(); // Pre-create model selector window
+    preCreateHistoryWindow(); // Pre-create history window
+    setupScreenResizeHandlers(); // Setup screen resize handlers
     createMainWindow();
 
+    const mainProcessOptions: ListenerOptions = {
+      createSettingsWindow,
+      settingsWindow,
+      registerGlobalShortcuts,
+      createAgentPopoverWindow,
+      agentPopoverWindow,
+      createModelSelectorWindow,
+      modelSelectorWindow,
+      createHistoryWindow,
+      historyWindow,
+    };
+
+    // Register IPC listeners if main window exists
+    if (mainWindow) {
+      registerListeners(mainWindow, mainProcessOptions);
+    }
+
+    // On macOS, recreate the window when dock icon is clicked
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     });
@@ -679,4 +861,15 @@ function handleModelSelectorUrlHash(window: BrowserWindow) {
       // Inject any specific styles or scripts if needed
     }
   });
+}
+
+function createHistoryWindow() {
+  if (!historyWindow) {
+    preCreateHistoryWindow();
+  }
+
+  if (historyWindow) {
+    historyWindow.show();
+    historyWindow.focus();
+  }
 }

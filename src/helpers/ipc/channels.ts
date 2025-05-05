@@ -5,8 +5,10 @@ export interface IPCServer {
   closeSettingsWindow(): void;
   updateGlobalShortcut(shortcut: string): boolean;
   initGlobalShortcut(shortcut: string): boolean;
+  toggleHistoryWindow(): void;
 
   getPreviousApp(): string;
+  getPreviousAppID(): number;
   getClipboardText(): string;
   setInputText(text: string): void;
   pasteModifiedContent(content: string): void;
@@ -56,8 +58,13 @@ export const CHANNELS = {
     UPDATE_SHORTCUT: "settings:update-shortcut",
     INIT_SHORTCUT: "settings:init-shortcut",
   },
+  HISTORY: {
+    OPEN: "history:open",
+    CLOSE: "history:close",
+  },
   APP: {
     GET_PREVIOUS: "app:get-previous",
+    GET_PREVIOUS_ID: "app:get-previous-id",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
@@ -99,8 +106,11 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   closeSettingsWindow: CHANNELS.SETTINGS.CLOSE,
   updateGlobalShortcut: CHANNELS.SETTINGS.UPDATE_SHORTCUT,
   initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
+  // History
+  toggleHistoryWindow: CHANNELS.HISTORY.OPEN,
   // App
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputText: CHANNELS.APP.SET_INPUT_TEXT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,

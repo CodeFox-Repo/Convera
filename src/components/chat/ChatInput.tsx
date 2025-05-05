@@ -15,11 +15,13 @@ import {
   Monitor,
   Bot,
   Square,
+  History,
   Settings,
 } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 import TiptapEditor, { TiptapEditorRef } from "@/components/editor";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
+import { ChatData } from "@/server/service/chat";
 
 interface Agent {
   id: string;
@@ -46,6 +48,8 @@ interface ChatInputProps {
   placeholder?: string;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
+  // Updated prop for loading chat history using ChatData
+  onLoadChatHistory?: (chat: ChatData) => void;
 }
 
 export interface ChatInputRef {
@@ -77,6 +81,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       placeholder = "Message FoxyChat...",
       selectedModelId,
       onModelSelect,
+      onLoadChatHistory,
     },
     ref,
   ) => {
@@ -100,6 +105,26 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         console.error("Error fetching previous app:", error);
       }
     };
+
+    // Listen for chat history selection from the history window
+    useEffect(() => {
+      // Create a handler for model selection events
+      const handleChatHistorySelected = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        if (customEvent.detail && customEvent.detail.chat && onLoadChatHistory) {
+          console.log("Chat history selected:", customEvent.detail.chat);
+          onLoadChatHistory(customEvent.detail.chat);
+        }
+      };
+
+      // Add event listener
+      window.addEventListener("chat-history-selected", handleChatHistorySelected);
+
+      // Clean up on unmount
+      return () => {
+        window.removeEventListener("chat-history-selected", handleChatHistorySelected);
+      };
+    }, [onLoadChatHistory]);
 
     // Fetch previous app on component mount and setup event listener for app changes
     useEffect(() => {
@@ -334,6 +359,25 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
+    // Function to open chat history window
+    const openChatHistoryWindow = () => {
+      try {
+        if (window.electronAPI) {
+          window.electronAPI.toggleHistoryWindow()
+            .then(() => {
+              console.log("Chat history window toggled successfully");
+            })
+            .catch((error: Error) => {
+              console.error("Error toggling chat history window:", error);
+            });
+        } else {
+          console.error("electronAPI is not available");
+        }
+      } catch (error: unknown) {
+        console.error("Error toggling chat history window:", error);
+      }
+    };
+
     return (
       <div className="drag-region h-full p-1">
         <div className="h-full  w-full">
@@ -368,6 +412,15 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   className="no-drag-region text-foreground/70 hover:text-foreground"
                 >
                   <RotateCcw size={20} />
+                </button>
+
+                {/* History button - updated to open separate window */}
+                <button
+                  onClick={openChatHistoryWindow}
+                  className="no-drag-region text-foreground/70 hover:text-foreground"
+                  title="View chat history"
+                >
+                  <History size={20} />
                 </button>
 
                 <button

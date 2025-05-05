@@ -8,7 +8,7 @@ sequenceDiagram
     participant FoxyFox as FoxyFox
 
     User->>ActiveApp: Working with application
-    User->>FoxyFox: Press Control+Space to activate
+    User->>FoxyFox: Press Control+Shift+Space to activate
     activate FoxyFox
     FoxyFox->>ActiveApp: Get current application context
     FoxyFox-->>User: Display chat interface
@@ -16,7 +16,7 @@ sequenceDiagram
     FoxyFox->>ActiveApp: Execute operation on active app
     ActiveApp-->>User: Operation results
     FoxyFox-->>User: Display results
-    User->>FoxyFox: Press Control+Space to hide
+    User->>FoxyFox: Press Control+Shift+Space to hide
     deactivate FoxyFox
     User->>ActiveApp: Continue working
 ```
@@ -26,7 +26,7 @@ sequenceDiagram
 1. **Activation Flow**:
 
    - User works with active application
-   - Presses global hotkey (Control+Space)
+   - Presses global hotkey (Control+Shift+Space)
    - ChatFox window appears and gains focus
 
 2. **Command Processing Flow**:
