@@ -15,9 +15,10 @@ export default function ModelSelector({
   const [supportedModels, setSupportedModels] = useState<string[]>([]);
   const [currentModel, setCurrentModel] = useState(selectedModel);
 
-  // 封装加载模型列表的逻辑
+  /**
+   * Load supported models from localStorage or settings
+   */
   const loadSupportedModels = () => {
-    // 优先从 localStorage 取
     try {
       const models = JSON.parse(localStorage.getItem("supportedModels") || "[]");
       if (models && models.length) {
@@ -28,23 +29,22 @@ export default function ModelSelector({
       console.error("Error loading models from localStorage:", error);
     }
     
-    // Fallback: 从 settings 取
     const settings = getSettings();
     setSupportedModels(settings.openai.supportedModels || []);
   };
 
-  // 初始加载模型列表
+  /**
+   * Initialize model list and set up event listeners for updates
+   */
   useEffect(() => {
     loadSupportedModels();
     
-    // 监听 localStorage 变化（跨 tab）
     const onStorage = (e: StorageEvent) => {
       if (e.key === "supportedModels") {
         loadSupportedModels();
       }
     };
     
-    // 监听自定义事件（同 tab）
     const onCustomEvent = () => {
       loadSupportedModels();
     };
@@ -63,6 +63,9 @@ export default function ModelSelector({
     setCurrentModel(selectedModel);
   }, [selectedModel]);
 
+  /**
+   * Handle clicks outside the dropdown to close it
+   */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -83,6 +86,9 @@ export default function ModelSelector({
     return modelId.split("/").pop() || modelId;
   };
 
+  /**
+   * Handle model selection and notify parent components
+   */
   const handleModelSelect = (model: string) => {
     setCurrentModel(model);
     onSelectModel(model);

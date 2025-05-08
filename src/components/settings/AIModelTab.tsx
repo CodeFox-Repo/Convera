@@ -38,58 +38,65 @@ export function AIModelTab({
   const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // 动态拉取 OpenRouter 模型
+  /**
+   * Fetch models from OpenRouter API and sort them alphabetically.
+   * Falls back to static model list if the fetch fails.
+   */
   useEffect(() => {
     fetchOpenRouterModels()
       .then((models) => {
-        // 按字母顺序排序模型
         setOfficialModels([...models].sort());
       })
       .catch(() => {
-        // 拉取失败时用静态列表兜底
         setOfficialModels([...OFFICIAL_MODELS].sort());
       });
   }, []);
 
-  // 过滤下拉
+  // Filter models based on input text and exclude already added models
   const filteredModels = officialModels.filter(
     (m) =>
       m.toLowerCase().includes(newModelInput.toLowerCase()) &&
       !settings.openai.supportedModels.includes(m)
   );
 
-  // 获取可用模型列表
+  // Get list of models that aren't already added
   const getAvailableModels = () => {
     return officialModels.filter(
       (m) => !settings.openai.supportedModels.includes(m)
     );
   };
 
-  // 封装添加模型的逻辑
+  /**
+   * Add a model to supported models list, update localStorage,
+   * and trigger events to notify other components
+   */
   const handleAddModel = (model: string) => {
     if (!model.trim()) return;
     
-    // 调用父组件的添加方法
     onAddSupportedModel(model);
     
-    // 更新 localStorage 并触发事件
     const newModels = [...settings.openai.supportedModels, model];
     localStorage.setItem("supportedModels", JSON.stringify(newModels));
     window.dispatchEvent(new Event("supportedModels-updated"));
+    
+    setTimeout(() => {
+      onOpenAIChange("modelId", model);
+    }, 0);
   };
 
-  // 封装删除模型的逻辑
+  /**
+   * Remove a model from supported models list, update localStorage,
+   * and trigger events to notify other components
+   */
   const handleRemoveModel = (model: string) => {
-    // 调用父组件的删除方法
     onRemoveSupportedModel(model);
     
-    // 更新 localStorage 并触发事件
     const newModels = settings.openai.supportedModels.filter(m => m !== model);
     localStorage.setItem("supportedModels", JSON.stringify(newModels));
     window.dispatchEvent(new Event("supportedModels-updated"));
   };
 
-  // 可用模型列表
+  // Available models list
   const availableModels = getAvailableModels();
 
   return (
@@ -137,7 +144,9 @@ export function AIModelTab({
             onValueChange={(value) => onOpenAIChange("modelId", value)}
           >
             <SelectTrigger className="border-input bg-background text-foreground w-full">
-              <SelectValue placeholder="Select a model" />
+              <SelectValue placeholder="Select a model">
+                {settings.openai.modelId}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent className="w-full">
               {settings.openai.supportedModels.map((model) => (
@@ -179,7 +188,7 @@ export function AIModelTab({
                 onChange={(e) => setNewModelInput(e.target.value)}
                 onFocus={() => setShowDropdown(true)}
                 onBlur={(e) => {
-                  // 延迟关闭下拉菜单，以便可以点击选项
+                  // Allow time for click events before closing dropdown
                   setTimeout(() => setShowDropdown(false), 200);
                 }}
                 onKeyDown={(e) => {
