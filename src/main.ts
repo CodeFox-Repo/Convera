@@ -482,7 +482,7 @@ function createMainWindow() {
       nodeIntegrationInSubFrames: false,
       preload: preload,
     },
-    vibrancy: "fullscreen-ui",
+    // vibrancy: "fullscreen-ui",
     titleBarStyle: "hiddenInset",
     transparent: true,
     frame: false,
@@ -500,6 +500,11 @@ function createMainWindow() {
 
   if (mainWindow && process.platform === "darwin") {
     mainWindow.setWindowButtonVisibility(false);
+    mainWindow.setBackgroundColor("#00000000");
+  } else if (process.platform === "win32") {
+    mainWindow.setBackgroundMaterial('acrylic')
+    mainWindow.setBackgroundColor("#00000000");
+  }else {
     mainWindow.setBackgroundColor("#00000000");
   }
 
