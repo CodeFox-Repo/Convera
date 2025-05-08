@@ -482,7 +482,7 @@ function createMainWindow() {
       nodeIntegrationInSubFrames: false,
       preload: preload,
     },
-    // vibrancy: "fullscreen-ui",
+    vibrancy: "fullscreen-ui",
     titleBarStyle: "hiddenInset",
     transparent: true,
     frame: false,
