@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { Message, UIMessage } from "ai";
-import { X, Plus } from "lucide-react";
+import { X, Plus, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ChatInput, { ChatInputRef } from "./ChatInput";
 import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
-import { getSettings } from "@/utils/settings";
+import { getSettings  } from "@/utils/settings";
 import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
 import { ChatData } from "@/server/service/chat";
+import { toast } from "sonner";
+import { parseApiError, GenericError } from "@/utils/errorHandler";
 
 /**
  * Agent interface definition
@@ -43,6 +45,7 @@ interface CompactChatViewProps {
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
   onOpenSettings: () => void;
+  error?: Error;
 }
 
 /**
@@ -96,8 +99,8 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
           onAgentSelect={onAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={onModelSelect}
-        onLoadChatHistory={onLoadChatHistory}
-        onOpenSettings={onOpenSettings}
+          onLoadChatHistory={onLoadChatHistory}
+          onOpenSettings={onOpenSettings}
         />
       </div>
     </div>
@@ -138,6 +141,7 @@ interface ExpandedChatViewProps {
   onOpenSettings: () => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
+  error?: Error;
 }
 
 /**
@@ -174,6 +178,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onOpenSettings,
   copiedContent,
   onRejectCopiedContent,
+  error,
 }) => {
   const buttonVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -244,6 +249,16 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
+        
+        {/* Add central error message display in the red rectangle area */}
+        {error && (
+          <div className="mx-auto w-[90%]  border-red-500 rounded-md p-4 text-center">
+            <p className="text-red-500 font-medium">
+              {error.message || "An error occurred. Please check your API key or try again later."}
+            </p>
+          </div>
+        )}
+        
         <div className="drag-region flex flex-col p-1">
           {/* Show copied content card above the input */}
           {copiedContent && (
@@ -271,9 +286,9 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               onAgentSelect={onAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
-            onOpenSettings={onOpenSettings}
+              onOpenSettings={onOpenSettings}
               placeholder="Message to FoxyChat..."
-            onLoadChatHistory={onLoadChatHistory}
+              onLoadChatHistory={onLoadChatHistory}
             />
           </div>
         </div>
@@ -331,16 +346,22 @@ export default function Chat() {
     reload,
     stop,
     append,
+    error,
   } = useChat({
     api: "http://localhost:38000/api/chat",
     headers: {
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${settings.openai.apiKey}`,
     },
     body: {
       config: settings,
       agentId: selectedAgent?.id,
       modelId: selectedModelId,
     },
+    onError: (error) => {
+      const parsedError = parseApiError(error as unknown as GenericError);
+      console.error("Chat API error:", parsedError);
+    }
   });
 
   // Add effect to determine when clipboard height should be added
@@ -835,6 +856,28 @@ export default function Chat() {
     }
   }, []);
 
+  // Add new effect to listen for settings changes, particularly API key updates
+  useEffect(() => {
+    const handleSettingsUpdate = (e: CustomEvent) => {
+      if (e.detail && e.detail.field === 'apiKey') {
+        console.log('API key updated, reloading chat component');
+        // Force reload of the component to pick up new auth headers
+        // Only force reload if there are no messages to avoid losing conversation
+        if (messages.length === 0) {
+          window.location.reload();
+        } else {
+          toast.info('Authentication updated. New chats will use the updated API key.');
+        }
+      }
+    };
+
+    window.addEventListener('settings-updated', handleSettingsUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('settings-updated', handleSettingsUpdate as EventListener);
+    };
+  }, [messages.length]);
+
   // Render the appropriate view based on the current view mode
   return (
     <div className="chat-window h-screen w-full overflow-hidden rounded-xl">
@@ -876,6 +919,7 @@ export default function Chat() {
           onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
+          error={error}
         />
       ) : (
         <CompactChatView
@@ -897,6 +941,7 @@ export default function Chat() {
           onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
+          error={error}
         />
       )}
     </div>

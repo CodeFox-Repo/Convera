@@ -42,6 +42,7 @@ export interface PredefinedMCPServer {
   name: string;
   repoUrl: string;
   description: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultConfig: any; // Matches MCPServerConfig from the backend
   logoUrl?: string;
   installInstructions?: string;
@@ -89,6 +90,7 @@ export interface MCPServer {
   logoUrl?: string;
   installInstructions?: string;
   isInstalled?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultConfig?: Record<string, any>;
 
   // Installation specific fields
