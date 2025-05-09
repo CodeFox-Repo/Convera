@@ -113,3 +113,19 @@
   animation: progress 3s ease-in-out infinite;
   width: 100%;
 }
+
+@keyframes soft-glow {
+  0% {
+    box-shadow: 0 0 3px 0px rgba(var(--primary), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 8px 1px rgba(var(--primary), 0.5);
+  }
+  100% {
+    box-shadow: 0 0 3px 0px rgba(var(--primary), 0.3);
+  }
+}
+
+.animate-soft-glow {
+  animation: soft-glow 3s ease-in-out infinite;
+}
