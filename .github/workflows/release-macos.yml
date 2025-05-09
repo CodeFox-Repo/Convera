@@ -36,8 +36,14 @@ jobs:
       - name: Make app distributable
         run: yarn make
 
-      # Upload the distributable as a release asset
-      - name: Upload Release Asset
+      # Get version from tag
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      # Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -45,4 +51,49 @@ jobs:
             out/make/**/*.zip
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update Homebrew formula
+      - name: Update Homebrew formula
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+        run: |
+          # Clone Homebrew repository
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/CodeFox-Repo/homebrew-codefox.git
+          cd homebrew-codefox
+          
+          # Create Formula directory if it doesn't exist
+          mkdir -p Formula
+          
+          # Get DMG URL and calculate SHA
+          DMG_URL="https://github.com/CodeFox-Repo/foxyfox/releases/download/v${VERSION}/FoxyFox-${VERSION}-arm64.dmg"
+          DMG_SHA=$(curl -sL "$DMG_URL" | shasum -a 256 | cut -d' ' -f1)
+          
+          # Create or update formula file
+          cat > Formula/foxyfox.rb << EOF
+          cask "foxyfox" do
+            version "${VERSION}"
+            sha256 "${DMG_SHA}"
+            
+            url "https://github.com/CodeFox-Repo/foxyfox/releases/download/v#{version}/FoxyFox-#{version}-arm64.dmg"
+            name "FoxyFox"
+            desc "All in one Chat App"
+            homepage "https://github.com/CodeFox-Repo/foxyfox"
+            
+            app "FoxyFox.app"
+            
+            zap trash: [
+              "~/Library/Application Support/FoxyFox",
+              "~/Library/Preferences/com.codefox-foxyfox.plist",
+              "~/Library/Saved Application State/com.codefox-foxyfox.savedState",
+              "~/Library/Logs/FoxyFox"
+            ]
+          end
+          EOF
+          
+          # Commit and push changes
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/foxyfox.rb
+          git commit -m "Update FoxyFox to version ${VERSION}"
+          git push 
