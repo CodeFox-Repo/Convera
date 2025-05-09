@@ -470,6 +470,7 @@ function createMainWindow() {
     `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
   );
 
+  if (process.platform === "darwin") {
   mainWindow = new BrowserWindow({
     width: dimensions.width,
     height: dimensions.height,
@@ -497,12 +498,39 @@ function createMainWindow() {
     show: false,
     alwaysOnTop: true,
   });
+} else {
+  mainWindow = new BrowserWindow({
+    width: dimensions.width,
+    height: dimensions.height,
+    x: dimensions.x,
+    y: dimensions.y,
+    webPreferences: {
+      devTools: inDevelopment,
+      contextIsolation: true,
+      nodeIntegration: true,
+      nodeIntegrationInSubFrames: false,
+      preload: preload,
+    },
+    vibrancy: "fullscreen-ui",
+    titleBarStyle: "hiddenInset",
+    frame: false,
+    visualEffectState: "active",
+    autoHideMenuBar: true,
+    hasShadow: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    roundedCorners: true,
+    show: false,
+    alwaysOnTop: true,
+  });
+}
 
   if (mainWindow && process.platform === "darwin") {
     mainWindow.setWindowButtonVisibility(false);
     mainWindow.setBackgroundColor("#00000000");
   } else if (process.platform === "win32") {
-    mainWindow.setBackgroundMaterial('acrylic')
+    mainWindow.setBackgroundMaterial('auto');
     mainWindow.setBackgroundColor("#00000000");
   }else {
     mainWindow.setBackgroundColor("#00000000");
