@@ -76,7 +76,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onOpenSettings,
       selectedAgent,
       onAgentSelect,
-      placeholder = "Message FoxyChat...",
+      placeholder = "Message FoxyFox...",
       selectedModelId,
       onModelSelect,
       onLoadChatHistory,
@@ -94,7 +94,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           const appName = await window.electronAPI.getPreviousApp();
 
           // Ignore self-referential applications
-          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          const ignoreList = ["Electron", "FoxyFox", "foxfoxy"];
           if (appName && !ignoreList.some((name) => appName.includes(name))) {
             setPreviousApp(appName);
           }
@@ -135,7 +135,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           (appName: string) => {
             if (appName) {
               // Use same filtering logic for events
-              const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+              const ignoreList = ["Electron", "FoxyFox", "foxfoxy"];
               if (!ignoreList.some((name) => appName.includes(name))) {
                 setPreviousApp(appName);
               }

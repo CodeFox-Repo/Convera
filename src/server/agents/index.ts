@@ -1,5 +1,5 @@
 /**
- * FoxyChat Agent System
+ * FoxyFox Agent System
  *
  * A system for creating and managing different AI agent personalities
  * that can be used within the chat interface.
@@ -17,7 +17,7 @@ import fs from "fs";
 import { saveChat } from "../service/chat";
 
 // Define a path for agents configuration file
-const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
+const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".FoxyFox", "agents.json");
 
 // Built-in predefined agents
 const builtInAgents: AgentDefinition[] = [
@@ -156,7 +156,7 @@ loadCustomAgents();
  */
 function loadCustomAgents(): void {
   try {
-    // Ensure the .foxychat directory exists
+    // Ensure the .FoxyFox directory exists
     const configDir = path.dirname(AGENTS_CONFIG_PATH);
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
@@ -392,7 +392,7 @@ For web searches, follow this process:
 // Configure HTTP headers for OpenRouter
 export const openRouterHeaders = {
   "HTTP-Referer": "http://localhost:38000", // Required for OpenRouter API
-  "X-Title": "FoxyChat",
+  "X-Title": "FoxyFox",
 };
 
 /**
@@ -503,7 +503,7 @@ export async function processAgentChat(
 
 /**
  * Save a custom agent by adding it to predefinedAgents.
- * Also persists to disk at ~/.foxychat/agents.json
+ * Also persists to disk at ~/.FoxyFox/agents.json
  */
 export async function saveCustomAgent(agent: AgentDefinition): Promise<void> {
   // Check if agent with this ID already exists

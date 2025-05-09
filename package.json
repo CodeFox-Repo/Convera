@@ -1,8 +1,8 @@
 {
-  "name": "codefox-foxychat",
-  "productName": "FoxyChat",
+  "name": "codefox-foxyfox",
+  "productName": "FoxyFox",
   "version": "0.0.1",
-  "description": "FoxyChat - All in one Chat App",
+  "description": "FoxyFox - All in one Chat App",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {

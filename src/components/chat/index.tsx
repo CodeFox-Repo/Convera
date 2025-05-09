@@ -287,7 +287,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
               onOpenSettings={onOpenSettings}
-              placeholder="Message to FoxyChat..."
+              placeholder="Message to FoxyFox..."
               onLoadChatHistory={onLoadChatHistory}
             />
           </div>

@@ -14,7 +14,7 @@ export const PREDEFINED_SERVERS: PredefinedMCPServer[] = [
     name: "Development Tools MCP",
     repoUrl: "internal",
     description:
-      "A MCP server that provides development tools from FoxyChat's integrated tools",
+      "A MCP server that provides development tools from FoxyFox's integrated tools",
     logoUrl: "/icons/dev-tools-logo.png",
     builtIn: true,
     defaultConfig: {
