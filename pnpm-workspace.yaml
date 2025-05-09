@@ -1,7 +1,8 @@
 packages:
   - 'app'
   - 'website'
-  - '!mcps/**'
+  - 'docs'
+  - 'mcps/**'
   - '!**/node_modules'
   - '!**/dist'
   - '!**/build' 
