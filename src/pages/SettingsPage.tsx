@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DragLayer } from "@/components/ui/drag-layer";
 import {
   AppSettings,
   McpMarketplaceItem,
-  PredefinedMCPServer,
-  InstalledMCPServer,
   MCPServer,
 } from "@/types/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
@@ -19,6 +16,7 @@ import { X, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { toggleTheme, getCurrentTheme } from "@/helpers/theme_helpers";
 import { ToolSet } from "ai";
+import { ErrorCode } from "@/utils/errorHandler";
 
 // Import our component tabs
 import { AIModelTab } from "@/components/settings/AIModelTab";
@@ -248,9 +246,43 @@ export default function SettingsPage() {
       ...settings.openai,
       [field]: value,
     };
+    
+    // Validate API key format if that's the field being changed
+    if (field === 'apiKey' && value.trim()) {
+      // Make sure it doesn't already have a Bearer prefix
+      if (value.startsWith('Bearer ')) {
+        toast.warning('Please enter the API key without "Bearer" prefix', {
+          id: ErrorCode.AUTH_INVALID_KEY
+        });
+        return;
+      }
+      
+      // For OpenRouter API keys, they typically have a specific format
+      // This is just a simple check, you might want to add more specific validation
+      if (updatedOpenAI.endpoint.includes('openrouter.ai') && !value.match(/^[a-zA-Z0-9_-]{10,}/)) {
+        toast.warning('This doesn\'t appear to be a valid API key format', {
+          id: ErrorCode.AUTH_INVALID_KEY
+        });
+        // Continue anyway, as it might be a valid format we don't recognize
+      }
+    }
+    
     const updated = updateOpenAISettings(updatedOpenAI);
     setSettings(updated);
-    toast.success("Settings saved");
+    
+    // Notify user that authentication will use this API key
+    if (field === 'apiKey') {
+      toast.success("API key saved. This will be used for authentication.", {
+        id: 'api-key-updated'
+      });
+    } else {
+      toast.success("Settings saved");
+    }
+    
+    // Dispatch an event so other components know the settings changed
+    window.dispatchEvent(new CustomEvent('settings-updated', { 
+      detail: { field, value } 
+    }));
   };
 
   const handleAddSupportedModel = (model: string) => {

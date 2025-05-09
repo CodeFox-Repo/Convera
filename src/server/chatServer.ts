@@ -2,7 +2,7 @@
 /**
  * Express server for handling chat API requests with OpenAI
  */
-import express, { Request, Response, RequestHandler } from "express";
+import express, { Request, Response, RequestHandler, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { AppSettings } from "@/types/settings";
@@ -27,6 +27,7 @@ import { ToolReference } from "./agents/types";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
 import { getChats, getChatById, deleteChat } from "./service/chat";
+import { standardErrors } from "@/utils/errorHandler";
 
 // Initialize dotenv
 dotenv.config();
@@ -39,13 +40,29 @@ const router = express.Router();
 app.use(express.json());
 app.use(cors());
 
-// Get API key from environment variable
-const DEFAULT_OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-if (!DEFAULT_OPENROUTER_API_KEY) {
-  console.warn(
-    "⚠️ OPENROUTER_API_KEY is not set in .env file. Chat functionality will need custom API key from frontend.",
-  );
-}
+// Updated authentication middleware using standardized error responses
+const authenticateRequest = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json(standardErrors.authFailed);
+  }
+  
+  // Extract token from header
+  const token = authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json(standardErrors.authFailed);
+  }
+  
+  // Store token in request for use in downstream handlers
+  (req as any).apiToken = token;
+  
+  next();
+};
+
+// Apply authentication to routes that need it
+app.use('/api/chat', authenticateRequest);
 
 app.post("/api/agents/create", (async (req: Request, res: Response) => {
   try {
@@ -142,12 +159,16 @@ router.post("/api/chat", async (req: Request, res: Response) => {
 
     console.log("message length:", messages.length, "id:", id);
 
-    const apiKey = DEFAULT_OPENROUTER_API_KEY;
+    // Use token from middleware
+    const apiKey = (req as any).apiToken;
 
     if (!apiKey) {
-      return res.status(400).json({
-        error: "No API key provided. Please set your API key in settings.",
-      });
+      return res.status(401).json(standardErrors.authFailed);
+    }
+
+    // Check if messages are empty
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json(standardErrors.emptyMessage);
     }
 
     // Set necessary headers for streaming
@@ -1062,7 +1083,7 @@ export function startChatServer() {
       `MCP marketplace endpoint: http://localhost:${PORT}/api/mcp/marketplace`,
     );
     console.log(
-      `OpenRouter API key configured: ${!!DEFAULT_OPENROUTER_API_KEY}`,
+      `API authentication required for chat endpoint`
     );
   });
 
@@ -1076,7 +1097,7 @@ export function startChatServer() {
 
 router.get("/api/tools", (req, res) => {
   try {
-    const tools = Object.keys(serverTools); // 获取工具名称数组
+    const tools = Object.keys(serverTools); 
     res.json({ tools });
   } catch (error) {
     console.error("Error fetching tools:", error);
