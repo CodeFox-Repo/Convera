@@ -1,4 +1,5 @@
 import React from 'react';
+import Logo, { LogoImage } from './Logo';
 
 const HeroImage: React.FC = () => {
   return (
@@ -44,9 +45,7 @@ const HeroImage: React.FC = () => {
                 {/* Foxyfox Response */}
                 <div className="flex items-start">
                   <div className="w-8 h-8 rounded-full bg-primary/20 mr-2 flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M20 5C11.716 5 5 11.716 5 20C5 28.284 11.716 35 20 35C28.284 35 35 28.284 35 20C35 11.716 28.284 5 20 5Z" fill="currentColor" className="text-primary"/>
-                    </svg>
+                    <LogoImage height={32} width={32}/>
                   </div>
                   <div className="bg-muted rounded-lg p-3 max-w-[80%]">
                     <p className="text-sm">I can help you optimize your code. Let's analyze what's causing the bottleneck and explore solutions like memoization, lazy loading, or algorithm improvements.</p>
@@ -56,9 +55,7 @@ const HeroImage: React.FC = () => {
                 {/* Typing Indicator */}
                 <div className="flex items-center">
                   <div className="w-8 h-8 rounded-full bg-primary/20 mr-2 flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M20 5C11.716 5 5 11.716 5 20C5 28.284 11.716 35 20 35C28.284 35 35 28.284 35 20C35 11.716 28.284 5 20 5Z" fill="currentColor" className="text-primary"/>
-                    </svg>
+                    <LogoImage height={32} width={32}/>
                   </div>
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 rounded-full bg-muted-foreground/30 animate-bounce"></div>
