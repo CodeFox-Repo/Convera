@@ -22,6 +22,14 @@ const Index = () => {
               <p className="text-lg text-muted-foreground md:text-xl">
                 The next generation all-in-one chat AI agent for your operating system
               </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button className="py-6 px-8 text-lg">
+                  Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                <Button variant="outline" className="py-6 px-8 text-lg">
+                  Learn More
+                </Button>
+              </div>
             </div>
             <div className="lg:block">
               <HeroImage />
@@ -67,6 +75,11 @@ const Index = () => {
                   <span>Works offline for privacy and reliability</span>
                 </li>
               </ul>
+              <div className="pt-4">
+                <Button>
+                  Learn More About Features
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -106,7 +119,6 @@ const Index = () => {
       </section>
 
       {/* Pricing Section */}
-      {/* 
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4 text-center mb-12">
@@ -166,7 +178,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-      */}
 
       {/* Testimonials */}
       <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-background">
@@ -237,7 +248,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section
+      {/* CTA Section */}
       <section className="w-full py-12 md:py-24 lg:py-32 bg-primary text-primary-foreground">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-6 text-center">
@@ -247,44 +258,37 @@ const Index = () => {
             <p className="mx-auto max-w-[700px] text-lg opacity-90">
               Join thousands of users already enhancing their productivity with Foxyfox
             </p>
-            <p className="text-sm opacity-90">
-              Coming soon for macOS, Windows, and Linux
-            </p>
+            <div className="w-full max-w-sm space-y-2">
+              <Button size="lg" variant="secondary" className="w-full py-6 text-lg">
+                Download Now
+              </Button>
+              <p className="text-xs opacity-90">
+                Available for macOS, Windows, and Linux
+              </p>
+            </div>
           </div>
         </div>
-      </section> */}
+      </section>
 
       {/* Footer */}
-      <footer className="w-full py-6 bg-gray-950 text-white">
+      <footer className="w-full py-6 bg-background border-t">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-row justify-between items-center">
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2">
-                <svg 
-                  width="18" 
-                  height="18" 
-                  viewBox="0 0 40 40" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-white"
-                >
-                  <path 
-                    d="M20 5C11.716 5 5 11.716 5 20C5 28.284 11.716 35 20 35C28.284 35 35 28.284 35 20C35 11.716 28.284 5 20 5Z" 
-                    fill="currentColor" 
-                  />
-                </svg>
-              </div>
-              <span className="font-medium">Foxyfox</span>
-            </div>
-            <div className="flex items-center gap-8">
-              <p className="text-sm opacity-70">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <p className="text-sm text-muted-foreground">
                 © 2023 Foxyfox. All rights reserved.
               </p>
-              <div className="flex gap-6">
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Privacy</a>
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Terms</a>
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Contact</a>
-              </div>
+            </div>
+            <div className="flex space-x-4">
+              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
+                Privacy
+              </a>
+              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
+                Terms
+              </a>
+              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
+                Contact
+              </a>
             </div>
           </div>
         </div>
@@ -299,11 +303,9 @@ const FeatureCard = ({ icon, title, description }: {
   description: string;
 }) => {
   return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/50">
+    <Card>
       <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-        <div className="transition-transform duration-300 hover:scale-110">
-          {icon}
-        </div>
+        {icon}
         <h3 className="text-xl font-bold">{title}</h3>
         <p className="text-muted-foreground">{description}</p>
       </CardContent>
@@ -342,7 +344,7 @@ const PricingCard = ({ title, price, period, description, features, buttonText, 
         </ul>
       </CardContent>
       <div className="p-6 pt-0">
-        <Button variant={buttonVariant} className={`w-full transition-all duration-300 ${highlighted ? 'shadow-lg hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1' : 'hover:shadow-md hover:-translate-y-0.5'}`}>
+        <Button variant={buttonVariant} className="w-full">
           {buttonText}
         </Button>
       </div>
@@ -356,7 +358,7 @@ const TestimonialCard = ({ content, author, role }: {
   role: string;
 }) => {
   return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
+    <Card>
       <CardContent className="p-6 space-y-4">
         <p className="italic text-muted-foreground">"{content}"</p>
         <div>
@@ -373,7 +375,7 @@ const FaqItem = ({ question, answer }: {
   answer: string;
 }) => {
   return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:border-primary/20">
+    <Card>
       <CardContent className="p-6">
         <h3 className="text-lg font-bold mb-2">{question}</h3>
         <p className="text-muted-foreground">{answer}</p>
