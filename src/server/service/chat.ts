@@ -12,7 +12,7 @@ export interface ChatData {
   title: string;
 }
 
-const chatDir = path.join(os.homedir(), '.foxychat', 'chat');
+const chatDir = path.join(os.homedir(), '.foxyfox', 'chat');
 
 /**
  * Save chat data to a file
