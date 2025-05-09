@@ -24,6 +24,14 @@ const config: ForgeConfig = {
         icon: "./images/icon.icns",
       },
     }),
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        icon: './images/icon.icns',
+        format: 'ULFO',
+        overwrite: true,
+      }
+    }
   ],
   plugins: [
     new VitePlugin({
