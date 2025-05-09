@@ -1,0 +1,48 @@
+name: Release macOS App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+
+      # Install dependencies with yarn
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Run tests
+      - name: Run tests
+        run: yarn test
+
+      # Package the app for distribution
+      - name: Package app
+        run: yarn package
+
+      # Make distributable
+      - name: Make app distributable
+        run: yarn make
+
+      # Upload the distributable as a release asset
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/make/**/*.dmg
+            out/make/**/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
