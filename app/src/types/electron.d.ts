@@ -27,7 +27,11 @@ export interface IElectronAPI {
   maximizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
   resizeWindow: (width: number, height: number) => Promise<void>;
-  resizeMessageContent: (width: number, height: number) => Promise<void>;
+  resizeMessageContent: (
+    width: number,
+    height: number,
+    preserveX?: boolean,
+  ) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
   // View Mode
   toggleViewMode: (expanded: boolean) => Promise<boolean>;

@@ -26,9 +26,12 @@ export function getPreviousAppID(): number {
 }
 
 export function setPreviousApp(appName: string, appId?: number): void {
-  if (appName !== previousAppName || (appId !== undefined && appId !== previousAppId)) {
+  if (
+    appName !== previousAppName ||
+    (appId !== undefined && appId !== previousAppId)
+  ) {
     previousAppName = appName;
-    
+
     if (appId !== undefined) {
       previousAppId = appId;
     }
@@ -146,9 +149,10 @@ export function resizeMessageContent(
   mainWindow: BrowserWindow | null,
   width: number,
   height: number,
+  preserveX: boolean = false, // Default to false for backward compatibility
 ): void {
   if (mainWindow) {
-    resizeWindowAndMaintainPosition(mainWindow, width, height);
+    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
   }
 }
 
@@ -296,6 +300,7 @@ export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
         mainWindow,
         currentBounds.width,
         newHeight,
+        true, // Preserve X position
       );
     }
 
@@ -305,6 +310,7 @@ export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
     return false;
   }
 }
+
 // ========== WINDOW SIZE HANDLERS ==========
 
 export function getCurrentWindowSize(window: WindowSizeConfig): {
@@ -386,17 +392,17 @@ export function pasteModifiedContent(content: string): void {
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
           const { windowManager, Window } = require("node-window-manager");
-          
+
           // Get all windows
           const windows = windowManager.getWindows();
-          
+
           // Find the target window
           const targetWindow = windows.find((w: any) => {
             // Try to match by process ID first (most reliable)
             if (prevAppId && w.processId === prevAppId) {
               return true;
             }
-            
+
             // Fall back to title matching
             const title = w.getTitle();
             return title && title.includes(prevApp);
@@ -404,15 +410,15 @@ export function pasteModifiedContent(content: string): void {
 
           if (targetWindow) {
             console.log(`Found window for ${prevApp}, activating...`);
-            
+
             // Restore if minimized
             if (!targetWindow.isVisible()) {
               targetWindow.restore();
             }
-            
+
             // Bring window to top (activate it)
             targetWindow.bringToTop();
-            
+
             // Wait a moment for the window to activate, then paste
             setTimeout(() => {
               simulateClipboardPaste();
