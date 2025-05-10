@@ -30,9 +30,9 @@ import { calculateWindowDimensions } from "./helpers/windows/utils";
 import { clipboard } from "electron";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const robot = require("@hurdlegroup/robotjs"); // do not change this line
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { activeWindowSync } =
   process.platform === "win32"
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     ? require("get-windows")
     : { activeWindowSync: null };
 
