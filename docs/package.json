@@ -14,7 +14,8 @@
     "react-dom": "^19.1.0",
     "fumadocs-ui": "15.2.15",
     "fumadocs-core": "15.2.15",
-    "fumadocs-mdx": "11.6.2"
+    "fumadocs-mdx": "11.6.2",
+    "lucide-react": "^0.509.0"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
