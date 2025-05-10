@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { createElectronAPI } from "./helpers/ipc/listeners-register";
-import { CHANNELS } from "./helpers/ipc/channels";
+import { CHANNELS } from "./electro-bridge/ipc/channels";
+import { createElectronAPI } from "./electro-bridge/ipc/listeners-register";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
 // expose electronAPI to renderer process

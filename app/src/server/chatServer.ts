@@ -5,7 +5,7 @@
 import express, { Request, Response, RequestHandler, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { AppSettings } from "@/types/settings";
+import { AppSettings } from "@/shared/types/settings";
 import {
   startMCPServers,
   getAvailablePredefinedServers,
@@ -27,7 +27,7 @@ import { ToolReference } from "./agents/types";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
 import { getChats, getChatById, deleteChat } from "./service/chat";
-import { standardErrors } from "@/utils/errorHandler";
+import { standardErrors } from "@/renderer/utils/errorHandler";
 
 // Initialize dotenv
 dotenv.config();

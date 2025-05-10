@@ -9,7 +9,7 @@ import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 import { getMCPToolsForChat } from "../mcp";
-import { AppSettings } from "@/types/settings";
+import { AppSettings } from "@/shared/types/settings";
 import { codefoxTools } from "../mcp/dev-mcp/tools";
 import path from "path";
 import os from "os";
