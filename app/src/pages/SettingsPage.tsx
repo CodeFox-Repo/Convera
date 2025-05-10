@@ -68,6 +68,41 @@ export default function SettingsPage() {
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
 
+  // Add effect to listen for model selection changes
+  useEffect(() => {
+    const handleModelSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.modelId) {
+        const newModelId = customEvent.detail.modelId;
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: newModelId,
+        };
+        const updated = updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedModelId" && event.newValue) {
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: event.newValue,
+        };
+        const updated = updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    window.addEventListener("model-selected", handleModelSelected);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("model-selected", handleModelSelected);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [settings.openai]);
+
   useEffect(() => {
     setSettings(getSettings());
     fetchMcpMarketplace();
@@ -269,14 +304,28 @@ export default function SettingsPage() {
     
     const updated = updateOpenAISettings(updatedOpenAI);
     setSettings(updated);
-    
-    // Notify user that authentication will use this API key
-    if (field === 'apiKey') {
+
+    // Event handling for different fields
+    if (field === "modelId") {
+      // Dispatch model-selected event
+      window.dispatchEvent(
+        new CustomEvent("model-selected", {
+          detail: { modelId: value },
+        })
+      );
+      // Update localStorage
+      localStorage.setItem("selectedModelId", value);
+      toast.success("Model updated. Settings saved.", {
+        id: 'settings-saved'
+      });
+    } else if (field === 'apiKey') {
       toast.success("API key saved. This will be used for authentication.", {
         id: 'api-key-updated'
       });
     } else {
-      toast.success("Settings saved");
+      toast.success("Settings saved", {
+        id: 'settings-saved'
+      });
     }
     
     // Dispatch an event so other components know the settings changed
