@@ -1,0 +1,8 @@
+packages:
+  - 'app'
+  - 'website'
+  - 'docs'
+  - 'mcps/**'
+  - '!**/node_modules'
+  - '!**/dist'
+  - '!**/build' 

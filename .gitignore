@@ -95,7 +95,7 @@ out/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+
+# PNPM specific
+.pnpm-store/
+.pnpm-debug.log*
