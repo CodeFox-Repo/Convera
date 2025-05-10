@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
-import "../localization/i18n";
+import "../shared/localization/i18n";
 import { router } from "./routes/router";
 import { RouterProvider } from "@tanstack/react-router";
 import { DragLayer } from "./components/ui/drag-layer";

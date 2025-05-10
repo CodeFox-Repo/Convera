@@ -1,6 +1,6 @@
 import React from "react";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
-import langs from "@/localization/langs";
+import langs from "@/shared/localization/langs";
 import { useTranslation } from "react-i18next";
 import { setAppLanguage } from "@/renderer/helper/language_helpers";
 
