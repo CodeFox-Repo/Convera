@@ -8,6 +8,7 @@ import {
 } from "electron-devtools-installer";
 import {
   isHiddenOffscreen,
+  toggleMainWindowVisibility
 } from "@/electron/windows/window-position";
 import { initializeChatServer } from "@/electron/chatServer";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
@@ -27,7 +28,6 @@ const { activeWindowSync } =
     : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
-const mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
 // Use hardcoded default shortcut to avoid circular dependency
@@ -42,6 +42,8 @@ let agentPopoverWindow: BrowserWindow | null = null;
 
 // Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
+
+let mainWindow: BrowserWindow | null = null;
 
 /**
  * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
@@ -420,15 +422,9 @@ function registerGlobalShortcuts() {
 
       clipboard.writeText("");
 
-      // if (!mainWindow) {
-      //   createMainWindow();
-      // } else {
-      //   toggleMainWindowVisibility(mainWindow);
-      // }
-
-      if (mainWindow && mainWindow.isVisible()) {
+      if (mainWindow) {
+        toggleMainWindowVisibility(mainWindow);
         setTimeout(() => {
-          console.log("Setting input text with selected text from clipboard");
           setInputText(mainWindow, selectedText);
         }, 100);
       }
@@ -450,8 +446,6 @@ function registerGlobalShortcuts() {
     );
   }
 }
-
-
 
 function preCreateSettingsWindow() {
   if (settingsWindow) return settingsWindow;
@@ -629,7 +623,7 @@ app.whenReady().then(async () => {
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
-    createMainWindow();
+    mainWindow = createMainWindow();
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
       settingsWindow,
@@ -648,7 +642,7 @@ app.whenReady().then(async () => {
     }
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+      if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow();
     });
   } catch (error) {
     console.error("Error during app initialization", error);
