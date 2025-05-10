@@ -75,7 +75,7 @@ jobs:
             version "${VERSION}"
             sha256 "${DMG_SHA}"
             
-            url "https://github.com/CodeFox-Repo/FoxyChat/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
+            url "https://github.com/CodeFox-Repo/Foxychat/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
             name "FoxyChat"
             desc "All in one Chat App"
             homepage "https://github.com/CodeFox-Repo/foxychat"
