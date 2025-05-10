@@ -1,10 +1,10 @@
 import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
-import { WindowSizeConfig } from "./window-size";
-import { calculateWindowDimensions } from "./utils";
-import { appConfig } from "../config";
-import { CHANNELS } from "../ipc/channels";
-import { getPreviousApp } from "../ipc/ipc-handlers";
+import { WindowSizeConfig } from "@/helpers/windows/window-size";
+import { calculateWindowDimensions } from "@/helpers/windows/utils";
+import { appConfig } from "@/helpers/config";
+import { CHANNELS } from "@/electro-bridge/ipc/channels";
+import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 
 /**
  * Position a window at the center bottom of the screen with margin
