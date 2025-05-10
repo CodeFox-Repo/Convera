@@ -1,4 +1,4 @@
-# FoxyFox
+# FoxyChat
 
 ## PNPM Workspace Setup
 

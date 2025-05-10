@@ -60,8 +60,8 @@ export class MCPManager extends EventEmitter {
    */
   private constructor(customPath?: string) {
     super();
-    // Default configuration path is ~/.foxyfox/mcp.json
-    const defaultDir = path.join(os.homedir(), ".foxyfox");
+    // Default configuration path is ~/.foxychat/mcp.json
+    const defaultDir = path.join(os.homedir(), ".foxychat");
     this.configPath = customPath || path.join(defaultDir, "mcp.json");
 
     // Ensure directory exists

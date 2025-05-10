@@ -2,7 +2,7 @@
   "name": "foxfoxy-workspace",
   "private": true,
   "version": "0.0.1",
-  "description": "FoxyFox Workspace",
+  "description": "FoxyChat Workspace",
   "scripts": {
     "start": "cd app && pnpm start",
     "lint": "pnpm -r lint",

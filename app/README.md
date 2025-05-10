@@ -1,11 +1,11 @@
 
 <p align="center">
-  <img src="images/logo.png" alt="FoxyFox Logo" width="200"/>
+  <img src="images/logo.png" alt="FoxyChat Logo" width="200"/>
 </p>
 
-# FoxyFox
+# FoxyChat
 
- FoxyFox is an all-in-one desktop AI assistant built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
+ FoxyChat is an all-in-one desktop AI assistant built with Electron that supports multiple AI models through a unified interface. It features convenient keyboard shortcuts, a modern UI, and seamless desktop integration.
 
 ## Features
 
@@ -54,8 +54,8 @@ windows-build-tools npm package (`npm install --global --production windows-buil
 
 ### Quick Launch
 
-- Press `Control+Shift+Space` to activate Foxyfox from anywhere on your system
-- If Foxyfox is already visible and focused, pressing `Control+Shift+Space` will hide it
+- Press `Control+Shift+Space` to activate FoxyChat from anywhere on your system
+- If FoxyChat is already visible and focused, pressing `Control+Shift+Space` will hide it
 - When the app appears, the chat input will be automatically focused
 
 ### Settings
@@ -76,14 +76,14 @@ Your shortcuts are saved automatically and will persist between application rest
 
 ## Model Context Protocol (MCP) Integration
 
-FoxyFox uses the Model Context Protocol (MCP) to provide a unified interface for interacting with various AI services. The MCP implementation includes:
+FoxyChat uses the Model Context Protocol (MCP) to provide a unified interface for interacting with various AI services. The MCP implementation includes:
 
 - **MCP Client**: Communicates with MCP servers using the MCP SDK
 - **MCP Registry**: Manages and discovers available MCP servers
 - **Server Manager**: Handles server lifecycle and configuration
 - **Tool Execution**: Standardized interface for executing tools across different AI models
 
-This integration allows FoxyFox to:
+This integration allows FoxyChat to:
 - Connect to any MCP-compatible service
 - Switch seamlessly between different AI models
 - Use local models through standard protocols
@@ -91,7 +91,7 @@ This integration allows FoxyFox to:
 
 ## Architecture
 
- FoxyFox is built with the following technologies:
+ FoxyChat is built with the following technologies:
 
 - **Electron**: cross-platform desktop application
 - **React**: UI components and state management
@@ -113,7 +113,7 @@ The application is organized into the following main directories:
 
 ## Contributing
 
-We welcome contributions to FoxyFox! Please feel free to submit issues, feature requests, or pull requests.
+We welcome contributions to FoxyChat! Please feel free to submit issues, feature requests, or pull requests.
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature-name`
