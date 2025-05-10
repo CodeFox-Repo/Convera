@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { X } from "lucide-react";
 import { AppSettings } from "@/shared/types/settings";
@@ -27,6 +27,7 @@ export function AIModelTab({
   const [newModelInput, setNewModelInput] = useState("");
   const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [filteredModels, setFilteredModels] = useState<string[]>([]);
 
   /**
    * Fetch models from OpenRouter API and sort them alphabetically.
@@ -42,19 +43,100 @@ export function AIModelTab({
       });
   }, []);
 
-  // Filter models based on input text and exclude already added models
-  const filteredModels = officialModels.filter(
-    (m) =>
-      m.toLowerCase().includes(newModelInput.toLowerCase()) &&
-      !settings.openai.supportedModels.includes(m)
-  );
-
   // Get list of models that aren't already added
   const getAvailableModels = () => {
     return officialModels.filter(
       (m) => !settings.openai.supportedModels.includes(m)
     );
   };
+
+  // Available models list
+  const availableModels = useMemo(() => getAvailableModels(), [officialModels, settings.openai.supportedModels]);
+
+  /**
+   * Initialize fuzzy search and update filtered models when input changes
+   */
+  useEffect(() => {
+    const performSearch = async () => {
+      try {
+        // Dynamically import uFuzzy
+        const module = await import('@leeoniya/ufuzzy');
+        const uFuzzy = module.default;
+        
+        // Create fuzzy search instance with optimized settings for model search
+        const fuzzy = new uFuzzy({
+          intraMode: 1,          // SingleError mode - allows one error within terms
+          intraIns: 1,           // Allow insertions 
+          intraSub: 1,           // Allow substitutions
+          intraTrn: 1,           // Allow transpositions
+          intraDel: 1,           // Allow deletions
+          interLft: 1,           // Loose left boundary - better for prefix matching
+          interRgt: 0,           // Any right boundary - allows matching within words
+          intraChars: "[\\w\\-\\.]", // Allow alphanumeric, hyphen, and dot as intra-term chars
+          interChars: "[\\s\\-_\\./]", // Define separators between terms
+        });
+        
+        // If input is empty, show all available models
+        if (!newModelInput.trim()) {
+          setFilteredModels(availableModels);
+          return;
+        }
+        
+        const input = newModelInput.toLowerCase();
+        
+        // Use uFuzzy to search
+        const result = fuzzy.search(availableModels, input);
+        
+        if (result && result.length > 0) {
+          // Destructure with type checking
+          const idxs = result[0];
+          const info = result[1];
+          const order = result[2];
+          
+          // Make sure all required parts exist
+          if (info && order && info.idx) {
+            // Get the matched models in sorted order
+            const matches = order.map(i => availableModels[info.idx[i]]);
+            setFilteredModels(matches);
+            return; // Exit if we found matches
+          }
+        }
+        
+        // If we get here, uFuzzy didn't find good matches, use our custom search
+        fallbackSearch();
+      } catch (error) {
+        console.error("Error with fuzzy search:", error);
+        // Fallback to simple filtering if uFuzzy fails
+        fallbackSearch();
+      }
+    };
+    
+    // Custom fallback search with prefix matching
+    const fallbackSearch = () => {
+      const input = newModelInput.toLowerCase();
+      
+      // First try prefix matching (higher priority)
+      const prefixMatches = availableModels.filter(model => {
+        // Check if any word in the model starts with the input
+        const modelWords = model.toLowerCase().split(/[\s-_./]+/);
+        return modelWords.some(word => word.startsWith(input));
+      });
+      
+      // If we have prefix matches, use those
+      if (prefixMatches.length > 0) {
+        setFilteredModels(prefixMatches);
+        return;
+      }
+      
+      // Otherwise fall back to substring matching
+      const substringMatches = availableModels.filter(
+        model => model.toLowerCase().includes(input)
+      );
+      setFilteredModels(substringMatches);
+    };
+    
+    performSearch();
+  }, [newModelInput, availableModels]);
 
   /**
    * Add a model to supported models list, update localStorage,
@@ -85,9 +167,6 @@ export function AIModelTab({
     localStorage.setItem("supportedModels", JSON.stringify(newModels));
     window.dispatchEvent(new Event("supportedModels-updated"));
   };
-
-  // Available models list
-  const availableModels = getAvailableModels();
 
   return (
     <Card className="bg-card text-foreground border-none">
@@ -191,31 +270,24 @@ export function AIModelTab({
               />
               {showDropdown && (
                 <ul className="absolute z-10 mt-1 w-full bg-background border rounded shadow max-h-40 overflow-auto">
-                  {newModelInput
-                    ? filteredModels.map((model) => (
-                        <li
-                          key={model}
-                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
-                          onClick={() => {
-                            handleAddModel(model);
-                            setNewModelInput("");
-                          }}
-                        >
-                          {model}
-                        </li>
-                      ))
-                    : availableModels.map((model) => (
-                        <li
-                          key={model}
-                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
-                          onClick={() => {
-                            handleAddModel(model);
-                            setNewModelInput("");
-                          }}
-                        >
-                          {model}
-                        </li>
-                      ))}
+                  {filteredModels.length > 0 ? (
+                    filteredModels.map((model) => (
+                      <li
+                        key={model}
+                        className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
+                        onClick={() => {
+                          handleAddModel(model);
+                          setNewModelInput("");
+                        }}
+                      >
+                        {model}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-3 py-2 text-muted-foreground text-xs">
+                      No matching models found
+                    </li>
+                  )}
                 </ul>
               )}
             </div>
