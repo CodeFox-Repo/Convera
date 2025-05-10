@@ -7,7 +7,7 @@ import ChatContent from "./ChatContent";
 import { useChat } from "@ai-sdk/react";
 import { getSettings  } from "@/renderer/utils/settings";
 import CopiedContentCard from "./CopiedContentCard";
-import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { ChatData } from "@/server/service/chat";
 import { toast } from "sonner";
 import { parseApiError, GenericError } from "@/renderer/utils/errorHandler";

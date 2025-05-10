@@ -1,6 +1,6 @@
 // src/types/electron.d.ts
 
-import { WindowSizeConfig } from "@/helpers/windows/window-size";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Define the structure of the API exposed via contextBridge
 export interface IElectronAPI {

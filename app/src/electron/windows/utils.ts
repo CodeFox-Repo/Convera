@@ -1,6 +1,6 @@
-import { WindowDimensions, WindowSizeConfig } from "./window-size";
+import { WindowDimensions, WindowSizeConfig } from "@/electron/windows/window-size";
 import { screen } from "electron";
-import { appConfig } from "../config";
+import { appConfig } from "@/electron/config";
 
 /**
  * Calculate window dimensions based on screen size and proportion configuration

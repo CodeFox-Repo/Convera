@@ -28,7 +28,7 @@ import {
   getPreviousAppID,
 } from "./ipc-handlers";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
-import { WindowSizeConfig } from "@/helpers/windows/window-size";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {

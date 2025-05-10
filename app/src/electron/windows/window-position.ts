@@ -1,8 +1,8 @@
 import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
-import { WindowSizeConfig } from "@/helpers/windows/window-size";
-import { calculateWindowDimensions } from "@/helpers/windows/utils";
-import { appConfig } from "@/helpers/config";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
+import { calculateWindowDimensions } from "@/electron/windows/utils";
+import { appConfig } from "@/electron/config";
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
 import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 

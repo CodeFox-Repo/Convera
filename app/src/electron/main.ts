@@ -8,11 +8,11 @@ import {
 } from "electron-devtools-installer";
 import {
   isHiddenOffscreen,
-} from "../helpers/windows/window-position";
-import { initializeChatServer } from "../helpers/chatServer";
-import { WINDOW_SIZE_PRESETS } from "../helpers/windows/window-size";
+} from "@/electron/windows/window-position";
+import { initializeChatServer } from "@/electron/chatServer";
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 
-import { calculateWindowDimensions } from "../helpers/windows/utils";
+import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import { clipboard } from "electron";
 import { createMainWindow } from "./windows/main-window";

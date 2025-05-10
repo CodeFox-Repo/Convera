@@ -1,8 +1,8 @@
-import { calculateWindowDimensions } from "@/helpers/windows/utils";
-import { positionWindowAtCenterBottom, setWindowHidden } from "@/helpers/windows/window-position";
-import { setMainWindowResizable } from "@/helpers/windows/window-resize";
-import { WINDOW_SIZE_PRESETS } from "@/helpers/windows/window-size";
-import { injectWindowStyles } from "@/helpers/windows/window-styles";
+import { calculateWindowDimensions } from "@/electron/windows/utils";
+import { positionWindowAtCenterBottom, setWindowHidden } from "@/electron/windows/window-position";
+import { setMainWindowResizable } from "@/electron/windows/window-resize";
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { injectWindowStyles } from "@/electron/windows/window-styles";
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow } from "electron";
 import path from "path";

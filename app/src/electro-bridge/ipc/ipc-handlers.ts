@@ -3,12 +3,12 @@ import { BrowserWindow, nativeTheme, clipboard } from "electron";
 import {
   resizeWindowAndMaintainPosition,
   toggleMainWindowVisibility,
-} from "@/helpers/windows/window-position";
+} from "@/electron/windows/window-position";
 import { CHANNELS } from "./channels";
-import { setMainWindowResizable } from "@/helpers/windows/window-resize";
+import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { exec } from "child_process";
-import { WindowSizeConfig } from "@/helpers/windows/window-size";
-import { calculateWindowDimensions } from "@/helpers/windows/utils";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
+import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 let currentActivateShortcut =
   process.platform === "darwin" ? "Alt+Space" : "Control+Space";
