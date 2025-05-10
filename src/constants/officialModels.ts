@@ -6,7 +6,6 @@ export const OFFICIAL_MODELS = [
   "anthropic/claude-3.5-sonnet-20240620",
   "anthropic/claude-3.5-sonnet:beta",
   "anthropic/claude-3.7-sonnet",
-  // ... 你可以补充更多
 ];
 
 export const fetchOpenRouterModels = async (): Promise<string[]> => {
