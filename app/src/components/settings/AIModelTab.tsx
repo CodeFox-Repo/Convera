@@ -187,7 +187,7 @@ export function AIModelTab({
                 value={newModelInput}
                 onChange={(e) => setNewModelInput(e.target.value)}
                 onFocus={() => setShowDropdown(true)}
-                onBlur={(e) => {
+                onBlur={() => {
                   // Allow time for click events before closing dropdown
                   setTimeout(() => setShowDropdown(false), 200);
                 }}
