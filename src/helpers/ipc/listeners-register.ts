@@ -193,11 +193,11 @@ export default function registerListeners(
 
   ipcMain.handle(
     CHANNELS.WINDOW.RESIZE_MESSAGE_CONTENT,
-    (event, width: number, height: number) => {
+    (event, width: number, height: number, preserveX: boolean = false) => {
       console.log(
-        `Handling WINDOW.RESIZE_MESSAGE_CONTENT to ${width}x${height}`,
+        `Handling WINDOW.RESIZE_MESSAGE_CONTENT to ${width}x${height}, preserveX: ${preserveX}`,
       );
-      resizeMessageContent(mainWindow, width, height);
+      resizeMessageContent(mainWindow, width, height, preserveX);
     },
   );
 

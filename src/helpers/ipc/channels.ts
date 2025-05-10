@@ -23,7 +23,11 @@ export interface IPCServer {
   maximizeWindow(): void;
   closeWindow(): void;
   resizeWindow(width: number, height: number): void;
-  resizeMessageContent(width: number, height: number): void;
+  resizeMessageContent(
+    width: number,
+    height: number,
+    preserveX?: boolean,
+  ): void;
   getCurrentWindowPosition(): { x: number; y: number };
 
   // View Mode
