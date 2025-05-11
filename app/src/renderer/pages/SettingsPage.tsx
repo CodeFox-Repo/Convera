@@ -1,29 +1,30 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/renderer/components/ui/tabs";
+import { getCurrentTheme, toggleTheme } from "@/renderer/helper/theme_helpers";
+import { ErrorCode } from "@/renderer/utils/errorHandler";
+import {
+  getSettings,
+  resetShortcutsToDefault,
+  updateOpenAISettings,
+  updateShortcut,
+} from "@/renderer/utils/settings";
+import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
   AppSettings,
   McpMarketplaceItem,
   MCPServer,
 } from "@/shared/types/settings";
-import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
-import {
-  getSettings,
-  updateOpenAISettings,
-  updateShortcut,
-  resetShortcutsToDefault,
-} from "@/renderer/utils/settings";
-import { X, Moon, Sun } from "lucide-react";
-import { toast } from "sonner";
-import { toggleTheme, getCurrentTheme } from "@/renderer/helper/theme_helpers";
 import { ToolSet } from "ai";
-import { ErrorCode } from "@/renderer/utils/errorHandler";
+import { Moon, Sun, X } from "lucide-react";
+import { toast } from "sonner";
 
 // Import our component tabs
-import { AIModelTab } from "@/renderer/components/settings/AIModelTab";
-import { ShortcutsTab } from "@/renderer/components/settings/ShortcutsTab";
-import { MarketplaceTab } from "@/renderer/components/settings/MarketplaceTab";
 import { AgentsTab } from "@/renderer/components/settings/AgentsTab";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AIModelTab } from "@/renderer/components/settings/AIModelTab";
+import { MarketplaceTab } from "@/renderer/components/settings/MarketplaceTab";
+import { ShortcutsTab } from "@/renderer/components/settings/ShortcutsTab";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AgentDefinition {
   id: string;
@@ -59,6 +60,7 @@ export default function SettingsPage() {
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
   >({});
+  // TODO(Sma1lboy): remove this config
   const [loadingMcpConfigs, setLoadingMcpConfigs] = useState<boolean>(true);
   const [currentTheme, setCurrentTheme] = useState<string>("light");
   const [mcpServerTools, setMcpServerTools] = useState<
