@@ -70,6 +70,7 @@ export function createMainWindow() {
       roundedCorners: true,
       show: false,
       alwaysOnTop: true,
+      transparent: true,
     });
   }
   
