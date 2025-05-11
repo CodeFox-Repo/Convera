@@ -17,7 +17,7 @@ import fs from "fs";
 import { saveChat } from "../service/chat";
 
 // Define a path for agents configuration file
-const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".FoxyChat", "agents.json");
+const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
 
 // Built-in predefined agents
 const builtInAgents: AgentDefinition[] = [
