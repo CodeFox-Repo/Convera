@@ -1,0 +1,3 @@
+#!/bin/sh
+# only for /app build now
+cd app && pnpm package && pnpm make
