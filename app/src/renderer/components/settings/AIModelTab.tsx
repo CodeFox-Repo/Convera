@@ -54,89 +54,91 @@ export function AIModelTab({
   const availableModels = useMemo(() => getAvailableModels(), [officialModels, settings.openai.supportedModels]);
 
   /**
-   * Initialize fuzzy search and update filtered models when input changes
+   * Memoize uFuzzy instance and dynamic import
    */
-  useEffect(() => {
-    const performSearch = async () => {
-      try {
-        // Dynamically import uFuzzy
-        const module = await import('@leeoniya/ufuzzy');
+  const fuzzyInstance = useMemo(() => {
+    let fuzzy: unknown = null;
+    let loaded = false;
+    let loadingPromise: Promise<unknown> | null = null;
+    const load = async (): Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }> => {
+      if (loaded) return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
+      if (loadingPromise) return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
+      loadingPromise = import('@leeoniya/ufuzzy').then((module) => {
         const uFuzzy = module.default;
-        
-        // Create fuzzy search instance with optimized settings for model search
-        const fuzzy = new uFuzzy({
-          intraMode: 1,          // SingleError mode - allows one error within terms
-          intraIns: 1,           // Allow insertions 
-          intraSub: 1,           // Allow substitutions
-          intraTrn: 1,           // Allow transpositions
-          intraDel: 1,           // Allow deletions
-          interLft: 1,           // Loose left boundary - better for prefix matching
-          interRgt: 0,           // Any right boundary - allows matching within words
-          intraChars: "[\\w\\-\\.]", // Allow alphanumeric, hyphen, and dot as intra-term chars
-          interChars: "[\\s\\-_\\./]", // Define separators between terms
+        fuzzy = new uFuzzy({
+          intraMode: 1,
+          intraIns: 1,
+          intraSub: 1,
+          intraTrn: 1,
+          intraDel: 1,
+          interLft: 1,
+          interRgt: 0,
+          intraChars: "[w-.]",
+          interChars: "[s-_.//]",
         });
-        
-        // If input is empty, show all available models
-        if (!newModelInput.trim()) {
-          setFilteredModels(availableModels);
-          return;
-        }
-        
-        const input = newModelInput.toLowerCase();
-        
-        // Use uFuzzy to search
-        const result = fuzzy.search(availableModels, input);
-        
-        if (result && result.length > 0) {
-          // Destructure with type checking
-          const idxs = result[0];
-          const info = result[1];
-          const order = result[2];
-          
-          // Make sure all required parts exist
-          if (info && order && info.idx) {
-            // Get the matched models in sorted order
-            const matches = order.map(i => availableModels[info.idx[i]]);
-            setFilteredModels(matches);
-            return; // Exit if we found matches
+        loaded = true;
+        return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
+      });
+      return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
+    };
+    return { load };
+  }, [availableModels]);
+
+  /**
+   * Perform fuzzy and fallback search for models
+   */
+  const searchModels = async (input: string, models: string[], setResult: (models: string[]) => void) => {
+    const normalizedInput = input.toLowerCase();
+    if (!normalizedInput.trim()) {
+      setResult(models);
+      return;
+    }
+    try {
+      const fuzzy = await fuzzyInstance.load();
+      const result: [number[], { idx: number[] }, number[]] = fuzzy.search(models, normalizedInput);
+      if (result && result.length > 0) {
+        const info = result[1];
+        const order = result[2];
+        if (info && order && info.idx) {
+          const matches = order.map((i: number) => models[info.idx[i]]);
+          if (matches.length > 0) {
+            setResult(matches);
+            return;
           }
         }
-        
-        // If we get here, uFuzzy didn't find good matches, use our custom search
-        fallbackSearch();
-      } catch (error) {
-        console.error("Error with fuzzy search:", error);
-        // Fallback to simple filtering if uFuzzy fails
-        fallbackSearch();
       }
-    };
-    
-    // Custom fallback search with prefix matching
-    const fallbackSearch = () => {
-      const input = newModelInput.toLowerCase();
-      
-      // First try prefix matching (higher priority)
-      const prefixMatches = availableModels.filter(model => {
-        // Check if any word in the model starts with the input
-        const modelWords = model.toLowerCase().split(/[\s-_./]+/);
-        return modelWords.some(word => word.startsWith(input));
-      });
-      
-      // If we have prefix matches, use those
-      if (prefixMatches.length > 0) {
-        setFilteredModels(prefixMatches);
-        return;
-      }
-      
-      // Otherwise fall back to substring matching
-      const substringMatches = availableModels.filter(
-        model => model.toLowerCase().includes(input)
-      );
-      setFilteredModels(substringMatches);
-    };
-    
-    performSearch();
-  }, [newModelInput, availableModels]);
+      fallbackSearch(normalizedInput, models, setResult);
+    } catch {
+      fallbackSearch(normalizedInput, models, setResult);
+    }
+  };
+
+  /**
+   * Fallback search: prefix, substring, and normalized (remove separators) matching
+   */
+  const fallbackSearch = (input: string, models: string[], setResult: (models: string[]) => void) => {
+    const prefixMatches = models.filter(model => {
+      const modelWords = model.toLowerCase().split(/[\s\-_./]+/);
+      return modelWords.some(word => word.startsWith(input));
+    });
+    if (prefixMatches.length > 0) {
+      setResult(prefixMatches);
+      return;
+    }
+    const substringMatches = models.filter(model => model.toLowerCase().includes(input));
+    if (substringMatches.length > 0) {
+      setResult(substringMatches);
+      return;
+    }
+    const normalize = (str: string) => str.replace(/[\s\-_./]/g, "");
+    const normalizedInputNoSep = normalize(input);
+    const noSepMatches = models.filter(model => normalize(model.toLowerCase()).includes(normalizedInputNoSep));
+    setResult(noSepMatches);
+  };
+
+  useEffect(() => {
+    searchModels(newModelInput, availableModels, setFilteredModels);
+  }, [newModelInput, availableModels, fuzzyInstance]);
 
   /**
    * Add a model to supported models list, update localStorage,
