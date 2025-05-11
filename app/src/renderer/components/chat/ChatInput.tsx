@@ -1,24 +1,24 @@
+import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
+import { ChatData } from "@/server/service/chat";
+import {
+  Bot,
+  History,
+  Mic,
+  Monitor,
+  Plus,
+  RotateCcw,
+  Send,
+  Settings,
+  Square,
+} from "lucide-react";
 import React, {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
-  useEffect,
 } from "react";
-import {
-  Send,
-  Plus,
-  Mic,
-  RotateCcw,
-  Monitor,
-  Bot,
-  Square,
-  History,
-  Settings,
-} from "lucide-react";
 import ModelSelector from "./ModelSelector";
-import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { ChatData } from "@/server/service/chat";
 
 interface Agent {
   id: string;
@@ -67,7 +67,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setInput,
       hasMessages = false,
       onAddAttachment,
-      onToggleTranslation,
       onReset,
       onVoiceInput,
       onSendMessage,

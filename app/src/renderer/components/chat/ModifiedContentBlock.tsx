@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, memo } from "react";
-import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
+import React, { memo, useEffect, useRef, useState } from "react";
 
 interface ModifiedContentBlockProps {
   children: React.ReactNode;

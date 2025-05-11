@@ -10,10 +10,8 @@ export default defineConfig({
     },
   },
   test: {
-    dir: "./src/tests/unit",
     globals: true,
-    environment: "jsdom",
-    setupFiles: "./src/tests/unit/setup.ts",
+    environment: "node",
     css: true,
     reporters: ["verbose"],
     coverage: {

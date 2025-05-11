@@ -12,5 +12,5 @@ export const fetchOpenRouterModels = async (): Promise<string[]> => {
   const res = await fetch("https://openrouter.ai/api/v1/models");
   const data = await res.json();
   // data.data is the array of models
-  return data.data.map((m: any) => m.id);
-}; 
+  return data.data.map((m: { id: string }) => m.id);
+};
