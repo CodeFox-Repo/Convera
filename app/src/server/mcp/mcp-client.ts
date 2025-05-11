@@ -64,7 +64,7 @@ export class MCPClient {
     try {
       // Initialize the MCP client
       this.client = new Client({
-        name: "foxyfox-mcp-client",
+        name: "foxychat-mcp-client",
         version: "1.0.0",
       });
 

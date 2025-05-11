@@ -11,7 +11,7 @@ const Logo: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) 
   return (
     <div className={`flex items-center ${className}`}>
       <LogoImage height={height} width={width} />
-      <span className="font-bold text-xl">Foxyfox</span>
+      <span className="font-bold text-xl">Foxychat</span>
     </div>
   );
 };
@@ -19,7 +19,7 @@ const Logo: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) 
 //LogoImage
 export const LogoImage: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) => {
   return (
-    <img src="/icon.png" width={width} height={height} alt="Foxyfox" className={className} />
+    <img src="/icon.png" width={width} height={height} alt="Foxychat" className={className} />
   );
 };
 

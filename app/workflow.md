@@ -5,19 +5,19 @@
 sequenceDiagram
     participant User
     participant ActiveApp as Active Application
-    participant FoxyFox as FoxyFox
+    participant FoxyChat as FoxyChat
 
     User->>ActiveApp: Working with application
-    User->>FoxyFox: Press Control+Shift+Space to activate
-    activate FoxyFox
-    FoxyFox->>ActiveApp: Get current application context
-    FoxyFox-->>User: Display chat interface
-    User->>FoxyFox: Enter command and press Enter
-    FoxyFox->>ActiveApp: Execute operation on active app
+    User->>FoxyChat: Press Control+Shift+Space to activate
+    activate FoxyChat
+    FoxyChat->>ActiveApp: Get current application context
+    FoxyChat-->>User: Display chat interface
+    User->>FoxyChat: Enter command and press Enter
+    FoxyChat->>ActiveApp: Execute operation on active app
     ActiveApp-->>User: Operation results
-    FoxyFox-->>User: Display results
-    User->>FoxyFox: Press Control+Shift+Space to hide
-    deactivate FoxyFox
+    FoxyChat-->>User: Display results
+    User->>FoxyChat: Press Control+Shift+Space to hide
+    deactivate FoxyChat
     User->>ActiveApp: Continue working
 ```
 

@@ -6,7 +6,7 @@ const FeaturesShowcase: React.FC = () => {
   return (
     <div className="relative overflow-hidden rounded-lg border bg-background shadow-lg">
       <div className="relative z-10 p-6 md:p-10">
-        <h3 className="text-2xl font-bold mb-6">See What Foxyfox Can Do</h3>
+        <h3 className="text-2xl font-bold mb-6">See What Foxychat Can Do</h3>
         
         <div className="grid gap-6">
           {/* Feature Item 1 */}
@@ -18,7 +18,7 @@ const FeaturesShowcase: React.FC = () => {
               <h4 className="text-lg font-semibold mb-2">Advanced Command Detection</h4>
               <div className="relative overflow-hidden rounded bg-muted/80 p-2">
                 <span className="font-mono text-sm opacity-90">
-                  <span className="text-primary-foreground bg-primary px-1 rounded">$</span> foxyfox restart nginx and update system packages
+                  <span className="text-primary-foreground bg-primary px-1 rounded">$</span> foxychat restart nginx and update system packages
                 </span>
                 <div className="absolute top-0 left-0 h-full w-1 animate-pulse bg-primary"></div>
               </div>

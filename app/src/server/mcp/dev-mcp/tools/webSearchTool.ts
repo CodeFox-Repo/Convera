@@ -1,5 +1,5 @@
 /**
- * FoxyFox Agent Tools
+ * FoxyChat Agent Tools
  *
  * This module contains tools that can be used by AI agents in the chat system.
  */

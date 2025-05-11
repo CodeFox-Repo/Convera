@@ -270,7 +270,7 @@ router.post("/api/chat", async (req: Request, res: Response) => {
 });
 
 router.get("/api/health", (req: Request, res: Response) => {
-  res.json({ status: "ok", message: "FoxyFox API server is running" });
+  res.json({ status: "ok", message: "FoxyChat API server is running" });
 });
 
 // MCP servers endpoint

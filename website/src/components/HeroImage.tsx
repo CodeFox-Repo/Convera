@@ -13,7 +13,7 @@ const HeroImage: React.FC = () => {
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
           </div>
-          <div className="text-xs text-muted-foreground mx-auto">Foxyfox</div>
+          <div className="text-xs text-muted-foreground mx-auto">Foxychat</div>
         </div>
         
         {/* App Content */}
@@ -42,7 +42,7 @@ const HeroImage: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Foxyfox Response */}
+                {/* Foxychat Response */}
                 <div className="flex items-start">
                   <div className="w-8 h-8 rounded-full bg-primary/20 mr-2 flex items-center justify-center">
                     <LogoImage height={32} width={32}/>

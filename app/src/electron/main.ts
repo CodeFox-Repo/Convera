@@ -365,7 +365,7 @@ function startAppFocusTracking() {
           const appName = stdout.trim();
 
           // Ignore self-referential applications
-          const ignoreList = ["Electron", "FoxyFox", "foxfoxy"];
+          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
           if (appName && !ignoreList.some((name) => appName.includes(name))) {
             setPreviousApp(appName);
           }
@@ -381,7 +381,7 @@ function startAppFocusTracking() {
           // console.log(`Detected active application: ${appName}`);
 
           // Ignore self-referential applications
-          const ignoreList = ["electron", "FoxyFox", "foxfoxy"];
+          const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
           if (
             appName &&
             !ignoreList.some((name) =>

@@ -17,7 +17,7 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
             <div className="flex flex-col space-y-4">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
-                <span className="text-primary">Foxyfox</span> - Your AI Assistant
+                <span className="text-primary">Foxychat</span> - Your AI Assistant
               </h1>
               <p className="text-lg text-muted-foreground md:text-xl">
                 The next generation all-in-one chat AI agent for your operating system
@@ -38,7 +38,7 @@ const Index = () => {
               Powerful AI Features
             </h2>
             <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              Foxyfox brings the power of advanced AI to your fingertips
+              Foxychat brings the power of advanced AI to your fingertips
             </p>
           </div>
 
@@ -48,7 +48,7 @@ const Index = () => {
             </div>
             <div className="space-y-4">
               <h3 className="text-2xl font-bold">Designed for Productivity</h3>
-              <p className="text-muted-foreground">Foxyfox understands your needs and adapts to your workflow, helping you accomplish more in less time.</p>
+              <p className="text-muted-foreground">Foxychat understands your needs and adapts to your workflow, helping you accomplish more in less time.</p>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   <ArrowRight className="h-4 w-4 text-primary" />
@@ -74,32 +74,32 @@ const Index = () => {
             <FeatureCard 
               icon={<MessageSquare className="h-10 w-10 text-primary" />}
               title="Natural Conversations"
-              description="Chat with Foxyfox just like you would with a human. Natural language understanding makes interactions seamless."
+              description="Chat with Foxychat just like you would with a human. Natural language understanding makes interactions seamless."
             />
             <FeatureCard 
               icon={<Cpu className="h-10 w-10 text-primary" />}
               title="System Integration"
-              description="Foxyfox integrates deeply with your operating system, providing powerful control and automation."
+              description="Foxychat integrates deeply with your operating system, providing powerful control and automation."
             />
             <FeatureCard 
               icon={<Zap className="h-10 w-10 text-primary" />}
               title="Lightning Fast"
-              description="Built for speed and efficiency, Foxyfox responds instantly to your commands and questions."
+              description="Built for speed and efficiency, Foxychat responds instantly to your commands and questions."
             />
             <FeatureCard 
               icon={<Sparkles className="h-10 w-10 text-primary" />}
               title="Smart Assistance"
-              description="From writing emails to coding and creativity, Foxyfox helps with a wide range of tasks."
+              description="From writing emails to coding and creativity, Foxychat helps with a wide range of tasks."
             />
             <FeatureCard 
               icon={<Globe className="h-10 w-10 text-primary" />}
               title="Access Anywhere"
-              description="Use Foxyfox across all your devices with perfect synchronization and continuity."
+              description="Use Foxychat across all your devices with perfect synchronization and continuity."
             />
             <FeatureCard 
               icon={<BrainCircuit className="h-10 w-10 text-primary" />}
               title="Always Learning"
-              description="Foxyfox learns from your interactions to provide increasingly personalized assistance."
+              description="Foxychat learns from your interactions to provide increasingly personalized assistance."
             />
           </div>
         </div>
@@ -122,7 +122,7 @@ const Index = () => {
             <PricingCard 
               title="Free"
               price="$0"
-              description="Perfect for trying out Foxyfox"
+              description="Perfect for trying out Foxychat"
               features={[
                 "Basic conversation abilities",
                 "System information",
@@ -176,13 +176,13 @@ const Index = () => {
               Loved by Users
             </h2>
             <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              See what others are saying about Foxyfox
+              See what others are saying about Foxychat
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <TestimonialCard 
-              content="Foxyfox has completely changed how I interact with my computer. It's like having a smart assistant that understands exactly what I need."
+              content="Foxychat has completely changed how I interact with my computer. It's like having a smart assistant that understands exactly what I need."
               author="Sarah Johnson"
               role="Product Designer"
             />
@@ -192,7 +192,7 @@ const Index = () => {
               role="Software Developer"
             />
             <TestimonialCard 
-              content="I use Foxyfox daily for everything from scheduling to research. It integrates perfectly with my workflow and saves me hours every week."
+              content="I use Foxychat daily for everything from scheduling to research. It integrates perfectly with my workflow and saves me hours every week."
               author="Emma Rodriguez"
               role="Marketing Manager"
             />
@@ -208,30 +208,30 @@ const Index = () => {
               Frequently Asked Questions
             </h2>
             <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              Find answers to common questions about Foxyfox
+              Find answers to common questions about Foxychat
             </p>
           </div>
           
           <div className="mx-auto max-w-3xl space-y-4">
             <FaqItem 
-              question="What makes Foxyfox different from other AI assistants?"
-              answer="Foxyfox is designed specifically for deep operating system integration, providing a seamless experience across your entire digital environment. Unlike other AI assistants that work primarily through web interfaces, Foxyfox works directly with your local applications and files."
+              question="What makes Foxychat different from other AI assistants?"
+              answer="Foxychat is designed specifically for deep operating system integration, providing a seamless experience across your entire digital environment. Unlike other AI assistants that work primarily through web interfaces, Foxychat works directly with your local applications and files."
             />
             <FaqItem 
-              question="Is my data secure with Foxyfox?"
+              question="Is my data secure with Foxychat?"
               answer="Yes, we take security very seriously. All data processing happens on your device when possible, and any data sent to our servers is encrypted end-to-end. We never sell your data or use it for advertising."
             />
             <FaqItem 
-              question="Which operating systems does Foxyfox support?"
-              answer="Foxyfox currently supports Windows, macOS, and most popular Linux distributions. We're constantly working to expand our compatibility with more platforms."
+              question="Which operating systems does Foxychat support?"
+              answer="Foxychat currently supports Windows, macOS, and most popular Linux distributions. We're constantly working to expand our compatibility with more platforms."
             />
             <FaqItem 
-              question="Can I use Foxyfox offline?"
-              answer="Yes, Foxyfox has a core set of features that work offline. However, some advanced capabilities like web searches require an internet connection."
+              question="Can I use Foxychat offline?"
+              answer="Yes, Foxychat has a core set of features that work offline. However, some advanced capabilities like web searches require an internet connection."
             />
             <FaqItem 
-              question="How do I update Foxyfox?"
-              answer="Foxyfox updates automatically by default, ensuring you always have the latest features and security improvements without any manual intervention."
+              question="How do I update Foxychat?"
+              answer="Foxychat updates automatically by default, ensuring you always have the latest features and security improvements without any manual intervention."
             />
           </div>
         </div>
@@ -245,7 +245,7 @@ const Index = () => {
               Ready to Experience the Future?
             </h2>
             <p className="mx-auto max-w-[700px] text-lg opacity-90">
-              Join thousands of users already enhancing their productivity with Foxyfox
+              Join thousands of users already enhancing their productivity with Foxychat
             </p>
             <p className="text-sm opacity-90">
               Coming soon for macOS, Windows, and Linux
@@ -274,11 +274,11 @@ const Index = () => {
                   />
                 </svg>
               </div>
-              <span className="font-medium">Foxyfox</span>
+              <span className="font-medium">Foxychat</span>
             </div>
             <div className="flex items-center gap-8">
               <p className="text-sm opacity-70">
-                © 2023 Foxyfox. All rights reserved.
+                © 2023 Foxychat. All rights reserved.
               </p>
               <div className="flex gap-6">
                 <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Privacy</a>
