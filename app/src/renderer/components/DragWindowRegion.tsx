@@ -2,7 +2,7 @@ import {
   closeWindow,
   maximizeWindow,
   minimizeWindow,
-} from "@/helpers/windows/window_helpers";
+} from "@/electron/windows/window_helpers";
 import React, { type ReactNode } from "react";
 
 interface DragWindowRegionProps {
