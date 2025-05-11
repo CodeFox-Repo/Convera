@@ -59,7 +59,7 @@ const ChatMessage = memo(
               <div
                 className={`${
                   isUser
-                    ? "text-foreground inline-block rounded-[24px] rounded-br-[8px] border-none bg-white/70 px-4 py-2.5 dark:bg-slate-800/90"
+                    ? "text-foreground inline-block rounded-[24px] rounded-br-[8px] border-none bg-gray-100 px-4 py-2.5 dark:bg-slate-800/90"
                     : "rounded-[var(--app-border-radius)]"
                 } group relative`}
               >

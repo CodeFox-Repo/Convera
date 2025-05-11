@@ -27,7 +27,7 @@ export interface WindowDimensions {
 export const WINDOW_SIZE_PRESETS = {
   MAIN: {
     widthProportion: 0.3,
-    heightProportion: 0.12,
+    heightProportion: 0.15,
     minWidth: 500,
     minHeight: 90,
     maxWidth: 800,
