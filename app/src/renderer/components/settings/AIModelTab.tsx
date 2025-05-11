@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { X } from "lucide-react";
 import { AppSettings } from "@/shared/types/settings";
@@ -27,6 +27,7 @@ export function AIModelTab({
   const [newModelInput, setNewModelInput] = useState("");
   const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [filteredModels, setFilteredModels] = useState<string[]>([]);
 
   /**
    * Fetch models from OpenRouter API and sort them alphabetically.
@@ -42,19 +43,102 @@ export function AIModelTab({
       });
   }, []);
 
-  // Filter models based on input text and exclude already added models
-  const filteredModels = officialModels.filter(
-    (m) =>
-      m.toLowerCase().includes(newModelInput.toLowerCase()) &&
-      !settings.openai.supportedModels.includes(m)
-  );
-
   // Get list of models that aren't already added
   const getAvailableModels = () => {
     return officialModels.filter(
       (m) => !settings.openai.supportedModels.includes(m)
     );
   };
+
+  // Available models list
+  const availableModels = useMemo(() => getAvailableModels(), [officialModels, settings.openai.supportedModels]);
+
+  /**
+   * Memoize uFuzzy instance and dynamic import
+   */
+  const fuzzyInstance = useMemo(() => {
+    let fuzzy: unknown = null;
+    let loaded = false;
+    let loadingPromise: Promise<unknown> | null = null;
+    const load = async (): Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }> => {
+      if (loaded) return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
+      if (loadingPromise) return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
+      loadingPromise = import('@leeoniya/ufuzzy').then((module) => {
+        const uFuzzy = module.default;
+        fuzzy = new uFuzzy({
+          intraMode: 1,
+          intraIns: 1,
+          intraSub: 1,
+          intraTrn: 1,
+          intraDel: 1,
+          interLft: 1,
+          interRgt: 0,
+          intraChars: "[w-.]",
+          interChars: "[s-_.//]",
+        });
+        loaded = true;
+        return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
+      });
+      return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
+    };
+    return { load };
+  }, [availableModels]);
+
+  /**
+   * Perform fuzzy and fallback search for models
+   */
+  const searchModels = async (input: string, models: string[], setResult: (models: string[]) => void) => {
+    const normalizedInput = input.toLowerCase();
+    if (!normalizedInput.trim()) {
+      setResult(models);
+      return;
+    }
+    try {
+      const fuzzy = await fuzzyInstance.load();
+      const result: [number[], { idx: number[] }, number[]] = fuzzy.search(models, normalizedInput);
+      if (result && result.length > 0) {
+        const info = result[1];
+        const order = result[2];
+        if (info && order && info.idx) {
+          const matches = order.map((i: number) => models[info.idx[i]]);
+          if (matches.length > 0) {
+            setResult(matches);
+            return;
+          }
+        }
+      }
+      fallbackSearch(normalizedInput, models, setResult);
+    } catch {
+      fallbackSearch(normalizedInput, models, setResult);
+    }
+  };
+
+  /**
+   * Fallback search: prefix, substring, and normalized (remove separators) matching
+   */
+  const fallbackSearch = (input: string, models: string[], setResult: (models: string[]) => void) => {
+    const prefixMatches = models.filter(model => {
+      const modelWords = model.toLowerCase().split(/[\s\-_./]+/);
+      return modelWords.some(word => word.startsWith(input));
+    });
+    if (prefixMatches.length > 0) {
+      setResult(prefixMatches);
+      return;
+    }
+    const substringMatches = models.filter(model => model.toLowerCase().includes(input));
+    if (substringMatches.length > 0) {
+      setResult(substringMatches);
+      return;
+    }
+    const normalize = (str: string) => str.replace(/[\s\-_./]/g, "");
+    const normalizedInputNoSep = normalize(input);
+    const noSepMatches = models.filter(model => normalize(model.toLowerCase()).includes(normalizedInputNoSep));
+    setResult(noSepMatches);
+  };
+
+  useEffect(() => {
+    searchModels(newModelInput, availableModels, setFilteredModels);
+  }, [newModelInput, availableModels, fuzzyInstance]);
 
   /**
    * Add a model to supported models list, update localStorage,
@@ -85,9 +169,6 @@ export function AIModelTab({
     localStorage.setItem("supportedModels", JSON.stringify(newModels));
     window.dispatchEvent(new Event("supportedModels-updated"));
   };
-
-  // Available models list
-  const availableModels = getAvailableModels();
 
   return (
     <Card className="bg-card text-foreground border-none">
@@ -190,32 +271,43 @@ export function AIModelTab({
                 autoComplete="off"
               />
               {showDropdown && (
-                <ul className="absolute z-10 mt-1 w-full bg-background border rounded shadow max-h-40 overflow-auto">
-                  {newModelInput
-                    ? filteredModels.map((model) => (
-                        <li
-                          key={model}
-                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
-                          onClick={() => {
-                            handleAddModel(model);
-                            setNewModelInput("");
-                          }}
-                        >
-                          {model}
-                        </li>
-                      ))
-                    : availableModels.map((model) => (
-                        <li
-                          key={model}
-                          className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-xs"
-                          onClick={() => {
-                            handleAddModel(model);
-                            setNewModelInput("");
-                          }}
-                        >
-                          {model}
-                        </li>
-                      ))}
+                <ul
+                  className="
+                    absolute z-10 mt-1 w-full
+                    bg-popover  /* same background as SelectContent */
+                    border border-input  /* same border */
+                  rounded-md shadow-lg
+                    max-h-40 overflow-auto
+                  py-1
+                  "
+                >
+                  {filteredModels.length > 0 ? (
+                    filteredModels.map((model) => (
+                      <li
+                        key={model}
+                        onMouseDown={() => {
+                        
+                          handleAddModel(model);
+                          setNewModelInput("");
+                      }}
+                        className="
+                          relative flex items-center px-3 py-2
+                          text-sm select-none cursor-pointer rounded-sm
+                          /* exactly like SelectItem */
+                          radix-highlighted:bg-accent
+                          radix-highlighted:text-accent-foreground
+                          /* fallback highlight on hover */
+                          hover:bg-accent hover:text-accent-foreground
+                        "
+                      >
+                        {model}
+                    </li>
+                    ))
+                  ) : (
+                    <li className="px-3 py-2 text-muted-foreground text-xs">
+                      No matching models found
+                    </li>
+                  )}
                 </ul>
               )}
             </div>
