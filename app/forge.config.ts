@@ -6,14 +6,36 @@ import { MakerRpm } from "@electron-forge/maker-rpm";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import fs from "fs";
+import path from "path";
 import pkg from "./package.json";
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
-    asar: true,
+    asar: {
+      unpack: "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
+    },
     icon: "./images/icon",
   },
+  hooks: {
+    postPackage: async (_config, options) => {
+      const src = path.resolve(
+        __dirname,
+        "..",
+        "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
+      );
+      const dest = path.join(
+        options.outputPaths[0],
+        "FoxyChat.app/Contents/Resources/app.asar.unpacked",
+        "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
+      );
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(src, dest);
+      console.log("✅ Copied robotjs.node to unpacked asar");
+    },
+  },
+
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
@@ -25,13 +47,13 @@ const config: ForgeConfig = {
       },
     }),
     {
-      name: '@electron-forge/maker-dmg',
+      name: "@electron-forge/maker-dmg",
       config: {
-        icon: './images/icon.icns',
-        format: 'ULFO',
+        icon: "./images/icon.icns",
+        format: "ULFO",
         overwrite: true,
-      }
-    }
+      },
+    },
   ],
   plugins: [
     new VitePlugin({
@@ -57,6 +79,7 @@ const config: ForgeConfig = {
         },
       ],
     }),
+
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application
     new FusesPlugin({

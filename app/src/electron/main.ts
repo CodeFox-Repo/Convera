@@ -8,7 +8,7 @@ import {
 } from "electron-devtools-installer";
 import {
   isHiddenOffscreen,
-  toggleMainWindowVisibility
+  toggleMainWindowVisibility,
 } from "@/electron/windows/window-position";
 import { initializeChatServer } from "@/electron/chatServer";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
@@ -17,14 +17,37 @@ import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import { clipboard } from "electron";
 import { createMainWindow } from "./windows/main-window";
-import { getPreviousApp, setInputText, setPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
-import registerListeners, { ListenerOptions } from "@/electro-bridge/ipc/listeners-register";
+import {
+  getPreviousApp,
+  setInputText,
+  setPreviousApp,
+} from "@/electro-bridge/ipc/ipc-handlers";
+import registerListeners, {
+  ListenerOptions,
+} from "@/electro-bridge/ipc/listeners-register";
+
+// use to pack the app
+const bin = path.join(
+  process.resourcesPath, // …/FoxyChat.app/Contents/Resources
+  "app.asar.unpacked",
+  "node_modules",
+  "@hurdlegroup",
+  "robotjs",
+  "build",
+  "Release",
+  "robotjs.node",
+);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require("@hurdlegroup/robotjs"); // do not change this line
+const robot = require(bin);
+console.log("✅ loaded from unpacked .node:", robot.getMousePos());
+
+// use to run the app in dev mode
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+// const robot = require("@hurdlegroup/robotjs");
 const { activeWindowSync } =
   process.platform === "win32"
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ? require("get-windows")
+    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("get-windows")
     : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
@@ -642,7 +665,8 @@ app.whenReady().then(async () => {
     }
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow();
+      if (BrowserWindow.getAllWindows().length === 0)
+        mainWindow = createMainWindow();
     });
   } catch (error) {
     console.error("Error during app initialization", error);
