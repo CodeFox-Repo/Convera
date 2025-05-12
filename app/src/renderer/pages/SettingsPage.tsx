@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/renderer/components/ui/tabs";
 import { getCurrentTheme, toggleTheme } from "@/renderer/helper/theme_helpers";
 import { ErrorCode } from "@/renderer/utils/errorHandler";
 import {
@@ -16,7 +15,7 @@ import {
   MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
-import { Moon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Import our component tabs
@@ -70,6 +69,7 @@ export default function SettingsPage() {
     Record<string, boolean>
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Add effect to listen for model selection changes
   useEffect(() => {
@@ -112,6 +112,12 @@ export default function SettingsPage() {
     fetchMcpConfigurations();
     fetchAllMcpServers();
 
+    // Load sidebar state from localStorage if available
+    const savedSidebarState = localStorage.getItem('settings-sidebar-collapsed');
+    if (savedSidebarState !== null) {
+      setIsSidebarCollapsed(savedSidebarState === 'true');
+    }
+
     const fetchTheme = async () => {
       try {
         const { system } = await getCurrentTheme();
@@ -123,6 +129,15 @@ export default function SettingsPage() {
 
     fetchTheme();
   }, []);
+
+  // Save sidebar state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('settings-sidebar-collapsed', String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => !prev);
+  };
 
   const fetchAllMcpServers = async () => {
     setLoadingMcpServers(true);
@@ -850,59 +865,104 @@ export default function SettingsPage() {
     onUninstallPredefinedServer: handleUninstallPredefinedServer,
   };
 
-  return (
-    <div className="bg-background/20 relative h-full w-full overflow-y-auto px-10 pb-5">
-      <div className="box drag-region sticky top-5 z-50 -mx-4 flex items-center justify-between">
-        <div
-          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
-          onClick={handleCloseSettings}
-          role="button"
-          aria-label="Close settings"
-        >
-          <X className="text-foreground/80 h-5 w-5" />
-        </div>
+  // Navigation items for sidebar
+  const navigationItems = [
+    { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
+    { id: "mcpmarket", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
+    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
+  ];
 
-        <div
-          className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
-          onClick={handleToggleTheme}
-          role="button"
-          aria-label="Toggle theme"
-        >
-          {currentTheme === "dark" ? (
-            <Sun className="text-foreground/80 h-5 w-5" />
-          ) : (
-            <Moon className="text-foreground/80 h-5 w-5" />
-          )}
+  return (
+    <div className="bg-background/20 relative h-full w-full flex overflow-hidden">
+      {/* Sidebar */}
+      <div className={`bg-card/90 h-full overflow-y-auto border-r border-border/40 flex flex-col transition-all duration-300 ${
+        isSidebarCollapsed ? "w-16" : "w-64"
+      }`}>
+        <div className="p-4 border-b border-border/40 flex items-center justify-between">
+          {!isSidebarCollapsed && <h1 className="text-foreground text-lg font-bold">Settings</h1>}
+          <div className="flex items-center">
+            {!isSidebarCollapsed && (
+              <div
+                className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors mr-2"
+                onClick={handleToggleTheme}
+                role="button"
+                aria-label="Toggle theme"
+              >
+                {currentTheme === "dark" ? (
+                  <Sun className="text-foreground/80 h-5 w-5" />
+                ) : (
+                  <Moon className="text-foreground/80 h-5 w-5" />
+                )}
+              </div>
+            )}
+            <button
+              onClick={toggleSidebar}
+              className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isSidebarCollapsed ? (
+                <ChevronRight className="h-5 w-5 text-foreground/80" />
+              ) : (
+                <ChevronLeft className="h-5 w-5 text-foreground/80" />
+              )}
+            </button>
+          </div>
+        </div>
+        
+        <nav className="flex-1 py-4">
+          <ul className="space-y-1 px-2">
+            {navigationItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center w-full px-3 py-2 rounded-md transition-colors ${
+                    activeTab === item.id 
+                      ? 'bg-primary/10 text-primary font-medium' 
+                      : 'hover:bg-foreground/5 text-foreground/80'
+                  } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                >
+                  <span className={isSidebarCollapsed ? '' : 'mr-2'}>{item.icon}</span>
+                  {!isSidebarCollapsed && <span>{item.label}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        
+        <div className="border-t border-border/40 p-4">
+          <button 
+            onClick={handleCloseSettings}
+            className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
+              isSidebarCollapsed ? 'justify-center' : ''
+            }`}
+            title={isSidebarCollapsed ? "Close Settings" : undefined}
+          >
+            <X className={`h-5 w-5 ${isSidebarCollapsed ? '' : 'mr-2'}`} />
+            {!isSidebarCollapsed && <span>Close Settings</span>}
+          </button>
         </div>
       </div>
 
-      <h1 className="text-foreground mb-6 pt-4 text-center text-3xl font-bold">
-        Settings
-      </h1>
+      {/* Mobile sidebar toggle - only shown on small screens */}
+      <div className="md:hidden fixed bottom-4 left-4 z-50">
+        <button
+          onClick={toggleSidebar}
+          className="bg-primary text-primary-foreground w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
+          aria-label={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <ChevronLeft className="h-5 w-5" />
+          )}
+        </button>
+      </div>
 
-      <Tabs defaultValue="general" onValueChange={setActiveTab}>
-        <TabsList className="bg-secondary/80 relative mb-4 flex w-full rounded-lg p-1">
-          <TabsTrigger
-            value="general"
-            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            General
-          </TabsTrigger>
-          <TabsTrigger
-            value="mcpmarket"
-            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            MCP Market
-          </TabsTrigger>
-          <TabsTrigger
-            value="agents"
-            className="text-foreground data-[state=active]:bg-card flex-1 rounded-md text-sm font-medium whitespace-nowrap transition-all data-[state=active]:shadow-sm md:text-base"
-          >
-            Agents
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="general">
+      {/* Content area */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {/* General Tab Content */}
+        {activeTab === "general" && (
           <div className="space-y-8">
             <div>
               <h2 className="text-foreground mb-4 text-xl font-medium">
@@ -932,16 +992,18 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="mcpmarket">
+        {/* MCP Market Tab Content */}
+        {activeTab === "mcpmarket" && (
           <MarketplaceTab {...marketplaceProps} />
-        </TabsContent>
+        )}
 
-        <TabsContent value="agents">
+        {/* Agents Tab Content */}
+        {activeTab === "agents" && (
           <AgentsTab />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }
