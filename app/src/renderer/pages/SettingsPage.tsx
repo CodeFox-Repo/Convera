@@ -112,12 +112,6 @@ export default function SettingsPage() {
     fetchMcpConfigurations();
     fetchAllMcpServers();
 
-    // Load sidebar state from localStorage if available
-    const savedSidebarState = localStorage.getItem('settings-sidebar-collapsed');
-    if (savedSidebarState !== null) {
-      setIsSidebarCollapsed(savedSidebarState === 'true');
-    }
-
     const fetchTheme = async () => {
       try {
         const { system } = await getCurrentTheme();
@@ -130,13 +124,8 @@ export default function SettingsPage() {
     fetchTheme();
   }, []);
 
-  // Save sidebar state to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('settings-sidebar-collapsed', String(isSidebarCollapsed));
-  }, [isSidebarCollapsed]);
-
   const toggleSidebar = () => {
-    setIsSidebarCollapsed(prev => !prev);
+    setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
   const fetchAllMcpServers = async () => {
