@@ -13,6 +13,8 @@ This guide will walk you through the process of installing and setting up FoxyCh
 - **Operating System**: macOS, Windows, or Linux
 - **Node.js**: Version 18.0.0 or higher
 - **PNPM**: Version 8.0.0 or higher
+- **Python**: Version 3.6.0 or higher
+- **Visual Studio Build Tools**
 - **Disk Space**: At least 500MB of free space
 
 ## Installation Steps
@@ -36,6 +38,30 @@ Verify the installation:
 ```bash
 pnpm --version
 ```
+#### Python
+
+Download and install Python 3 or higher from the [official website](https://www.python.org/downloads/).（highly recommend add to path for restart use)
+
+Verify the installation:
+
+```bash
+python --version
+# or on some systems
+python3 --version
+```
+#### RobotJS Dependencies
+
+FoxyChat uses RobotJS for system automation. Please ensure you have the following dependencies installed based on your operating system:
+
+**Windows:**
+ Install Visual Studio Build Tools:
+   - Download the Visual Studio Build Tools from [Microsoft's website](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - During installation, select the "Desktop development with C++" workload
+   - Make sure the following components are checked under "Optional":
+     - MSVC v143 - VS 2022 C++ x64/x86 build tools
+     - Windows 11 SDK (10.0.22621.0)
+     - C++ CMake tools for Windows
+
 
 ### 2. Clone the Repository
 
@@ -51,6 +77,14 @@ From the root directory, run:
 ```bash
 pnpm install
 ```
+
+After installation, you need to run the Electron setup script:
+
+```bash
+node node_modules/electron/install.js
+```
+
+This script ensures Electron is properly configured for your system. If you encounter any issues with Electron, running this script manually can often resolve them.
 
 This will install all dependencies for all packages in the workspace.
 
@@ -132,7 +166,16 @@ pnpm test:e2e
    nvm use 18
    ```
 
-3. **Build errors**
+3. **Electron installation issues**
+   
+   If you encounter problems with Electron, try running the install script manually:
+   ```bash
+   node node_modules/electron/install.js
+   ```
+   
+   Common Electron issues include download failures due to network problems or permission issues. Make sure you have proper internet connection and administrator privileges.
+
+4. **Build errors**
    
    Make sure you have the latest dependencies:
    ```bash
