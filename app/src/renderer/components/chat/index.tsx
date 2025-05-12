@@ -1,16 +1,15 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import type { Message, UIMessage } from "ai";
-import { X, Plus  } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import ChatInput, { ChatInputRef } from "./ChatInput";
-import ChatContent from "./ChatContent";
-import { useChat } from "@ai-sdk/react";
-import { getSettings  } from "@/renderer/utils/settings";
-import CopiedContentCard from "./CopiedContentCard";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { GenericError, parseApiError } from "@/renderer/utils/errorHandler";
+import { getSettings } from "@/renderer/utils/settings";
 import { ChatData } from "@/server/service/chat";
+import { useChat } from "@ai-sdk/react";
+import type { Message, UIMessage } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
+import { Plus, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { parseApiError, GenericError } from "@/renderer/utils/errorHandler";
+import ChatContent from "./ChatContent";
+import ChatInput, { ChatInputRef } from "./ChatInput";
 
 /**
  * Agent interface definition
@@ -73,15 +72,6 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
 }) => {
   return (
     <div className="h-full flex flex-col p-1">
-      {/* Show copied content card above the input */}
-      {copiedContent && (
-        <div className="mb-2 w-full overflow-y-auto p-1">
-          <CopiedContentCard
-            content={copiedContent}
-            onReject={onRejectCopiedContent}
-          />
-        </div>
-      )}
       <div className="flex-1 min-h-[100px]">
         <ChatInput
           ref={chatInputRef}
@@ -101,6 +91,8 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
           onModelSelect={onModelSelect}
           onLoadChatHistory={onLoadChatHistory}
           onOpenSettings={onOpenSettings}
+          copiedContent={copiedContent}
+          onRejectCopiedContent={onRejectCopiedContent}
         />
       </div>
     </div>
@@ -249,26 +241,18 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
             onIgnoreAgentChange={onIgnoreAgentChange}
           />
         </div>
-        
+
         {/* Add central error message display in the red rectangle area */}
         {error && (
           <div className="mx-auto w-[90%]  border-red-500 rounded-md p-4 text-center">
             <p className="text-red-500 font-medium">
-              {error.message || "An error occurred. Please check your API key or try again later."}
+              {error.message ||
+                "An error occurred. Please check your API key or try again later."}
             </p>
           </div>
         )}
-        
+
         <div className="drag-region flex flex-col p-1">
-          {/* Show copied content card above the input */}
-          {copiedContent && (
-            <div className="mb-2 w-full p-1">
-              <CopiedContentCard
-                content={copiedContent}
-                onReject={onRejectCopiedContent}
-              />
-            </div>
-          )}
           <div className="flex-1">
             <ChatInput
               ref={chatInputRef}
@@ -289,6 +273,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               onOpenSettings={onOpenSettings}
               placeholder="Message to FoxyChat..."
               onLoadChatHistory={onLoadChatHistory}
+              copiedContent={copiedContent}
+              onRejectCopiedContent={onRejectCopiedContent}
             />
           </div>
         </div>
@@ -329,12 +315,9 @@ export default function Chat() {
 
   // Add state to track if we've already expanded the window
   const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
-  
+
   // View mode state
   const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
-
-  // Add state to explicitly track if clipboard height should be added
-  const [shouldAddClipboardHeight, setShouldAddClipboardHeight] = useState(false);
 
   // Use Vercel AI SDK's useChat hook instead of managing state manually
   const {
@@ -351,7 +334,7 @@ export default function Chat() {
     api: "http://localhost:38000/api/chat",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.openai.apiKey}`,
+      Authorization: `Bearer ${settings.openai.apiKey}`,
     },
     body: {
       config: settings,
@@ -361,18 +344,8 @@ export default function Chat() {
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
-    }
+    },
   });
-
-  // Add effect to determine when clipboard height should be added
-  useEffect(() => {
-    const hasClipboardContent = Boolean(copiedContent && copiedContent.trim().length > 0);
-    const hasNoMessages = messages.length === 0;
-    const isCompactMode = viewMode === "compact";
-    
-    const shouldAdd = hasClipboardContent && hasNoMessages && isCompactMode;
-    setShouldAddClipboardHeight(shouldAdd);
-  }, [copiedContent, messages.length, viewMode]);
 
   // Set mounted state when component mounts
   useEffect(() => {
@@ -385,8 +358,7 @@ export default function Chat() {
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
             .then((res) => {
               requestAnimationFrame(() => {
-                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
-                window.electronAPI.resizeMessageContent(res.width, finalHeight);
+                window.electronAPI.resizeMessageContent(res.width, res.height);
               });
             });
         } catch (error) {
@@ -405,7 +377,7 @@ export default function Chat() {
       clearTimeout(mountTimer);
       setMounted(false);
     };
-  }, [shouldAddClipboardHeight, messages.length]);
+  }, [messages.length]);
 
   // Modify toggleViewMode to track expansion state
   const toggleViewMode = useCallback(
@@ -418,7 +390,6 @@ export default function Chat() {
             // First, toggle resizable mode
             window.electronAPI.toggleViewMode(true);
             setHasExpandedOnce(true);
-            
           } else if (mode === "compact") {
             window.electronAPI.toggleViewMode(false);
           }
@@ -437,22 +408,11 @@ export default function Chat() {
         } else {
           setCopiedContent(text);
         }
-        
-        setTimeout(() => {
-          if (window.electronAPI && !hasExpandedOnce && messages.length === 0) {
-            window.electronAPI
-              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
-              .then((res) => {
-                const finalHeight = shouldAddClipboardHeight ? res.height + 140 : res.height;
-                window.electronAPI.resizeMessageContent(res.width, finalHeight);
-              });
-          }
-        }, 50);
       });
-      
+
       return unsubscribe;
     }
-  }, [shouldAddClipboardHeight, hasExpandedOnce, messages.length]);
+  }, []);
 
   const handleRegenerateWithNewAgent = () => {
     setAgentChanged(false);
@@ -465,7 +425,7 @@ export default function Chat() {
 
   const handleInputChangeAdapter = (value: string) => {
     handleInputChange({
-      target: { value: value  },
+      target: { value: value },
     } as React.ChangeEvent<HTMLInputElement>);
 
     if (!value && chatInputRef.current?.editor) {
@@ -633,10 +593,9 @@ export default function Chat() {
   const handleOpenSettings = () => {
     console.log("Opening settings window");
     if (window.electronAPI) {
-      window.electronAPI.toggleSettingsWindow()
-        .catch(error => {
-          console.error("Error opening settings window:", error);
-        });
+      window.electronAPI.toggleSettingsWindow().catch((error) => {
+        console.error("Error opening settings window:", error);
+      });
     } else {
       console.error("electronAPI is not available for toggleSettingsWindow!");
     }
@@ -655,14 +614,17 @@ export default function Chat() {
     const handleChatHistorySelected = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail && customEvent.detail.chat) {
-        console.log("Chat component received chat-history-selected event:", customEvent.detail.chat);
+        console.log(
+          "Chat component received chat-history-selected event:",
+          customEvent.detail.chat,
+        );
         handleLoadChatHistory(customEvent.detail.chat);
       }
     };
 
     // Do NOT automatically check localStorage on component mount
     // Only listen for explicit user selections
-    
+
     // Listen for storage events to catch changes from other windows
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "selectedChatHistory" && event.newValue) {
@@ -670,48 +632,63 @@ export default function Chat() {
         try {
           const chatData = JSON.parse(event.newValue);
           if (chatData && chatData.chat) {
-            console.log("Loading new chat history from storage event:", chatData.chat.id);
+            console.log(
+              "Loading new chat history from storage event:",
+              chatData.chat.id,
+            );
             handleLoadChatHistory(chatData.chat);
           }
         } catch (error) {
-          console.error("Error parsing chat history from storage event:", error);
+          console.error(
+            "Error parsing chat history from storage event:",
+            error,
+          );
         }
       }
     };
-    
+
     // Add event listeners
     window.addEventListener("chat-history-selected", handleChatHistorySelected);
     window.addEventListener("storage", handleStorageChange);
-    
+
     // Cleanup
     return () => {
-      window.removeEventListener("chat-history-selected", handleChatHistorySelected);
+      window.removeEventListener(
+        "chat-history-selected",
+        handleChatHistorySelected,
+      );
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-  
+
   // Handle loading a chat history
   const handleLoadChatHistory = (chatHistory: ChatData) => {
     console.log("Loading chat history in Chat component:", chatHistory);
-    
-    if (chatHistory && chatHistory.messages && chatHistory.messages.length > 0) {
+
+    if (
+      chatHistory &&
+      chatHistory.messages &&
+      chatHistory.messages.length > 0
+    ) {
       // Reset state first to ensure clean loading
       setMessages([]);
-      
+
       // Add a small delay before setting new messages
       setTimeout(() => {
         // Simple direct update approach with fallback IDs
         const formattedMessages = chatHistory.messages.map((msg) => ({
-          id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          id:
+            msg.id ||
+            `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           content: msg.content,
           role: msg.role,
         }));
-        
+
         console.log("Setting messages to:", formattedMessages);
-        
+
         // Set messages directly
         setMessages(formattedMessages);
-        
+
         // Force a resize after a short delay
         setTimeout(() => {
           if (window.electronAPI) {
@@ -719,9 +696,13 @@ export default function Chat() {
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
               .then((res) => {
-                window.electronAPI.resizeMessageContent(res.width, res.height, true);
+                window.electronAPI.resizeMessageContent(
+                  res.width,
+                  res.height,
+                  true,
+                );
               })
-              .catch(error => {
+              .catch((error) => {
                 console.error("Error resizing window:", error);
               });
           }
@@ -752,7 +733,7 @@ export default function Chat() {
     if (!editorText && !copiedContent) return;
 
     let messageText = editorText;
-    
+
     if (copiedContent) {
       messageText = messageText
         ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
@@ -767,7 +748,7 @@ export default function Chat() {
     if (copiedContent) {
       setCopiedContent(null);
     }
-      
+
     if (chatInputRef.current?.editor) {
       chatInputRef.current.editor.clearContent();
     }
@@ -810,20 +791,6 @@ export default function Chat() {
   // Functions to handle copied content actions - only keep the reject function
   const handleRejectCopiedContent = () => {
     setCopiedContent(null);
-    
-    if (window.electronAPI) {
-      setTimeout(() => {
-        window.electronAPI
-          .getCurrentWindowSize(
-            messages.length > 0
-              ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-              : WINDOW_SIZE_PRESETS.MAIN,
-          )
-          .then((res) => {
-            window.electronAPI.resizeMessageContent(res.width, res.height);
-          });
-      }, 50);
-    }
   };
 
   useEffect(() => {
@@ -855,22 +822,30 @@ export default function Chat() {
   // Add new effect to listen for settings changes, particularly API key updates
   useEffect(() => {
     const handleSettingsUpdate = (e: CustomEvent) => {
-      if (e.detail && e.detail.field === 'apiKey') {
-        console.log('API key updated, reloading chat component');
+      if (e.detail && e.detail.field === "apiKey") {
+        console.log("API key updated, reloading chat component");
         // Force reload of the component to pick up new auth headers
         // Only force reload if there are no messages to avoid losing conversation
         if (messages.length === 0) {
           window.location.reload();
         } else {
-          toast.info('Authentication updated. New chats will use the updated API key.');
+          toast.info(
+            "Authentication updated. New chats will use the updated API key.",
+          );
         }
       }
     };
 
-    window.addEventListener('settings-updated', handleSettingsUpdate as EventListener);
-    
+    window.addEventListener(
+      "settings-updated",
+      handleSettingsUpdate as EventListener,
+    );
+
     return () => {
-      window.removeEventListener('settings-updated', handleSettingsUpdate as EventListener);
+      window.removeEventListener(
+        "settings-updated",
+        handleSettingsUpdate as EventListener,
+      );
     };
   }, [messages.length]);
 

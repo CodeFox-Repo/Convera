@@ -47,6 +47,8 @@ interface ChatInputProps {
   onModelSelect?: (modelId: string) => void;
   // Updated prop for loading chat history using ChatData
   onLoadChatHistory?: (chat: ChatData) => void;
+  copiedContent?: string | null;
+  onRejectCopiedContent?: () => void;
 }
 
 export interface ChatInputRef {
@@ -78,6 +80,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       selectedModelId,
       onModelSelect,
       onLoadChatHistory,
+      copiedContent,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      onRejectCopiedContent,
     },
     ref,
   ) => {
@@ -107,18 +112,28 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       // Create a handler for model selection events
       const handleChatHistorySelected = (event: Event) => {
         const customEvent = event as CustomEvent;
-        if (customEvent.detail && customEvent.detail.chat && onLoadChatHistory) {
+        if (
+          customEvent.detail &&
+          customEvent.detail.chat &&
+          onLoadChatHistory
+        ) {
           console.log("Chat history selected:", customEvent.detail.chat);
           onLoadChatHistory(customEvent.detail.chat);
         }
       };
 
       // Add event listener
-      window.addEventListener("chat-history-selected", handleChatHistorySelected);
+      window.addEventListener(
+        "chat-history-selected",
+        handleChatHistorySelected,
+      );
 
       // Clean up on unmount
       return () => {
-        window.removeEventListener("chat-history-selected", handleChatHistorySelected);
+        window.removeEventListener(
+          "chat-history-selected",
+          handleChatHistorySelected,
+        );
       };
     }, [onLoadChatHistory]);
 
@@ -260,7 +275,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const openChatHistoryWindow = () => {
       try {
         if (window.electronAPI) {
-          window.electronAPI.toggleHistoryWindow()
+          window.electronAPI
+            .toggleHistoryWindow()
             .then(() => {
               console.log("Chat history window toggled successfully");
             })
@@ -276,8 +292,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     };
 
     return (
-      <div className="drag-region h-full p-1">
-        <div className="h-full  w-full">
+      <div className="drag-region h-full">
+        <div className="h-full w-full p-1">
           <div
             className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
@@ -391,7 +407,14 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 {previousApp && (
                   <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
                     <Monitor size={12} className="mr-1" />
-                   {formatAppName(previousApp)}
+                    {formatAppName(previousApp)}
+                  </div>
+                )}
+
+                {copiedContent && (
+                  <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
+                    <Monitor size={12} className="mr-1" />
+                    {formatAppName("clipboard")}
                   </div>
                 )}
               </div>
