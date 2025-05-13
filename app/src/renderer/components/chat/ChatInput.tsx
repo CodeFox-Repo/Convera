@@ -292,10 +292,31 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     };
 
     return (
-      <div className="drag-region h-full">
-        <div className="h-full w-full p-1">
+      <div className="drag-region h-full flex flex-col">
+        {copiedContent && (
           <div
-            className={`flex h-full flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
+            className="
+      no-drag-region
+      flex items-center
+      rounded-[var(--app-border-radius)]    /* 同 input 圆角 */
+      border border-gray-500/45             /* 同 input 边框颜色和粗细 */
+      bg-background/30                      /* 同 input 背景 */
+      px-2 py-1                             /* 内边距稍微调紧一点 */
+      text-xs font-medium
+      max-w-[14ch]
+      ml-1
+      overflow-hidden
+    "
+          >
+            <Monitor size={12} className="flex-shrink-0 m-1" />
+
+            {formatAppName("clipboard")}
+          </div>
+        )}
+
+        <div className="h-full w-full flex-1 flex flex-col p-1 py-2 min-h-0">
+          <div
+            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
             <div className="drag-region mb-2 w-full flex-1">
@@ -408,13 +429,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
                     <Monitor size={12} className="mr-1" />
                     {formatAppName(previousApp)}
-                  </div>
-                )}
-
-                {copiedContent && (
-                  <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
-                    <Monitor size={12} className="mr-1" />
-                    {formatAppName("clipboard")}
                   </div>
                 )}
               </div>
