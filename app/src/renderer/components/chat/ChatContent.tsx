@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback, memo, useRef } from "react";
 import { UIMessage } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { memo, useCallback, useEffect, useState } from "react";
 import ChatMessage from "./ChatMessage";
-import ToolCall from "./ToolCall";
 import CopiedContentBlock from "./CopiedContentBlock";
 import ModifiedContentBlock from "./ModifiedContentBlock";
+import ToolCall from "./ToolCall";
 
 /**
  * Simple markdown renderer component
@@ -181,7 +181,7 @@ export default function ChatContent({
         const modifiedContent = modifiedContentMatch[1];
 
         // Remove both blocks from the original content
-        let otherContent = content
+        const otherContent = content
           .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
           .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
           .trim();

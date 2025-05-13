@@ -9,11 +9,16 @@
     "format": "pnpm -r format",
     "format:write": "pnpm -r format:write",
     "test": "pnpm -r test",
-    "test:all": "pnpm -r test:all"
+    "test:all": "pnpm -r test:all",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@8.15.1",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.0.0"
+  }
 }
