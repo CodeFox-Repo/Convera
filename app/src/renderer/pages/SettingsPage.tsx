@@ -20,9 +20,9 @@ import { toast } from "sonner";
 
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/AgentsTab";
-import { AIModelTab } from "@/renderer/components/settings/AIModelTab";
-import { MarketplaceTab } from "@/renderer/components/settings/MarketplaceTab";
-import { ShortcutsTab } from "@/renderer/components/settings/ShortcutsTab";
+import { AIModelSection } from "@/renderer/components/settings/AIModelSection";
+import { MarketplaceSection } from "@/renderer/components/settings/MarketplaceTab";
+import { ShortcutsSection } from "@/renderer/components/settings/ShortcutsSection";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AgentDefinition {
@@ -857,7 +857,7 @@ export default function SettingsPage() {
   // Navigation items for sidebar
   const navigationItems = [
     { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
-    { id: "mcpmarket", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
+    { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
     { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
   ];
 
@@ -957,7 +957,7 @@ export default function SettingsPage() {
               <h2 className="text-foreground mb-4 text-xl font-medium">
                 AI Model
               </h2>
-              <AIModelTab
+              <AIModelSection
                 settings={settings}
                 onOpenAIChange={handleOpenAIChange}
                 onAddSupportedModel={handleAddSupportedModel}
@@ -969,7 +969,7 @@ export default function SettingsPage() {
               <h2 className="text-foreground mb-4 text-xl font-medium">
                 Shortcuts
               </h2>
-              <ShortcutsTab
+              <ShortcutsSection
                 settings={settings}
                 activeShortcut={activeShortcut}
                 recordingShortcut={recordingShortcut}
@@ -984,8 +984,8 @@ export default function SettingsPage() {
         )}
 
         {/* MCP Market Tab Content */}
-        {activeTab === "mcpmarket" && (
-          <MarketplaceTab {...marketplaceProps} />
+        {activeTab === "mcp" && (
+          <MarketplaceSection {...marketplaceProps} />
         )}
 
         {/* Agents Tab Content */}
