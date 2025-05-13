@@ -1,14 +1,15 @@
-import { BrowserWindow, nativeTheme, clipboard } from "electron";
+import { BrowserWindow, clipboard, nativeTheme } from "electron";
 
+import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   resizeWindowAndMaintainPosition,
   toggleMainWindowVisibility,
 } from "@/electron/windows/window-position";
-import { CHANNELS } from "./channels";
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
-import { exec } from "child_process";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
-import { calculateWindowDimensions } from "@/electron/windows/utils";
+import { exec } from "child_process";
+import path from "path";
+import { CHANNELS } from "./channels";
 
 let currentActivateShortcut =
   process.platform === "darwin" ? "Alt+Space" : "Control+Space";
@@ -339,8 +340,23 @@ export function setInputText(
 // Function to simulate a paste operation using robotjs
 export function simulateClipboardPaste(): void {
   try {
+    // use to pack the app
+    const bin = path.join(
+      process.resourcesPath, // …/FoxyChat.app/Contents/Resources
+      "app.asar.unpacked",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+      "build",
+      "Release",
+      "robotjs.node",
+    );
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const robot = require("@hurdlegroup/robotjs");
+    const robot = require(bin);
+
+    // use to run the app in dev mode
+     
+    // const robot = require("@hurdlegroup/robotjs");
 
     // Write to clipboard first
     if (process.platform === "darwin") {
@@ -391,7 +407,7 @@ export function pasteModifiedContent(content: string): void {
         // For Windows, use node-window-manager
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { windowManager  } = require("node-window-manager");
+          const { windowManager } = require("node-window-manager");
 
           // Get all windows
           const windows = windowManager.getWindows();

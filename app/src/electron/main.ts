@@ -39,10 +39,9 @@ const bin = path.join(
 );
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const robot = require(bin);
-console.log("✅ loaded from unpacked .node:", robot.getMousePos());
 
 // use to run the app in dev mode
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 // const robot = require("@hurdlegroup/robotjs");
 const { activeWindowSync } =
   process.platform === "win32"
