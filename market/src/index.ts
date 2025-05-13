@@ -1,47 +1,23 @@
+import dotenv from "dotenv";
 import express, { Request, Response } from 'express';
+import mcpRoutes from "./mcp/mcpRoutes"; // Corrected import path
+
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3003;
 
 // Enable JSON parsing middleware
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello, TypeScript Express!');
+  res.send('Hello, TypeScript Express Server!');
 });
 
 // MCP marketplace endpoint
-app.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
-  try {
-    const response = await fetch("https://api.cline.bot/v1/mcp/marketplace", {
-      headers: {
-        Accept: "application/json",
-      },
-    });
+app.use("/api/mcp", mcpRoutes); // Use MCP routes
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch marketplace data: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const externalData = await response.json();
-
-    if (Array.isArray(externalData)) {
-      const catalog = {
-        items: externalData,
-      };
-      res.json({ status: "success", catalog });
-    } else {
-      res.json({ status: "success", catalog: externalData });
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error fetching MCP marketplace:", errorMessage);
-    res.status(500).json({ status: "error", message: errorMessage });
-  }
-});
-
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });

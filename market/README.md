@@ -36,3 +36,9 @@ npm install
 
 npm start
 
+## Architecture
+  built with the following technologies:
+
+- **TypeScript**: type-safe code
+- **Express**: MVC
+
