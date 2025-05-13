@@ -1,30 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { Button } from "@/renderer/components/ui/button";
-import { Input } from "@/renderer/components/ui/input";
-import { Label } from "@/renderer/components/ui/label";
-import { Loader2 } from "lucide-react";
-import { Checkbox } from "@/renderer/components/ui/checkbox";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/renderer/components/ui/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/renderer/components/ui/accordion";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/renderer/components/ui/tabs";
+import { Button } from "@/renderer/components/ui/button";
+import { Checkbox } from "@/renderer/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -32,8 +13,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/renderer/components/ui/dialog";
-import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import { Input } from "@/renderer/components/ui/input";
+import { Label } from "@/renderer/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/renderer/components/ui/tabs";
 import { ToolReference } from "@/server/agents/types";
+import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import { Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 // Define agent type
@@ -721,175 +713,171 @@ export function AgentsTab() {
   };
 
   return (
-    <Card className="bg-card text-foreground border-none">
-      <CardHeader>
-        <CardTitle>Agents</CardTitle>
-        <CardDescription>
-          Create and manage agents with MCP tools
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="create" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="create">Create Agent</TabsTrigger>
-            <TabsTrigger value="manage">Manage Agents</TabsTrigger>
-          </TabsList>
+    <div className="text-foreground p-4">
+      <h2 className="mb-1 text-xl font-semibold">Agents</h2>
+      <p className="text-muted-foreground mb-4 text-sm">
+        Create and manage agents with MCP tools
+      </p>
+      
+      <Tabs defaultValue="create" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="create">Create Agent</TabsTrigger>
+          <TabsTrigger value="manage">Manage Agents</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="create" className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="agent-name">Name</Label>
-                <div className="relative">
-                  <Input
-                    id="agent-name"
-                    value={newAgent.name}
-                    onChange={(e) =>
-                      setNewAgent({ ...newAgent, name: e.target.value })
-                    }
-                    placeholder="Enter agent name"
-                    maxLength={20}
-                    className="pr-12"
-                  />
-                  <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
-                    {newAgent.name.length}/20
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="agent-description">Description</Label>
-                <div className="relative">
-                  <Input
-                    id="agent-description"
-                    value={newAgent.description}
-                    onChange={(e) =>
-                      setNewAgent({ ...newAgent, description: e.target.value })
-                    }
-                    placeholder="Enter agent description"
-                    maxLength={50}
-                    className="pr-12"
-                  />
-                  <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
-                    {newAgent.description.length}/50
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="agent-prompt">Prompt</Label>
-                <div className="relative">
-                  <textarea
-                    id="agent-prompt"
-                    className="border-border bg-background min-h-[80px] w-full rounded-md border p-3 text-sm"
-                    value={newAgent.systemPrompt}
-                    onChange={(e) =>
-                      setNewAgent({ ...newAgent, systemPrompt: e.target.value })
-                    }
-                    placeholder="Enter the agent's role, tone, workflow, tool preferences, and any rules or guidelines. (Optional)"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <h3 className="mb-4 text-lg font-medium">MCP Servers & Tools</h3>
-              {renderMcpTools(false, selectedToolNames, handleToolSelection)}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="manage">
-            {loadingAgents ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-              </div>
-            ) : agents.length === 0 ? (
-              <p className="text-muted-foreground">No agents created yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {agents.map((agent) => {
-                  console.log(`Agent ${agent.name} tools:`, {
-                    toolNames: agent.toolNames,
-                    toolReferences: agent.toolReferences,
-                  });
-
-                  // Format tools for display - prioritize toolReferences over toolNames if available
-                  let formattedTools: string[] = [];
-
-                  if (agent.toolReferences && agent.toolReferences.length > 0) {
-                    // Format tool references
-                    formattedTools = agent.toolReferences.map(
-                      (toolRef) => `${toolRef.toolName} (${toolRef.mcpName})`,
-                    );
-                  } else if (agent.toolNames && agent.toolNames.length > 0) {
-                    // Format tool names (legacy format)
-                    formattedTools = agent.toolNames.map((toolId) => {
-                      const parts = toolId.split(":");
-                      return parts.length > 1
-                        ? `${parts[1]} (${parts[0]})`
-                        : toolId;
-                    });
+        <TabsContent value="create" className="space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="agent-name">Name</Label>
+              <div className="relative">
+                <Input
+                  id="agent-name"
+                  value={newAgent.name}
+                  onChange={(e) =>
+                    setNewAgent({ ...newAgent, name: e.target.value })
                   }
+                  placeholder="Enter agent name"
+                  maxLength={20}
+                  className="pr-12"
+                />
+                <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
+                  {newAgent.name.length}/20
+                </span>
+              </div>
+            </div>
 
-                  return (
-                    <div key={agent.id} className="rounded-md border p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium">{agent.name}</h4>
-                          <p className="text-muted-foreground text-sm">
-                            {agent.description}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8"
-                            onClick={() => handleEditAgent(agent)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-8"
-                            onClick={() =>
-                              handleDeleteAgent(agent.id, agent.name)
-                            }
-                          >
-                            Delete
-                          </Button>
-                        </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-description">Description</Label>
+              <div className="relative">
+                <Input
+                  id="agent-description"
+                  value={newAgent.description}
+                  onChange={(e) =>
+                    setNewAgent({ ...newAgent, description: e.target.value })
+                  }
+                  placeholder="Enter agent description"
+                  maxLength={50}
+                  className="pr-12"
+                />
+                <span className="text-muted-foreground absolute top-2.5 right-3 text-xs">
+                  {newAgent.description.length}/50
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="agent-prompt">Prompt</Label>
+              <div className="relative">
+                <textarea
+                  id="agent-prompt"
+                  className="border-border bg-background min-h-[80px] w-full rounded-md border p-3 text-sm"
+                  value={newAgent.systemPrompt}
+                  onChange={(e) =>
+                    setNewAgent({ ...newAgent, systemPrompt: e.target.value })
+                  }
+                  placeholder="Enter the agent\'s role, tone, workflow, tool preferences, and any rules or guidelines. (Optional)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="mb-4 text-lg font-medium">MCP Servers & Tools</h3>
+            {renderMcpTools(false, selectedToolNames, handleToolSelection)}
+          </div>
+          
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={handleSaveAgent}
+              disabled={!newAgent.name}
+              variant="default"
+              className="px-4"
+            >
+              Create Agent
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="manage">
+          {loadingAgents ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+            </div>
+          ) : agents.length === 0 ? (
+            <p className="text-muted-foreground">No agents created yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {agents.map((agent) => {
+                console.log(`Agent ${agent.name} tools:`, {
+                  toolNames: agent.toolNames,
+                  toolReferences: agent.toolReferences,
+                });
+
+                // Format tools for display - prioritize toolReferences over toolNames if available
+                let formattedTools: string[] = [];
+
+                if (agent.toolReferences && agent.toolReferences.length > 0) {
+                  // Format tool references
+                  formattedTools = agent.toolReferences.map(
+                    (toolRef) => `${toolRef.toolName} (${toolRef.mcpName})`,
+                  );
+                } else if (agent.toolNames && agent.toolNames.length > 0) {
+                  // Format tool names (legacy format)
+                  formattedTools = agent.toolNames.map((toolId) => {
+                    const parts = toolId.split(":");
+                    return parts.length > 1
+                      ? `${parts[1]} (${parts[0]})`
+                      : toolId;
+                  });
+                }
+
+                return (
+                  <div key={agent.id} className="rounded-md border p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-medium">{agent.name}</h4>
+                        <p className="text-muted-foreground text-sm">
+                          {agent.description}
+                        </p>
                       </div>
-
-                      <div className="mt-4">
-                        <h5 className="mb-2 text-sm font-medium">Tools</h5>
-                        <div className="text-muted-foreground text-xs">
-                          {formattedTools.length > 0
-                            ? formattedTools.join(", ")
-                            : "No tools configured"}
-                        </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => handleEditAgent(agent)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-8"
+                          onClick={() =>
+                            handleDeleteAgent(agent.id, agent.name)
+                          }
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
 
-      <CardFooter className="flex justify-end">
-        <Button
-          onClick={handleSaveAgent}
-          disabled={!newAgent.name}
-          variant="default"
-          className="px-4"
-        >
-          Create Agent
-        </Button>
-      </CardFooter>
+                    <div className="mt-4">
+                      <h5 className="mb-2 text-sm font-medium">Tools</h5>
+                      <div className="text-muted-foreground text-xs">
+                        {formattedTools.length > 0
+                          ? formattedTools.join(", ")
+                          : "No tools configured"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
-      {/* Edit Agent Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto px-6 sm:max-w-[500px]">
           <DialogHeader className="pb-4">
@@ -960,7 +948,7 @@ export function AgentsTab() {
                           systemPrompt: e.target.value,
                         })
                       }
-                      placeholder="Enter the agent's role, tone, workflow, tool preferences, and any rules or guidelines. (Optional)"
+                      placeholder="Enter the agent\'s role, tone, workflow, tool preferences, and any rules or guidelines. (Optional)"
                     />
                   </div>
                 </div>
@@ -996,6 +984,6 @@ export function AgentsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 }
