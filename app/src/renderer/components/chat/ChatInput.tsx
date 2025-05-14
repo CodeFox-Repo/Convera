@@ -68,7 +68,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       input,
       setInput,
       hasMessages = false,
-      onAddAttachment,
       onReset,
       onVoiceInput,
       onSendMessage,
@@ -293,32 +292,29 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <div className="drag-region h-full flex flex-col">
-        {copiedContent && (
+        <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
           <div
-            className="
-      no-drag-region
-      flex items-center
-      rounded-[var(--app-border-radius)]    /* 同 input 圆角 */
-      border border-gray-500/45             /* 同 input 边框颜色和粗细 */
-      bg-background/30                      /* 同 input 背景 */
-      px-2 py-1                             /* 内边距稍微调紧一点 */
-      text-xs font-medium
-      max-w-[14ch]
-      ml-1
-      overflow-hidden
-    "
-          >
-            <Monitor size={12} className="flex-shrink-0 m-1" />
-
-            {formatAppName("clipboard")}
-          </div>
-        )}
-
-        <div className="h-full w-full flex-1 flex flex-col p-1 py-2 min-h-0">
-          <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-3 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
+            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-2 ${hasMessages ? "bg-background/80" : "bg-background/30"} `}
           >
             {/* Editor field */}
+            <div className="h-6 flex flex-row">
+              <button
+                className="h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+                    bg-background/30 px-3 py-1 text-xs font-medium max-w-[36ch]"
+              >
+                <Plus size={14} className="flex-shrink-0 " />
+                {formatAppName("Add context")}
+              </button>
+              {copiedContent && (
+                <div
+                  className="h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+                    bg-background/30 px-2 py-1 text-xs font-medium max-w-[14ch] ml-1 overflow-hidden"
+                >
+                  <Monitor size={12} className="flex-shrink-0 m-1" />
+                  {formatAppName("clipboard")}
+                </div>
+              )}
+            </div>
             <div className="drag-region mb-2 w-full flex-1">
               <TiptapEditor
                 ref={editorRef}
@@ -332,20 +328,14 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             </div>
 
             {/* Buttons row - Bottom row */}
-            <div className="drag-region flex min-h-[30px] items-center justify-between">
+            <div className="ml-2 drag-region flex min-h-[30px] items-center justify-between">
               {/* Left icons - use space-x here */}
               <div className="flex flex-1 items-center space-x-4">
-                <button
-                  onClick={onAddAttachment}
-                  className="no-drag-region text-foreground/70 hover:text-foreground"
-                >
-                  <Plus size={24} />
-                </button>
                 <button
                   onClick={onReset}
                   className="no-drag-region text-foreground/70 hover:text-foreground"
                 >
-                  <RotateCcw size={20} />
+                  <RotateCcw size={16} />
                 </button>
 
                 {/* History button - updated to open separate window */}
@@ -354,14 +344,14 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   className="no-drag-region text-foreground/70 hover:text-foreground"
                   title="View chat history"
                 >
-                  <History size={20} />
+                  <History size={16} />
                 </button>
 
                 <button
                   onClick={onOpenSettings}
                   className="no-drag-region text-foreground/70 hover:text-foreground"
                 >
-                  <Settings size={20} />
+                  <Settings size={16} />
                 </button>
 
                 {/* Combined Agent selector button */}
@@ -408,7 +398,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   }}
                 >
                   <Bot
-                    size={selectedAgent ? 12 : 20}
+                    size={selectedAgent ? 12 : 16}
                     className={selectedAgent ? "mr-1" : ""}
                   />
                   {selectedAgent && selectedAgent.name}
@@ -439,7 +429,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onClick={onVoiceInput}
                   className="no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5"
                 >
-                  <Mic size={18} />
+                  <Mic size={16} />
                 </button>
 
                 {isLoading && onStopGeneration ? (
@@ -466,7 +456,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     }`}
                     aria-label="Send message"
                   >
-                    <Send size={20} />
+                    <Send size={16} />
                   </button>
                 )}
               </div>
