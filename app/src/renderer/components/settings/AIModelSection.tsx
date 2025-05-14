@@ -1,30 +1,29 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-import { X } from "lucide-react";
 import { AppSettings } from "@/shared/types/settings";
+import { X } from "lucide-react";
 
+import { loadFuzzyInstance, searchModels } from "@/renderer/utils/modelSearchUtils";
 import { OFFICIAL_MODELS, fetchOpenRouterModels } from "@/shared/constants/officialModels";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { loadFuzzyInstance, searchModels } from "@/renderer/utils/modelSearchUtils";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
-type AIModelTabProps = {
+type AIModelSectionProps = {
   settings: AppSettings;
   onOpenAIChange: (field: string, value: string) => void;
   onAddSupportedModel: (model: string) => void;
   onRemoveSupportedModel: (model: string) => void;
 };
 
-export function AIModelTab({
+export function AIModelSection({
   settings,
   onOpenAIChange,
   onAddSupportedModel,
   onRemoveSupportedModel,
-}: AIModelTabProps) {
+}: AIModelSectionProps) {
   const [newModelInput, setNewModelInput] = useState("");
   const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -95,14 +94,17 @@ export function AIModelTab({
   };
 
   return (
-    <Card className="bg-card text-foreground border-none">
-      <CardHeader>
-        <CardTitle>AI Model Settings</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Configure your AI API settings
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-6">
+      <div className="mb-6">
+        <div className="mb-4">
+          <h2 className="text-2xl font-medium text-foreground">AI Model Settings</h2>
+          <p className="text-muted-foreground mt-1">
+            Configure your AI API settings
+          </p>
+        </div>
+      </div>
+      
+      <div className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="endpoint" className="text-foreground">
             API Endpoint
@@ -138,14 +140,14 @@ export function AIModelTab({
             value={settings.openai.modelId}
             onValueChange={(value) => onOpenAIChange("modelId", value)}
           >
-            <SelectTrigger className="border-input bg-background text-foreground w-full">
+            <SelectTrigger className="border-input bg-background text-foreground w-full rounded-md">
               <SelectValue placeholder="Select a model">
                 {settings.openai.modelId}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="w-full">
+            <SelectContent className="w-full border-none shadow-none">
               {settings.openai.supportedModels.map((model) => (
-                <SelectItem key={model} value={model}>
+                <SelectItem key={model} value={model} className="focus:bg-secondary/30 cursor-pointer">
                   {model}
                 </SelectItem>
               ))}
@@ -154,13 +156,14 @@ export function AIModelTab({
         </div>
 
         {/* Add New Models */}
-        <div>
-          <Label>Add New Models</Label>
+        <div className="pt-4 border-t border-border">
+          <Label className="text-foreground text-sm font-medium">Add New Models</Label>
           <div className="mt-2 flex flex-wrap gap-2">
             {settings.openai.supportedModels.map((model) => (
               <Badge
                 key={model}
-                className="bg-primary/20 text-primary flex items-center gap-1"
+                className="bg-secondary/50 text-foreground border border-border flex items-center gap-1 px-2 py-1"
+                variant="outline"
               >
                 {model}
                 <button
@@ -174,11 +177,11 @@ export function AIModelTab({
           </div>
           <div className="mt-3 flex gap-2">
             <div className="relative flex-1">
-              <input
+              <Input
                 id="new-model"
                 name="new-model"
                 placeholder="Add a new model ID"
-                className="w-full border px-2 py-1 rounded"
+                className="w-full rounded-md border-input bg-background px-3 py-2 text-sm"
                 value={newModelInput}
                 onChange={(e) => setNewModelInput(e.target.value)}
                 onFocus={() => setShowDropdown(true)}
@@ -198,11 +201,10 @@ export function AIModelTab({
                 <ul
                   className="
                     absolute z-10 mt-1 w-full
-                    bg-popover  /* same background as SelectContent */
-                    border border-input  /* same border */
-                  rounded-md shadow-lg
+                    bg-background
+                    rounded-md shadow-sm
                     max-h-40 overflow-auto
-                  py-1
+                    py-1
                   "
                 >
                   {filteredModels.length > 0 ? (
@@ -210,22 +212,17 @@ export function AIModelTab({
                       <li
                         key={model}
                         onMouseDown={() => {
-                        
                           handleAddModel(model);
                           setNewModelInput("");
-                      }}
+                        }}
                         className="
                           relative flex items-center px-3 py-2
-                          text-sm select-none cursor-pointer rounded-sm
-                          /* exactly like SelectItem */
-                          radix-highlighted:bg-accent
-                          radix-highlighted:text-accent-foreground
-                          /* fallback highlight on hover */
-                          hover:bg-accent hover:text-accent-foreground
+                          text-sm select-none cursor-pointer
+                          hover:bg-secondary/30 transition-colors duration-100 rounded-2xl
                         "
                       >
                         {model}
-                    </li>
+                      </li>
                     ))
                   ) : (
                     <li className="px-3 py-2 text-muted-foreground text-xs">
@@ -242,12 +239,13 @@ export function AIModelTab({
                   setNewModelInput("");
                 }
               }}
+              className="bg-primary hover:bg-primary/90"
             >
               Add
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 } 
