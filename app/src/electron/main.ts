@@ -1,46 +1,48 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
-import path from "path";
+import { initializeChatServer } from "@/electron/chatServer";
+import {
+  isHiddenOffscreen,
+  toggleMainWindowVisibility,
+} from "@/electron/windows/window-position";
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
 import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
-import {
-  isHiddenOffscreen,
-  toggleMainWindowVisibility
-} from "@/electron/windows/window-position";
-import { initializeChatServer } from "@/electron/chatServer";
-import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import path from "path";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
+import {
+  getPreviousApp,
+  setInputText,
+  setPreviousApp,
+} from "@/electro-bridge/ipc/ipc-handlers";
+import registerListeners, {
+  ListenerOptions,
+} from "@/electro-bridge/ipc/listeners-register";
+import robot from "@/shared/robot";
 import { clipboard } from "electron";
 import { createMainWindow } from "./windows/main-window";
-import { getPreviousApp, setInputText, setPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
-import registerListeners, { ListenerOptions } from "@/electro-bridge/ipc/listeners-register";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require("@hurdlegroup/robotjs"); // do not change this line
+
 const { activeWindowSync } =
   process.platform === "win32"
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ? require("get-windows")
+    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("get-windows")
     : { activeWindowSync: null };
 
 const inDevelopment = process.env.NODE_ENV === "development";
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
-// Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut =
   process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
-// Separate background process for tracking focused appss
 let trackingAppFocus = false;
 
-// Agent popover window
 let agentPopoverWindow: BrowserWindow | null = null;
 
-// Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
 let mainWindow: BrowserWindow | null = null;
@@ -642,7 +644,8 @@ app.whenReady().then(async () => {
     }
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow();
+      if (BrowserWindow.getAllWindows().length === 0)
+        mainWindow = createMainWindow();
     });
   } catch (error) {
     console.error("Error during app initialization", error);
