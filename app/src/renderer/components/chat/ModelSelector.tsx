@@ -15,6 +15,20 @@ export default function ModelSelector({
   const [supportedModels, setSupportedModels] = useState<string[]>([]);
   const [currentModel, setCurrentModel] = useState(selectedModel);
 
+  const [popoverHeight, setPopoverHeight] = useState(0);
+
+  const itemHeight = 24;
+  const headerHeight = 35;
+  const padding = 16;
+
+  useEffect(() => {
+    const contentHeight =
+      headerHeight + padding + itemHeight * supportedModels.length;
+    const finalHeight = Math.min(contentHeight, 220);
+
+    setPopoverHeight(finalHeight);
+  }, [supportedModels]);
+
   /**
    * Load supported models from localStorage or settings
    */
@@ -173,7 +187,9 @@ export default function ModelSelector({
               .then(({ x: winX, y: winY }: { x: number; y: number }) => {
                 // Convert everything to physical pixels
                 const absX = Math.round(winX + rect.right * dpr);
-                const absY = Math.round(winY + rect.top * dpr - 170 * dpr);
+                const absY = Math.round(
+                  winY + rect.top * dpr - popoverHeight * dpr,
+                );
 
                 console.log(
                   `Model selector button position: ` +
@@ -185,7 +201,7 @@ export default function ModelSelector({
 
                 // Convert width and height to physical pixels
                 const width = Math.round(200 * dpr);
-                const height = Math.round(170 * dpr);
+                const height = Math.round(popoverHeight * dpr);
 
                 window.electronAPI.toggleModelSelector(
                   absX,
