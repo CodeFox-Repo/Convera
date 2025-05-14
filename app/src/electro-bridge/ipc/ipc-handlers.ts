@@ -7,8 +7,8 @@ import {
 } from "@/electron/windows/window-position";
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import robot from "@/shared/robot";
 import { exec } from "child_process";
-import path from "path";
 import { CHANNELS } from "./channels";
 
 let currentActivateShortcut =
@@ -340,22 +340,8 @@ export function setInputText(
 // Function to simulate a paste operation using robotjs
 export function simulateClipboardPaste(): void {
   try {
-    // use to pack the app
-    const bin = path.join(
-      process.resourcesPath, // …/FoxyChat.app/Contents/Resources
-      "app.asar.unpacked",
-      "node_modules",
-      "@hurdlegroup",
-      "robotjs",
-      "build",
-      "Release",
-      "robotjs.node",
-    );
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const robot = require(bin);
-
     // use to run the app in dev mode
-     
+
     // const robot = require("@hurdlegroup/robotjs");
 
     // Write to clipboard first

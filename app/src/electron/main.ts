@@ -1,22 +1,20 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
-import path from "path";
+import { initializeChatServer } from "@/electron/chatServer";
+import {
+  isHiddenOffscreen,
+  toggleMainWindowVisibility,
+} from "@/electron/windows/window-position";
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
 import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
-import {
-  isHiddenOffscreen,
-  toggleMainWindowVisibility,
-} from "@/electron/windows/window-position";
-import { initializeChatServer } from "@/electron/chatServer";
-import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import path from "path";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
-import { clipboard } from "electron";
-import { createMainWindow } from "./windows/main-window";
 import {
   getPreviousApp,
   setInputText,
@@ -25,24 +23,10 @@ import {
 import registerListeners, {
   ListenerOptions,
 } from "@/electro-bridge/ipc/listeners-register";
+import robot from "@/shared/robot";
+import { clipboard } from "electron";
+import { createMainWindow } from "./windows/main-window";
 
-// use to pack the app
-const bin = path.join(
-  process.resourcesPath, // …/FoxyChat.app/Contents/Resources
-  "app.asar.unpacked",
-  "node_modules",
-  "@hurdlegroup",
-  "robotjs",
-  "build",
-  "Release",
-  "robotjs.node",
-);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const robot = require(bin);
-
-// use to run the app in dev mode
- 
-// const robot = require("@hurdlegroup/robotjs");
 const { activeWindowSync } =
   process.platform === "win32"
     ? // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -52,17 +36,13 @@ const { activeWindowSync } =
 const inDevelopment = process.env.NODE_ENV === "development";
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
-// Use hardcoded default shortcut to avoid circular dependency
 const currentActivateShortcut =
   process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
-// Separate background process for tracking focused appss
 let trackingAppFocus = false;
 
-// Agent popover window
 let agentPopoverWindow: BrowserWindow | null = null;
 
-// Model selector popover window
 let modelSelectorWindow: BrowserWindow | null = null;
 
 let mainWindow: BrowserWindow | null = null;
