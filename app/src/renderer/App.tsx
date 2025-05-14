@@ -1,16 +1,16 @@
+import { RouterProvider } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import "../shared/localization/i18n";
-import { router } from "./routes/router";
-import { RouterProvider } from "@tanstack/react-router";
-import { DragLayer } from "./components/ui/drag-layer";
-import "./global.css";
 import AgentPopover from "./components/chat/AgentPopover";
 import ModelSelector from "./components/chat/ModelSelector";
-import { getSettings } from "./utils/settings";
+import { DragLayer } from "./components/ui/drag-layer";
+import "./global.css";
 import { updateAppLanguage } from "./helper/language_helpers";
 import { syncThemeWithLocal } from "./helper/theme_helpers";
+import { router } from "./routes/router";
+import { getSettings } from "./utils/settings";
 
 export default function App() {
   const { i18n } = useTranslation();
@@ -46,7 +46,7 @@ export default function App() {
   // Render model selector popover view
   if (view === "model-selector") {
     return (
-      <div className="model-selector-container h-screen w-full overflow-hidden">
+      <div className="model-selector-container h-screen w-full bottom-full overflow-hidden">
         <ModelSelector
           selectedModel={getSettings().openai.modelId}
           onSelectModel={(modelId) => {

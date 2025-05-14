@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { ChevronDown, Check } from "lucide-react";
 import { getSettings } from "@/renderer/utils/settings";
+import { Check, ChevronDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface ModelSelectorProps {
   selectedModel: string;
@@ -20,7 +20,9 @@ export default function ModelSelector({
    */
   const loadSupportedModels = () => {
     try {
-      const models = JSON.parse(localStorage.getItem("supportedModels") || "[]");
+      const models = JSON.parse(
+        localStorage.getItem("supportedModels") || "[]",
+      );
       if (models && models.length) {
         setSupportedModels(models);
         return;
@@ -28,7 +30,7 @@ export default function ModelSelector({
     } catch (error) {
       console.error("Error loading models from localStorage:", error);
     }
-    
+
     const settings = getSettings();
     setSupportedModels(settings.openai.supportedModels || []);
   };
@@ -38,20 +40,20 @@ export default function ModelSelector({
    */
   useEffect(() => {
     loadSupportedModels();
-    
+
     const onStorage = (e: StorageEvent) => {
       if (e.key === "supportedModels") {
         loadSupportedModels();
       }
     };
-    
+
     const onCustomEvent = () => {
       loadSupportedModels();
     };
-    
+
     window.addEventListener("storage", onStorage);
     window.addEventListener("supportedModels-updated", onCustomEvent);
-    
+
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("supportedModels-updated", onCustomEvent);
@@ -100,7 +102,7 @@ export default function ModelSelector({
         window.opener.dispatchEvent(
           new CustomEvent("model-selected", {
             detail: { modelId: model },
-          })
+          }),
         );
       } catch (error) {
         console.error("Error communicating with opener window:", error);
@@ -122,7 +124,8 @@ export default function ModelSelector({
 
   const isPopover =
     window.location.hash === "#model-selector" ||
-    new URLSearchParams(window.location.search).get("view") === "model-selector";
+    new URLSearchParams(window.location.search).get("view") ===
+      "model-selector";
 
   if (isPopover) {
     return (
@@ -151,7 +154,7 @@ export default function ModelSelector({
   }
 
   return (
-    <div className="model-selector-container relative">
+    <div className="model-selector-container bottom-full relative">
       <button
         className="bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium"
         onClick={(e) => {
@@ -161,20 +164,35 @@ export default function ModelSelector({
             const button = e.currentTarget;
             const rect = button.getBoundingClientRect();
 
+            // Convert CSS pixels to physical pixels
+            const dpr = window.devicePixelRatio;
+            const titleBarHeight = 28; // Default title bar height in CSS pixels
+
             window.electronAPI
               .getCurrentWindowPosition()
               .then(({ x: winX, y: winY }: { x: number; y: number }) => {
-                const absX = Math.round(winX + rect.left + 50);
-                const absY = Math.round(winY + rect.bottom - 200);
+                // Convert everything to physical pixels
+                const absX = Math.round(winX + rect.right * dpr);
+                const absY = Math.round(winY + rect.top * dpr - 170 * dpr);
 
                 console.log(
-                  `Model selector button position: window(${winX},${winY}) + local(${rect.left},${rect.bottom}) = abs(${absX},${absY})`
+                  `Model selector button position: ` +
+                    `window(${winX},${winY}) + ` +
+                    `local(${rect.right * dpr},${rect.top * dpr}) + ` +
+                    `titlebar(${titleBarHeight * dpr}) [dpr=${dpr}] = ` +
+                    `abs(${absX},${absY})`,
                 );
 
-                const width = 200;
-                const height = 250;
+                // Convert width and height to physical pixels
+                const width = Math.round(200 * dpr);
+                const height = Math.round(170 * dpr);
 
-                window.electronAPI.toggleModelSelector(absX, absY, width, height);
+                window.electronAPI.toggleModelSelector(
+                  absX,
+                  absY,
+                  width,
+                  height,
+                );
               })
               .catch((err: Error) => {
                 console.error("Failed to get window position:", err);
@@ -193,7 +211,7 @@ export default function ModelSelector({
       </button>
 
       {isOpen && !window.electronAPI && (
-        <div className="border-border bg-background absolute top-full left-0 z-10 mt-1 w-40 rounded-md border p-1 shadow-lg">
+        <div className="overflow-scroll border-border bg-background absolute z-10 right-0 mt-2 w-40 rounded-md border p-1 shadow-lg translate-x-full translate-y-[-100%]">
           {supportedModels.map((model) => (
             <button
               key={model}
