@@ -23,9 +23,10 @@ import {
 import registerListeners, {
   ListenerOptions,
 } from "@/electro-bridge/ipc/listeners-register";
-import robot from "@/shared/robot";
 import { clipboard } from "electron";
 import { createMainWindow } from "./windows/main-window";
+import { isInExpandedViewMode } from "./windows/window-resize";
+import robot from "@/shared/robot";
 
 const { activeWindowSync } =
   process.platform === "win32"
@@ -590,7 +591,7 @@ function setupScreenResizeHandlers() {
       console.log("Primary display metrics changed:", changedMetrics);
 
       // Update main window if it exists
-      if (mainWindow && !isHiddenOffscreen) {
+      if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
         const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
         mainWindow.setBounds(dimensions);
       }
