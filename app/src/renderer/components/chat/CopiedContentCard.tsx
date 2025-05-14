@@ -1,5 +1,5 @@
-import React from "react";
-import { X, Copy } from "lucide-react";
+import { Copy, ExternalLink, X } from "lucide-react";
+import React, { useState } from "react";
 
 interface CopiedContentCardProps {
   content: string;
@@ -10,49 +10,68 @@ const CopiedContentCard: React.FC<CopiedContentCardProps> = ({
   content,
   onReject,
 }) => {
-  // Function to truncate and format content for preview
-  const formatContent = () => {
-    const maxLength = 150;
-    const lines = content.split("\n");
-    const truncatedLines = lines.slice(0, 5);
-    
-    let displayContent = truncatedLines.join("\n");
-    
-    if (displayContent.length > maxLength) {
-      displayContent = displayContent.substring(0, maxLength) + "...";
-    } else if (lines.length > 5) {
-      displayContent += "\n...";
-    }
-    
-    return displayContent;
+  const [showPreview, setShowPreview] = useState(false);
+
+  const formatContentPreview = () => {
+    const maxLength = 50;
+    const textContent = content.trim();
+    if (textContent.length <= maxLength) return textContent;
+    return textContent.substring(0, maxLength) + "...";
   };
 
   return (
-    <div className="no-drag-region w-full rounded-[var(--app-border-radius)] border-1 border-gray-500/45 bg-background/80 shadow-md overflow-hidden">
-      <div className="flex items-center justify-between bg-primary/10 px-3 py-2">
-        <div className="flex items-center text-sm font-medium text-primary">
-          <Copy size={14} className="mr-1" />
-          Copied Content (will be sent automatically)
+    <>
+      <div className="no-drag-region flex w-full items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+        <div className="flex items-center gap-2">
+          {content ? (
+            <>
+              <Copy size={14} className="text-primary/70" />
+              <button
+                onClick={() => setShowPreview(true)}
+                className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary"
+              >
+                <span>{formatContentPreview()}</span>
+                <ExternalLink size={12} />
+              </button>
+            </>
+          ) : (
+            <button className="text-sm text-primary/80 hover:text-primary">
+              Add Context
+            </button>
+          )}
         </div>
-        <div className="flex items-center">
+        {content && (
           <button
             onClick={onReject}
-            className="flex items-center rounded-md bg-destructive/20 px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/30"
+            className="text-destructive hover:text-destructive/80"
             aria-label="Discard content"
           >
-            <X size={12} className="mr-1" />
-            Discard
+            <X size={14} />
           </button>
+        )}
+      </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="m-4 max-h-[80vh] w-full max-w-2xl overflow-auto rounded-lg bg-background p-4 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium">Clipboard Content</h3>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-4 text-sm">
+              {content}
+            </pre>
+          </div>
         </div>
-      </div>
-      <div className="max-h-[90px] overflow-auto p-2 text-xs font-mono border-primary/20">
-        {formatContent()}
-      </div>
-      <div className="px-2 py-1 text-xs text-muted-foreground bg-background/80">
-        {content.length} characters, {content.split("\n").length} lines
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
-export default CopiedContentCard; 
+export default CopiedContentCard;
