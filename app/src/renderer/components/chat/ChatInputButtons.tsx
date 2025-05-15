@@ -19,7 +19,7 @@ interface ChatInputButtonsProps {
   onVoiceInput?: () => void;
   onStopGeneration?: () => void;
   onSendMessage?: () => void;
-  onOpenChatHistory: () => void;
+  triggerHistoryWindow: () => void;
   isLoading: boolean;
   hasContent: boolean;
   selectedAgent?: Agent | null;
@@ -37,7 +37,7 @@ export function ChatInputButtons({
   onVoiceInput,
   onStopGeneration,
   onSendMessage,
-  onOpenChatHistory,
+  triggerHistoryWindow,
   isLoading,
   hasContent,
   selectedAgent,
@@ -59,7 +59,7 @@ export function ChatInputButtons({
         </button>
 
         <button
-          onClick={onOpenChatHistory}
+          onClick={triggerHistoryWindow}
           className="no-drag-region text-foreground/70 hover:text-foreground"
           title="View chat history"
         >

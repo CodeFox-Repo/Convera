@@ -1,8 +1,6 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
 import { Agent } from "@/renderer/hooks/useAgentSelection";
-import { useChatHistory } from "@/renderer/hooks/useChatHistory";
 import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
-import { ChatData } from "@/server/service/chat";
 import React, {
   forwardRef,
   useImperativeHandle,
@@ -29,7 +27,7 @@ interface ChatInputProps {
   placeholder?: string;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
-  onLoadChatHistory?: (chat: ChatData) => void;
+  triggerHistoryWindow: () => void;
   copiedContent?: string | null;
   onRejectCopiedContent?: () => void;
 }
@@ -58,7 +56,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       placeholder = "Message FoxyChat...",
       selectedModelId,
       onModelSelect,
-      onLoadChatHistory,
+      triggerHistoryWindow,
       copiedContent,
     },
     ref,
@@ -67,7 +65,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [editorContent, setEditorContent] = useState("");
 
     const { formatAppName } = usePreviousApp();
-    const { openChatHistoryWindow } = useChatHistory(onLoadChatHistory);
 
     // Expose methods to parent components
     useImperativeHandle(ref, () => ({
@@ -143,7 +140,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               onVoiceInput={onVoiceInput}
               onStopGeneration={onStopGeneration}
               onSendMessage={handleSubmit}
-              onOpenChatHistory={openChatHistoryWindow}
+              triggerHistoryWindow={triggerHistoryWindow}
               isLoading={isLoading}
               hasContent={!!editorContent.trim()}
               selectedAgent={selectedAgent}
