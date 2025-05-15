@@ -29,7 +29,7 @@ interface ChatInputProps {
   onModelSelect?: (modelId: string) => void;
   triggerHistoryWindow: () => void;
   copiedContent?: string | null;
-  onRejectCopiedContent?: () => void;
+  onRejectCopiedContent: () => void;
 }
 
 export interface ChatInputRef {
@@ -58,6 +58,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onModelSelect,
       triggerHistoryWindow,
       copiedContent,
+      onRejectCopiedContent
     },
     ref,
   ) => {
@@ -120,6 +121,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <ContextButtons
               copiedContent={copiedContent || null}
               formatAppName={formatAppName}
+              onRejectCopiedContent={onRejectCopiedContent}
             />
 
             <div className="drag-region mb-2 w-full flex-1">

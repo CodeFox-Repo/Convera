@@ -30,6 +30,7 @@ interface ChatInputButtonsProps {
   ) => void;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
+
 }
 
 interface ActionButtonConfig {
