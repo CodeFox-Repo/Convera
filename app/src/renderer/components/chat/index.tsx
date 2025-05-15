@@ -1,7 +1,8 @@
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { useAgentSelection } from "@/renderer/hooks/useAgentSelection";
+import { useChatHistory } from "@/renderer/hooks/useChatHistory";
 import { GenericError, parseApiError } from "@/renderer/utils/errorHandler";
 import { getSettings } from "@/renderer/utils/settings";
-import { ChatData } from "@/server/service/chat";
 import { useChat } from "@ai-sdk/react";
 import type { Message, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
@@ -37,10 +38,10 @@ interface CompactChatViewProps {
   onStopGeneration?: () => void;
   chatInputRef: React.RefObject<ChatInputRef | null>;
   selectedAgent?: Agent | null;
-  onAgentSelect?: (agent: Agent | null) => void;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
-  onLoadChatHistory?: (chat: ChatData) => void;
+  triggerHistoryWindow: () => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
   onOpenSettings: () => void;
@@ -62,13 +63,13 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onStopGeneration,
   chatInputRef,
   selectedAgent,
-  onAgentSelect,
+  triggerAgentSelect,
   selectedModelId,
   onModelSelect,
-  onLoadChatHistory,
-  onOpenSettings,
+  triggerHistoryWindow,
   copiedContent,
   onRejectCopiedContent,
+  onOpenSettings,
 }) => {
   return (
     <div className="h-full flex flex-col p-1">
@@ -86,10 +87,10 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
           onSendMessage={onSendMessage}
           onStopGeneration={onStopGeneration}
           selectedAgent={selectedAgent}
-          onAgentSelect={onAgentSelect}
+          triggerAgentSelect={triggerAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={onModelSelect}
-          onLoadChatHistory={onLoadChatHistory}
+          triggerHistoryWindow={triggerHistoryWindow}
           onOpenSettings={onOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={onRejectCopiedContent}
@@ -123,13 +124,13 @@ interface ExpandedChatViewProps {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   selectedAgent: Agent | null;
-  onAgentSelect: (agent: Agent | null) => void;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
   onIgnoreAgentChange?: () => void;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
-  onLoadChatHistory?: (chat: ChatData) => void;
+  triggerHistoryWindow: () => void;
   onOpenSettings: () => void;
   copiedContent: string | null;
   onRejectCopiedContent: () => void;
@@ -160,13 +161,13 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onMouseEnter,
   onMouseLeave,
   selectedAgent,
-  onAgentSelect,
+  triggerAgentSelect,
   agentChanged,
   onRegenerateWithNewAgent,
   onIgnoreAgentChange,
   selectedModelId,
   onModelSelect,
-  onLoadChatHistory,
+  triggerHistoryWindow,
   onOpenSettings,
   copiedContent,
   onRejectCopiedContent,
@@ -267,12 +268,12 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               onSendMessage={onSendMessage}
               onStopGeneration={onStopGeneration}
               selectedAgent={selectedAgent}
-              onAgentSelect={onAgentSelect}
+              triggerAgentSelect={triggerAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
+              triggerHistoryWindow={triggerHistoryWindow}
               onOpenSettings={onOpenSettings}
               placeholder="Message to FoxyChat..."
-              onLoadChatHistory={onLoadChatHistory}
               copiedContent={copiedContent}
               onRejectCopiedContent={onRejectCopiedContent}
             />
@@ -294,7 +295,8 @@ export default function Chat() {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
 
   // Add state for selected agent
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const {triggerAgentSelect, selectedAgent } = useAgentSelection();
+
   const [selectedModelId, setSelectedModelId] = useState<string>(
     settings.openai.modelId,
   );
@@ -346,6 +348,8 @@ export default function Chat() {
       console.error("Chat API error:", parsedError);
     },
   });
+
+  const { triggerHistoryWindow } = useChatHistory(setMessages);
 
   // Set mounted state when component mounts
   useEffect(() => {
@@ -608,109 +612,6 @@ export default function Chat() {
     }
   };
 
-  // Add effect to listen for chat history events directly
-  useEffect(() => {
-    // Function to handle chat history selection
-    const handleChatHistorySelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.chat) {
-        console.log(
-          "Chat component received chat-history-selected event:",
-          customEvent.detail.chat,
-        );
-        handleLoadChatHistory(customEvent.detail.chat);
-      }
-    };
-
-    // Do NOT automatically check localStorage on component mount
-    // Only listen for explicit user selections
-
-    // Listen for storage events to catch changes from other windows
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedChatHistory" && event.newValue) {
-        console.log("Detected chat history change in localStorage");
-        try {
-          const chatData = JSON.parse(event.newValue);
-          if (chatData && chatData.chat) {
-            console.log(
-              "Loading new chat history from storage event:",
-              chatData.chat.id,
-            );
-            handleLoadChatHistory(chatData.chat);
-          }
-        } catch (error) {
-          console.error(
-            "Error parsing chat history from storage event:",
-            error,
-          );
-        }
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener("chat-history-selected", handleChatHistorySelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener(
-        "chat-history-selected",
-        handleChatHistorySelected,
-      );
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  // Handle loading a chat history
-  const handleLoadChatHistory = (chatHistory: ChatData) => {
-    console.log("Loading chat history in Chat component:", chatHistory);
-
-    if (
-      chatHistory &&
-      chatHistory.messages &&
-      chatHistory.messages.length > 0
-    ) {
-      // Reset state first to ensure clean loading
-      setMessages([]);
-
-      // Add a small delay before setting new messages
-      setTimeout(() => {
-        // Simple direct update approach with fallback IDs
-        const formattedMessages = chatHistory.messages.map((msg) => ({
-          id:
-            msg.id ||
-            `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          content: msg.content,
-          role: msg.role,
-        }));
-
-        console.log("Setting messages to:", formattedMessages);
-
-        // Set messages directly
-        setMessages(formattedMessages);
-
-        // Force a resize after a short delay
-        setTimeout(() => {
-          if (window.electronAPI) {
-            console.log("Forcing window resize for chat history");
-            window.electronAPI
-              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT)
-              .then((res) => {
-                window.electronAPI.resizeMessageContent(
-                  res.width,
-                  res.height,
-                  true,
-                );
-              })
-              .catch((error) => {
-                console.error("Error resizing window:", error);
-              });
-          }
-        }, 500);
-      }, 50);
-    }
-  };
-
   // Handle new history creation
   const handleNewHistory = () => {
     console.log("Create new history clicked");
@@ -880,13 +781,13 @@ export default function Chat() {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
+          triggerAgentSelect={triggerAgentSelect}
           agentChanged={agentChanged}
           onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
           onIgnoreAgentChange={handleIgnoreAgentChange}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
-          onLoadChatHistory={handleLoadChatHistory}
+          triggerHistoryWindow={triggerHistoryWindow}
           onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
@@ -905,10 +806,10 @@ export default function Chat() {
           onStopGeneration={handleStopGeneration}
           chatInputRef={chatInputRef}
           selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
+          triggerAgentSelect={triggerAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
-          onLoadChatHistory={handleLoadChatHistory}
+          triggerHistoryWindow={triggerHistoryWindow}
           onOpenSettings={handleOpenSettings}
           copiedContent={copiedContent}
           onRejectCopiedContent={handleRejectCopiedContent}
@@ -919,4 +820,5 @@ export default function Chat() {
   );
 }
 
-export {};
+export { };
+
