@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface Agent {
   id: string;
@@ -11,16 +11,15 @@ export interface Agent {
 /**
  * Hook to handle agent selection and persistence
  */
-export function useAgentSelection(
-  onAgentSelect?: (agent: Agent | null) => void,
-) {
+export function useAgentSelection() {
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   useEffect(() => {
     // Check if there's a saved agent in localStorage
     const checkForSavedAgent = () => {
       try {
         const savedAgent = localStorage.getItem("selectedAgent");
-        if (savedAgent && onAgentSelect) {
-          onAgentSelect(JSON.parse(savedAgent));
+        if (savedAgent && setSelectedAgent) {
+          setSelectedAgent(JSON.parse(savedAgent));
         }
       } catch (error) {
         console.error("Error getting saved agent:", error);
@@ -33,18 +32,18 @@ export function useAgentSelection(
     // Listen for custom events
     const handleAgentSelected = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (onAgentSelect && customEvent.detail && customEvent.detail.agent) {
-        onAgentSelect(customEvent.detail.agent);
+      if (setSelectedAgent && customEvent.detail && customEvent.detail.agent) {
+        setSelectedAgent(customEvent.detail.agent);
       }
     };
 
     // Listen for storage events for cross-window changes
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedAgent" && onAgentSelect) {
+      if (event.key === "selectedAgent" && setSelectedAgent) {
         if (event.newValue) {
-          onAgentSelect(JSON.parse(event.newValue));
+          setSelectedAgent(JSON.parse(event.newValue));
         } else {
-          onAgentSelect(null);
+          setSelectedAgent(null);
         }
       }
     };
@@ -58,7 +57,7 @@ export function useAgentSelection(
       window.removeEventListener("agent-selected", handleAgentSelected);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [onAgentSelect]);
+  }, [setSelectedAgent]);
 
   const handleAgentButtonClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -84,14 +83,15 @@ export function useAgentSelection(
       } catch (err) {
         console.error("Failed to get window position:", err);
         // Fallback to direct toggling of agent
-        if (onAgentSelect) {
-          onAgentSelect(selectedAgent ?? null);
+        if (setSelectedAgent) {
+          setSelectedAgent(selectedAgent ?? null);
         }
       }
     }
   };
 
   return {
-    handleAgentButtonClick,
+    selectedAgent,
+    triggerAgentSelect: handleAgentButtonClick,
   };
 }

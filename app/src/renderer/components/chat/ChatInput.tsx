@@ -1,5 +1,5 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { Agent, useAgentSelection } from "@/renderer/hooks/useAgentSelection";
+import { Agent } from "@/renderer/hooks/useAgentSelection";
 import { useChatHistory } from "@/renderer/hooks/useChatHistory";
 import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
 import { ChatData } from "@/server/service/chat";
@@ -25,7 +25,7 @@ interface ChatInputProps {
   onStopGeneration?: () => void;
   onOpenSettings?: () => void;
   selectedAgent?: Agent | null;
-  onAgentSelect?: (agent: Agent | null) => void;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
   placeholder?: string;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
@@ -54,7 +54,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onStopGeneration,
       onOpenSettings,
       selectedAgent,
-      onAgentSelect,
+      triggerAgentSelect,
       placeholder = "Message FoxyChat...",
       selectedModelId,
       onModelSelect,
@@ -67,7 +67,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [editorContent, setEditorContent] = useState("");
 
     const { formatAppName } = usePreviousApp();
-    const { handleAgentButtonClick } = useAgentSelection(onAgentSelect);
     const { openChatHistoryWindow } = useChatHistory(onLoadChatHistory);
 
     // Expose methods to parent components
@@ -148,9 +147,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               isLoading={isLoading}
               hasContent={!!editorContent.trim()}
               selectedAgent={selectedAgent}
-              onAgentButtonClick={(e) =>
-                handleAgentButtonClick(e, selectedAgent)
-              }
+              onAgentButtonClick={triggerAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
             />

@@ -1,4 +1,5 @@
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { useAgentSelection } from "@/renderer/hooks/useAgentSelection";
 import { GenericError, parseApiError } from "@/renderer/utils/errorHandler";
 import { getSettings } from "@/renderer/utils/settings";
 import { ChatData } from "@/server/service/chat";
@@ -37,7 +38,7 @@ interface CompactChatViewProps {
   onStopGeneration?: () => void;
   chatInputRef: React.RefObject<ChatInputRef | null>;
   selectedAgent?: Agent | null;
-  onAgentSelect?: (agent: Agent | null) => void;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
   onLoadChatHistory?: (chat: ChatData) => void;
@@ -62,7 +63,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
   onStopGeneration,
   chatInputRef,
   selectedAgent,
-  onAgentSelect,
+  triggerAgentSelect,
   selectedModelId,
   onModelSelect,
   onLoadChatHistory,
@@ -86,7 +87,7 @@ const CompactChatView: React.FC<CompactChatViewProps> = ({
           onSendMessage={onSendMessage}
           onStopGeneration={onStopGeneration}
           selectedAgent={selectedAgent}
-          onAgentSelect={onAgentSelect}
+          triggerAgentSelect={triggerAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={onModelSelect}
           onLoadChatHistory={onLoadChatHistory}
@@ -123,7 +124,7 @@ interface ExpandedChatViewProps {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   selectedAgent: Agent | null;
-  onAgentSelect: (agent: Agent | null) => void;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
   onIgnoreAgentChange?: () => void;
@@ -160,7 +161,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
   onMouseEnter,
   onMouseLeave,
   selectedAgent,
-  onAgentSelect,
+  triggerAgentSelect ,
   agentChanged,
   onRegenerateWithNewAgent,
   onIgnoreAgentChange,
@@ -267,7 +268,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               onSendMessage={onSendMessage}
               onStopGeneration={onStopGeneration}
               selectedAgent={selectedAgent}
-              onAgentSelect={onAgentSelect}
+              triggerAgentSelect={triggerAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={onModelSelect}
               onOpenSettings={onOpenSettings}
@@ -294,7 +295,8 @@ export default function Chat() {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
 
   // Add state for selected agent
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const {triggerAgentSelect, selectedAgent } = useAgentSelection();
+
   const [selectedModelId, setSelectedModelId] = useState<string>(
     settings.openai.modelId,
   );
@@ -880,7 +882,7 @@ export default function Chat() {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
+          triggerAgentSelect={triggerAgentSelect}
           agentChanged={agentChanged}
           onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
           onIgnoreAgentChange={handleIgnoreAgentChange}
@@ -905,7 +907,7 @@ export default function Chat() {
           onStopGeneration={handleStopGeneration}
           chatInputRef={chatInputRef}
           selectedAgent={selectedAgent}
-          onAgentSelect={setSelectedAgent}
+          triggerAgentSelect={triggerAgentSelect}
           selectedModelId={selectedModelId}
           onModelSelect={setSelectedModelId}
           onLoadChatHistory={handleLoadChatHistory}
@@ -919,4 +921,5 @@ export default function Chat() {
   );
 }
 
-export {};
+export { };
+
