@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export interface Agent {
+export interface AgentInfo {
   id: string;
   name: string;
   description: string;
@@ -12,7 +12,7 @@ export interface Agent {
  * Hook to handle agent selection and persistence
  */
 export function useAgentSelection() {
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentInfo | null>(null);
   useEffect(() => {
     // Check if there's a saved agent in localStorage
     const checkForSavedAgent = () => {
@@ -61,7 +61,7 @@ export function useAgentSelection() {
 
   const handleAgentButtonClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
-    selectedAgent: Agent | null | undefined,
+    selectedAgent: AgentInfo | null | undefined,
   ) => {
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();

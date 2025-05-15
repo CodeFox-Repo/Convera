@@ -1,5 +1,5 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { Agent } from "@/renderer/hooks/useAgentSelection";
+import { AgentInfo } from "@/renderer/hooks/useAgentSelection";
 import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
 import React, {
   forwardRef,
@@ -22,8 +22,8 @@ interface ChatInputProps {
   onSendMessage?: () => void;
   onStopGeneration?: () => void;
   onOpenSettings?: () => void;
-  selectedAgent?: Agent | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
+  selectedAgent?: AgentInfo | null;
+  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: AgentInfo | null | undefined) => Promise<void>;
   placeholder?: string;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;

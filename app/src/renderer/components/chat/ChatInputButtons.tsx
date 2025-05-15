@@ -1,4 +1,4 @@
-import { Agent } from "@/renderer/hooks/useAgentSelection";
+import { AgentInfo } from "@/renderer/hooks/useAgentSelection";
 import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
 import {
   Bot,
@@ -23,10 +23,10 @@ interface ChatInputButtonsProps {
   triggerHistoryWindow: () => void;
   isLoading: boolean;
   hasContent: boolean;
-  selectedAgent?: Agent | null;
+  selectedAgent?: AgentInfo | null;
   onAgentButtonClick: (
     e: React.MouseEvent<HTMLButtonElement>,
-    agent: Agent | null | undefined,
+    agent: AgentInfo | null | undefined,
   ) => void;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
