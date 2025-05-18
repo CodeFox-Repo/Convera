@@ -4,18 +4,32 @@ description: Set up FoxyChat on your system
 icon: DownloadIcon
 ---
 
-# FoxyChat Installation Guide
+# Installation
 
 This guide will walk you through the process of installing and setting up FoxyChat, an all-in-one chat application built with Electron.
 
 ## System Requirements
 
-- **Operating System**: macOS, Windows, or Linux
-- **Node.js**: Version 18.0.0 or higher
-- **PNPM**: Version 8.0.0 or higher
-- **Python**: Version 3.6.0 or higher
-- **Visual Studio Build Tools**: 2022 or higher (Windows only)
-- **Disk Space**: At least 500MB of free space
+<Cards>
+  <Card title="Operating System" icon={<ComputerDesktopIcon />}>
+    macOS, Windows, or Linux
+  </Card>
+  <Card title="Node.js" icon={<CodeBracketIcon />}>
+    Version 18.0.0 or higher
+  </Card>
+  <Card title="PNPM" icon={<CodeBracketIcon />}>
+    Version 8.15.0 - 9.15.0
+  </Card>
+  <Card title="Python" icon={<CommandLineIcon />}>
+    Version 3.6.0 or higher
+  </Card>
+  <Card title="Visual Studio Build Tools" icon={<WrenchScrewdriverIcon />}>
+    2022 or higher (Windows only)
+  </Card>
+  <Card title="Disk Space" icon={<CircleStackIcon />}>
+    At least 500MB of free space
+  </Card>
+</Cards>
 
 ## Installation Steps
 
@@ -38,6 +52,7 @@ Verify the installation:
 ```bash
 pnpm --version
 ```
+
 #### Python
 
 Download and install Python 3 or higher from the [official website](https://www.python.org/downloads/).（highly recommend add to path for restart use)
@@ -49,19 +64,40 @@ python --version
 # or on some systems
 python3 --version
 ```
+
 #### RobotJS Dependencies
 
 FoxyChat uses RobotJS for system automation. Please ensure you have the following dependencies installed based on your operating system:
 
-**Windows:**
- Install Visual Studio Build Tools 2022 or higher:
-   - Download the Visual Studio Build Tools from [Microsoft's website](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-   - During installation, select the "Desktop development with C++" workload
-   - Make sure the following components are checked under "Optional":
-     - MSVC v143 - VS 2022 C++ x64/x86 build tools (or equivalent for your VS version)
-     - Windows 11 SDK (10.0.22621.0)
-     - C++ CMake tools for Windows
+<Tabs items={["Windows", "macOS", "Linux"]}>
+  <Tab>
+    Install Visual Studio Build Tools 2022 or higher:
 
+    1. Download the Visual Studio Build Tools from [Microsoft's website](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+    2. During installation, select the "Desktop development with C++" workload
+
+    3. Make sure the following components are checked under "Optional":
+       - MSVC v143 - VS 2022 C++ x64/x86 build tools
+       - Windows 11 SDK (10.0.22621.0)
+       - C++ CMake tools for Windows
+
+  </Tab>
+  <Tab>macOS dependencies will be installed automatically during the installation process.</Tab>
+  <Tab>
+    For Linux, you'll need to install additional dependencies based on your distribution.
+    
+    For Ubuntu/Debian:
+    ```bash 
+    sudo apt-get install libxtst-dev libpng++-dev 
+    ```
+    
+    For Fedora:
+    ```bash
+    sudo dnf install libXtst-devel libpng-devel 
+    ```
+  </Tab>
+</Tabs>
 
 ### 2. Clone the Repository
 
@@ -84,9 +120,10 @@ After installation, you need to run the Electron setup script:
 node node_modules/electron/install.js
 ```
 
-This script ensures Electron is properly configured for your system. If you encounter any issues with Electron, running this script manually can often resolve them.
-
-This will install all dependencies for all packages in the workspace.
+<Callout type="info">
+  This script ensures Electron is properly configured for your system. If you encounter any issues
+  with Electron, running this script manually can often resolve them.
+</Callout>
 
 ### 4. Configure Environment Variables
 
@@ -107,92 +144,3 @@ Edit the `.env` file and fill in the required credentials:
 ```
 API_KEY=your_api_key_here
 ```
-
-### 5. Start the Application
-
-From the root directory:
-
-```bash
-pnpm start
-```
-
-Or if you're in the app directory:
-
-```bash
-pnpm start
-```
-
-## Development Setup
-
-### Building for Development
-
-To build the application for development:
-
-```bash
-cd app
-pnpm run package
-```
-
-### Running Tests
-
-From the root directory:
-
-```bash
-pnpm test
-```
-
-To run end-to-end tests:
-
-```bash
-pnpm test:e2e
-```
-
-### Troubleshooting
-
-#### Common Issues
-
-1. **PNPM command not found**
-   
-   Ensure that PNPM is installed globally:
-   ```bash
-   npm install -g pnpm
-   ```
-
-2. **Node.js version conflict**
-   
-   Use a Node version manager like nvm to install the correct Node.js version:
-   ```bash
-   nvm install 18
-   nvm use 18
-   ```
-
-3. **Electron installation issues**
-   
-   If you encounter problems with Electron, try running the install script manually:
-   ```bash
-   node node_modules/electron/install.js
-   ```
-   
-   Common Electron issues include download failures due to network problems or permission issues. Make sure you have proper internet connection and administrator privileges.
-
-4. **Build errors**
-   
-   Make sure you have the latest dependencies:
-   ```bash
-   pnpm install
-   ```
-
-#### Getting Help
-
-If you encounter issues not covered here, please:
-
-1. Check the existing [GitHub issues](https://github.com/your-username/foxfoxy/issues)
-2. Create a new issue with detailed information about your problem
-
-## Next Steps
-
-After installation, you might want to:
-
-1. [Configure your chat providers](/docs/configuration)
-2. [Learn about the user interface](/docs/user-interface)
-3. [Explore advanced features](/docs/advanced-features) 
