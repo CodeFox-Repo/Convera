@@ -551,12 +551,10 @@ router.post(
           }
 
           // If the server is configured to be enabled, start it automatically
-          if (serverConfig.enabled) {
-            console.log(`Auto-starting manually configured MCP server: ${id}`);
-            manager.startServer(id).catch((err) => {
-              console.error(`Error auto-starting MCP server ${id}:`, err);
-            });
-          }
+          console.log(`Auto-starting manually configured MCP server: ${id}`);
+          manager.startServer(id).catch((err) => {
+            console.error(`Error auto-starting MCP server ${id}:`, err);
+          });
         } catch (err) {
           console.error(`Error registering MCP server ${id}:`, err);
           // Continue with other servers even if one fails
