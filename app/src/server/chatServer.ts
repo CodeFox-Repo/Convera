@@ -2,32 +2,34 @@
 /**
  * Express server for handling chat API requests with OpenAI
  */
-import express, { Request, Response, RequestHandler, NextFunction } from "express";
+import { standardErrors } from "@/renderer/utils/errorHandler";
 import cors from "cors";
 import dotenv from "dotenv";
-import { AppSettings } from "@/shared/types/settings";
+import express, {
+  NextFunction,
+  Request,
+  RequestHandler,
+  Response,
+} from "express";
 import {
-  startMCPServers,
-  getAvailablePredefinedServers,
-  installPredefinedMCPServer,
-  isPredefinedServerInstalled,
-  initializeMCP,
-  getMCPManager,
-} from "./mcp";
-import {
-  getAgentList,
+  deleteCustomAgent,
   getAgentById,
+  getAgentList,
   processAgentChat,
   processChatRequest,
   saveCustomAgent,
-  deleteCustomAgent,
 } from "./agents";
-import { AgentDefinition } from "./agents/types";
-import { ToolReference } from "./agents/types";
+import { AgentDefinition, ToolReference } from "./agents/types";
+import {
+  getAvailablePredefinedServers,
+  getMCPManager,
+  initializeMCP,
+  isPredefinedServerInstalled,
+  startMCPServers,
+} from "./mcp";
 import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
-import { getChats, getChatById, deleteChat } from "./service/chat";
-import { standardErrors } from "@/renderer/utils/errorHandler";
+import { deleteChat, getChatById, getChats } from "./service/chat";
 
 // Initialize dotenv
 dotenv.config();
@@ -41,28 +43,32 @@ app.use(express.json());
 app.use(cors());
 
 // Updated authentication middleware using standardized error responses
-const authenticateRequest = (req: Request, res: Response, next: NextFunction) => {
+const authenticateRequest = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json(standardErrors.authFailed);
   }
-  
+
   // Extract token from header
-  const token = authHeader.split(' ')[1];
-  
+  const token = authHeader.split(" ")[1];
+
   if (!token) {
     return res.status(401).json(standardErrors.authFailed);
   }
-  
+
   // Store token in request for use in downstream handlers
   (req as any).apiToken = token;
-  
+
   next();
 };
 
 // Apply authentication to routes that need it
-app.use('/api/chat', authenticateRequest);
+app.use("/api/chat", authenticateRequest);
 
 app.post("/api/agents/create", (async (req: Request, res: Response) => {
   try {
@@ -473,8 +479,6 @@ router.get("/api/agents", (req: Request, res: Response) => {
       })),
     );
 
- 
-
     // Make sure agents have consistent toolReferences format
     const enrichedAgents = agents.map((agent) => {
       // toolNames are kept for backward compatibility only
@@ -760,10 +764,14 @@ app.get("/api/mcp/installed-servers", (req, res) => {
     const serverConfigs = manager.getAllServerConfigs();
     const serverStatuses = manager.getAllServerStatus();
 
+    const statusMap = new Map(
+      serverStatuses.map((status) => [status.id, status]),
+    );
+
     // Combine configuration and status data
     const installedServers = Object.keys(serverConfigs).map((id) => {
       const config = serverConfigs[id];
-      const status = serverStatuses[id] || { running: false };
+      const status = statusMap.get(id) || { id, running: false };
       const isPredefined = isPredefinedServerInstalled(id);
 
       // 获取额外的预定义服务器信息
@@ -1082,9 +1090,7 @@ export function startChatServer() {
     console.log(
       `MCP marketplace endpoint: http://localhost:${PORT}/api/mcp/marketplace`,
     );
-    console.log(
-      `API authentication required for chat endpoint`
-    );
+    console.log(`API authentication required for chat endpoint`);
   });
 
   // Add error handling for server
@@ -1097,7 +1103,7 @@ export function startChatServer() {
 
 router.get("/api/tools", (req, res) => {
   try {
-    const tools = Object.keys(serverTools); 
+    const tools = Object.keys(serverTools);
     res.json({ tools });
   } catch (error) {
     console.error("Error fetching tools:", error);
@@ -1109,20 +1115,21 @@ router.get("/api/tools", (req, res) => {
 router.get("/api/chats", async (req, res) => {
   try {
     const chats = await getChats();
-    
+
     // Return a simplified list for the overview
-    const chatList = chats.map(chat => ({
+    const chatList = chats.map((chat) => ({
       id: chat.id,
       title: chat.title,
       createdAt: chat.createdAt,
       lastUpdated: chat.lastUpdated,
-      messageCount: chat.messages.length
+      messageCount: chat.messages.length,
     }));
-    
+
     res.json({ status: "success", chats: chatList });
   } catch (error) {
     console.error("Error fetching chat list:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });
@@ -1131,18 +1138,19 @@ router.get("/api/chats/:chatId", async (req, res) => {
   try {
     const { chatId } = req.params;
     const chat = await getChatById(chatId);
-    
+
     if (!chat) {
       return res.status(404).json({
         status: "error",
-        message: `Chat with ID '${chatId}' not found`
+        message: `Chat with ID '${chatId}' not found`,
       });
     }
-    
+
     res.json({ status: "success", chat });
   } catch (error) {
     console.error(`Error fetching chat ${req.params.chatId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });
@@ -1151,21 +1159,22 @@ router.delete("/api/chats/:chatId", async (req, res) => {
   try {
     const { chatId } = req.params;
     const success = await deleteChat(chatId);
-    
+
     if (!success) {
       return res.status(404).json({
         status: "error",
-        message: `Chat with ID '${chatId}' not found or could not be deleted`
+        message: `Chat with ID '${chatId}' not found or could not be deleted`,
       });
     }
-    
+
     res.json({
       status: "success",
-      message: `Chat '${chatId}' deleted successfully`
+      message: `Chat '${chatId}' deleted successfully`,
     });
   } catch (error) {
     console.error(`Error deleting chat ${req.params.chatId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ status: "error", message: errorMessage });
   }
 });

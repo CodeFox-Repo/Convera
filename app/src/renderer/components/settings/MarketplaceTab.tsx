@@ -363,7 +363,7 @@ export function MarketplaceSection({
                   {installedServers.map((server) => (
                     <div
                       key={server.id}
-                      className="border-l-4 border-l-green-500 border-b border-border pb-4 last:border-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative"
+                      className="border-l-4 border-l-green-500 border-b border-border pb-4 last:border-b-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -387,7 +387,7 @@ export function MarketplaceSection({
                               {server.description || "No description available"}
                             </p>
 
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            {/* <div className="mt-2 flex flex-wrap gap-2">
                               <Badge
                                 className={
                                   server.enabled
@@ -398,7 +398,7 @@ export function MarketplaceSection({
                               >
                                 {server.enabled ? "Enabled" : "Disabled"}
                               </Badge>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
 
