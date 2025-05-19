@@ -1,6 +1,7 @@
 packages:
   - 'app'
   - 'website'
+  - 'market'
   - 'docs'
   - 'mcps/**'
   - '!**/node_modules'

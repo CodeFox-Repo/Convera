@@ -33,6 +33,9 @@ Run these commands from the root directory:
 # Start the application
 pnpm start
 
+# start the market server
+pnpm start:market
+
 # Run linting across all packages
 pnpm lint
 
@@ -56,6 +59,7 @@ The workspace includes the following packages:
 - `app/`: Main Electron application
 - `website/`: Website for the project
 - `mcps/`: MCP related packages
+- `market/`: server for market 
 
 ### Adding Dependencies
 
