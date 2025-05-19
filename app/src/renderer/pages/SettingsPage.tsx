@@ -559,6 +559,7 @@ export default function SettingsPage() {
       }
 
       toast.success("MCP configuration installed successfully");
+      fetchAllMcpServers(); // Immediately refresh installed servers
       fetchMcpConfigurations(); // Refresh configurations
     } catch (error) {
       console.error("Error installing manual MCP configuration:", error);
@@ -852,6 +853,7 @@ export default function SettingsPage() {
     onInstallMcpTool: handleInstallMcpTool,
     onManualInstallMcp: handleManualInstallMcp,
     onUninstallPredefinedServer: handleUninstallPredefinedServer,
+    onRefreshServers: fetchAllMcpServers,
   };
 
   // Navigation items for sidebar
@@ -954,9 +956,6 @@ export default function SettingsPage() {
         {activeTab === "general" && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-foreground mb-4 text-xl font-medium">
-                AI Model
-              </h2>
               <AIModelSection
                 settings={settings}
                 onOpenAIChange={handleOpenAIChange}
@@ -966,9 +965,6 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <h2 className="text-foreground mb-4 text-xl font-medium">
-                Shortcuts
-              </h2>
               <ShortcutsSection
                 settings={settings}
                 activeShortcut={activeShortcut}

@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
@@ -23,6 +23,7 @@ type MarketplaceSectionProps = {
   onInstallPredefinedServer: (serverId: string) => void;
   onUninstallPredefinedServer?: (serverId: string) => Promise<void>;
   onManualInstallMcp?: (configJson: string) => Promise<void>;
+  onRefreshServers?: () => void;
 };
 
 export function MarketplaceSection({
@@ -35,6 +36,7 @@ export function MarketplaceSection({
   onInstallPredefinedServer,
   onUninstallPredefinedServer,
   onManualInstallMcp,
+  onRefreshServers,
 }: MarketplaceSectionProps) {
   const [showManualConfigDialog, setShowManualConfigDialog] = useState(false);
   const [showCommunityConfigDialog, setShowCommunityConfigDialog] =
@@ -48,6 +50,12 @@ export function MarketplaceSection({
     Record<string, boolean>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleTabChange = (value: string) => {
+    if (value === "installed" && onRefreshServers) {
+      onRefreshServers();
+    }
+  };
 
   const handleSubmitManualConfig = async () => {
     if (!manualConfig.trim() || !onManualInstallMcp) return;
@@ -150,7 +158,7 @@ export function MarketplaceSection({
         </div>
       </div>
 
-      <Tabs defaultValue="marketplace" className="w-full">
+      <Tabs defaultValue="marketplace" className="w-full" onValueChange={handleTabChange}>
         <TabsList className="dark:bg-background/60 mb-4">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="installed">Installed</TabsTrigger>
@@ -363,7 +371,7 @@ export function MarketplaceSection({
                   {installedServers.map((server) => (
                     <div
                       key={server.id}
-                      className="border-l-4 border-l-green-500 border-b border-border pb-4 last:border-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative"
+                      className="border-l-4 border-l-green-500 border-b border-border pb-4 last:border-b-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -387,7 +395,7 @@ export function MarketplaceSection({
                               {server.description || "No description available"}
                             </p>
 
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            {/* <div className="mt-2 flex flex-wrap gap-2">
                               <Badge
                                 className={
                                   server.enabled
@@ -398,13 +406,7 @@ export function MarketplaceSection({
                               >
                                 {server.enabled ? "Enabled" : "Disabled"}
                               </Badge>
-                              <Badge
-                                variant="outline"
-                                className="bg-secondary/60 dark:bg-background/60 text-xs dark:border-gray-700"
-                              >
-                                {server.toolCount || 0} Tools
-                              </Badge>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
 
