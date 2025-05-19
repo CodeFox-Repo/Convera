@@ -853,6 +853,7 @@ export default function SettingsPage() {
     onInstallMcpTool: handleInstallMcpTool,
     onManualInstallMcp: handleManualInstallMcp,
     onUninstallPredefinedServer: handleUninstallPredefinedServer,
+    onRefreshServers: fetchAllMcpServers,
   };
 
   // Navigation items for sidebar

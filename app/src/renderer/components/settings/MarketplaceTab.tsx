@@ -23,6 +23,7 @@ type MarketplaceSectionProps = {
   onInstallPredefinedServer: (serverId: string) => void;
   onUninstallPredefinedServer?: (serverId: string) => Promise<void>;
   onManualInstallMcp?: (configJson: string) => Promise<void>;
+  onRefreshServers?: () => void;
 };
 
 export function MarketplaceSection({
@@ -35,6 +36,7 @@ export function MarketplaceSection({
   onInstallPredefinedServer,
   onUninstallPredefinedServer,
   onManualInstallMcp,
+  onRefreshServers,
 }: MarketplaceSectionProps) {
   const [showManualConfigDialog, setShowManualConfigDialog] = useState(false);
   const [showCommunityConfigDialog, setShowCommunityConfigDialog] =
@@ -48,6 +50,12 @@ export function MarketplaceSection({
     Record<string, boolean>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleTabChange = (value: string) => {
+    if (value === "installed" && onRefreshServers) {
+      onRefreshServers();
+    }
+  };
 
   const handleSubmitManualConfig = async () => {
     if (!manualConfig.trim() || !onManualInstallMcp) return;
@@ -150,7 +158,7 @@ export function MarketplaceSection({
         </div>
       </div>
 
-      <Tabs defaultValue="marketplace" className="w-full">
+      <Tabs defaultValue="marketplace" className="w-full" onValueChange={handleTabChange}>
         <TabsList className="dark:bg-background/60 mb-4">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="installed">Installed</TabsTrigger>
