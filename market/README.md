@@ -1,6 +1,6 @@
-# MCP & Agent Marketplace Server
+# MCP Marketplace Server
 
-A powerful marketplace server designed to facilitate the distribution and management of MCP (Model Context Protocol) server configurations and AI agent settings.
+A powerful marketplace server designed to facilitate the distribution and management of MCP (Model Context Protocol) server configurations settings.
 
 ## Overview
 
@@ -16,19 +16,6 @@ The MCP Marketplace Server serves as a central hub for MCP server users and deve
 - **Configuration Sharing**
   - Search and filter capabilities
   - Documentation support
-
-## Future Capabilities
-
-### AI Agent Integration
-- AI agent settings and configurations
-- Prompt sharing and management
-- Tool/plugin marketplace
-
-### Enhanced Features
-- Real-time configuration testing
-- Automated compatibility checks
-- Community-driven best practices
-- Integration with popular MCP tools
 
 ## Getting Started
 

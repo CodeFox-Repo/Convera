@@ -5,7 +5,6 @@
   "description": "FoxyChat Workspace",
   "scripts": {
     "start": "cd app && pnpm start",
-    "start:market": "pnpm --filter market start",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
     "format:write": "pnpm -r format:write",
