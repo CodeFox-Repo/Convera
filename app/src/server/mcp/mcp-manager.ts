@@ -3,23 +3,23 @@
  * Integrates server management, configuration, and registry functionality
  * into a single, simplified interface
  */
+import { ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import * as fs from "fs";
-import * as path from "path";
 import * as os from "os";
-import { ChildProcess } from "child_process";
-import {
-  MCPConfig,
-  MCPServerConfig,
-  ServerStatus,
-  PredefinedMCPServer,
-} from "./types";
+import * as path from "path";
+import { serverTools } from "./dev-mcp/tools";
 import { MCPClient } from "./mcp-client";
 import {
   PREDEFINED_SERVERS,
   getPredefinedServerById,
 } from "./predefined-servers";
-import { serverTools } from "./dev-mcp/tools";
+import {
+  MCPConfig,
+  MCPServerConfig,
+  PredefinedMCPServer,
+  ServerStatus,
+} from "./types";
 
 /**
  * Unified MCP Manager
@@ -359,10 +359,8 @@ export class MCPManager extends EventEmitter {
   public async startAllEnabled(): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
 
-    for (const [id, server] of this.servers.entries()) {
-      if (server.config.enabled) {
-        results.set(id, await this.startServer(id));
-      }
+    for (const [id] of this.servers.entries()) {
+      results.set(id, await this.startServer(id));
     }
 
     return results;
