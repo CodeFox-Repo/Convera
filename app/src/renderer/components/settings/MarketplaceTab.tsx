@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
@@ -397,12 +397,6 @@ export function MarketplaceSection({
                                 variant="outline"
                               >
                                 {server.enabled ? "Enabled" : "Disabled"}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className="bg-secondary/60 dark:bg-background/60 text-xs dark:border-gray-700"
-                              >
-                                {server.toolCount || 0} Tools
                               </Badge>
                             </div>
                           </div>
