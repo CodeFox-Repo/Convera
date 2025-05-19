@@ -559,6 +559,7 @@ export default function SettingsPage() {
       }
 
       toast.success("MCP configuration installed successfully");
+      fetchAllMcpServers(); // Immediately refresh installed servers
       fetchMcpConfigurations(); // Refresh configurations
     } catch (error) {
       console.error("Error installing manual MCP configuration:", error);
