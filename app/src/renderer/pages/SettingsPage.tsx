@@ -954,9 +954,6 @@ export default function SettingsPage() {
         {activeTab === "general" && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-foreground mb-4 text-xl font-medium">
-                AI Model
-              </h2>
               <AIModelSection
                 settings={settings}
                 onOpenAIChange={handleOpenAIChange}
@@ -966,9 +963,6 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <h2 className="text-foreground mb-4 text-xl font-medium">
-                Shortcuts
-              </h2>
               <ShortcutsSection
                 settings={settings}
                 activeShortcut={activeShortcut}
