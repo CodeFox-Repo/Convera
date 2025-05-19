@@ -5,16 +5,16 @@
  * that can be used within the chat interface.
  */
 
-import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
-import { getMCPToolsForChat } from "../mcp";
 import { AppSettings } from "@/shared/types/settings";
-import { codefoxTools } from "../mcp/dev-mcp/tools";
-import path from "path";
-import os from "os";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
 import fs from "fs";
+import os from "os";
+import path from "path";
+import { getMCPToolsForChat } from "../mcp";
+import { codefoxTools } from "../mcp/dev-mcp/tools";
 import { saveChat } from "../service/chat";
+import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 
 // Define a path for agents configuration file
 const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
@@ -168,15 +168,20 @@ function loadCustomAgents(): void {
       const customAgents = JSON.parse(data) as AgentDefinition[];
       console.log("customAgents", customAgents);
 
-      // Clear any existing custom agents (keeping built-ins)
-      predefinedAgents.length = builtInAgents.length;
+      // Only process if there are actually custom agents to load
+      if (customAgents && customAgents.length > 0) {
+        // Clear any existing custom agents (keeping built-ins)
+        predefinedAgents.length = builtInAgents.length;
 
-      // Add loaded custom agents
-      predefinedAgents.push(...customAgents);
+        // Add loaded custom agents
+        predefinedAgents.push(...customAgents);
 
-      console.log(
-        `Loaded ${customAgents.length} custom agents from ${AGENTS_CONFIG_PATH}`,
-      );
+        console.log(
+          `Loaded ${customAgents.length} custom agents from ${AGENTS_CONFIG_PATH}`,
+        );
+      } else {
+        console.log(`No custom agents found in ${AGENTS_CONFIG_PATH}`);
+      }
     } else {
       console.log(`No custom agents found at ${AGENTS_CONFIG_PATH}`);
       // Create empty file for future use
