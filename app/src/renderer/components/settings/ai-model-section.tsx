@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AppSettings } from "@/shared/types/settings";
 import { X } from "lucide-react";
 
-import { loadFuzzyInstance, searchModels } from "@/renderer/utils/modelSearchUtils";
+import { loadFuzzyInstance, searchModels } from "@/renderer/utils/model-search-utils";
 import { OFFICIAL_MODELS, fetchOpenRouterModels } from "@/shared/constants/officialModels";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";

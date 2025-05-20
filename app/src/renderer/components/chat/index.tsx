@@ -1,7 +1,7 @@
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
-import { useAgentSelection } from "@/renderer/hooks/useAgentSelection";
-import { useChatHistory } from "@/renderer/hooks/useChatHistory";
-import { GenericError, parseApiError } from "@/renderer/utils/errorHandler";
+import { useAgentSelection } from "@/renderer/hooks/use-agent-selection";
+import { useChatHistory } from "@/renderer/hooks/use-chat-history";
+import { GenericError, parseApiError } from "@/renderer/utils/error-handler";
 import { getSettings } from "@/renderer/utils/settings";
 import { useChat } from "@ai-sdk/react";
 import type { Message, UIMessage } from "ai";
@@ -9,8 +9,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import ChatContent from "./ChatContent";
-import ChatInput, { ChatInputRef } from "./ChatInput";
+import ChatContent from "./chat-content";
+import ChatInput, { ChatInputRef } from "./chat-input";
 
 /**
  * Agent interface definition
