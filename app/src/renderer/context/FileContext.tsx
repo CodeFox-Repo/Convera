@@ -58,8 +58,19 @@ export const FileProvider = ({ children }: { children: ReactNode }) => {
         ref={fileInputRef}
         style={{ display: "none" }}
         onChange={(e) => {
-          if (e.target.files) {
-            setFiles(e.target.files);
+          const newFiles = e.target.files;
+          if (!newFiles) return;
+
+          const dt = new DataTransfer();
+          if (files) {
+            Array.from(files).forEach((f) => dt.items.add(f));
+          }
+          Array.from(newFiles).forEach((f) => dt.items.add(f));
+
+          setFiles(dt.files);
+
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
           }
         }}
       />

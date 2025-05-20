@@ -1,5 +1,5 @@
 import { useFileContext } from "@/renderer/context/FileContext";
-import { Monitor, Plus, X } from "lucide-react";
+import { File, Image, Monitor, Plus, X } from "lucide-react";
 import React from "react";
 
 interface ContextButtonsProps {
@@ -50,7 +50,7 @@ export function ContextButtons({
             key={file.name}
             className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45 bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] ml-1 overflow-hidden pr-5"
           >
-            <Monitor size={12} className="flex-shrink-0 mr-1" />
+            {getFileIcon(file)}
             <span className="truncate -mr-1">{file.name}</span>
             <button
               onClick={() => removeFile(file.name)}
@@ -63,4 +63,11 @@ export function ContextButtons({
         ))}
     </div>
   );
+}
+
+function getFileIcon(file: File) {
+  if (file.type.startsWith("image/")) {
+    return <Image size={12} className="flex-shrink-0 mr-1" />;
+  }
+  return <File size={12} className="flex-shrink-0 mr-1" />;
 }

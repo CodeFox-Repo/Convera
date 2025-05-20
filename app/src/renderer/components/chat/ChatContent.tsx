@@ -159,7 +159,8 @@ export default function ChatContent({
 
   // Renders text content using Markdown
   const renderMessageContent = useCallback(
-    (content: string, messageId: string) => {
+    (content: string, message: UIMessage) => {
+      const messageId = message.id;
       if (!content) return null;
 
       // Check for copied content tags
@@ -292,8 +293,7 @@ export default function ChatContent({
   // Renders tool calls and text content in order
   const renderToolCalls = useCallback(
     (message: UIMessage) => {
-      if (!message.parts)
-        return renderMessageContent(message.content, message.id);
+      if (!message.parts) return renderMessageContent(message.content, message);
 
       const contentElements: React.ReactNode[] = [];
 
@@ -303,7 +303,7 @@ export default function ChatContent({
           // Add text content
           contentElements.push(
             <div key={`text-${index}`} className="my-2">
-              {renderMessageContent(part.text, message.id)}
+              {renderMessageContent(part.text, message)}
             </div>,
           );
         } else if (
@@ -392,7 +392,7 @@ export default function ChatContent({
         content = renderToolCalls(message);
       } else {
         content = message.content
-          ? renderMessageContent(message.content, message.id)
+          ? renderMessageContent(message.content, message)
           : null;
       }
 

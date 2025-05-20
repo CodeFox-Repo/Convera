@@ -1,7 +1,7 @@
-import React, { memo } from "react";
-import { UIMessage } from "ai";
-import { Check, Copy, RefreshCw, Edit } from "lucide-react";
+import { Attachment, UIMessage } from "ai";
 import { motion } from "framer-motion";
+import { Check, Copy, Edit, File, Image, RefreshCw } from "lucide-react";
+import React, { memo } from "react";
 
 /**
  * Individual chat message component props
@@ -91,7 +91,33 @@ const ChatMessage = memo(
                   <>
                     {/* Regular message display */}
                     {message.content || message.parts ? (
-                      renderContent
+                      <>
+                        {/* 1. 附件列表（如果有的话） */}
+                        {!message.experimental_attachments?.length ||
+                          (message.experimental_attachments?.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {message.experimental_attachments.map((file) => (
+                                <div
+                                  key={file.name}
+                                  className="group relative h-6 no-drag-region flex items-center
+                     rounded-[var(--app-border-radius)] border border-gray-500/45
+                     bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch]
+                     ml-1 overflow-hidden pr-5"
+                                >
+                                  {getAttachmentIcon(file)}
+                                  <span className="truncate -mr-1">
+                                    {file.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+
+                        {/* 2. 正文 */}
+                        {renderContent ? (
+                          <div className="mt-2">{renderContent}</div>
+                        ) : null}
+                      </>
                     ) : (
                       <div className="text-foreground/50 italic">
                         {isUser ? "Empty message" : "..."}
@@ -154,3 +180,10 @@ const ChatMessage = memo(
 ChatMessage.displayName = "ChatMessage";
 
 export default ChatMessage;
+
+export function getAttachmentIcon(att: Attachment) {
+  if (att.contentType?.startsWith("image/")) {
+    return <Image size={12} className="flex-shrink-0 mr-1" />;
+  }
+  return <File size={12} className="flex-shrink-0 mr-1" />;
+}
