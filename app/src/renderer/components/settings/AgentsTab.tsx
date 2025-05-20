@@ -23,7 +23,7 @@ import {
 } from "@/renderer/components/ui/tabs";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
-import { Loader2 } from "lucide-react";
+import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -808,67 +808,67 @@ export function AgentsTab() {
           ) : (
             <div className="space-y-4">
               {agents.map((agent) => {
-                console.log(`Agent ${agent.name} tools:`, {
-                  toolNames: agent.toolNames,
-                  toolReferences: agent.toolReferences,
-                });
-
-                // Format tools for display - prioritize toolReferences over toolNames if available
-                let formattedTools: string[] = [];
-
+                // Get unique MCP server names only
+                const mcpServers = new Set<string>();
+                
                 if (agent.toolReferences && agent.toolReferences.length > 0) {
-                  // Format tool references
-                  formattedTools = agent.toolReferences.map(
-                    (toolRef) => `${toolRef.toolName} (${toolRef.mcpName})`,
-                  );
+                  agent.toolReferences.forEach(toolRef => mcpServers.add(toolRef.mcpName));
                 } else if (agent.toolNames && agent.toolNames.length > 0) {
-                  // Format tool names (legacy format)
-                  formattedTools = agent.toolNames.map((toolId) => {
+                  agent.toolNames.forEach(toolId => {
                     const parts = toolId.split(":");
-                    return parts.length > 1
-                      ? `${parts[1]} (${parts[0]})`
-                      : toolId;
+                    if (parts.length > 1) {
+                      mcpServers.add(parts[0]);
+                    }
                   });
                 }
+                
+                // Convert the Set to Array
+                const mcpServersList = Array.from(mcpServers);
 
                 return (
-                  <div key={agent.id} className="rounded-md border p-4">
-                    <div className="flex items-start justify-between">
+                  <div key={agent.id} className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-sm border border-border/30">
+                    <div className="flex items-start gap-3">
+                      <div className="text-primary bg-primary/10 rounded-full p-1.5">
+                        <Bot size={18} />
+                      </div>
                       <div>
-                        <h4 className="font-medium">{agent.name}</h4>
-                        <p className="text-muted-foreground text-sm">
+                        <h4 className="font-medium leading-tight">{agent.name}</h4>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
                           {agent.description}
                         </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => handleEditAgent(agent)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-8"
-                          onClick={() =>
-                            handleDeleteAgent(agent.id, agent.name)
-                          }
-                        >
-                          Delete
-                        </Button>
+                        
+                        {mcpServersList.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {mcpServersList.map((serverName) => (
+                              <div key={serverName} className="bg-primary/5 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs">
+                                <Server size={10} className="mr-1" />
+                                {serverName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="mt-4">
-                      <h5 className="mb-2 text-sm font-medium">Tools</h5>
-                      <div className="text-muted-foreground text-xs">
-                        {formattedTools.length > 0
-                          ? formattedTools.join(", ")
-                          : "No tools configured"}
-                      </div>
+                    
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full"
+                        onClick={() => handleEditAgent(agent)}
+                      >
+                        < Settings size={14} />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 h-8 w-8 p-0 rounded-full"
+                        onClick={() => handleDeleteAgent(agent.id, agent.name)}
+                      >
+                        <Trash2 size={14} />
+                        <span className="sr-only">Delete</span>
+                      </Button>
                     </div>
                   </div>
                 );
