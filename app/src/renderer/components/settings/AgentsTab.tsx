@@ -719,10 +719,10 @@ export function AgentsTab() {
         Create and manage agents with MCP tools
       </p>
       
-      <Tabs defaultValue="create" className="w-full">
+      <Tabs defaultValue="manage" className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="create">Create Agent</TabsTrigger>
           <TabsTrigger value="manage">Manage Agents</TabsTrigger>
+          <TabsTrigger value="create">Create Agent</TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-6">
