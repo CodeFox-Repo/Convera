@@ -48,10 +48,8 @@ export default function ModelSelector({
     const onCustomEvent = () => {
       loadSupportedModels();
     };
-    
     window.addEventListener("storage", onStorage);
     window.addEventListener("supportedModels-updated", onCustomEvent);
-    
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("supportedModels-updated", onCustomEvent);

@@ -1,5 +1,5 @@
 import React from "react";
-import Chat from "../components/chat";
+import Chat from "../components/chat/core";
 import { ChatProvider } from "../libs/stores/chat-store";
 
 export default function HomePage() {

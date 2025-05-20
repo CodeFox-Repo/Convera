@@ -1,6 +1,6 @@
 // app/src/renderer/components/chat/compact-chat-view.tsx
 import React from 'react';
-import ChatInput, { ChatInputRef } from './chat-input';
+import ChatInput, { ChatInputRef } from '../input/chat-input';
 
 interface CompactChatViewProps {
   chatInputRef: React.RefObject<ChatInputRef | null>;

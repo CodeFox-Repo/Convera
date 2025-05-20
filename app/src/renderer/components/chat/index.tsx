@@ -3,9 +3,9 @@ import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import React, { useEffect, useRef, useState } from 'react';
-import { ChatInputRef } from './chat-input';
-import CompactChatView from "./compact-chat-view";
-import ExpandedChatView from "./expanded-chat-view";
+import CompactChatView from "./core/compact-chat-view";
+import ExpandedChatView from "./core/expanded-chat-view";
+import { ChatInputRef } from "./input/chat-input";
 
 
 export default function Chat() {

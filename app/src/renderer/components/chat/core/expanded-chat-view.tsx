@@ -5,8 +5,8 @@ import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
-import ChatContent from './chat-content';
-import ChatInput, { ChatInputRef } from './chat-input';
+import ChatInput, { ChatInputRef } from '../input/chat-input';
+import ChatContent from '../message/chat-content';
 
 const buttonVariants = {
   hidden: { opacity: 0, y: -10 },

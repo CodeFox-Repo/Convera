@@ -12,7 +12,7 @@ import {
   Square,
 } from "lucide-react";
 import React from "react";
-import ModelSelector from "./model-selector";
+import ModelSelector from "../popover/model-selector-popover";
 
 interface ChatInputButtonsProps {
   onReset?: () => void;
