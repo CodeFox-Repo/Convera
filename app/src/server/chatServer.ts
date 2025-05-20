@@ -2,7 +2,7 @@
 /**
  * Express server for handling chat API requests with OpenAI
  */
-import { standardErrors } from "@/renderer/utils/errorHandler";
+import { standardErrors } from "@/renderer/utils/error-handler";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, {

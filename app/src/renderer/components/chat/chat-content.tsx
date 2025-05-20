@@ -2,10 +2,10 @@ import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
-import ChatMessage from "./ChatMessage";
-import CopiedContentBlock from "./CopiedContentBlock";
-import ModifiedContentBlock from "./ModifiedContentBlock";
-import ToolCall from "./ToolCall";
+import ChatMessage from "./chat-message";
+import CopiedContentBlock from "./copied-content-block";
+import ModifiedContentBlock from "./modified-content-block";
+import ToolCall from "./tool-call";
 
 /**
  * Simple markdown renderer component
