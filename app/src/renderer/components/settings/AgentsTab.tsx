@@ -69,6 +69,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const [editSelectedTools, setEditSelectedTools] = useState<{
     [mcpId: string]: string[];
   }>({});
+  const [activeTab, setActiveTab] = useState("manage");
 
   // Load agents and MCP configs
   useEffect(() => {
@@ -341,10 +342,13 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         description: "",
         systemPrompt: "",
       });
-      // setSelectedToolNames({});
+      setSelectedToolNames({});
 
       // Refresh agents list
       fetchAgents();
+
+      // Switch to the manage tab
+      setActiveTab("manage");
 
       // Dispatch an event to notify other components (like AgentPopover)
       // that the agent list has been updated
@@ -723,7 +727,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         </p>
       </div>
       
-      <Tabs defaultValue="manage" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="manage">Manage Agents</TabsTrigger>
           <TabsTrigger value="create">Create Agent</TabsTrigger>
