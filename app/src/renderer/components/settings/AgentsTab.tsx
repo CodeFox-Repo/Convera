@@ -237,10 +237,18 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       // Auto-select all tools for this MCP when they're first loaded
       if (processedTools.length > 0) {
-        setSelectedToolNames((prev) => ({
-          ...prev,
-          [id]: processedTools.map((tool: ToolDefinition) => tool.name),
-        }));
+        // Check if we're in edit mode
+        if (isEditDialogOpen) {
+          setEditSelectedTools((prev) => ({
+            ...prev,
+            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
+          }));
+        } else {
+          setSelectedToolNames((prev) => ({
+            ...prev,
+            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
+          }));
+        }
       }
     } catch (err) {
       console.error(`Error fetching tools for MCP ${id}:`, err);
@@ -504,17 +512,34 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     
     // When enabling an MCP server, automatically select all its tools
     if (enabled && mcpServerTools[id]?.length > 0) {
-      setSelectedToolNames(prev => ({
-        ...prev,
-        [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
-      }));
+      // If edit dialog is open, update editSelectedTools instead
+      if (isEditDialogOpen) {
+        setEditSelectedTools(prev => ({
+          ...prev,
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+        }));
+      } else {
+        // Normal mode - update selectedToolNames
+        setSelectedToolNames(prev => ({
+          ...prev,
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+        }));
+      }
     } else if (!enabled) {
       // When disabling, clear the tool selections for this MCP
-      setSelectedToolNames(prev => {
-        const updated = { ...prev };
-        delete updated[id];
-        return updated;
-      });
+      if (isEditDialogOpen) {
+        setEditSelectedTools(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+      } else {
+        setSelectedToolNames(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+      }
     }
   };
 
