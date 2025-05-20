@@ -92,28 +92,26 @@ const ChatMessage = memo(
                     {/* Regular message display */}
                     {message.content || message.parts ? (
                       <>
-                        {/* 1. 附件列表（如果有的话） */}
-                        {!message.experimental_attachments?.length ||
-                          (message.experimental_attachments?.length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              {message.experimental_attachments.map((file) => (
-                                <div
-                                  key={file.name}
-                                  className="group relative h-6 no-drag-region flex items-center
+                        {(message.experimental_attachments ?? []).length >
+                          0 && (
+                          <div className="mt-2 space-y-1">
+                            {message.experimental_attachments?.map((file) => (
+                              <div
+                                key={file.name}
+                                className="group relative h-6 no-drag-region flex items-center
                      rounded-[var(--app-border-radius)] border border-gray-500/45
                      bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch]
                      ml-1 overflow-hidden pr-5"
-                                >
-                                  {getAttachmentIcon(file)}
-                                  <span className="truncate -mr-1">
-                                    {file.name}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
+                              >
+                                {getAttachmentIcon(file)}
+                                <span className="truncate -mr-1">
+                                  {file.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
-                        {/* 2. 正文 */}
                         {renderContent ? (
                           <div className="mt-2">{renderContent}</div>
                         ) : null}
