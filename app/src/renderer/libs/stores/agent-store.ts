@@ -1,7 +1,6 @@
 // app/src/renderer/stores/agent-store.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AgentInfo } from "../hooks/use-agent-selection";
 
 export interface Agent {
   id: string;
@@ -19,7 +18,7 @@ interface AgentState {
   setSelectedAgent: (agent: Agent | null) => void;
   triggerAgentSelect: (
     e: React.MouseEvent<HTMLButtonElement>,
-    selectedAgent: AgentInfo | null | undefined,
+    selectedAgent: Agent | null | undefined,
   ) => Promise<void>;
   handleAgentChange: (accept: boolean) => void;
 }
@@ -34,7 +33,7 @@ export const useAgentStore = create<AgentState>()(
 
       triggerAgentSelect: async (
         e: React.MouseEvent<HTMLButtonElement>,
-        selectedAgent: AgentInfo | null | undefined,
+        selectedAgent: Agent | null | undefined,
       ) => {
         const button = e.currentTarget;
         const rect = button.getBoundingClientRect();
@@ -71,7 +70,7 @@ export const useAgentStore = create<AgentState>()(
       },
     }),
     {
-      name: "agent-storage",
+      name: "selectedModelId",
       partialize: (state) => ({ selectedAgent: state.selectedAgent }),
     },
   ),

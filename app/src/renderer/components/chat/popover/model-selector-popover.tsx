@@ -1,20 +1,27 @@
+import { useModelStore } from "@/renderer/libs/stores/model-store";
 import { getSettings } from "@/renderer/libs/utils/settings";
 import { Check, ChevronDown } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-interface ModelSelectorProps {
-  selectedModel: string;
-  onSelectModel: (modelId: string) => void;
-}
 
-export default function ModelSelector({
-  selectedModel,
-  onSelectModel,
-}: ModelSelectorProps) {
+export default function ModelSelector() {
+  console.log("Model from localStorage:" +   localStorage.getItem("selectedModelId") );
   const [isOpen, setIsOpen] = useState(false);
   const [supportedModels, setSupportedModels] = useState<string[]>([]);
-  const [currentModel, setCurrentModel] = useState(selectedModel);
 
+  const { selectedModelId, setSelectedModelId: setModel } = useModelStore();
+
+  const setSelectedModelId = (modelId: string) => {
+    setModel(modelId);
+    if (window.electronAPI) {
+      window.electronAPI.toggleModelSelector();
+      // Dispatch a custom event that will be caught by the main window
+      window.opener?.dispatchEvent(
+        new CustomEvent("model-selected", {
+          detail: { modelId },
+        }),
+      );
+    }  }
   /**
    * Load supported models from localStorage or settings
    */
@@ -56,10 +63,7 @@ export default function ModelSelector({
     };
   }, []);
 
-  // Update internal state when prop changes
-  useEffect(() => {
-    setCurrentModel(selectedModel);
-  }, [selectedModel]);
+
 
   /**
    * Handle clicks outside the dropdown to close it
@@ -88,8 +92,7 @@ export default function ModelSelector({
    * Handle model selection and notify parent components
    */
   const handleModelSelect = (model: string) => {
-    setCurrentModel(model);
-    onSelectModel(model);
+    setSelectedModelId(model);
     localStorage.setItem("selectedModelId", model);
 
     // Try to communicate with opener window if it exists
@@ -133,14 +136,14 @@ export default function ModelSelector({
             <button
               key={model}
               className={`hover:bg-primary/10 flex w-full items-center justify-between rounded px-2 py-1.5 text-xs ${
-                model === currentModel
+                model === selectedModelId
                   ? "bg-primary/20 text-primary"
                   : "text-foreground"
               }`}
               onClick={() => handleModelSelect(model)}
             >
               <span>{formatModelName(model)}</span>
-              {model === currentModel && <Check size={12} />}
+              {model === selectedModelId && <Check size={12} />}
             </button>
           ))}
         </div>
@@ -183,7 +186,7 @@ export default function ModelSelector({
           }
         }}
       >
-        {formatModelName(currentModel)}
+        {formatModelName(selectedModelId)}
         <ChevronDown
           size={12}
           className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -196,14 +199,14 @@ export default function ModelSelector({
             <button
               key={model}
               className={`hover:bg-primary/10 flex w-full items-center justify-between rounded px-2 py-1.5 text-xs ${
-                model === currentModel
+                model === selectedModelId
                   ? "bg-primary/20 text-primary"
                   : "text-foreground"
               }`}
               onClick={() => handleModelSelect(model)}
             >
               <span>{formatModelName(model)}</span>
-              {model === currentModel && <Check size={12} />}
+              {model === selectedModelId && <Check size={12} />}
             </button>
           ))}
         </div>

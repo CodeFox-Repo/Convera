@@ -9,7 +9,6 @@ import { DragLayer } from "./components/ui/drag-layer";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
 import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
-import { getSettings } from "./libs/utils/settings";
 import { router } from "./routes/router";
 
 export default function App() {
@@ -48,19 +47,7 @@ export default function App() {
     return (
       <div className="model-selector-container h-screen w-full overflow-hidden">
         <ModelSelector
-          selectedModel={getSettings().openai.modelId}
-          onSelectModel={(modelId) => {
-            // Send the selected model back to the main window via IPC
-            if (window.electronAPI) {
-              window.electronAPI.toggleModelSelector();
-              // Dispatch a custom event that will be caught by the main window
-              window.opener?.dispatchEvent(
-                new CustomEvent("model-selected", {
-                  detail: { modelId },
-                }),
-              );
-            }
-          }}
+    
         />
       </div>
     );

@@ -1,5 +1,5 @@
-import { AgentInfo } from "@/renderer/libs/hooks/use-agent-selection";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { Agent } from "@/renderer/libs/stores/agent-store";
 import {
   Bot,
   History,
@@ -23,10 +23,10 @@ interface ChatInputButtonsProps {
   triggerHistoryWindow: () => void;
   isLoading: boolean;
   hasContent: boolean;
-  selectedAgent?: AgentInfo | null;
+  selectedAgent?: Agent | null;
   onAgentButtonClick: (
     e: React.MouseEvent<HTMLButtonElement>,
-    agent: AgentInfo | null | undefined,
+    agent: Agent | null | undefined,
   ) => void;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
@@ -110,12 +110,9 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "model-selector",
-      render: (p) => (
+      render: () => (
         <div className="no-drag-region inline-flex items-center">
-          <ModelSelector
-            selectedModel={p.selectedModelId!}
-            onSelectModel={p.onModelSelect!}
-          />
+          <ModelSelector/>
         </div>
       ),
       show: (p) => !!(p.selectedModelId && p.onModelSelect),
