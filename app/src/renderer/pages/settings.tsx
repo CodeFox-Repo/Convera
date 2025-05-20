@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { getCurrentTheme, toggleTheme } from "@/renderer/helper/theme_helpers";
-import { ErrorCode } from "@/renderer/utils/errorHandler";
+import { ErrorCode } from "@/renderer/utils/error-handler";
 import {
   getSettings,
   resetShortcutsToDefault,
@@ -19,10 +19,10 @@ import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as Settin
 import { toast } from "sonner";
 
 // Import our component tabs
-import { AgentsTab } from "@/renderer/components/settings/AgentsTab";
-import { AIModelSection } from "@/renderer/components/settings/AIModelSection";
-import { MarketplaceSection } from "@/renderer/components/settings/MarketplaceTab";
-import { ShortcutsSection } from "@/renderer/components/settings/ShortcutsSection";
+import { AgentsTab } from "@/renderer/components/settings/agents-tab";
+import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
+import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
+import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AgentDefinition {

@@ -2,7 +2,7 @@
 /**
  * Express server for handling chat API requests with OpenAI
  */
-import { standardErrors } from "@/renderer/utils/errorHandler";
+import { standardErrors } from "@/renderer/utils/error-handler";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, {
@@ -31,14 +31,10 @@ import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
 import { deleteChat, getChatById, getChats } from "./service/chat";
 
-// Initialize dotenv
 dotenv.config();
 
-// Create Express app
 const app = express();
 const router = express.Router();
-
-// Middleware
 app.use(express.json());
 app.use(cors());
 
@@ -51,14 +47,16 @@ const authenticateRequest = (
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json(standardErrors.authFailed);
+    res.status(401).json(standardErrors.authFailed);
+    return;
   }
 
   // Extract token from header
   const token = authHeader.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json(standardErrors.authFailed);
+    res.status(401).json(standardErrors.authFailed);
+    return;
   }
 
   // Store token in request for use in downstream handlers
@@ -169,12 +167,14 @@ router.post("/api/chat", async (req: Request, res: Response) => {
     const apiKey = (req as any).apiToken;
 
     if (!apiKey) {
-      return res.status(401).json(standardErrors.authFailed);
+      res.status(401).json(standardErrors.authFailed);
+      return;
     }
 
     // Check if messages are empty
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json(standardErrors.emptyMessage);
+      res.status(400).json(standardErrors.emptyMessage);
+      return;
     }
 
     // Set necessary headers for streaming
@@ -381,10 +381,11 @@ router.post("/api/mcp/settings", (req: Request, res: Response) => {
     const { toolId, settings } = req.body;
 
     if (!toolId || !settings) {
-      return res.status(400).json({
+      res.status(400).json({
         error:
           "Missing required parameters. 'toolId' and 'settings' are required.",
       });
+      return;
     }
 
     // Here you would save the settings for the specific MCP tool
@@ -513,10 +514,11 @@ router.post(
         !configData.mcpServers ||
         typeof configData.mcpServers !== "object"
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           status: "error",
           message: "Invalid configuration format. Expected {mcpServers: {...}}",
         });
+        return;
       }
 
       const manager = getMCPManager();
@@ -524,10 +526,11 @@ router.post(
       // Process each server in the configuration
       const serverIds = Object.keys(configData.mcpServers);
       if (serverIds.length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           status: "error",
           message: "No MCP servers found in configuration",
         });
+        return;
       }
 
       // Register each server with the manager
@@ -582,10 +585,11 @@ router.get("/api/agents/:agentId", (req: Request, res: Response) => {
     const agent = getAgentById(agentId);
 
     if (!agent) {
-      return res.status(404).json({
+      res.status(404).json({
         status: "error",
         message: `Agent with ID '${agentId}' not found`,
       });
+      return;
     }
 
     res.json({ status: "success", agent });
@@ -605,10 +609,11 @@ router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
     const success = await deleteCustomAgent(agentId);
 
     if (!success) {
-      return res.status(404).json({
+      res.status(404).json({
         status: "error",
         message: `Agent with ID '${agentId}' not found or cannot be deleted`,
       });
+      return;
     }
 
     res.json({
@@ -642,19 +647,21 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
 
     // Validate that the ID in the URL matches the ID in the body
     if (id !== agentId) {
-      return res.status(400).json({
+      res.status(400).json({
         status: "error",
         message: "Agent ID mismatch between URL and request body",
       });
+      return;
     }
 
     // Check that the agent exists
     const existingAgent = getAgentById(agentId);
     if (!existingAgent) {
-      return res.status(404).json({
+      res.status(404).json({
         status: "error",
         message: `Agent with ID '${agentId}' not found`,
       });
+      return;
     }
 
     // Determine which tools to use - prioritize those from the request, fall back to existing tools
@@ -715,10 +722,11 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
     // First delete the existing agent
     const deleteSuccess = await deleteCustomAgent(agentId);
     if (!deleteSuccess) {
-      return res.status(500).json({
+      res.status(500).json({
         status: "error",
         message: "Failed to update agent: could not remove old version",
       });
+      return;
     }
 
     // Then save the updated agent with the same ID
@@ -789,8 +797,7 @@ app.get("/api/mcp/installed-servers", (req, res) => {
         running: status.running || false,
         isPredefined,
         toolCount: status.tools?.length || 0,
-        serverUrl: status.serverUrl || null,
-        // 如果是预定义服务器，添加额外信息
+        serverUrl: null,
         repoUrl: predefinedInfo?.repoUrl || null,
         logoUrl: predefinedInfo?.logoUrl || null,
         installInstructions: predefinedInfo?.installInstructions || null,
@@ -991,31 +998,28 @@ router.post(
       const { disabledTools } = req.body;
 
       if (!Array.isArray(disabledTools)) {
-        return res.status(400).json({
+        res.status(400).json({
           status: "error",
           message: "disabledTools must be an array of tool names",
         });
+        return;
       }
 
       const manager = getMCPManager();
       const serverStatus = manager.getServerStatus(id);
 
       if (!serverStatus) {
-        return res.status(404).json({
+        res.status(404).json({
           status: "error",
           message: `Server with id ${id} not found`,
         });
+        return;
       }
 
-      // 统计有多少可用工具
       const availableTools = serverStatus.tools || [];
       const totalTools = availableTools.length;
       const disabledCount = disabledTools.length;
 
-      // 更新服务器配置，设置已禁用的工具
-      const success = manager.updateServerConfig(id, { disabledTools });
-
-      // If the server is running, restart it to apply the changes
       if (serverStatus.running) {
         await manager.stopServer(id);
         await manager.startServer(id);
@@ -1040,16 +1044,13 @@ const PORT = 38000;
 export function startChatServer() {
   initializeMCP();
 
-  // Start all enabled MCP servers
   console.log("Starting all enabled MCP servers...");
   startMCPServers()
     .then((results) => {
       const startedCount = Array.from(results.values()).filter(Boolean).length;
       const totalCount = results.size;
       console.log(`Started ${startedCount}/${totalCount} enabled MCP servers`);
-
       if (startedCount > 0) {
-        // Log which servers were started successfully and which failed
         Array.from(results.entries()).forEach(([id, success]) => {
           if (success) {
             console.log(`MCP server '${id}' started successfully`);
@@ -1091,7 +1092,6 @@ export function startChatServer() {
     console.log(`API authentication required for chat endpoint`);
   });
 
-  // Add error handling for server
   server.on("error", (error) => {
     console.error("Chat server error:", error);
   });
@@ -1109,7 +1109,6 @@ router.get("/api/tools", (req, res) => {
   }
 });
 
-// Chat history endpoints
 router.get("/api/chats", async (req, res) => {
   try {
     const chats = await getChats();
@@ -1138,10 +1137,11 @@ router.get("/api/chats/:chatId", async (req, res) => {
     const chat = await getChatById(chatId);
 
     if (!chat) {
-      return res.status(404).json({
+      res.status(404).json({
         status: "error",
         message: `Chat with ID '${chatId}' not found`,
       });
+      return;
     }
 
     res.json({ status: "success", chat });
@@ -1159,10 +1159,11 @@ router.delete("/api/chats/:chatId", async (req, res) => {
     const success = await deleteChat(chatId);
 
     if (!success) {
-      return res.status(404).json({
+      res.status(404).json({
         status: "error",
         message: `Chat with ID '${chatId}' not found or could not be deleted`,
       });
+      return;
     }
 
     res.json({

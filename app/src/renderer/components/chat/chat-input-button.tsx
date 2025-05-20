@@ -1,5 +1,5 @@
-import { AgentInfo } from "@/renderer/hooks/useAgentSelection";
-import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
+import { AgentInfo } from "@/renderer/hooks/use-agent-selection";
+import { usePreviousApp } from "@/renderer/hooks/use-previous-app";
 import {
   Bot,
   History,
@@ -12,7 +12,7 @@ import {
   Square,
 } from "lucide-react";
 import React from "react";
-import ModelSelector from "./ModelSelector";
+import ModelSelector from "./model-selector";
 
 interface ChatInputButtonsProps {
   onReset?: () => void;

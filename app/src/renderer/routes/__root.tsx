@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
-import BaseLayout from "@/renderer/layouts/BaseLayout";
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import BaseLayout from "@/renderer/layouts/base-layout";
 import { useGlobalShortcuts } from "@/renderer/utils/keyboard";
 import { initGlobalShortcut } from "@/renderer/utils/settings";
+import { Outlet, createRootRoute } from "@tanstack/react-router";
+import React, { useEffect } from "react";
 
 export const RootRoute = createRootRoute({
   component: Root,

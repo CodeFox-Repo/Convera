@@ -1,14 +1,14 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { AgentInfo } from "@/renderer/hooks/useAgentSelection";
-import { usePreviousApp } from "@/renderer/hooks/usePreviousApp";
+import { AgentInfo } from "@/renderer/hooks/use-agent-selection";
+import { usePreviousApp } from "@/renderer/hooks/use-previous-app";
 import React, {
   forwardRef,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-import { ChatInputButtons } from "./ChatInputButtons";
-import { ContextButtons } from "./ContextButtons";
+import { ChatInputButtons } from "./chat-input-button";
+import { ContextButtons } from "./context-button";
 
 interface ChatInputProps {
   isLoading: boolean;
