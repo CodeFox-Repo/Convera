@@ -102,6 +102,21 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     }
   }, [editingAgent]);
 
+  // Reset tool selections when switching to create tab
+  useEffect(() => {
+    if (activeTab === "create") {
+      // Reset tool selections to start fresh
+      setSelectedToolNames({});
+      
+      // Re-fetch tools for all enabled MCPs to trigger auto-selection
+      Object.entries(mcpServerConfigs)
+        .filter(([, config]) => config.enabled)
+        .forEach(([id]) => {
+          fetchMcpServerTools(id);
+        });
+    }
+  }, [activeTab, mcpServerConfigs]);
+
   const fetchAgents = async () => {
     setLoadingAgents(true);
     try {
@@ -220,6 +235,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       console.log(`Processed tools for MCP ${id}:`, processedTools);
       setMcpServerTools((prev) => ({ ...prev, [id]: processedTools }));
 
+      // Auto-select all tools for this MCP when they're first loaded
       if (processedTools.length > 0) {
         setSelectedToolNames((prev) => ({
           ...prev,
@@ -342,6 +358,9 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         description: "",
         systemPrompt: "",
       });
+      
+      // Reset tool selections after agent creation
+      setSelectedToolNames({});
 
       // Refresh agents list
       fetchAgents();
@@ -482,6 +501,21 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
   const handleMcpToggle = (id: string, enabled: boolean) => {
     updateMcpConfig(id, "enabled", enabled);
+    
+    // When enabling an MCP server, automatically select all its tools
+    if (enabled && mcpServerTools[id]?.length > 0) {
+      setSelectedToolNames(prev => ({
+        ...prev,
+        [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+      }));
+    } else if (!enabled) {
+      // When disabling, clear the tool selections for this MCP
+      setSelectedToolNames(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    }
   };
 
   const handleToolSelection = (
