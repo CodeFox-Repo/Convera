@@ -986,7 +986,7 @@ export default function SettingsPage() {
 
         {/* Agents Tab Content */}
         {activeTab === "agents" && (
-          <AgentsTab />
+          <AgentsTab onNavigateToMcp={() => setActiveTab("mcp")} />
         )}
       </div>
     </div>

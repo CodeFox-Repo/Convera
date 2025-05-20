@@ -38,7 +38,11 @@ interface Agent {
   toolReferences?: ToolReference[];
 }
 
-export function AgentsTab() {
+interface AgentsTabProps {
+  onNavigateToMcp?: () => void;
+}
+
+export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
@@ -563,9 +567,7 @@ export function AgentsTab() {
             variant="outline"
             size="sm"
             className="flex items-center gap-1 text-xs"
-            onClick={() => {
-              /* TODO: Add navigation to MCP page */
-            }}
+            onClick={onNavigateToMcp}
           >
             <span className="text-xs">+</span>
             Go to MCP page and add MCP servers
