@@ -1,1 +1,1 @@
-import "@/renderer/appp";
+import "@/renderer/app";
