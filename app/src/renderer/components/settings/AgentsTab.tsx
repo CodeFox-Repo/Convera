@@ -715,11 +715,13 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   };
 
   return (
-    <div className="text-foreground p-4">
-      <h2 className="mb-1 text-xl font-semibold">Agents</h2>
-      <p className="text-muted-foreground mb-4 text-sm">
-        Create and manage agents with MCP tools
-      </p>
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-medium text-foreground">Agents</h2>
+        <p className="text-muted-foreground mt-1">
+          Create and manage agents with MCP tools
+        </p>
+      </div>
       
       <Tabs defaultValue="manage" className="w-full">
         <TabsList className="mb-4">
