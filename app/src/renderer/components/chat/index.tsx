@@ -1,361 +1,25 @@
+// app/src/renderer/components/chat/index.tsx
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
-import { useAgentSelection } from "@/renderer/hooks/use-agent-selection";
-import { useChatHistory } from "@/renderer/hooks/use-chat-history";
-import { GenericError, parseApiError } from "@/renderer/utils/error-handler";
-import { getSettings } from "@/renderer/utils/settings";
-import { useChat } from "@ai-sdk/react";
-import type { Message, UIMessage } from "ai";
-import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-import ChatContent from "./chat-content";
-import ChatInput, { ChatInputRef } from "./chat-input";
+import { useChatContext } from '@/renderer/libs/stores/chat-store';
+import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChatInputRef } from './chat-input';
+import CompactChatView from "./compact-chat-view";
+import ExpandedChatView from "./expanded-chat-view";
 
-/**
- * Agent interface definition
- */
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  iconUrl?: string;
-}
 
-/**
- * Props for CompactChatView component
- */
-interface CompactChatViewProps {
-  input: string;
-  setInput: (value: string) => void;
-  isLoading: boolean;
-  onAddAttachment: () => void;
-  onToggleTranslation: () => void;
-  onReset: () => void;
-  onVoiceInput: () => void;
-  onSendMessage: () => void;
-  onStopGeneration?: () => void;
-  chatInputRef: React.RefObject<ChatInputRef | null>;
-  selectedAgent?: Agent | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
-  selectedModelId: string;
-  onModelSelect: (modelId: string) => void;
-  triggerHistoryWindow: () => void;
-  copiedContent: string | null;
-  onRejectCopiedContent: () => void;
-  onOpenSettings: () => void;
-  error?: Error;
-}
-
-/**
- * Compact view with just the input component
- */
-const CompactChatView: React.FC<CompactChatViewProps> = ({
-  input,
-  setInput,
-  isLoading,
-  onAddAttachment,
-  onToggleTranslation,
-  onReset,
-  onVoiceInput,
-  onSendMessage,
-  onStopGeneration,
-  chatInputRef,
-  selectedAgent,
-  triggerAgentSelect,
-  selectedModelId,
-  onModelSelect,
-  triggerHistoryWindow,
-  copiedContent,
-  onRejectCopiedContent,
-  onOpenSettings,
-}) => {
-  return (
-    <div className="h-full flex flex-col p-1">
-      <div className="flex-1 min-h-[100px]">
-        <ChatInput
-          ref={chatInputRef}
-          isLoading={isLoading}
-          input={input}
-          setInput={setInput}
-          hasMessages={false}
-          onAddAttachment={onAddAttachment}
-          onToggleTranslation={onToggleTranslation}
-          onReset={onReset}
-          onVoiceInput={onVoiceInput}
-          onSendMessage={onSendMessage}
-          onStopGeneration={onStopGeneration}
-          selectedAgent={selectedAgent}
-          triggerAgentSelect={triggerAgentSelect}
-          selectedModelId={selectedModelId}
-          onModelSelect={onModelSelect}
-          triggerHistoryWindow={triggerHistoryWindow}
-          onOpenSettings={onOpenSettings}
-          copiedContent={copiedContent}
-          onRejectCopiedContent={onRejectCopiedContent}
-        />
-      </div>
-    </div>
-  );
-};
-
-/**
- * Props for ExpandedChatView component
- */
-interface ExpandedChatViewProps {
-  messages: UIMessage[];
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  input: string;
-  setInput: (value: string) => void;
-  isLoading: boolean;
-  onAddAttachment: () => void;
-  onToggleTranslation: () => void;
-  onReset: () => void;
-  onVoiceInput: () => void;
-  onSendMessage: () => void;
-  onStopGeneration?: () => void;
-  onEditMessage: (message: Message, newContent: string) => void;
-  onRegenerateMessage: () => void;
-  chatInputRef: React.RefObject<ChatInputRef | null>;
-  showControls: boolean;
-  onExit: () => void;
-  onNewHistory: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  selectedAgent: Agent | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
-  agentChanged?: boolean;
-  onRegenerateWithNewAgent?: () => void;
-  onIgnoreAgentChange?: () => void;
-  selectedModelId: string;
-  onModelSelect: (modelId: string) => void;
-  triggerHistoryWindow: () => void;
-  onOpenSettings: () => void;
-  copiedContent: string | null;
-  onRejectCopiedContent: () => void;
-  error?: Error;
-}
-
-/**
- * Expanded view with content and input components
- */
-const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
-  messages,
-  messagesEndRef,
-  input,
-  setInput,
-  isLoading,
-  onAddAttachment,
-  onToggleTranslation,
-  onReset,
-  onVoiceInput,
-  onSendMessage,
-  onStopGeneration,
-  onEditMessage,
-  onRegenerateMessage,
-  chatInputRef,
-  showControls,
-  onExit,
-  onNewHistory,
-  onMouseEnter,
-  onMouseLeave,
-  selectedAgent,
-  triggerAgentSelect,
-  agentChanged,
-  onRegenerateWithNewAgent,
-  onIgnoreAgentChange,
-  selectedModelId,
-  onModelSelect,
-  triggerHistoryWindow,
-  onOpenSettings,
-  copiedContent,
-  onRejectCopiedContent,
-  error,
-}) => {
-  const buttonVariants = {
-    hidden: { opacity: 0, y: -10 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-    hover: {
-      scale: 1.1,
-      backgroundColor: "hsl(var(--secondary) / 0.7)",
-      transition: { duration: 0.15 },
-    },
-    tap: { scale: 0.95 },
-  };
-
-  return (
-    <div
-      className="no-drag-region bg flex h-full w-full flex-col"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      <div className="drag-region pointer-events-auto relative z-[100] h-12 w-full">
-        <AnimatePresence>
-          {showControls && (
-            <motion.div
-              className="no-drag-region absolute inset-x-0 top-5 flex justify-between px-4"
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-              transition={{ duration: 0.2 }}
-            >
-              <motion.button
-                onClick={onExit}
-                className="bg-background/50 pointer-events-auto rounded-md p-1"
-                aria-label="Exit"
-                variants={buttonVariants}
-                initial="visible"
-                whileHover="hover"
-                whileTap="tap"
-              >
-                <X size={22} />
-              </motion.button>
-              <motion.button
-                onClick={onNewHistory}
-                className="bg-background/50 pointer-events-auto rounded-md p-1"
-                aria-label="New chat"
-                variants={buttonVariants}
-                initial="visible"
-                whileHover="hover"
-                whileTap="tap"
-              >
-                <Plus size={22} />
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      {/* Main content */}
-      <div className="drag-region flex flex-1 flex-col overflow-y-auto">
-        {/* Messages area with flex-grow */}
-        <div className="drag-region min-h-0 flex-1 overflow-y-auto p-4">
-          <ChatContent
-            messages={messages as UIMessage[]}
-            messagesEndRef={messagesEndRef}
-            isLoading={isLoading}
-            onEditMessage={onEditMessage}
-            onRegenerateMessage={onRegenerateMessage}
-            agentChanged={agentChanged}
-            onRegenerateWithNewAgent={onRegenerateWithNewAgent}
-            onIgnoreAgentChange={onIgnoreAgentChange}
-          />
-        </div>
-
-        {/* Add central error message display in the red rectangle area */}
-        {error && (
-          <div className="mx-auto w-[90%]  border-red-500 rounded-md p-4 text-center">
-            <p className="text-red-500 font-medium">
-              {error.message ||
-                "An error occurred. Please check your API key or try again later."}
-            </p>
-          </div>
-        )}
-
-        <div className="drag-region flex flex-col p-1">
-          <div className="flex-1">
-            <ChatInput
-              ref={chatInputRef}
-              isLoading={isLoading}
-              input={input}
-              setInput={setInput}
-              hasMessages={true}
-              onAddAttachment={onAddAttachment}
-              onToggleTranslation={onToggleTranslation}
-              onReset={onReset}
-              onVoiceInput={onVoiceInput}
-              onSendMessage={onSendMessage}
-              onStopGeneration={onStopGeneration}
-              selectedAgent={selectedAgent}
-              triggerAgentSelect={triggerAgentSelect}
-              selectedModelId={selectedModelId}
-              onModelSelect={onModelSelect}
-              triggerHistoryWindow={triggerHistoryWindow}
-              onOpenSettings={onOpenSettings}
-              placeholder="Message to FoxyChat..."
-              copiedContent={copiedContent}
-              onRejectCopiedContent={onRejectCopiedContent}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/**
- * Chat interface component with integrated message management
- */
 export default function Chat() {
-  // Get settings to use stored OpenAI configuration
-  const settings = getSettings();
-
-  // Add state for copied content preview
-  const [copiedContent, setCopiedContent] = useState<string | null>(null);
-
-  // Add state for selected agent
-  const {triggerAgentSelect, selectedAgent } = useAgentSelection();
-
-  const [selectedModelId, setSelectedModelId] = useState<string>(
-    settings.openai.modelId,
-  );
-  // Add ref to store previous agent ID for comparison
-  const prevAgentIdRef = useRef<string | null>(null);
-  // Add flag to track initial mount
-  const isInitialMount = useRef(true);
-  // Add state to track if agent has changed and might need regeneration
-  const [agentChanged, setAgentChanged] = useState(false);
-
-  // Keep state for UI management
-  const [mounted, setMounted] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
-  const controlsTimerRef = useRef<number | null>(null);
+  const { messages, setCopiedContent } = useChatContext();
+  const { viewMode, setViewMode, hasExpandedOnce, setHasExpandedOnce } = useChatUIStore();
+  
   const [initializing, setInitializing] = useState(true);
-
-  // Add state to track if we've already expanded the window
-  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
-
-  // View mode state
-  const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
-
-  // Use Vercel AI SDK's useChat hook instead of managing state manually
-  const {
-    messages,
-    input,
-    handleInputChange,
-    isLoading,
-    setMessages,
-    reload,
-    stop,
-    append,
-    error,
-  } = useChat({
-    api: "http://localhost:38000/api/chat",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${settings.openai.apiKey}`,
-    },
-    body: {
-      config: settings,
-      agentId: selectedAgent?.id,
-      modelId: selectedModelId,
-    },
-    onError: (error) => {
-      const parsedError = parseApiError(error as unknown as GenericError);
-      console.error("Chat API error:", parsedError);
-    },
-  });
-
-  const { triggerHistoryWindow } = useChatHistory(setMessages);
-
-  // Set mounted state when component mounts
+  const [mounted, setMounted] = useState(false);
+  
   useEffect(() => {
     const mountTimer = setTimeout(() => {
       setMounted(true);
-
+      
       if (window.electronAPI && messages.length === 0) {
         try {
           window.electronAPI
@@ -369,41 +33,44 @@ export default function Chat() {
           console.error("Chat: Error setting initial window size:", error);
         }
       }
-
+      
       const initTimer = setTimeout(() => {
         setInitializing(false);
       }, 150);
-
+      
       return () => clearTimeout(initTimer);
     }, 50);
-
+    
     return () => {
       clearTimeout(mountTimer);
       setMounted(false);
     };
   }, [messages.length]);
-
-  // Modify toggleViewMode to track expansion state
-  const toggleViewMode = useCallback(
-    (mode: "compact" | "expanded") => {
-      setViewMode(mode);
-
-      requestAnimationFrame(() => {
-        if (typeof window !== "undefined" && window.electronAPI) {
-          if (mode === "expanded" && !hasExpandedOnce) {
-            // First, toggle resizable mode
-            window.electronAPI.toggleViewMode(true);
-            setHasExpandedOnce(true);
-          } else if (mode === "compact") {
-            window.electronAPI.toggleViewMode(false);
-          }
-        }
-      });
-    },
-    [hasExpandedOnce],
-  );
-
-  // Listen for clipboard changes
+  
+  useEffect(() => {
+    if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
+      setViewMode('expanded');
+    }
+    
+    if (messages.length > 0 && viewMode === 'compact') {
+      setViewMode('expanded');
+    }
+  }, [messages.length, hasExpandedOnce, mounted, initializing, viewMode, setViewMode]);
+  
+  useEffect(() => {
+    if (viewMode === 'expanded' && !hasExpandedOnce) {
+      setHasExpandedOnce(true);
+      
+      if (typeof window !== "undefined" && window.electronAPI) {
+        window.electronAPI.toggleViewMode(true);
+      }
+    } else if (viewMode === 'compact') {
+      if (typeof window !== "undefined" && window.electronAPI) {
+        window.electronAPI.toggleViewMode(false);
+      }
+    }
+  }, [viewMode, hasExpandedOnce, setHasExpandedOnce]);
+  
   useEffect(() => {
     if (window.electronAPI?.onSetInputText) {
       const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
@@ -413,305 +80,48 @@ export default function Chat() {
           setCopiedContent(text);
         }
       });
-
+      
       return unsubscribe;
     }
-  }, []);
-
-  const handleRegenerateWithNewAgent = () => {
-    setAgentChanged(false);
-    reload();
-  };
-
-  const handleIgnoreAgentChange = () => {
-    setAgentChanged(false);
-  };
-
-  const handleInputChangeAdapter = (value: string) => {
-    handleInputChange({
-      target: { value: value },
-    } as React.ChangeEvent<HTMLInputElement>);
-
-    if (!value && chatInputRef.current?.editor) {
-      chatInputRef.current.editor.clearContent();
-    }
-  };
-
-  useEffect(() => {
-    if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
-      toggleViewMode("expanded");
-    }
-  }, [messages.length, hasExpandedOnce, mounted, initializing, toggleViewMode]);
-
-  useEffect(() => {
-    if (messages.length > 0 && viewMode === "compact") {
-      toggleViewMode("expanded");
-    }
-  }, [messages.length, viewMode, toggleViewMode]);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      prevAgentIdRef.current = selectedAgent?.id || null;
-      return;
-    }
-
-    const currentAgentId = selectedAgent?.id || null;
-    const hasAgentChanged = prevAgentIdRef.current !== currentAgentId;
-
-    if (hasAgentChanged && messages.length > 0) {
-      setAgentChanged(true);
-    }
-
-    prevAgentIdRef.current = currentAgentId;
-  }, [selectedAgent, messages.length]);
-
-  useEffect(() => {
-    try {
-      if (selectedModelId !== settings.openai.modelId) {
-        localStorage.setItem("selectedModelId", selectedModelId);
-      }
-    } catch (error) {
-      console.error("Error saving model to localStorage:", error);
-    }
-  }, [selectedModelId, settings.openai.modelId]);
-
-  useEffect(() => {
-    try {
-      const savedModel = localStorage.getItem("selectedModelId");
-      if (savedModel) {
-        setSelectedModelId(savedModel);
-      }
-    } catch (error) {
-      console.error("Error loading model from localStorage:", error);
-    }
-
-    const handleModelSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.modelId) {
-        const newModelId = customEvent.detail.modelId;
-        setSelectedModelId(newModelId);
-        localStorage.setItem("selectedModelId", newModelId);
-      }
-    };
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedModelId" && event.newValue) {
-        setSelectedModelId(event.newValue);
-      }
-    };
-
-    window.addEventListener("model-selected", handleModelSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    const intervalId = setInterval(() => {
-      const storedModel = localStorage.getItem("selectedModelId");
-      if (storedModel && storedModel !== selectedModelId) {
-        setSelectedModelId(storedModel);
-      }
-    }, 1000);
-
-    return () => {
-      window.removeEventListener("model-selected", handleModelSelected);
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(intervalId);
-    };
-  }, [selectedModelId]);
-
-  // Setup IPC listener for window focus event
+  }, [setCopiedContent]);
+  
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
         chatInputRef.current?.focus();
       });
-
+      
       return () => {
         removeListener?.();
       };
     }
   }, []);
-
-  // Focus the input field when component mounts
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       chatInputRef.current?.focus();
     }, 100);
-
+    
     return () => clearTimeout(timer);
   }, []);
-
-  // Mouse enter handler with debounce
-  const handleMouseEnter = () => {
-    if (controlsTimerRef.current) {
-      window.clearTimeout(controlsTimerRef.current);
-    }
-    setShowControls(true);
-  };
-
-  // Mouse leave handler with debounce
-  const handleMouseLeave = () => {
-    if (controlsTimerRef.current) {
-      window.clearTimeout(controlsTimerRef.current);
-    }
-
-    controlsTimerRef.current = window.setTimeout(() => {
-      setShowControls(false);
-    }, 500);
-  };
-
-  // Clean up timer on component unmount
-  useEffect(() => {
-    return () => {
-      if (controlsTimerRef.current) {
-        window.clearTimeout(controlsTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Scroll to bottom of messages when new messages are added
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Handle attachments
-  const handleAddAttachment = () => {
-    // Implement attachment functionality
-  };
-
-  // Handle translation
-  const handleToggleTranslation = () => {
-    // Implement translation functionality
-  };
-
-  // Reset the chat conversation
-  const handleReset = () => {
-    window.location.reload();
-  };
-
-  // Handle voice input
-  const handleVoiceInput = () => {
-    // Implement voice input functionality
-  };
-
-  // Handle opening settings
-  const handleOpenSettings = () => {
-    console.log("Opening settings window");
-    if (window.electronAPI) {
-      window.electronAPI.toggleSettingsWindow().catch((error) => {
-        console.error("Error opening settings window:", error);
-      });
-    } else {
-      console.error("electronAPI is not available for toggleSettingsWindow!");
-    }
-  };
-
-  // Handle exit button click
-  const handleExit = () => {
-    if (window.electronAPI) {
-      window.electronAPI.closeWindow();
-    }
-  };
-
-  // Handle new history creation
-  const handleNewHistory = () => {
-    console.log("Create new history clicked");
-    // Reset conversation by refreshing the page - simplest way to clear useChat state
-    window.location.reload();
-  };
-
-  const handleStopGeneration = () => {
-    if (isLoading) {
-      stop();
-    }
-  };
-
-  // Handle sending a message to the AI using Vercel AI SDK
-  const handleSendMessage = () => {
-    const editor = chatInputRef.current?.editor;
-    if (!editor || isLoading) return;
-
-    const editorText = editor.getText().trim();
-    if (!editorText && !copiedContent) return;
-
-    let messageText = editorText;
-
-    if (copiedContent) {
-      messageText = messageText
-        ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
-        : `<copied>\n${copiedContent}\n</copied>`;
-    }
-
-    append({
-      role: "user",
-      content: messageText,
-    });
-
-    if (copiedContent) {
-      setCopiedContent(null);
-    }
-
-    if (chatInputRef.current?.editor) {
-      chatInputRef.current.editor.clearContent();
-    }
-  };
-
-  // Handle editing a message and regenerating the response
-  const handleEditMessage = async (message: Message, newContent: string) => {
-    if (isLoading) return;
-
-    const messageIndex = messages.findIndex((m) => m.id === message.id);
-    if (messageIndex === -1) return;
-
-    const updatedMessages = [...messages];
-    updatedMessages[messageIndex] = {
-      ...updatedMessages[messageIndex],
-      content: newContent,
-    };
-
-    if (messageIndex < updatedMessages.length - 1) {
-      updatedMessages.splice(messageIndex + 1);
-    }
-
-    setMessages(updatedMessages);
-
-    if (chatInputRef.current?.editor) {
-      chatInputRef.current.editor.clearContent();
-    }
-
-    setTimeout(() => {
-      reload();
-    }, 100);
-  };
-
-  // Handle regenerating the last AI response
-  const handleRegenerateResponse = async () => {
-    if (isLoading) return;
-    reload();
-  };
-
-  // Functions to handle copied content actions - only keep the reject function
-  const handleRejectCopiedContent = () => {
-    setCopiedContent(null);
-  };
-
+  
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.classList.add("preload");
-
+      
       const styleTimer = setTimeout(() => {
         document.documentElement.classList.remove("preload");
       }, 300);
-
+      
       return () => clearTimeout(styleTimer);
     }
   }, []);
-
+  
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
       window.electronAPI
         .getCurrentTheme()
-        .then((res) => {
-          const theme = res;
+        .then((theme) => {
           document.documentElement.dataset.theme = theme;
         })
         .catch((err) => {
@@ -719,38 +129,31 @@ export default function Chat() {
         });
     }
   }, []);
-
-  // Add new effect to listen for settings changes, particularly API key updates
+  
   useEffect(() => {
     const handleSettingsUpdate = (e: CustomEvent) => {
       if (e.detail && e.detail.field === "apiKey") {
-        console.log("API key updated, reloading chat component");
-        // Force reload of the component to pick up new auth headers
-        // Only force reload if there are no messages to avoid losing conversation
+        console.log("API key updated");
+        
         if (messages.length === 0) {
           window.location.reload();
-        } else {
-          toast.info(
-            "Authentication updated. New chats will use the updated API key.",
-          );
-        }
+        } 
       }
     };
-
+    
     window.addEventListener(
       "settings-updated",
-      handleSettingsUpdate as EventListener,
+      handleSettingsUpdate as EventListener
     );
-
+    
     return () => {
       window.removeEventListener(
         "settings-updated",
-        handleSettingsUpdate as EventListener,
+        handleSettingsUpdate as EventListener
       );
     };
   }, [messages.length]);
-
-  // Render the appropriate view based on the current view mode
+  
   return (
     <div className="chat-window h-screen w-full overflow-hidden rounded-xl">
       {initializing ? (
@@ -760,65 +163,10 @@ export default function Chat() {
           </div>
         </div>
       ) : messages.length > 0 ? (
-        <ExpandedChatView
-          messages={messages as UIMessage[]}
-          messagesEndRef={messagesEndRef}
-          input={input}
-          setInput={handleInputChangeAdapter}
-          isLoading={isLoading}
-          onAddAttachment={handleAddAttachment}
-          onToggleTranslation={handleToggleTranslation}
-          onReset={handleReset}
-          onVoiceInput={handleVoiceInput}
-          onSendMessage={handleSendMessage}
-          onStopGeneration={handleStopGeneration}
-          onEditMessage={handleEditMessage}
-          onRegenerateMessage={handleRegenerateResponse}
-          chatInputRef={chatInputRef}
-          showControls={showControls}
-          onExit={handleExit}
-          onNewHistory={handleNewHistory}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          selectedAgent={selectedAgent}
-          triggerAgentSelect={triggerAgentSelect}
-          agentChanged={agentChanged}
-          onRegenerateWithNewAgent={handleRegenerateWithNewAgent}
-          onIgnoreAgentChange={handleIgnoreAgentChange}
-          selectedModelId={selectedModelId}
-          onModelSelect={setSelectedModelId}
-          triggerHistoryWindow={triggerHistoryWindow}
-          onOpenSettings={handleOpenSettings}
-          copiedContent={copiedContent}
-          onRejectCopiedContent={handleRejectCopiedContent}
-          error={error}
-        />
+        <ExpandedChatView chatInputRef={chatInputRef} />
       ) : (
-        <CompactChatView
-          input={input}
-          setInput={handleInputChangeAdapter}
-          isLoading={isLoading}
-          onAddAttachment={handleAddAttachment}
-          onToggleTranslation={handleToggleTranslation}
-          onReset={handleReset}
-          onVoiceInput={handleVoiceInput}
-          onSendMessage={handleSendMessage}
-          onStopGeneration={handleStopGeneration}
-          chatInputRef={chatInputRef}
-          selectedAgent={selectedAgent}
-          triggerAgentSelect={triggerAgentSelect}
-          selectedModelId={selectedModelId}
-          onModelSelect={setSelectedModelId}
-          triggerHistoryWindow={triggerHistoryWindow}
-          onOpenSettings={handleOpenSettings}
-          copiedContent={copiedContent}
-          onRejectCopiedContent={handleRejectCopiedContent}
-          error={error}
-        />
+        <CompactChatView chatInputRef={chatInputRef} />
       )}
     </div>
   );
 }
-
-export { };
-

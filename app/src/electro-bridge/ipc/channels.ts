@@ -1,4 +1,4 @@
-import { WindowSizeConfig } from "../windows/window-size";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 export interface IPCServer {
   toggleSettingsWindow(): void;

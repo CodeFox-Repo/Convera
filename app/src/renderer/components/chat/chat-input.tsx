@@ -1,6 +1,6 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { AgentInfo } from "@/renderer/hooks/use-agent-selection";
-import { usePreviousApp } from "@/renderer/hooks/use-previous-app";
+import { AgentInfo } from "@/renderer/libs/hooks/use-agent-selection";
+import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import React, {
   forwardRef,
   useImperativeHandle,

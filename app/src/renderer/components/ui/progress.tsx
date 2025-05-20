@@ -1,7 +1,7 @@
-import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
+import * as React from "react"
 
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function Progress({
   className,

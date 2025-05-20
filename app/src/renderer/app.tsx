@@ -7,10 +7,10 @@ import AgentPopover from "./components/chat/agent-popover";
 import ModelSelector from "./components/chat/model-selector";
 import { DragLayer } from "./components/ui/drag-layer";
 import "./global.css";
-import { updateAppLanguage } from "./helper/language_helpers";
-import { syncThemeWithLocal } from "./helper/theme_helpers";
+import { updateAppLanguage } from "./libs/helper/language_helpers";
+import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
+import { getSettings } from "./libs/utils/settings";
 import { router } from "./routes/router";
-import { getSettings } from "./utils/settings";
 
 export default function App() {
   const { i18n } = useTranslation();

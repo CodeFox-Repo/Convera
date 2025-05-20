@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/renderer/components/ui/dialog"
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function Command({
   className,

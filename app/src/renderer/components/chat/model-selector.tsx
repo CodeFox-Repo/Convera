@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { ChevronDown, Check } from "lucide-react";
-import { getSettings } from "@/renderer/utils/settings";
+import { getSettings } from "@/renderer/libs/utils/settings";
+import { Check, ChevronDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface ModelSelectorProps {
   selectedModel: string;
