@@ -341,7 +341,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         description: "",
         systemPrompt: "",
       });
-      setSelectedToolNames({});
+      // setSelectedToolNames({});
 
       // Refresh agents list
       fetchAgents();
