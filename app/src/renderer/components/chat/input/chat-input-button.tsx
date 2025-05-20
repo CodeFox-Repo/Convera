@@ -9,11 +9,12 @@ import {
   RotateCcw,
   Send,
   Settings,
-  Square,
+  Square
 } from "lucide-react";
 import React from "react";
 import ModelSelector from "../popover/model-selector-popover";
 
+// TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
 interface ChatInputButtonsProps {
   onReset?: () => void;
   onOpenSettings?: () => void;
@@ -107,26 +108,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         </button>
       ),
       show: true,
-    },
-    {
-      id: "model-selector",
-      render: () => (
-        <div className="no-drag-region inline-flex items-center">
-          <ModelSelector/>
-        </div>
-      ),
-      show: (p) => !!(p.selectedModelId && p.onModelSelect),
-    },
-    {
-      id: "previous-app-badge",
-      render: (_p, hData) => (
-        <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
-          <Monitor size={12} className="mr-1" />
-          {hData.formatAppName(hData.previousApp!)}
-        </div>
-      ),
-      show: (_p, hData) => !!hData.previousApp,
-    },
+    }
   ];
 
   const defaultButtonClassName = "no-drag-region text-foreground/70 hover:text-foreground";
@@ -159,6 +141,13 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             </button>
           );
         })}
+
+        <ModelSelector/>
+        {/* prevous app */}
+        <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium"> 
+          <Monitor size={12} className="mr-1" />
+          {formatAppName(previousApp!)}
+        </div>
       </div>
 
       {/* Right side - Mic and Send buttons */}
