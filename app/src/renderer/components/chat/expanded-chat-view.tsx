@@ -2,7 +2,6 @@
 import { useAgentStore } from '@/renderer/libs/stores/agent-store';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
-import { useModelStore } from '@/renderer/libs/stores/model-store';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
@@ -29,26 +28,14 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
   
   const { 
     messages, 
-    input, 
-    setInput, 
     isLoading, 
-    sendMessage, 
-    stopGeneration, 
     editMessage,
     regenerateMessage,
-    copiedContent, 
-    rejectCopiedContent,
     error
   } = useChatContext();
   
   const { showControls, setShowControls } = useChatUIStore();
-  const { 
-    selectedAgent, 
-    triggerAgentSelect, 
-    agentChanged, 
-    handleAgentChange 
-  } = useAgentStore();
-  const { selectedModelId, setSelectedModelId } = useModelStore();
+  const { agentChanged, handleAgentChange } = useAgentStore();
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,11 +68,6 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
     };
   }, []);
   
-  const handleAddAttachment = () => {};
-  const handleToggleTranslation = () => {};
-  const handleReset = () => window.location.reload();
-  const handleVoiceInput = () => {};
-  
   const handleExit = () => {
     if (window.electronAPI) {
       window.electronAPI.closeWindow();
@@ -94,18 +76,6 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
   
   const handleNewHistory = () => {
     window.location.reload();
-  };
-  
-  const triggerHistoryWindow = () => {
-    if (window.electronAPI) {
-      window.electronAPI.toggleHistoryWindow().catch(console.error);
-    }
-  };
-  
-  const handleOpenSettings = () => {
-    if (window.electronAPI) {
-      window.electronAPI.toggleSettingsWindow().catch(console.error);
-    }
   };
   
   return (
@@ -178,25 +148,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
           <div className="flex-1">
             <ChatInput
               ref={chatInputRef}
-              isLoading={isLoading}
-              input={input}
-              setInput={setInput}
               hasMessages={true}
-              onAddAttachment={handleAddAttachment}
-              onToggleTranslation={handleToggleTranslation}
-              onReset={handleReset}
-              onVoiceInput={handleVoiceInput}
-              onSendMessage={sendMessage}
-              onStopGeneration={stopGeneration}
-              selectedAgent={selectedAgent}
-              triggerAgentSelect={triggerAgentSelect}
-              selectedModelId={selectedModelId}
-              onModelSelect={setSelectedModelId}
-              triggerHistoryWindow={triggerHistoryWindow}
-              onOpenSettings={handleOpenSettings}
               placeholder="Message to FoxyChat..."
-              copiedContent={copiedContent}
-              onRejectCopiedContent={rejectCopiedContent}
             />
           </div>
         </div>

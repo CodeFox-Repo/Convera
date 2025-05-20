@@ -18,12 +18,20 @@ interface ChatContextType {
   resetChat: () => void;
   setCopiedContent: (content: string | null) => void;
   rejectCopiedContent: () => void;
+  
+  // Chat-related actions (previously in app-actions)
+  resetChatWindow: () => void;
+  handleVoiceInput: () => void;
+  openSettings: () => void;
+  openHistoryWindow: () => void;
+  isVoiceInputActive: boolean;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
 export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
+  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const settings = getSettings();
 
   // TODO(Sma1lboy): change api to use the api from the backend
@@ -111,6 +119,45 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setCopiedContent(null);
   }, []);
   
+  // Chat related actions (previously in app-actions-store)
+  
+  const resetChatWindow = useCallback(() => {
+    // Current implementation reloads the window
+    window.location.reload();
+  }, []);
+  
+  // TODO: voice implementation, it might move to another store for voice_store
+  const handleVoiceInput = useCallback(() => {
+    // Set active state
+    setIsVoiceInputActive(true);
+    console.log("Voice input activated");
+    setTimeout(() => {
+      setIsVoiceInputActive(false);
+    }, 2000);
+  }, []);
+  
+  const openSettings = useCallback(() => {
+    if (window.electronAPI) {
+      window.electronAPI.toggleSettingsWindow()
+        .catch((error) => {
+          console.error("Error opening settings window:", error);
+        });
+    } else {
+      console.error("electronAPI is not available for toggleSettingsWindow!");
+    }
+  }, []);
+  
+  const openHistoryWindow = useCallback(() => {
+    if (window.electronAPI) {
+      window.electronAPI.toggleHistoryWindow()
+        .catch((error) => {
+          console.error("Error opening history window:", error);
+        });
+    } else {
+      console.error("electronAPI is not available for toggleHistoryWindow!");
+    }
+  }, []);
+  
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
@@ -125,6 +172,11 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     resetChat,
     setCopiedContent,
     rejectCopiedContent,
+    resetChatWindow,
+    handleVoiceInput,
+    openSettings,
+    openHistoryWindow,
+    isVoiceInputActive
   };
   
   return (

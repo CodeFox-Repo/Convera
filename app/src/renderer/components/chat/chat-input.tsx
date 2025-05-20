@@ -1,6 +1,8 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { AgentInfo } from "@/renderer/libs/hooks/use-agent-selection";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { useModelStore } from "@/renderer/libs/stores/model-store";
 import React, {
   forwardRef,
   useImperativeHandle,
@@ -11,25 +13,8 @@ import { ChatInputButtons } from "./chat-input-button";
 import { ContextButtons } from "./context-button";
 
 interface ChatInputProps {
-  isLoading: boolean;
-  input: string;
-  setInput: (value: string) => void;
   hasMessages?: boolean;
-  onAddAttachment?: () => void;
-  onToggleTranslation?: () => void;
-  onReset?: () => void;
-  onVoiceInput?: () => void;
-  onSendMessage?: () => void;
-  onStopGeneration?: () => void;
-  onOpenSettings?: () => void;
-  selectedAgent?: AgentInfo | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: AgentInfo | null | undefined) => Promise<void>;
   placeholder?: string;
-  selectedModelId?: string;
-  onModelSelect?: (modelId: string) => void;
-  triggerHistoryWindow: () => void;
-  copiedContent?: string | null;
-  onRejectCopiedContent: () => void;
 }
 
 export interface ChatInputRef {
@@ -42,29 +27,31 @@ export interface ChatInputRef {
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   (
     {
-      isLoading,
-      input,
-      setInput,
       hasMessages = false,
-      onReset,
-      onVoiceInput,
-      onSendMessage,
-      onStopGeneration,
-      onOpenSettings,
-      selectedAgent,
-      triggerAgentSelect,
       placeholder = "Message FoxyChat...",
-      selectedModelId,
-      onModelSelect,
-      triggerHistoryWindow,
-      copiedContent,
-      onRejectCopiedContent
     },
     ref,
   ) => {
     const editorRef = useRef<TiptapEditorRef>(null);
     const [editorContent, setEditorContent] = useState("");
 
+    // Get state and methods from context and stores
+    const { 
+      input, 
+      setInput, 
+      isLoading, 
+      sendMessage, 
+      stopGeneration,
+      copiedContent,
+      rejectCopiedContent,
+      resetChatWindow,
+      handleVoiceInput,
+      openSettings,
+      openHistoryWindow
+    } = useChatContext();
+    
+    const { selectedAgent, triggerAgentSelect } = useAgentStore();
+    const { selectedModelId, setSelectedModelId } = useModelStore();
     const { formatAppName } = usePreviousApp();
 
     // Expose methods to parent components
@@ -105,8 +92,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Handle form submission
     const handleSubmit = () => {
-      if (onSendMessage && !isLoading && editorContent.trim()) {
-        onSendMessage();
+      if (!isLoading && editorContent.trim()) {
+        sendMessage();
       }
     };
 
@@ -121,7 +108,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <ContextButtons
               copiedContent={copiedContent || null}
               formatAppName={formatAppName}
-              onRejectCopiedContent={onRejectCopiedContent}
+              onRejectCopiedContent={rejectCopiedContent}
             />
 
             <div className="drag-region mb-2 w-full flex-1">
@@ -137,18 +124,18 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             </div>
 
             <ChatInputButtons
-              onReset={onReset}
-              onOpenSettings={onOpenSettings}
-              onVoiceInput={onVoiceInput}
-              onStopGeneration={onStopGeneration}
+              onReset={resetChatWindow}
+              onOpenSettings={openSettings}
+              onVoiceInput={handleVoiceInput}
+              onStopGeneration={stopGeneration}
               onSendMessage={handleSubmit}
-              triggerHistoryWindow={triggerHistoryWindow}
+              triggerHistoryWindow={openHistoryWindow}
               isLoading={isLoading}
               hasContent={!!editorContent.trim()}
               selectedAgent={selectedAgent}
               onAgentButtonClick={triggerAgentSelect}
               selectedModelId={selectedModelId}
-              onModelSelect={onModelSelect}
+              onModelSelect={setSelectedModelId}
             />
           </div>
         </div>

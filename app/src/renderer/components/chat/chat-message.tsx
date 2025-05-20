@@ -1,7 +1,7 @@
-import React, { memo } from "react";
 import { UIMessage } from "ai";
-import { Check, Copy, RefreshCw, Edit } from "lucide-react";
 import { motion } from "framer-motion";
+import { Check, Copy, Edit, RefreshCw } from "lucide-react";
+import React, { memo } from "react";
 
 /**
  * Individual chat message component props
