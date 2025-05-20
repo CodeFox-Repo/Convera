@@ -1,4 +1,5 @@
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { useFileContext } from "@/renderer/context/FileContext";
 import { useAgentSelection } from "@/renderer/hooks/useAgentSelection";
 import { useChatHistory } from "@/renderer/hooks/useChatHistory";
 import { GenericError, parseApiError } from "@/renderer/utils/errorHandler";
@@ -38,7 +39,10 @@ interface CompactChatViewProps {
   onStopGeneration?: () => void;
   chatInputRef: React.RefObject<ChatInputRef | null>;
   selectedAgent?: Agent | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
+  triggerAgentSelect: (
+    e: React.MouseEvent<HTMLButtonElement>,
+    selectedAgent: Agent | null | undefined,
+  ) => Promise<void>;
   selectedModelId: string;
   onModelSelect: (modelId: string) => void;
   triggerHistoryWindow: () => void;
@@ -124,7 +128,10 @@ interface ExpandedChatViewProps {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   selectedAgent: Agent | null;
-  triggerAgentSelect: (e: React.MouseEvent<HTMLButtonElement>, selectedAgent: Agent | null | undefined) => Promise<void>;
+  triggerAgentSelect: (
+    e: React.MouseEvent<HTMLButtonElement>,
+    selectedAgent: Agent | null | undefined,
+  ) => Promise<void>;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
   onIgnoreAgentChange?: () => void;
@@ -295,7 +302,7 @@ export default function Chat() {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
 
   // Add state for selected agent
-  const {triggerAgentSelect, selectedAgent } = useAgentSelection();
+  const { triggerAgentSelect, selectedAgent } = useAgentSelection();
 
   const [selectedModelId, setSelectedModelId] = useState<string>(
     settings.openai.modelId,
@@ -321,11 +328,14 @@ export default function Chat() {
   // View mode state
   const [viewMode, setViewMode] = useState<"compact" | "expanded">("compact");
 
+  const { files, clearFiles } = useFileContext();
+
   // Use Vercel AI SDK's useChat hook instead of managing state manually
   const {
     messages,
     input,
     handleInputChange,
+    handleSubmit,
     isLoading,
     setMessages,
     reload,
@@ -646,6 +656,14 @@ export default function Chat() {
       content: messageText,
     });
 
+    if (files) {
+      handleSubmit(event, {
+        experimental_attachments: files,
+      });
+
+      clearFiles();
+    }
+
     if (copiedContent) {
       setCopiedContent(null);
     }
@@ -820,5 +838,4 @@ export default function Chat() {
   );
 }
 
-export { };
-
+export {};
