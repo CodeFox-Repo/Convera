@@ -287,7 +287,7 @@
   }
 
   /* Fix input fields and buttons to use the global border radius */
-  input,
+  input:not([type="checkbox"]),
   textarea,
   button,
   [role="button"],
@@ -302,6 +302,14 @@
   [type="search"],
   [contenteditable="true"] {
     border-radius: var(--global-border-radius) !important;
+  }
+
+  /* Set specific border radius for checkboxes */
+  input[type="checkbox"],
+  .checkbox,
+  [data-state="checked"],
+  [data-state="unchecked"] {
+    border-radius: 4px !important;
   }
 
   /* Ensure chat elements have consistent border radius */

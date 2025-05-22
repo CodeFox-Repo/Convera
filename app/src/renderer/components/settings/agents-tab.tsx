@@ -23,7 +23,7 @@ import {
 } from "@/renderer/components/ui/tabs";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
-import { Loader2 } from "lucide-react";
+import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -38,7 +38,11 @@ interface Agent {
   toolReferences?: ToolReference[];
 }
 
-export function AgentsTab() {
+interface AgentsTabProps {
+  onNavigateToMcp?: () => void;
+}
+
+export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
@@ -65,6 +69,7 @@ export function AgentsTab() {
   const [editSelectedTools, setEditSelectedTools] = useState<{
     [mcpId: string]: string[];
   }>({});
+  const [activeTab, setActiveTab] = useState("manage");
 
   // Load agents and MCP configs
   useEffect(() => {
@@ -96,6 +101,21 @@ export function AgentsTab() {
       setEditSelectedTools(toolsByMcp);
     }
   }, [editingAgent]);
+
+  // Reset tool selections when switching to create tab
+  useEffect(() => {
+    if (activeTab === "create") {
+      // Reset tool selections to start fresh
+      setSelectedToolNames({});
+      
+      // Re-fetch tools for all enabled MCPs to trigger auto-selection
+      Object.entries(mcpServerConfigs)
+        .filter(([, config]) => config.enabled)
+        .forEach(([id]) => {
+          fetchMcpServerTools(id);
+        });
+    }
+  }, [activeTab, mcpServerConfigs]);
 
   const fetchAgents = async () => {
     setLoadingAgents(true);
@@ -215,11 +235,20 @@ export function AgentsTab() {
       console.log(`Processed tools for MCP ${id}:`, processedTools);
       setMcpServerTools((prev) => ({ ...prev, [id]: processedTools }));
 
+      // Auto-select all tools for this MCP when they're first loaded
       if (processedTools.length > 0) {
-        setSelectedToolNames((prev) => ({
-          ...prev,
-          [id]: processedTools.map((tool: ToolDefinition) => tool.name),
-        }));
+        // Check if we're in edit mode
+        if (isEditDialogOpen) {
+          setEditSelectedTools((prev) => ({
+            ...prev,
+            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
+          }));
+        } else {
+          setSelectedToolNames((prev) => ({
+            ...prev,
+            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
+          }));
+        }
       }
     } catch (err) {
       console.error(`Error fetching tools for MCP ${id}:`, err);
@@ -337,10 +366,15 @@ export function AgentsTab() {
         description: "",
         systemPrompt: "",
       });
+      
+      // Reset tool selections after agent creation
       setSelectedToolNames({});
 
       // Refresh agents list
       fetchAgents();
+
+      // Switch to the manage tab
+      setActiveTab("manage");
 
       // Dispatch an event to notify other components (like AgentPopover)
       // that the agent list has been updated
@@ -475,6 +509,38 @@ export function AgentsTab() {
 
   const handleMcpToggle = (id: string, enabled: boolean) => {
     updateMcpConfig(id, "enabled", enabled);
+    
+    // When enabling an MCP server, automatically select all its tools
+    if (enabled && mcpServerTools[id]?.length > 0) {
+      // If edit dialog is open, update editSelectedTools instead
+      if (isEditDialogOpen) {
+        setEditSelectedTools(prev => ({
+          ...prev,
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+        }));
+      } else {
+        // Normal mode - update selectedToolNames
+        setSelectedToolNames(prev => ({
+          ...prev,
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+        }));
+      }
+    } else if (!enabled) {
+      // When disabling, clear the tool selections for this MCP
+      if (isEditDialogOpen) {
+        setEditSelectedTools(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+      } else {
+        setSelectedToolNames(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+      }
+    }
   };
 
   const handleToolSelection = (
@@ -563,9 +629,7 @@ export function AgentsTab() {
             variant="outline"
             size="sm"
             className="flex items-center gap-1 text-xs"
-            onClick={() => {
-              /* TODO: Add navigation to MCP page */
-            }}
+            onClick={onNavigateToMcp}
           >
             <span className="text-xs">+</span>
             Go to MCP page and add MCP servers
@@ -713,16 +777,18 @@ export function AgentsTab() {
   };
 
   return (
-    <div className="text-foreground p-4">
-      <h2 className="mb-1 text-xl font-semibold">Agents</h2>
-      <p className="text-muted-foreground mb-4 text-sm">
-        Create and manage agents with MCP tools
-      </p>
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-medium text-foreground">Agents</h2>
+        <p className="text-muted-foreground mt-1">
+          Create and manage agents with MCP tools
+        </p>
+      </div>
       
-      <Tabs defaultValue="create" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="create">Create Agent</TabsTrigger>
           <TabsTrigger value="manage">Manage Agents</TabsTrigger>
+          <TabsTrigger value="create">Create Agent</TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-6">
@@ -808,67 +874,67 @@ export function AgentsTab() {
           ) : (
             <div className="space-y-4">
               {agents.map((agent) => {
-                console.log(`Agent ${agent.name} tools:`, {
-                  toolNames: agent.toolNames,
-                  toolReferences: agent.toolReferences,
-                });
-
-                // Format tools for display - prioritize toolReferences over toolNames if available
-                let formattedTools: string[] = [];
-
+                // Get unique MCP server names only
+                const mcpServers = new Set<string>();
+                
                 if (agent.toolReferences && agent.toolReferences.length > 0) {
-                  // Format tool references
-                  formattedTools = agent.toolReferences.map(
-                    (toolRef) => `${toolRef.toolName} (${toolRef.mcpName})`,
-                  );
+                  agent.toolReferences.forEach(toolRef => mcpServers.add(toolRef.mcpName));
                 } else if (agent.toolNames && agent.toolNames.length > 0) {
-                  // Format tool names (legacy format)
-                  formattedTools = agent.toolNames.map((toolId) => {
+                  agent.toolNames.forEach(toolId => {
                     const parts = toolId.split(":");
-                    return parts.length > 1
-                      ? `${parts[1]} (${parts[0]})`
-                      : toolId;
+                    if (parts.length > 1) {
+                      mcpServers.add(parts[0]);
+                    }
                   });
                 }
+                
+                // Convert the Set to Array
+                const mcpServersList = Array.from(mcpServers);
 
                 return (
-                  <div key={agent.id} className="rounded-md border p-4">
-                    <div className="flex items-start justify-between">
+                  <div key={agent.id} className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-sm border border-border/30">
+                    <div className="flex items-start gap-3">
+                      <div className="text-primary bg-primary/10 rounded-full p-1.5">
+                        <Bot size={18} />
+                      </div>
                       <div>
-                        <h4 className="font-medium">{agent.name}</h4>
-                        <p className="text-muted-foreground text-sm">
+                        <h4 className="font-medium leading-tight">{agent.name}</h4>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
                           {agent.description}
                         </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => handleEditAgent(agent)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-8"
-                          onClick={() =>
-                            handleDeleteAgent(agent.id, agent.name)
-                          }
-                        >
-                          Delete
-                        </Button>
+                        
+                        {mcpServersList.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {mcpServersList.map((serverName) => (
+                              <div key={serverName} className="bg-primary/5 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs">
+                                <Server size={10} className="mr-1" />
+                                {serverName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="mt-4">
-                      <h5 className="mb-2 text-sm font-medium">Tools</h5>
-                      <div className="text-muted-foreground text-xs">
-                        {formattedTools.length > 0
-                          ? formattedTools.join(", ")
-                          : "No tools configured"}
-                      </div>
+                    
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full"
+                        onClick={() => handleEditAgent(agent)}
+                      >
+                        < Settings size={14} />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 h-8 w-8 p-0 rounded-full"
+                        onClick={() => handleDeleteAgent(agent.id, agent.name)}
+                      >
+                        <Trash2 size={14} />
+                        <span className="sr-only">Delete</span>
+                      </Button>
                     </div>
                   </div>
                 );
