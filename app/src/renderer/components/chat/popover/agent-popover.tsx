@@ -1,20 +1,18 @@
-import React, { useEffect, useState } from "react";
-
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  iconUrl?: string;
-}
+import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
+import React, { useEffect } from "react";
 
 /**
  * AgentPopover component to be displayed in a dedicated BrowserWindow
  */
+// TODO: this component need to refactor
 export default function AgentPopover() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-
+  const { 
+    selectedAgent, 
+    setSelectedAgent, 
+    availableAgents, 
+    setAvailableAgents 
+  } = useAgentStore();
+  
   // Function to fetch agents from the server
   const fetchAgents = async () => {
     try {
@@ -24,7 +22,7 @@ export default function AgentPopover() {
         const data = await response.json();
         if (data.status === "success" && Array.isArray(data.agents)) {
           console.log(`Loaded ${data.agents.length} agents`);
-          setAgents(data.agents);
+          setAvailableAgents(data.agents);
         }
       }
     } catch (error) {
@@ -32,27 +30,9 @@ export default function AgentPopover() {
     }
   };
 
-  // Load saved agent and fetch agents on mount
   useEffect(() => {
-    // Try to load saved agent first
-    try {
-      const savedAgentData = localStorage.getItem("selectedAgent");
-      if (savedAgentData) {
-        const savedAgent = JSON.parse(savedAgentData);
-        setSelectedAgent(savedAgent);
-        console.log(
-          "Restored selected agent from localStorage:",
-          savedAgent.name,
-        );
-      }
-    } catch (error) {
-      console.error("Error loading saved agent:", error);
-    }
-
-    // Initial fetch of agents
     fetchAgents();
 
-    // Set up listener to refetch agents when the popover window is opened
     const handlePopoverOpened = () => {
       console.log("Agent popover opened, refreshing agent list");
       fetchAgents();
@@ -63,18 +43,10 @@ export default function AgentPopover() {
       console.log("Agent list updated, refreshing agent list");
       fetchAgents();
     };
-
-    // Listen for a custom event that can be triggered when the popover is opened
     window.addEventListener("agent-popover-opened", handlePopoverOpened);
-
-    // Listen for a custom event that is triggered when agents are created in settings
     window.addEventListener("agent-list-updated", handleAgentListUpdated);
-
-    // Also refetch on focus, which can happen when the window is reopened
     window.addEventListener("focus", handlePopoverOpened);
 
-    // For cross-window communication, we'll use the custom event-based approach only
-    // We need to rely on the main process to relay these events via preload scripts
     let cleanup: (() => void) | undefined;
     if (window.electronAPI && window.electronAPI.onAgentListUpdated) {
       cleanup = window.electronAPI.onAgentListUpdated(() => {
@@ -84,6 +56,9 @@ export default function AgentPopover() {
         fetchAgents();
       });
     }
+
+    // Trigger event to notify popover is opened
+    window.dispatchEvent(new Event("agent-popover-opened"));
 
     // Cleanup
     return () => {
@@ -101,27 +76,10 @@ export default function AgentPopover() {
 
     if (window.electronAPI) {
       try {
-        if (agent) {
-          console.log(
-            `Saving agent to localStorage: ${agent.name} (${agent.id})`,
-          );
-          localStorage.setItem("selectedAgent", JSON.stringify(agent));
-        } else {
-          console.log("Removing agent from localStorage (Default Assistant)");
-          localStorage.removeItem("selectedAgent");
-        }
-
-        // Dispatch custom event to notify about agent change
-        console.log("Dispatching agent-selected event");
-        const event = new CustomEvent("agent-selected", {
-          detail: { agent },
-        });
-        window.dispatchEvent(event);
-
         // Hide Agent popover window
         window.electronAPI.toggleAgentPopover();
       } catch (error) {
-        console.error("Error saving selected agent:", error);
+        console.error("Error when selecting agent:", error);
       }
     }
   };
@@ -166,7 +124,7 @@ export default function AgentPopover() {
           </div>
 
           {/* List of agents */}
-          {agents.map((agent) => (
+          {availableAgents.map((agent) => (
             <div
               key={agent.id}
               className={`cursor-pointer rounded p-2 ${

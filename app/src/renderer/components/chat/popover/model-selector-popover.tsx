@@ -10,6 +10,8 @@ export default function ModelSelector() {
     subscribeToModelChanges,
     supportedModelIds,
   } = useModelStore();
+
+  console.log("selectedModelId", selectedModelId);
   const ITEM_HEIGHT = 32;
   const POPUP_PADDING = 8;
   const MAX_HEIGHT = 220;

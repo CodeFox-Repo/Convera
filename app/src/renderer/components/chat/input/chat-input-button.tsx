@@ -1,5 +1,5 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
-import { Agent } from "@/renderer/libs/stores/agent-store";
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import {
   Bot,
   History,
@@ -11,7 +11,7 @@ import {
   Settings,
   Square
 } from "lucide-react";
-import React from "react";
+import React, { useEffect } from "react";
 import ModelSelector from "../popover/model-selector-popover";
 
 // TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
@@ -24,14 +24,8 @@ interface ChatInputButtonsProps {
   triggerHistoryWindow: () => void;
   isLoading: boolean;
   hasContent: boolean;
-  selectedAgent?: Agent | null;
-  onAgentButtonClick: (
-    e: React.MouseEvent<HTMLButtonElement>,
-    agent: Agent | null | undefined,
-  ) => void;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
-
 }
 
 interface ActionButtonConfig {
@@ -63,6 +57,15 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
+  const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } = useAgentStore();
+  
+  useEffect(() => {
+    const unsubscribe = subscribeToAgentChanges();
+    return unsubscribe;
+  }, []);
+  
+  console.log('selectedAgent from chat-input-button', selectedAgent);
+  console.log("previousApp", previousApp);
 
   const leftActionButtons: ActionButtonConfig[] = [
     {
@@ -91,20 +94,22 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "agent-selector",
-      render: (p) => (
+      render: () => (
         <button
           className={`no-drag-region flex items-center ${
-            p.selectedAgent
+            selectedAgent
               ? "bg-primary/20 text-primary hover:bg-primary/30 rounded px-2 py-0.5 text-xs font-medium"
               : "text-foreground/70 hover:text-foreground"
           }`}
-          onClick={(e) => p.onAgentButtonClick(e, p.selectedAgent)}
+          onClick={(e) => {
+            triggerAgentSelect(e, selectedAgent);
+          }}
         >
           <Bot
-            size={p.selectedAgent ? 12 : 16}
-            className={p.selectedAgent ? "mr-1" : ""}
+            size={selectedAgent ? 12 : 16}
+            className={selectedAgent ? "mr-1" : ""}
           />
-          {p.selectedAgent && p.selectedAgent.name}
+          {selectedAgent && selectedAgent.name}
         </button>
       ),
       show: true,

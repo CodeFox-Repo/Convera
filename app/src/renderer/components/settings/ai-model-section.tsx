@@ -48,8 +48,6 @@ export function AIModelSection({
     subscribeToModelChanges,
     selectedModelId,
   } = useModelStore();
-  //curre model
-  console.log("Current model in settings:", selectedModelId);
   useEffect(() => {
     const unsubscribe = subscribeToModelChanges();
     return unsubscribe;

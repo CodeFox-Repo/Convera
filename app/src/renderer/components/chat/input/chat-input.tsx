@@ -1,6 +1,5 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
-import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
 import React, {
@@ -50,7 +49,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       openHistoryWindow
     } = useChatContext();
     
-    const { selectedAgent, triggerAgentSelect } = useAgentStore();
     const { selectedModelId, setSelectedModelId } = useModelStore();
     const { formatAppName } = usePreviousApp();
 
@@ -132,8 +130,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               triggerHistoryWindow={openHistoryWindow}
               isLoading={isLoading}
               hasContent={!!editorContent.trim()}
-              selectedAgent={selectedAgent}
-              onAgentButtonClick={triggerAgentSelect}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
             />
