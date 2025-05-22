@@ -1,5 +1,5 @@
 import { createRoute } from "@tanstack/react-router";
-import AgentPopover from "../components/chat/agent-popover";
+import AgentPopover from "../components/chat/popover/agent-popover";
 import ChatHistoryPage from "../pages/chat-history";
 import HomePage from "../pages/home";
 import SettingsPage from "../pages/settings";

@@ -1,12 +1,12 @@
-import * as React from "react"
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MoreHorizontalIcon,
 } from "lucide-react"
+import * as React from "react"
 
-import { cn } from "@/renderer/utils/tailwind"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -118,10 +118,6 @@ function PaginationEllipsis({
 
 export {
   Pagination,
-  PaginationContent,
-  PaginationLink,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationEllipsis,
+  PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious
 }
+

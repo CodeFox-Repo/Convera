@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { getCurrentTheme, toggleTheme } from "@/renderer/helper/theme_helpers";
-import { ErrorCode } from "@/renderer/utils/error-handler";
+import { getCurrentTheme, toggleTheme } from "@/renderer/libs/helper/theme_helpers";
+import { ErrorCode } from "@/renderer/libs/utils/error-handler";
 import {
   getSettings,
   resetShortcutsToDefault,
   updateOpenAISettings,
   updateShortcut,
-} from "@/renderer/utils/settings";
+} from "@/renderer/libs/utils/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
   AppSettings,

@@ -3,14 +3,13 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import "../shared/localization/i18n";
-import AgentPopover from "./components/chat/agent-popover";
-import ModelSelector from "./components/chat/model-selector";
+import AgentPopover from "./components/chat/popover/agent-popover";
+import ModelSelector from "./components/chat/popover/model-selector-popover";
 import { DragLayer } from "./components/ui/drag-layer";
 import "./global.css";
-import { updateAppLanguage } from "./helper/language_helpers";
-import { syncThemeWithLocal } from "./helper/theme_helpers";
+import { updateAppLanguage } from "./libs/helper/language_helpers";
+import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
 import { router } from "./routes/router";
-import { getSettings } from "./utils/settings";
 
 export default function App() {
   const { i18n } = useTranslation();
@@ -48,19 +47,7 @@ export default function App() {
     return (
       <div className="model-selector-container h-screen w-full overflow-hidden">
         <ModelSelector
-          selectedModel={getSettings().openai.modelId}
-          onSelectModel={(modelId) => {
-            // Send the selected model back to the main window via IPC
-            if (window.electronAPI) {
-              window.electronAPI.toggleModelSelector();
-              // Dispatch a custom event that will be caught by the main window
-              window.opener?.dispatchEvent(
-                new CustomEvent("model-selected", {
-                  detail: { modelId },
-                }),
-              );
-            }
-          }}
+    
         />
       </div>
     );

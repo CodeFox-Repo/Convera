@@ -1,5 +1,5 @@
-import { AgentInfo } from "@/renderer/hooks/use-agent-selection";
-import { usePreviousApp } from "@/renderer/hooks/use-previous-app";
+import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import {
   Bot,
   History,
@@ -9,11 +9,12 @@ import {
   RotateCcw,
   Send,
   Settings,
-  Square,
+  Square
 } from "lucide-react";
-import React from "react";
-import ModelSelector from "./model-selector";
+import React, { useEffect } from "react";
+import ModelSelector from "../popover/model-selector-popover";
 
+// TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
 interface ChatInputButtonsProps {
   onReset?: () => void;
   onOpenSettings?: () => void;
@@ -23,14 +24,8 @@ interface ChatInputButtonsProps {
   triggerHistoryWindow: () => void;
   isLoading: boolean;
   hasContent: boolean;
-  selectedAgent?: AgentInfo | null;
-  onAgentButtonClick: (
-    e: React.MouseEvent<HTMLButtonElement>,
-    agent: AgentInfo | null | undefined,
-  ) => void;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
-
 }
 
 interface ActionButtonConfig {
@@ -62,6 +57,15 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
+  const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } = useAgentStore();
+  
+  useEffect(() => {
+    const unsubscribe = subscribeToAgentChanges();
+    return unsubscribe;
+  }, []);
+  
+  console.log('selectedAgent from chat-input-button', selectedAgent);
+  console.log("previousApp", previousApp);
 
   const leftActionButtons: ActionButtonConfig[] = [
     {
@@ -90,46 +94,26 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "agent-selector",
-      render: (p) => (
+      render: () => (
         <button
           className={`no-drag-region flex items-center ${
-            p.selectedAgent
+            selectedAgent
               ? "bg-primary/20 text-primary hover:bg-primary/30 rounded px-2 py-0.5 text-xs font-medium"
               : "text-foreground/70 hover:text-foreground"
           }`}
-          onClick={(e) => p.onAgentButtonClick(e, p.selectedAgent)}
+          onClick={(e) => {
+            triggerAgentSelect(e, selectedAgent);
+          }}
         >
           <Bot
-            size={p.selectedAgent ? 12 : 16}
-            className={p.selectedAgent ? "mr-1" : ""}
+            size={selectedAgent ? 12 : 16}
+            className={selectedAgent ? "mr-1" : ""}
           />
-          {p.selectedAgent && p.selectedAgent.name}
+          {selectedAgent && selectedAgent.name}
         </button>
       ),
       show: true,
-    },
-    {
-      id: "model-selector",
-      render: (p) => (
-        <div className="no-drag-region inline-flex items-center">
-          <ModelSelector
-            selectedModel={p.selectedModelId!}
-            onSelectModel={p.onModelSelect!}
-          />
-        </div>
-      ),
-      show: (p) => !!(p.selectedModelId && p.onModelSelect),
-    },
-    {
-      id: "previous-app-badge",
-      render: (_p, hData) => (
-        <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
-          <Monitor size={12} className="mr-1" />
-          {hData.formatAppName(hData.previousApp!)}
-        </div>
-      ),
-      show: (_p, hData) => !!hData.previousApp,
-    },
+    }
   ];
 
   const defaultButtonClassName = "no-drag-region text-foreground/70 hover:text-foreground";
@@ -162,6 +146,13 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             </button>
           );
         })}
+
+        <ModelSelector/>
+        {/* prevous app */}
+        <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium"> 
+          <Monitor size={12} className="mr-1" />
+          {formatAppName(previousApp!)}
+        </div>
       </div>
 
       {/* Right side - Mic and Send buttons */}

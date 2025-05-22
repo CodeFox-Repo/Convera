@@ -1,8 +1,8 @@
-import * as React from "react"
 import { GripVerticalIcon } from "lucide-react"
+import * as React from "react"
 import * as ResizablePrimitive from "react-resizable-panels"
 
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function ResizablePanelGroup({
   className,
@@ -51,4 +51,5 @@ function ResizableHandle({
   )
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+export { ResizableHandle, ResizablePanel, ResizablePanelGroup }
+
