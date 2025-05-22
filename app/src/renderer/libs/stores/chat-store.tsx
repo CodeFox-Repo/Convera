@@ -1,7 +1,7 @@
 import { GenericError, parseApiError } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
 import { useChat } from "@ai-sdk/react";
-import { Message, UIMessage } from "ai";
+import { Attachment, Message, UIMessage } from "ai";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
 interface ChatContextType {
@@ -10,14 +10,18 @@ interface ChatContextType {
   isLoading: boolean;
   error: Error | undefined;
   copiedContent: string | null;
+  attachments: File[];
   setInput: (input: string) => void;
-  sendMessage: () => void;
+  sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
   resetChat: () => void;
   setCopiedContent: (content: string | null) => void;
   rejectCopiedContent: () => void;
+  addAttachments: (files: File | File[]) => void;
+  removeAttachment: (index: number) => void;
+  clearAttachments: () => void;
   
   // Chat-related actions (previously in app-actions)
   resetChatWindow: () => void;
@@ -27,11 +31,17 @@ interface ChatContextType {
   isVoiceInputActive: boolean;
 }
 
+// Message with optional experimental_attachments
+interface ChatMessage extends Omit<Message, 'id'> {
+  experimental_attachments?: Attachment[];
+}
+
 const ChatContext = createContext<ChatContextType | null>(null);
 
 export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const settings = getSettings();
 
   // TODO(Sma1lboy): change api to use the api from the backend
@@ -52,8 +62,41 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     },
   });
   
-  const sendMessage = useCallback(() => {
-    if (!chatAPI.input.trim() && !copiedContent) return;
+  const addAttachments = useCallback((files: File | File[]) => {
+    setAttachments(prev => {
+      if (Array.isArray(files)) {
+        return [...prev, ...files];
+      } else {
+        return [...prev, files];
+      }
+    });
+  }, []);
+  
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+  
+  const clearAttachments = useCallback(() => {
+    setAttachments([]);
+  }, []);
+  
+  // Helper to convert a File to an Attachment
+  const fileToAttachment = useCallback((file: File): Attachment => {
+    return {
+      url: URL.createObjectURL(file),
+      name: file.name,
+      contentType: file.type,
+    };
+  }, []);
+  
+  const sendMessage = useCallback((extraFiles?: File[]) => {
+    const filesToSend = [...attachments];
+    
+    if (extraFiles && extraFiles.length > 0) {
+      filesToSend.push(...extraFiles);
+    }
+    
+    if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0) return;
     
     let messageText = chatAPI.input.trim();
     
@@ -65,11 +108,22 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setCopiedContent(null);
     }
     
-    chatAPI.append({
+    const message: ChatMessage = {
       role: "user",
       content: messageText,
-    });
-  }, [chatAPI, copiedContent]);
+    };
+    
+    // Only add attachments if there are files to send
+    if (filesToSend.length > 0) {
+      const fileAttachments = filesToSend.map(fileToAttachment);
+      message.experimental_attachments = fileAttachments;
+    }
+    
+    chatAPI.append(message);
+    
+    // Clear the attachments after sending
+    clearAttachments();
+  }, [chatAPI, copiedContent, attachments, clearAttachments, fileToAttachment]);
   
   const setInput = useCallback((newInput: string) => {
     chatAPI.handleInputChange({
@@ -113,7 +167,8 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const resetChat = useCallback(() => {
     chatAPI.setMessages([]);
     setCopiedContent(null);
-  }, [chatAPI]);
+    clearAttachments();
+  }, [chatAPI, clearAttachments]);
   
   const rejectCopiedContent = useCallback(() => {
     setCopiedContent(null);
@@ -122,40 +177,23 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
   // Chat related actions (previously in app-actions-store)
   
   const resetChatWindow = useCallback(() => {
-    // Current implementation reloads the window
-    window.location.reload();
-  }, []);
+    resetChat();
+    setInput("");
+  }, [resetChat, setInput]);
   
-  // TODO: voice implementation, it might move to another store for voice_store
   const handleVoiceInput = useCallback(() => {
-    // Set active state
-    setIsVoiceInputActive(true);
-    console.log("Voice input activated");
-    setTimeout(() => {
-      setIsVoiceInputActive(false);
-    }, 2000);
+    setIsVoiceInputActive(prev => !prev);
   }, []);
   
   const openSettings = useCallback(() => {
-    if (window.electronAPI) {
       window.electronAPI.toggleSettingsWindow()
         .catch((error) => {
           console.error("Error opening settings window:", error);
         });
-    } else {
-      console.error("electronAPI is not available for toggleSettingsWindow!");
-    }
   }, []);
   
   const openHistoryWindow = useCallback(() => {
-    if (window.electronAPI) {
-      window.electronAPI.toggleHistoryWindow()
-        .catch((error) => {
-          console.error("Error opening history window:", error);
-        });
-    } else {
-      console.error("electronAPI is not available for toggleHistoryWindow!");
-    }
+    window.electronAPI.toggleHistoryWindow()
   }, []);
   
   const contextValue: ChatContextType = {
@@ -164,6 +202,7 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     isLoading: chatAPI.isLoading,
     error: chatAPI.error,
     copiedContent,
+    attachments,
     setInput,
     sendMessage,
     stopGeneration,
@@ -172,6 +211,9 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     resetChat,
     setCopiedContent,
     rejectCopiedContent,
+    addAttachments,
+    removeAttachment,
+    clearAttachments,
     resetChatWindow,
     handleVoiceInput,
     openSettings,

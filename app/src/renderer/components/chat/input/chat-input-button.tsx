@@ -156,14 +156,13 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       </div>
 
       {/* Right side - Mic and Send buttons */}
-      <div className="flex shrink-0 items-center">
+      <div className="flex shrink-0 items-center  mr-2">
         <button
           onClick={props.onVoiceInput}
           className="no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5"
         >
           <Mic size={16} />
         </button>
-
         {props.isLoading && props.onStopGeneration ? (
           <button
             onClick={props.onStopGeneration}
@@ -188,7 +187,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             }`}
             aria-label="Send message"
           >
-            <Send size={16} />
+            <Send size={14} />
           </button>
         )}
       </div>

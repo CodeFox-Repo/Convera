@@ -2,8 +2,11 @@ import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
+import { File } from "lucide-react";
 import React, {
   forwardRef,
+  useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -32,7 +35,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     ref,
   ) => {
     const editorRef = useRef<TiptapEditorRef>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [editorContent, setEditorContent] = useState("");
+    const [isDragging, setIsDragging] = useState(false);
 
     // Get state and methods from context and stores
     const { 
@@ -46,7 +51,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       resetChatWindow,
       handleVoiceInput,
       openSettings,
-      openHistoryWindow
+      openHistoryWindow,
+      attachments,
+      addAttachments
     } = useChatContext();
     
     const { selectedModelId, setSelectedModelId } = useModelStore();
@@ -88,28 +95,113 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
-    // Handle form submission
+    // Handle file upload via button
+    const handleFileUpload = useCallback(() => {
+      fileInputRef.current?.click();
+    }, []);
+
+    // Handle file selection from input
+    const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        addAttachments(Array.from(e.target.files));
+      }
+      // Reset the input value to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }, [addAttachments]);
+
+    // Handle drag events
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isDragging) setIsDragging(true);
+    }, [isDragging]);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        addAttachments(Array.from(e.dataTransfer.files));
+      }
+    }, [addAttachments]);
+
+    // Handle clipboard paste for images
+    useEffect(() => {
+      const handlePaste = (e: ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              addAttachments(file);
+            }
+          }
+        }
+      };
+
+      document.addEventListener('paste', handlePaste);
+      return () => {
+        document.removeEventListener('paste', handlePaste);
+      };
+    }, [addAttachments]);
+
+    // Handle form submission with files
     const handleSubmit = () => {
-      if (!isLoading && editorContent.trim()) {
+      if (!isLoading && (editorContent.trim() || attachments.length > 0)) {
         sendMessage();
       }
     };
 
     return (
-      <div className="drag-region h-full flex flex-col">
+      <div 
+        className="drag-region h-full flex flex-col"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
           <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 border-gray-500/45 p-2 ${
+            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 transition-all duration-200 ${
               hasMessages ? "bg-background/80" : "bg-background/30"
-            }`}
+            } ${isDragging 
+              ? "border-primary/70 border-2 shadow-lg ring-2 ring-primary/20" 
+              : "border-gray-500/45"}`}
           >
             <ContextButtons
               copiedContent={copiedContent || null}
               formatAppName={formatAppName}
               onRejectCopiedContent={rejectCopiedContent}
+              onAddFile={handleFileUpload}
             />
 
-            <div className="drag-region mb-2 w-full flex-1">
+            {isDragging && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-[var(--app-border-radius)] z-10 pointer-events-none">
+                <div className="flex flex-col items-center gap-2 animate-pulse">
+                  <File size={32} className="text-primary" />
+                  <p className="text-foreground/70 font-medium">Drop files here</p>
+                </div>
+              </div>
+            )}
+
+            <div className="drag-region mb-2 w-full flex-1 px-2">
               <TiptapEditor
                 ref={editorRef}
                 content={input}
@@ -129,12 +221,19 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               onSendMessage={handleSubmit}
               triggerHistoryWindow={openHistoryWindow}
               isLoading={isLoading}
-              hasContent={!!editorContent.trim()}
+              hasContent={!!editorContent.trim() || attachments.length > 0}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
             />
           </div>
         </div>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileSelect} 
+          className="hidden" 
+          multiple 
+        />
       </div>
     );
   },
