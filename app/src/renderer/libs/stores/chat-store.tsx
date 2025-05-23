@@ -1,7 +1,10 @@
-import { GenericError, parseApiError } from "@/renderer/libs/utils/error-handler";
+import {
+  GenericError,
+  parseApiError,
+} from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
 import { useChat } from "@ai-sdk/react";
-import { Message, UIMessage } from "ai";
+import { Attachment, Message, UIMessage } from "ai";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
 interface ChatContextType {
@@ -10,15 +13,19 @@ interface ChatContextType {
   isLoading: boolean;
   error: Error | undefined;
   copiedContent: string | null;
+  attachments: File[];
   setInput: (input: string) => void;
-  sendMessage: () => void;
+  sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
   resetChat: () => void;
   setCopiedContent: (content: string | null) => void;
   rejectCopiedContent: () => void;
-  
+  addAttachments: (files: File | File[]) => void;
+  removeAttachment: (index: number) => void;
+  clearAttachments: () => void;
+
   // Chat-related actions (previously in app-actions)
   resetChatWindow: () => void;
   handleVoiceInput: () => void;
@@ -27,11 +34,19 @@ interface ChatContextType {
   isVoiceInputActive: boolean;
 }
 
+// Message with optional experimental_attachments
+interface ChatMessage extends Omit<Message, "id"> {
+  experimental_attachments?: Attachment[];
+}
+
 const ChatContext = createContext<ChatContextType | null>(null);
 
-export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const settings = getSettings();
 
   // TODO(Sma1lboy): change api to use the api from the backend
@@ -44,126 +59,180 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     body: {
       config: settings,
       agentId: localStorage.getItem("selectedAgentId") || undefined,
-      modelId: localStorage.getItem("selectedModelId") || settings.openai.modelId,
+      modelId:
+        localStorage.getItem("selectedModelId") || settings.openai.modelId,
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
     },
   });
-  
-  const sendMessage = useCallback(() => {
-    if (!chatAPI.input.trim() && !copiedContent) return;
-    
-    let messageText = chatAPI.input.trim();
-    
-    if (copiedContent) {
-      messageText = messageText
-        ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
-        : `<copied>\n${copiedContent}\n</copied>`;
-      
-      setCopiedContent(null);
-    }
-    
-    chatAPI.append({
-      role: "user",
-      content: messageText,
+
+  const addAttachments = useCallback((files: File | File[]) => {
+    setAttachments((prev) => {
+      if (Array.isArray(files)) {
+        return [...prev, ...files];
+      } else {
+        return [...prev, files];
+      }
     });
-  }, [chatAPI, copiedContent]);
-  
-  const setInput = useCallback((newInput: string) => {
-    chatAPI.handleInputChange({
-      target: { value: newInput },
-    } as React.ChangeEvent<HTMLInputElement>);
-  }, [chatAPI]);
-  
+  }, []);
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const clearAttachments = useCallback(() => {
+    setAttachments([]);
+  }, []);
+
+  // Helper to convert a File to an Attachment
+  const fileToAttachment = useCallback((file: File): Promise<Attachment> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          url: reader.result as string,
+          name: file.name,
+          contentType: file.type,
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const sendMessage = useCallback(
+    (extraFiles?: File[]) => {
+      const filesToSend = [...attachments];
+
+      if (extraFiles && extraFiles.length > 0) {
+        filesToSend.push(...extraFiles);
+      }
+
+      if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0)
+        return;
+
+      let messageText = chatAPI.input.trim();
+
+      if (copiedContent) {
+        messageText = messageText
+          ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
+          : `<copied>\n${copiedContent}\n</copied>`;
+
+        setCopiedContent(null);
+      }
+
+      const message: ChatMessage = {
+        role: "user",
+        content: messageText,
+      };
+
+      const sendMessageWithAttachments = async () => {
+        try {
+          if (filesToSend.length > 0) {
+            const fileAttachments = await Promise.all(
+              filesToSend.map(fileToAttachment),
+            );
+            message.experimental_attachments = fileAttachments;
+          }
+          chatAPI.append(message);
+          clearAttachments();
+        } catch (error) {
+          console.error("Error processing file attachments:", error);
+        }
+      };
+
+      sendMessageWithAttachments();
+    },
+    [chatAPI, copiedContent, attachments, clearAttachments, fileToAttachment],
+  );
+
+  const setInput = useCallback(
+    (newInput: string) => {
+      chatAPI.handleInputChange({
+        target: { value: newInput },
+      } as React.ChangeEvent<HTMLInputElement>);
+    },
+    [chatAPI],
+  );
+
   const stopGeneration = useCallback(() => {
     if (chatAPI.isLoading) {
       chatAPI.stop();
     }
   }, [chatAPI]);
-  
-  const editMessage = useCallback((message: Message, newContent: string) => {
-    const messageIndex = chatAPI.messages.findIndex((m) => m.id === message.id);
-    if (messageIndex === -1) return;
-    
-    const updatedMessages = [...chatAPI.messages];
-    updatedMessages[messageIndex] = {
-      ...updatedMessages[messageIndex],
-      content: newContent,
-    };
-    
-    if (messageIndex < updatedMessages.length - 1) {
-      updatedMessages.splice(messageIndex + 1);
-    }
-    
-    chatAPI.setMessages(updatedMessages);
-    
-    setTimeout(() => {
-      chatAPI.reload();
-    }, 100);
-  }, [chatAPI]);
-  
+
+  const editMessage = useCallback(
+    (message: Message, newContent: string) => {
+      const messageIndex = chatAPI.messages.findIndex(
+        (m) => m.id === message.id,
+      );
+      if (messageIndex === -1) return;
+
+      const updatedMessages = [...chatAPI.messages];
+      updatedMessages[messageIndex] = {
+        ...updatedMessages[messageIndex],
+        content: newContent,
+      };
+
+      if (messageIndex < updatedMessages.length - 1) {
+        updatedMessages.splice(messageIndex + 1);
+      }
+
+      chatAPI.setMessages(updatedMessages);
+
+      setTimeout(() => {
+        chatAPI.reload();
+      }, 100);
+    },
+    [chatAPI],
+  );
+
   const regenerateMessage = useCallback(() => {
     if (!chatAPI.isLoading) {
       chatAPI.reload();
     }
   }, [chatAPI]);
-  
+
   const resetChat = useCallback(() => {
     chatAPI.setMessages([]);
     setCopiedContent(null);
-  }, [chatAPI]);
-  
+    clearAttachments();
+  }, [chatAPI, clearAttachments]);
+
   const rejectCopiedContent = useCallback(() => {
     setCopiedContent(null);
   }, []);
-  
+
   // Chat related actions (previously in app-actions-store)
-  
+
   const resetChatWindow = useCallback(() => {
-    // Current implementation reloads the window
-    window.location.reload();
-  }, []);
-  
-  // TODO: voice implementation, it might move to another store for voice_store
+    resetChat();
+    setInput("");
+  }, [resetChat, setInput]);
+
   const handleVoiceInput = useCallback(() => {
-    // Set active state
-    setIsVoiceInputActive(true);
-    console.log("Voice input activated");
-    setTimeout(() => {
-      setIsVoiceInputActive(false);
-    }, 2000);
+    setIsVoiceInputActive((prev) => !prev);
   }, []);
-  
+
   const openSettings = useCallback(() => {
-    if (window.electronAPI) {
-      window.electronAPI.toggleSettingsWindow()
-        .catch((error) => {
-          console.error("Error opening settings window:", error);
-        });
-    } else {
-      console.error("electronAPI is not available for toggleSettingsWindow!");
-    }
+    window.electronAPI.toggleSettingsWindow().catch((error) => {
+      console.error("Error opening settings window:", error);
+    });
   }, []);
-  
+
   const openHistoryWindow = useCallback(() => {
-    if (window.electronAPI) {
-      window.electronAPI.toggleHistoryWindow()
-        .catch((error) => {
-          console.error("Error opening history window:", error);
-        });
-    } else {
-      console.error("electronAPI is not available for toggleHistoryWindow!");
-    }
+    window.electronAPI.toggleHistoryWindow();
   }, []);
-  
+
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
     isLoading: chatAPI.isLoading,
     error: chatAPI.error,
     copiedContent,
+    attachments,
     setInput,
     sendMessage,
     stopGeneration,
@@ -172,17 +241,18 @@ export const ChatProvider: React.FC<{children: React.ReactNode}> = ({ children }
     resetChat,
     setCopiedContent,
     rejectCopiedContent,
+    addAttachments,
+    removeAttachment,
+    clearAttachments,
     resetChatWindow,
     handleVoiceInput,
     openSettings,
     openHistoryWindow,
-    isVoiceInputActive
+    isVoiceInputActive,
   };
-  
+
   return (
-    <ChatContext.Provider value={contextValue}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
   );
 };
 
