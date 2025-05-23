@@ -356,6 +356,104 @@ export default function AgentPopover() {
     }
   };
 
+  const handleMcpServerToggleAll = async (serverId: string) => {
+    if (!selectedAgent) {
+      console.error("No agent selected for bulk tool toggle");
+      return;
+    }
+
+    const serverTools = mcpServerTools[serverId] || [];
+    if (serverTools.length === 0) return;
+
+    // Check current state - if all tools are enabled, disable all; otherwise enable all
+    const currentEnabledTools = Object.values(mcpToolsEnabled[serverId] || {}).filter(Boolean).length;
+    const shouldEnableAll = currentEnabledTools < serverTools.length;
+    
+    console.log(`${shouldEnableAll ? 'Enabling' : 'Disabling'} all tools for server ${serverId}`);
+    
+    try {
+      // Update agent's tool references
+      const currentToolReferences = selectedAgent.toolReferences || [];
+      const currentToolNames = selectedAgent.toolNames || [];
+      
+      let updatedToolReferences: ToolReference[];
+      let updatedToolNames: string[];
+      
+      if (shouldEnableAll) {
+        // Add all tools from this server that aren't already added
+        const existingServerTools = currentToolReferences
+          .filter(ref => ref.mcpName === serverId)
+          .map(ref => ref.toolName);
+        
+        const newToolRefs = serverTools
+          .filter(tool => !existingServerTools.includes(tool.name))
+          .map(tool => ({
+            mcpName: serverId,
+            toolName: tool.name,
+            isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
+          }));
+        
+        const newToolNames = serverTools
+          .filter(tool => !existingServerTools.includes(tool.name))
+          .map(tool => `${serverId}:${tool.name}`);
+        
+        updatedToolReferences = [...currentToolReferences, ...newToolRefs];
+        updatedToolNames = [...currentToolNames, ...newToolNames];
+      } else {
+        // Remove all tools from this server
+        updatedToolReferences = currentToolReferences.filter(ref => ref.mcpName !== serverId);
+        updatedToolNames = currentToolNames.filter(name => !name.startsWith(`${serverId}:`));
+      }
+
+      const agentData = {
+        id: selectedAgent.id,
+        name: selectedAgent.name,
+        description: selectedAgent.description,
+        toolNames: updatedToolNames,
+        toolReferences: updatedToolReferences,
+      };
+
+      const response = await fetch(`http://localhost:38000/api/agents/${selectedAgent.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(agentData),
+      });
+      
+      if (response.ok) {
+        // Update local state if server update was successful
+        const updatedAgent = { ...selectedAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
+        setSelectedAgent(updatedAgent);
+        
+        // Update localStorage
+        localStorage.setItem("selectedAgent", JSON.stringify(updatedAgent));
+        
+        // Update MCP tools enabled state
+        const newEnabledState: Record<string, boolean> = {};
+        serverTools.forEach(tool => {
+          newEnabledState[tool.name] = shouldEnableAll;
+        });
+        
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: newEnabledState
+        }));
+        
+        // Dispatch events to notify other components
+        const event = new CustomEvent("agent-selected", { detail: { agent: updatedAgent } });
+        window.dispatchEvent(event);
+        window.dispatchEvent(new CustomEvent("agent-list-updated"));
+        
+        console.log(`Successfully ${shouldEnableAll ? 'enabled' : 'disabled'} all tools for server ${serverId}`);
+      } else {
+        console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`Error toggling all MCP tools for server ${serverId}:`, error);
+    }
+  };
+
   const ToolItem: React.FC<{ tool: Tool; onToggle: (id: string) => void }> = ({ tool, onToggle }) => (
     <div className="flex items-center justify-between p-2.5 hover:bg-primary/5 transition-all duration-200 rounded-md">
       <div className="font-medium text-sm truncate max-w-[180px]" title={tool.name}>{tool.name}</div>
@@ -658,6 +756,21 @@ export default function AgentPopover() {
                             <div className={`w-2 h-2 rounded-full ${selectedMcpServer.enabled ? "bg-emerald-500" : "bg-gray-400"} animate-pulse flex-shrink-0`}></div>
                             <span className="font-medium text-sm truncate" title={selectedMcpServer.name}>{selectedMcpServer.name}</span>
                           </div>
+                          {selectedMcpServer.enabled && mcpServerTools[selectedMcpServer.id]?.length > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMcpServerToggleAll(selectedMcpServer.id);
+                              }}
+                              className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2 py-1 rounded transition-colors duration-200"
+                            >
+                              {(() => {
+                                const currentEnabledTools = Object.values(mcpToolsEnabled[selectedMcpServer.id] || {}).filter(Boolean).length;
+                                const totalTools = mcpServerTools[selectedMcpServer.id]?.length || 0;
+                                return currentEnabledTools === totalTools ? "Disable All" : "Enable All";
+                              })()}
+                            </button>
+                          )}
                         </div>
 
                         <div>
