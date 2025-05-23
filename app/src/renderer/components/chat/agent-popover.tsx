@@ -161,7 +161,7 @@ export default function AgentPopover() {
       console.log("Agent popover opened, refreshing agent list");
       fetchAgents();
       fetchMcpConfigs();
-      setShowAgentList(true); // Show agent list by default on open
+      setShowAgentList(false); // Show agent list by default on open
       setShowMcpServerTools(false); // Hide MCP server tools on open
       setSelectedMcpServer(null); // Reset selected MCP server
       
