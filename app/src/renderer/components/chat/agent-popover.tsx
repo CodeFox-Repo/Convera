@@ -420,7 +420,7 @@ export default function AgentPopover() {
     // For enabled servers, show enabled/total tools format
     const enabledCount = Object.values(mcpToolsEnabled[serverId] || {}).filter(Boolean).length;
     return (
-      <span className="inline-flex items-center justify-center bg-blue-100 text-blue-800 text-xs font-medium px-1.5 py-0.5 rounded">
+      <span className="inline-flex items-center justify-center bg-blue-100 text-blue-800 text-xs font-medium px-1.5 py-0.5 ml-2 rounded">
         {enabledCount} / {totalTools.length} tools
       </span>
     );
