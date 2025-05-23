@@ -1,11 +1,13 @@
+import { ToolReference } from "@/server/agents/types";
+import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import React, { useEffect, useState } from "react";
 
 interface Agent {
   id: string;
   name: string;
   description: string;
-  category: string;
-  iconUrl?: string;
+  toolNames?: string[];
+  toolReferences?: ToolReference[];
 }
 
 interface Tool {
@@ -31,28 +33,6 @@ interface MCPServer {
   command?: string;
 }
 
-// API response interfaces
-interface ServerResponse {
-  id: string;
-  name: string;
-  description?: string;
-  running?: boolean;
-  enabled?: boolean;
-  toolCount?: number;
-  serverUrl?: string | null;
-  kind?: string;
-  url?: string;
-  command?: string;
-}
-
-interface ToolResponse {
-  id?: string;
-  name: string;
-  description?: string;
-  enabled?: boolean;
-  [key: string]: unknown; // For any additional properties
-}
-
 // Keep mockBasicToolsData as mentioned by the user
 const mockBasicToolsData: Tool[] = [
   { id: "websearch", name: "Web Search", enabled: true, description: "Enable web searching capabilities." },
@@ -67,12 +47,14 @@ export default function AgentPopover() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [basicTools, setBasicTools] = useState<Tool[]>(mockBasicToolsData);
   const [agentTools, setAgentTools] = useState<Tool[]>([]);
-  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
-  const [mcpServerTools, setMcpServerTools] = useState<Tool[]>([]);
+  const [mcpServerConfigs, setMcpServerConfigs] = useState<Record<string, MCPServerConfig>>({});
+  const [mcpServerTools, setMcpServerTools] = useState<Record<string, ToolDefinition[]>>({});
+  const [mcpToolsEnabled, setMcpToolsEnabled] = useState<Record<string, Record<string, boolean>>>({});
   const [selectedMcpServer, setSelectedMcpServer] = useState<MCPServer | null>(null);
   const [showMcpServerTools, setShowMcpServerTools] = useState(false);
   const [showAgentList, setShowAgentList] = useState(true);
-  const [loadingMcpServers, setLoadingMcpServers] = useState(true);
+  const [loadingMcpConfigs, setLoadingMcpConfigs] = useState(true);
+  const [loadingMcpTools, setLoadingMcpTools] = useState<Record<string, boolean>>({});
   
   // Dropdown state variables
   const [showBuiltInTools, setShowBuiltInTools] = useState(true);
@@ -95,71 +77,63 @@ export default function AgentPopover() {
       console.error("Error fetching agents:", error);
     }
   };
-  
-  // Function to fetch MCP servers
-  const fetchMcpServers = async () => {
+
+  // Function to fetch MCP configurations
+  const fetchMcpConfigs = async () => {
     try {
-      setLoadingMcpServers(true);
-      console.log("Fetching MCP servers...");
-      const response = await fetch("http://localhost:38000/api/mcp/servers");
+      setLoadingMcpConfigs(true);
+      console.log("Fetching MCP configurations...");
+      const response = await fetch("http://localhost:38000/api/mcp/configurations");
       if (response.ok) {
         const data = await response.json();
-        console.log("Full server response data:", data);
-        if (data.status === "success" && Array.isArray(data.servers)) {
-          console.log(`Loaded ${data.servers.length} MCP servers:`, data.servers);
-          // Map the servers and add status property based on running state
-          const serversWithStatus: MCPServer[] = data.servers.map((server: ServerResponse) => {
-            console.log("Server data:", server);
-            return {
-              ...server,
-              status: server.running ? "online" : "offline",
-              // Ensure name is set properly
-              name: server.name || `Server ${server.id}`
-            };
+        const configs = (data.configurations || {}) as Record<string, MCPServerConfig>;
+        console.log("Loaded MCP configurations:", configs);
+        setMcpServerConfigs(configs);
+
+        // Fetch tools for enabled MCP servers
+        Object.entries(configs)
+          .filter(([, config]) => config.enabled)
+          .forEach(([id]) => {
+            fetchMcpServerTools(id);
           });
-          setMcpServers(serversWithStatus);
-          
-          // Fetch tools for each server
-          const allServerTools: Tool[] = [];
-          for (const server of serversWithStatus) {
-            if (server.running) {
-              try {
-                console.log(`Fetching tools for server ${server.id} (${server.name})...`);
-                const toolsResponse = await fetch(`http://localhost:38000/api/mcp/server/${server.id}/tools`);
-                if (toolsResponse.ok) {
-                  const toolsData = await toolsResponse.json();
-                  console.log(`Full tools response for server ${server.id}:`, toolsData);
-                  if (toolsData.status === "success" && Array.isArray(toolsData.tools)) {
-                    console.log(`Loaded ${toolsData.tools.length} tools for server ${server.id}:`, toolsData.tools);
-                    const serverTools = toolsData.tools.map((tool: ToolResponse) => ({
-                      id: tool.id || tool.name,
-                      name: tool.name,
-                      description: tool.description || "",
-                      enabled: tool.enabled !== undefined ? tool.enabled : true,
-                      serverId: server.id
-                    }));
-                    allServerTools.push(...serverTools);
-                  } else {
-                    console.warn(`Invalid tools response format for server ${server.id}:`, toolsData);
-                  }
-                } else {
-                  console.error(`Failed to fetch tools for server ${server.id}: ${toolsResponse.status}`);
-                }
-              } catch (error) {
-                console.error(`Error fetching tools for server ${server.id}:`, error);
-              }
-            }
-          }
-          console.log("All server tools:", allServerTools);
-          setMcpServerTools(allServerTools);
-        }
       } else {
-        console.error("Failed to fetch MCP servers:", response.status);
+        console.error("Failed to fetch MCP configurations:", response.status);
       }
     } catch (error) {
-      console.error("Error fetching MCP servers:", error);
+      console.error("Error fetching MCP configurations:", error);
     } finally {
-      setLoadingMcpServers(false);
+      setLoadingMcpConfigs(false);
+    }
+  };
+
+  // Function to fetch tools for a specific MCP server
+  const fetchMcpServerTools = async (id: string) => {
+    setLoadingMcpTools(prev => ({ ...prev, [id]: true }));
+    try {
+      console.log(`Fetching tools for MCP server: ${id}`);
+      const response = await fetch(`http://localhost:38000/api/mcp/servers/${id}/tools`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === "success" && Array.isArray(data.tools)) {
+          console.log(`Loaded ${data.tools.length} tools for server ${id}:`, data.tools);
+          setMcpServerTools(prev => ({ ...prev, [id]: data.tools }));
+          
+          // Initialize enabled status for tools (assume all enabled by default)
+          const enabledStatus: Record<string, boolean> = {};
+          data.tools.forEach((tool: ToolDefinition) => {
+            enabledStatus[tool.name] = true; // Default to enabled
+          });
+          setMcpToolsEnabled(prev => ({ ...prev, [id]: enabledStatus }));
+        } else {
+          console.warn(`Invalid tools response format for server ${id}:`, data);
+        }
+      } else {
+        console.error(`Failed to fetch tools for server ${id}: ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`Error fetching tools for server ${id}:`, error);
+    } finally {
+      setLoadingMcpTools(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -181,12 +155,12 @@ export default function AgentPopover() {
     }
     
     fetchAgents();
-    fetchMcpServers();
+    fetchMcpConfigs();
 
     const handlePopoverOpened = () => {
       console.log("Agent popover opened, refreshing agent list");
       fetchAgents();
-      fetchMcpServers();
+      fetchMcpConfigs();
       setShowAgentList(true); // Show agent list by default on open
       setShowMcpServerTools(false); // Hide MCP server tools on open
       setSelectedMcpServer(null); // Reset selected MCP server
@@ -197,7 +171,7 @@ export default function AgentPopover() {
       setShowMcpServersSection(true);
     };
     const handleAgentListUpdated = () => fetchAgents();
-    const handleMcpServersUpdated = () => fetchMcpServers();
+    const handleMcpServersUpdated = () => fetchMcpConfigs();
 
     window.addEventListener("agent-popover-opened", handlePopoverOpened);
     window.addEventListener("agent-list-updated", handleAgentListUpdated);
@@ -253,246 +227,71 @@ export default function AgentPopover() {
     console.log(`Toggled agent tool ${toolId} for agent ${selectedAgent?.name}`);
   };
 
-  const handleMcpServerSelect = async (server: MCPServer) => {
-    console.log(`Selected MCP server: ${server.name}`, server);
+  const handleMcpServerConfigSelect = (id: string, config: MCPServerConfig) => {
+    console.log(`Selected MCP server config: ${config.name || id}`, config);
+    
+    // Create a server object that matches our MCPServer interface
+    const server: MCPServer = {
+      id,
+      name: config.name || id,
+      description: config.description,
+      status: config.enabled ? "online" : "offline",
+      enabled: config.enabled,
+      running: config.enabled, // Assume enabled configs are running
+    };
+    
     setSelectedMcpServer(server);
-    
-    // Fetch tools specifically for this server when selected
-    if (server.running || server.status === "online") {
-      try {
-        console.log(`Fetching tools for selected server ${server.id}...`);
-        // Try different endpoint formats to ensure we get the tools
-        let toolsEndpoint = `http://localhost:38000/api/mcp/server/${server.id}/tools`;
-        console.log(`Trying endpoint: ${toolsEndpoint}`);
-        
-        let toolsResponse = await fetch(toolsEndpoint);
-        
-        // If the first attempt fails, try an alternative endpoint
-        if (!toolsResponse.ok) {
-          console.warn(`First tools endpoint failed with status: ${toolsResponse.status}`);
-          // Try alternative endpoint structure
-          toolsEndpoint = `http://localhost:38000/api/mcp/servers/${server.id}/tools`;
-          console.log(`Trying alternative endpoint: ${toolsEndpoint}`);
-          toolsResponse = await fetch(toolsEndpoint);
-        }
-        
-        if (toolsResponse.ok) {
-          const toolsData = await toolsResponse.json();
-          console.log(`Tools data for server ${server.id}:`, toolsData);
-          
-          // Handle different response formats
-          let toolsList = [];
-          if (toolsData.status === "success" && Array.isArray(toolsData.tools)) {
-            toolsList = toolsData.tools;
-          } else if (Array.isArray(toolsData)) {
-            toolsList = toolsData;
-          } else if (toolsData && typeof toolsData === 'object') {
-            // Handle case where tools might be directly in the response
-            toolsList = Object.keys(toolsData)
-              .filter(key => key !== 'status')
-              .map(key => {
-                const tool = toolsData[key];
-                return typeof tool === 'object' ? { ...tool, name: key } : { name: key };
-              });
-          }
-          
-          console.log(`Processed tools list for server ${server.id}:`, toolsList);
-          
-          if (toolsList.length > 0) {
-            const serverTools = toolsList.map((tool: ToolResponse) => ({
-              id: tool.id || tool.name || `tool-${Math.random().toString(36).substring(2, 9)}`,
-              name: tool.name || "Unnamed Tool",
-              description: tool.description || "",
-              enabled: tool.enabled !== undefined ? tool.enabled : true,
-              serverId: server.id
-            }));
-            
-            console.log(`Mapped server tools:`, serverTools);
-            
-            // Update only this server's tools in the state
-            setMcpServerTools(prev => {
-              // Remove existing tools for this server
-              const otherServerTools = prev.filter(t => t.serverId !== server.id);
-              // Add the newly fetched tools
-              const updatedTools = [...otherServerTools, ...serverTools];
-              console.log(`Updated mcpServerTools:`, updatedTools);
-              return updatedTools;
-            });
-          } else {
-            console.warn(`No tools found for server ${server.id}`);
-            // Add at least one dummy tool if no tools found (for testing)
-            const dummyTool = {
-              id: `dummy-${server.id}`,
-              name: "Default Tool",
-              description: "This is a placeholder tool",
-              enabled: true,
-              serverId: server.id
-            };
-            
-            setMcpServerTools(prev => {
-              // Remove existing tools for this server
-              const otherServerTools = prev.filter(t => t.serverId !== server.id);
-              // Add the dummy tool
-              return [...otherServerTools, dummyTool];
-            });
-          }
-        } else {
-          console.error(`Failed to fetch tools for server ${server.id}: ${toolsResponse.status} ${toolsResponse.statusText}`);
-          // Add a dummy tool to help diagnose the issue
-          setMcpServerTools(prev => [...prev, {
-            id: `dummy-${server.id}`,
-            name: "API Error",
-            description: `Error ${toolsResponse.status} fetching tools`,
-            enabled: false,
-            serverId: server.id
-          }]);
-        }
-      } catch (error) {
-        console.error(`Error fetching tools for server ${server.id} on select:`, error);
-        // Add an error indicator tool
-        setMcpServerTools(prev => [...prev, {
-          id: `error-${server.id}`,
-          name: "Error Loading Tools",
-          description: error instanceof Error ? error.message : "Unknown error",
-          enabled: false,
-          serverId: server.id
-        }]);
-      }
-    } else {
-      console.warn(`Server ${server.id} is not running, no tools will be fetched`);
-    }
-    
     setShowMcpServerTools(true);
     
-    // Trigger a UI update for the tools section
-    setTimeout(() => {
-      console.log("Current state of mcpServerTools:", mcpServerTools);
-      console.log(`Tools for server ${server.id}:`, mcpServerTools.filter(t => t.serverId === server.id));
-    }, 100);
+    // Fetch tools if enabled
+    if (config.enabled) {
+      fetchMcpServerTools(id);
+    }
   };
 
-  const handleMcpServerToolToggle = async (toolId: string) => {
-    // Find the tool and toggle its enabled state
-    const tool = mcpServerTools.find(t => t.id === toolId);
-    if (!tool || !tool.serverId) {
-      console.error(`Tool not found or missing serverId: ${toolId}`);
-      return;
-    }
+  const handleMcpToolToggle = async (serverId: string, toolName: string) => {
+    const currentEnabled = mcpToolsEnabled[serverId]?.[toolName] ?? true;
+    const newEnabled = !currentEnabled;
     
-    console.log(`Toggling tool ${tool.name} (${toolId}) for server ${tool.serverId}...`);
+    console.log(`Toggling tool ${toolName} for server ${serverId} to ${newEnabled ? 'enabled' : 'disabled'}`);
     
     try {
-      const newEnabledState = !tool.enabled;
-      
-      // Send the updated state to the server
-      // The API might use name rather than id for some tools
-      const endpoint = `http://localhost:38000/api/mcp/server/${tool.serverId}/tool/${tool.name || toolId}`;
-      console.log(`Sending request to: ${endpoint}`);
-      
-      const response = await fetch(endpoint, {
+      // Update the server
+      const response = await fetch(`http://localhost:38000/api/mcp/server/${serverId}/tool/${toolName}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ enabled: newEnabledState }),
-      });
-      
-      if (response.ok) {
-        // Update the local state if the server update was successful
-        setMcpServerTools(prev => 
-          prev.map(t => t.id === toolId ? { ...t, enabled: newEnabledState } : t)
-        );
-        console.log(`Successfully toggled tool ${toolId} to ${newEnabledState ? 'enabled' : 'disabled'}`);
-      } else {
-        console.error(`Failed to toggle tool ${toolId}: ${response.status} ${response.statusText}`);
-        // Try with the alternative ID (name) if the first attempt failed
-        if (tool.name && tool.name !== toolId) {
-          const altEndpoint = `http://localhost:38000/api/mcp/server/${tool.serverId}/tool/${tool.name}`;
-          console.log(`Trying alternative endpoint: ${altEndpoint}`);
-          
-          const altResponse = await fetch(altEndpoint, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ enabled: newEnabledState }),
-          });
-          
-          if (altResponse.ok) {
-            setMcpServerTools(prev => 
-              prev.map(t => t.id === toolId ? { ...t, enabled: newEnabledState } : t)
-            );
-            console.log(`Successfully toggled tool ${toolId} using name ${tool.name}`);
-          } else {
-            console.error(`Failed alternative toggle attempt: ${altResponse.status} ${altResponse.statusText}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Error toggling MCP server tool ${toolId}:`, error);
-    }
-  };
-
-  const handleEnableAllServerTools = async (serverId: string, enabled: boolean) => {
-    console.log(`${enabled ? 'Enabling' : 'Disabling'} all tools for MCP server ${serverId}...`);
-    
-    try {
-      // Send the request to update all tools for this server
-      const endpoint = `http://localhost:38000/api/mcp/server/${serverId}/tools`;
-      console.log(`Sending request to: ${endpoint}`);
-      
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ enabled: newEnabled }),
       });
       
       if (response.ok) {
         // Update local state if server update was successful
-        setMcpServerTools(prev => 
-          prev.map(tool => tool.serverId === serverId ? { ...tool, enabled } : tool)
-        );
-        console.log(`Successfully ${enabled ? 'enabled' : 'disabled'} all tools for MCP server ${serverId}`);
-        
-        // Refresh tool list to ensure the UI is in sync with the server
-        await handleMcpServerSelect(selectedMcpServer!);
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: {
+            ...prev[serverId],
+            [toolName]: newEnabled
+          }
+        }));
+        console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
       } else {
-        console.error(`Failed to ${enabled ? 'enable' : 'disable'} all tools: ${response.status} ${response.statusText}`);
+        console.error(`Failed to toggle tool ${toolName}: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error(`Error ${enabled ? 'enabling' : 'disabling'} all tools for server ${serverId}:`, error);
+      console.error(`Error toggling MCP tool ${toolName}:`, error);
     }
-  };
-
-  const getServerTools = (serverId: string) => {
-    console.log(`Getting tools for server ${serverId}...`);
-    console.log(`All available tools:`, mcpServerTools);
-    
-    const tools = mcpServerTools.filter(tool => tool.serverId === serverId);
-    console.log(`Found ${tools.length} tools for server ${serverId}:`, tools);
-    return tools;
-  };
-
-  const getEnabledServerTools = (serverId: string) => {
-    return mcpServerTools.filter(tool => tool.serverId === serverId && tool.enabled);
-  };
-
-  const areAllServerToolsEnabled = (serverId: string) => {
-    const serverTools = getServerTools(serverId);
-    return serverTools.length > 0 && serverTools.every(tool => tool.enabled);
   };
 
   const ToolItem: React.FC<{ tool: Tool; onToggle: (id: string) => void }> = ({ tool, onToggle }) => (
     <div className="flex items-center justify-between p-2.5 hover:bg-primary/5 transition-all duration-200 rounded-md">
-      <div className="font-medium text-sm">{tool.name}</div>
+      <div className="font-medium text-sm truncate max-w-[180px]" title={tool.name}>{tool.name}</div>
       <button
         onClick={(e) => {
           e.stopPropagation();
           onToggle(tool.id);
         }}
-        className={`relative h-5 w-10 rounded-full transition-all duration-300 focus:outline-none ${
+        className={`relative h-5 w-10 rounded-full transition-all duration-300 focus:outline-none flex-shrink-0 ${
           tool.enabled ? "bg-primary" : "bg-gray-300"
         }`}
       >
@@ -504,18 +303,6 @@ export default function AgentPopover() {
       </button>
     </div>
   );
-
-  const ServerStatusIndicator: React.FC<{ status: MCPServer['status'] }> = ({ status }) => {
-    const statusColors = {
-      online: "bg-emerald-500",
-      offline: "bg-gray-400",
-      connecting: "bg-amber-400"
-    };
-    
-    return (
-      <div className={`w-2 h-2 rounded-full ${statusColors[status]} animate-pulse`}></div>
-    );
-  };
 
   const SectionHeader: React.FC<{ 
     title: string; 
@@ -545,40 +332,24 @@ export default function AgentPopover() {
     </div>
   );
 
-  const CategoryTag: React.FC<{ category: string }> = ({ category }) => {
-    const categoryColors: Record<string, string> = {
-      "Writing": "bg-blue-100 text-blue-800",
-      "Development": "bg-purple-100 text-purple-800",
-      "Research": "bg-green-100 text-green-800",
-      "default": "bg-gray-100 text-gray-800",
-    };
-    
-    const colorClass = categoryColors[category] || categoryColors.default;
-    
-    return (
-      <span className={`text-xs px-1.5 py-0.5 rounded ${colorClass}`}>
-        {category}
-      </span>
-    );
-  };
-
   const ToolCountBadge: React.FC<{ serverId: string }> = ({ serverId }) => {
-    const enabledTools = getEnabledServerTools(serverId);
-    const totalTools = getServerTools(serverId);
-    const hasEnabledTools = enabledTools.length > 0;
+    const totalTools = mcpServerTools[serverId] || [];
+    const config = mcpServerConfigs[serverId];
     
+    if (!config?.enabled) {
+      return (
+        <span className="inline-flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-medium px-1.5 py-0.5 rounded">
+          Disabled
+        </span>
+      );
+    }
+    
+    // For enabled servers, show enabled/total tools format
+    const enabledCount = Object.values(mcpToolsEnabled[serverId] || {}).filter(Boolean).length;
     return (
-      <div className="flex items-center gap-1.5">
-        {hasEnabledTools ? (
-          <span className="inline-flex items-center justify-center bg-green-100 text-green-800 text-xs font-medium px-1.5 py-0.5 rounded">
-            {enabledTools.length}/{totalTools.length}
-          </span>
-        ) : (
-          <span className="inline-flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-medium px-1.5 py-0.5 rounded">
-            Disabled
-          </span>
-        )}
-      </div>
+      <span className="inline-flex items-center justify-center bg-blue-100 text-blue-800 text-xs font-medium px-1.5 py-0.5 rounded">
+        {enabledCount} / {totalTools.length} tools
+      </span>
     );
   };
 
@@ -673,7 +444,6 @@ export default function AgentPopover() {
                     <div className="flex justify-between items-center">
                       <div className="font-medium text-sm">{agent.name}</div>
                       <div className="flex items-center gap-2">
-                        <CategoryTag category={agent.category} />
                         {selectedAgent?.id === agent.id && (
                           <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
@@ -757,42 +527,42 @@ export default function AgentPopover() {
                 
                 {showMcpServersSection && (
                   <div className="border-t border-border transition-all duration-300">
-                    {loadingMcpServers ? (
+                    {loadingMcpConfigs ? (
                       <div className="flex justify-center p-4">
                         <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
                       </div>
                     ) : !showMcpServerTools ? (
                       <div>
-                        {mcpServers.length === 0 ? (
+                        {Object.keys(mcpServerConfigs).length === 0 ? (
                           <div className="p-3 text-sm text-muted-foreground text-center">
-                            No MCP servers available
+                            No MCP servers configured
                           </div>
                         ) : (
-                          mcpServers
-                            .sort((a, b) => {
-                              // Sort running servers to the top
-                              if (a.running && !b.running) return -1;
-                              if (!a.running && b.running) return 1;
-                              // If both have same running status, sort by name
-                              return a.name.localeCompare(b.name);
+                          Object.entries(mcpServerConfigs)
+                            .sort(([, a], [, b]) => {
+                              // Sort enabled servers to the top
+                              if (a.enabled && !b.enabled) return -1;
+                              if (!a.enabled && b.enabled) return 1;
+                              // If both have same enabled status, sort by name
+                              return (a.name || "").localeCompare(b.name || "");
                             })
-                            .map(server => (
+                            .map(([id, config]) => (
                             <div
-                              key={server.id}
-                              onClick={() => server.status !== "offline" && handleMcpServerSelect(server)}
+                              key={id}
+                              onClick={() => config.enabled && handleMcpServerConfigSelect(id, config)}
                               className={`flex items-center justify-between p-2.5 cursor-pointer transition-all duration-200 rounded-md ${
-                                server.status === "offline" 
+                                !config.enabled 
                                   ? "opacity-50 cursor-not-allowed" 
                                   : "hover:bg-muted/30"
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <ServerStatusIndicator status={server.status} />
-                                <span className="font-medium text-sm">{server.name}</span>
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className={`w-2 h-2 rounded-full ${config.enabled ? "bg-emerald-500" : "bg-gray-400"} animate-pulse flex-shrink-0`}></div>
+                                <span className="font-medium text-sm truncate" title={config.name || id}>{config.name || id}</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <ToolCountBadge serverId={server.id} />
-                                {server.status !== "offline" && (
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <ToolCountBadge serverId={id} />
+                                {config.enabled && (
                                   <svg 
                                     className="w-4 h-4 text-muted-foreground"
                                     fill="none" 
@@ -811,49 +581,64 @@ export default function AgentPopover() {
                     ) : selectedMcpServer && (
                       <div>
                         <div className="flex items-center justify-between p-2 border-b border-border">
-                          <div className="flex items-center gap-2">
-                            <ServerStatusIndicator status={selectedMcpServer.status} />
-                            <span className="font-medium text-sm">{selectedMcpServer.name}</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={`w-2 h-2 rounded-full ${selectedMcpServer.enabled ? "bg-emerald-500" : "bg-gray-400"} animate-pulse flex-shrink-0`}></div>
+                            <span className="font-medium text-sm truncate" title={selectedMcpServer.name}>{selectedMcpServer.name}</span>
                           </div>
-                          <button
-                            onClick={() => handleEnableAllServerTools(
-                              selectedMcpServer.id, 
-                              !areAllServerToolsEnabled(selectedMcpServer.id)
-                            )}
-                            className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
-                              areAllServerToolsEnabled(selectedMcpServer.id)
-                                ? "bg-muted hover:bg-muted/70 text-muted-foreground"
-                                : "bg-primary hover:bg-primary/90 text-white"
-                            }`}
-                            disabled={selectedMcpServer.status === "offline"}
-                          >
-                            {areAllServerToolsEnabled(selectedMcpServer.id) ? "Disable All" : "Enable All"}
-                          </button>
                         </div>
 
                         <div>
                           {(() => {
-                            // Add debugging info for tools display
-                            const serverTools = getServerTools(selectedMcpServer.id);
+                            if (!selectedMcpServer.enabled) {
+                              return (
+                                <div className="text-muted-foreground text-center p-3 text-sm">
+                                  <div className="mb-2">MCP server is disabled</div>
+                                  <div className="text-xs text-muted-foreground/70">
+                                    Enable this server in settings to access its tools
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            if (loadingMcpTools[selectedMcpServer.id]) {
+                              return (
+                                <div className="flex justify-center p-4">
+                                  <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                                </div>
+                              );
+                            }
+
+                            const serverTools = mcpServerTools[selectedMcpServer.id] || [];
                             console.log(`Rendering tools for ${selectedMcpServer.name} (${selectedMcpServer.id}):`, serverTools);
                             
                             if (serverTools.length > 0) {
-                              return serverTools.map(tool => (
-                                <ToolItem 
-                                  key={tool.id} 
-                                  tool={tool} 
-                                  onToggle={handleMcpServerToolToggle} 
-                                />
+                              return serverTools.map((tool, index) => (
+                                <div key={tool.name || index} className="flex items-center justify-between p-2.5 hover:bg-primary/5 transition-all duration-200 rounded-md">
+                                  <div className="font-medium text-sm truncate max-w-[180px]" title={tool.name}>{tool.name}</div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMcpToolToggle(selectedMcpServer.id, tool.name);
+                                    }}
+                                    className={`relative h-5 w-10 rounded-full transition-all duration-300 focus:outline-none flex-shrink-0 ${
+                                      mcpToolsEnabled[selectedMcpServer.id]?.[tool.name] ?? true ? "bg-primary" : "bg-gray-300"
+                                    }`}
+                                  >
+                                    <span 
+                                      className={`absolute left-0.5 top-0.5 h-4 w-4 transform rounded-full bg-white shadow-sm transition-all duration-300 ${
+                                        mcpToolsEnabled[selectedMcpServer.id]?.[tool.name] ?? true ? "translate-x-5" : "translate-x-0"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
                               ));
                             } else {
-                              // No tools found
                               return (
                                 <div className="text-muted-foreground text-center p-3 text-sm">
                                   <div className="mb-2">No tools available for this server</div>
                                   <div className="text-xs text-muted-foreground/70">
                                     Server ID: {selectedMcpServer.id}<br />
-                                    Status: {selectedMcpServer.status}<br />
-                                    Running: {selectedMcpServer.running ? "Yes" : "No"}
+                                    Enabled: {selectedMcpServer.enabled ? "Yes" : "No"}
                                   </div>
                                 </div>
                               );
