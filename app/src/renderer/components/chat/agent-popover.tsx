@@ -1,37 +1,5 @@
 import React, { useEffect, useState } from "react";
 
-// Define TypeScript interfaces for API responses
-interface ServerApiResponse {
-  status: string;
-  servers: ServerData[];
-}
-
-interface ToolsApiResponse {
-  status: string;
-  tools: ToolData[];
-}
-
-interface ServerData {
-  id: string;
-  name: string;
-  description?: string;
-  running?: boolean;
-  enabled?: boolean;
-  toolCount?: number;
-  serverUrl?: string | null;
-  kind?: string;
-  url?: string;
-  command?: string;
-}
-
-interface ToolData {
-  id?: string;
-  name: string;
-  description?: string;
-  enabled?: boolean;
-  parameters?: Record<string, unknown>;
-}
-
 interface Agent {
   id: string;
   name: string;
@@ -61,6 +29,28 @@ interface MCPServer {
   kind?: string;
   url?: string;
   command?: string;
+}
+
+// API response interfaces
+interface ServerResponse {
+  id: string;
+  name: string;
+  description?: string;
+  running?: boolean;
+  enabled?: boolean;
+  toolCount?: number;
+  serverUrl?: string | null;
+  kind?: string;
+  url?: string;
+  command?: string;
+}
+
+interface ToolResponse {
+  id?: string;
+  name: string;
+  description?: string;
+  enabled?: boolean;
+  [key: string]: unknown; // For any additional properties
 }
 
 // Keep mockBasicToolsData as mentioned by the user
@@ -113,12 +103,12 @@ export default function AgentPopover() {
       console.log("Fetching MCP servers...");
       const response = await fetch("http://localhost:38000/api/mcp/servers");
       if (response.ok) {
-        const data = await response.json() as ServerApiResponse;
+        const data = await response.json();
         console.log("Full server response data:", data);
         if (data.status === "success" && Array.isArray(data.servers)) {
           console.log(`Loaded ${data.servers.length} MCP servers:`, data.servers);
           // Map the servers and add status property based on running state
-          const serversWithStatus: MCPServer[] = data.servers.map((server: ServerData) => {
+          const serversWithStatus: MCPServer[] = data.servers.map((server: ServerResponse) => {
             console.log("Server data:", server);
             return {
               ...server,
@@ -139,39 +129,9 @@ export default function AgentPopover() {
                 if (toolsResponse.ok) {
                   const toolsData = await toolsResponse.json();
                   console.log(`Full tools response for server ${server.id}:`, toolsData);
-                  
-                  // Handle different response formats
-                  let toolsList: ToolData[] = [];
-                  
-                  // Check if it's the standard API response format with status and tools
-                  if (typeof toolsData === 'object' && 
-                      toolsData !== null && 
-                      'status' in toolsData && 
-                      'tools' in toolsData && 
-                      Array.isArray((toolsData as ToolsApiResponse).tools)) {
-                    toolsList = (toolsData as ToolsApiResponse).tools;
-                  } 
-                  // Check if it's a direct array of tools
-                  else if (Array.isArray(toolsData)) {
-                    toolsList = toolsData as ToolData[];
-                  }
-                  // Check if it's an object with tool entries
-                  else if (toolsData && typeof toolsData === 'object') {
-                    const objData = toolsData as Record<string, unknown>;
-                    toolsList = Object.keys(objData)
-                      .filter(key => key !== 'status')
-                      .map(key => {
-                        const toolValue = objData[key];
-                        if (typeof toolValue === 'object' && toolValue !== null) {
-                          return { ...toolValue as Record<string, unknown>, name: key } as ToolData;
-                        }
-                        return { name: key } as ToolData;
-                      });
-                  }
-                  
-                  if (toolsList.length > 0) {
-                    console.log(`Processed ${toolsList.length} tools for server ${server.id}:`, toolsList);
-                    const serverTools = toolsList.map((tool: ToolData) => ({
+                  if (toolsData.status === "success" && Array.isArray(toolsData.tools)) {
+                    console.log(`Loaded ${toolsData.tools.length} tools for server ${server.id}:`, toolsData.tools);
+                    const serverTools = toolsData.tools.map((tool: ToolResponse) => ({
                       id: tool.id || tool.name,
                       name: tool.name,
                       description: tool.description || "",
@@ -180,7 +140,7 @@ export default function AgentPopover() {
                     }));
                     allServerTools.push(...serverTools);
                   } else {
-                    console.warn(`No tools found for server ${server.id} in response:`, toolsData);
+                    console.warn(`Invalid tools response format for server ${server.id}:`, toolsData);
                   }
                 } else {
                   console.error(`Failed to fetch tools for server ${server.id}: ${toolsResponse.status}`);
@@ -321,38 +281,25 @@ export default function AgentPopover() {
           console.log(`Tools data for server ${server.id}:`, toolsData);
           
           // Handle different response formats
-          let toolsList: ToolData[] = [];
-          
-          // Check if it's the standard API response format with status and tools
-          if (typeof toolsData === 'object' && 
-              toolsData !== null && 
-              'status' in toolsData && 
-              'tools' in toolsData && 
-              Array.isArray((toolsData as ToolsApiResponse).tools)) {
-            toolsList = (toolsData as ToolsApiResponse).tools;
-          } 
-          // Check if it's a direct array of tools
-          else if (Array.isArray(toolsData)) {
-            toolsList = toolsData as ToolData[];
-          }
-          // Check if it's an object with tool entries
-          else if (toolsData && typeof toolsData === 'object') {
-            const objData = toolsData as Record<string, unknown>;
-            toolsList = Object.keys(objData)
+          let toolsList = [];
+          if (toolsData.status === "success" && Array.isArray(toolsData.tools)) {
+            toolsList = toolsData.tools;
+          } else if (Array.isArray(toolsData)) {
+            toolsList = toolsData;
+          } else if (toolsData && typeof toolsData === 'object') {
+            // Handle case where tools might be directly in the response
+            toolsList = Object.keys(toolsData)
               .filter(key => key !== 'status')
               .map(key => {
-                const toolValue = objData[key];
-                if (typeof toolValue === 'object' && toolValue !== null) {
-                  return { ...toolValue as Record<string, unknown>, name: key } as ToolData;
-                }
-                return { name: key } as ToolData;
+                const tool = toolsData[key];
+                return typeof tool === 'object' ? { ...tool, name: key } : { name: key };
               });
           }
           
           console.log(`Processed tools list for server ${server.id}:`, toolsList);
           
           if (toolsList.length > 0) {
-            const serverTools = toolsList.map((tool: ToolData) => ({
+            const serverTools = toolsList.map((tool: ToolResponse) => ({
               id: tool.id || tool.name || `tool-${Math.random().toString(36).substring(2, 9)}`,
               name: tool.name || "Unnamed Tool",
               description: tool.description || "",
