@@ -15,6 +15,7 @@ import {
   deleteCustomAgent,
   getAgentById,
   getAgentList,
+  initializeAgents,
   processAgentChat,
   processChatRequest,
   saveCustomAgent,
@@ -27,8 +28,9 @@ import {
   isPredefinedServerInstalled,
   startMCPServers,
 } from "./mcp";
-import { getToolsByNames, serverTools } from "./mcp/dev-mcp/tools";
+import { serverTools } from "./mcp/dev-mcp/tools";
 import { MCPServerConfig } from "./mcp/types";
+import { createCustomAgent } from "./service/agent";
 import { deleteChat, getChatById, getChats } from "./service/chat";
 
 dotenv.config();
@@ -71,11 +73,9 @@ app.use("/api/chat", authenticateRequest);
 app.post("/api/agents/create", (async (req: Request, res: Response) => {
   try {
     const {
-      id,
       name,
       description,
       systemPrompt,
-      toolNames,
       toolReferences,
       modelId,
       iconUrl,
@@ -84,75 +84,72 @@ app.post("/api/agents/create", (async (req: Request, res: Response) => {
       type,
     } = req.body;
 
-    if (
-      !id ||
-      !name ||
-      !description ||
-      (!toolNames && !toolReferences) ||
-      (toolNames && !Array.isArray(toolNames)) ||
-      (toolReferences && !Array.isArray(toolReferences))
-    ) {
-      return res.status(400).json({ error: "Missing required agent fields" });
-    }
-
-    // Use toolReferences if available, otherwise convert toolNames to toolReferences
-    let finalToolReferences = toolReferences;
-    if (!finalToolReferences && toolNames) {
-      finalToolReferences = toolNames.map((name: string) => {
-        const parts = name.split(":");
-        if (parts.length > 1) {
-          return {
-            mcpName: parts[0],
-            toolName: parts[1],
-            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
-          };
-        }
-        return {
-          mcpName: "Dev-MCP",
-          toolName: name,
-          isBuiltIn: true,
-        };
+    // Validate required fields
+    if (!name || !description || !systemPrompt) {
+      return res.status(400).json({
+        status: "error",
+        message:
+          "Missing required fields: name, description, and systemPrompt are required",
       });
     }
 
-    // Log the tool references for debugging
+    // Validate tool configuration
+    if (!toolReferences) {
+      return res.status(400).json({
+        status: "error",
+        message: "toolReferences must be provided",
+      });
+    }
+
+    if (!Array.isArray(toolReferences)) {
+      return res.status(400).json({
+        status: "error",
+        message: "toolReferences must be an array",
+      });
+    }
+
     console.log(
-      `Creating agent '${name}' with ${finalToolReferences.length} tool references`,
+      `Creating agent '${name}' with ${toolReferences.length} tool references`,
     );
 
-    // Map tool references to ToolSet
-    const tools = getToolsByNames(finalToolReferences);
-
     // Format tool names for display in system prompt
-    const formattedToolNames = finalToolReferences.map(
+    const formattedToolNames = toolReferences.map(
       (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
     );
 
     // Construct AgentDefinition
-    const agent: AgentDefinition = {
-      id,
+    const agentData: Omit<AgentDefinition, "id"> = {
       name,
       description,
-      tools, // Include tools for runtime usage
-      toolReferences: finalToolReferences, // This is the primary field now
+      toolReferences: toolReferences, // This is the primary field now
       modelId,
       iconUrl,
       avatar,
-      category,
+      category: category || "Custom",
       type,
       systemPrompt:
-        typeof systemPrompt === "string"
+        formattedToolNames.length > 0
           ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-          : "",
+          : systemPrompt,
     };
 
-    // Save agent (you can define your own storage logic in `saveCustomAgent`)
+    // Create and save agent using the service layer
+    const agent = await createCustomAgent(agentData);
     await saveCustomAgent(agent);
 
-    res.status(200).json({ success: true, agent });
+    res.status(200).json({
+      status: "success",
+      message: `Agent '${agent.name}' created successfully`,
+      agent,
+    });
   } catch (error) {
     console.error("Error creating agent:", error);
-    res.status(500).json({ error: "Failed to create agent" });
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to create agent";
+    res.status(500).json({
+      status: "error",
+      message: errorMessage,
+    });
   }
 }) as RequestHandler);
 
@@ -177,12 +174,10 @@ router.post("/api/chat", async (req: Request, res: Response) => {
       return;
     }
 
-    // Set necessary headers for streaming
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    // If agent is specified, use agent-powered chat
     if (agentId) {
       console.log(`Using agent with ID: ${agentId}`);
       // Use processAgentChat from ./agents/index.js
@@ -226,7 +221,6 @@ router.post("/api/chat", async (req: Request, res: Response) => {
         res.end();
       }
     } else {
-      // Use standard chat processing
       const response = await processChatRequest(messages, apiKey, {
         modelId: modelId || config?.openai?.modelId,
         endpoint: config?.openai?.endpoint,
@@ -467,9 +461,9 @@ router.put(
 );
 
 // Add new endpoint for agent list
-router.get("/api/agents", (req: Request, res: Response) => {
+router.get("/api/agents", async (req: Request, res: Response) => {
   try {
-    const agents = getAgentList();
+    const agents = await getAgentList();
 
     console.log(
       "Agents from storage:",
@@ -480,20 +474,7 @@ router.get("/api/agents", (req: Request, res: Response) => {
       })),
     );
 
-    // Make sure agents have consistent toolReferences format
-    const enrichedAgents = agents.map((agent) => {
-      // toolNames are kept for backward compatibility only
-      const toolNames = agent.toolReferences.map(
-        (t) => `${t.mcpName}:${t.toolName}`,
-      );
-
-      return {
-        ...agent,
-        toolNames: toolNames,
-      };
-    });
-
-    res.json({ status: "success", agents: enrichedAgents });
+    res.json({ status: "success", agents });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error fetching agents:", errorMessage);
@@ -579,10 +560,10 @@ router.post(
 );
 
 // Add endpoint for getting specific agent details
-router.get("/api/agents/:agentId", (req: Request, res: Response) => {
+router.get("/api/agents/:agentId", async (req: Request, res: Response) => {
   try {
     const { agentId } = req.params;
-    const agent = getAgentById(agentId);
+    const agent = await getAgentById(agentId);
 
     if (!agent) {
       res.status(404).json({
@@ -636,7 +617,6 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
       name,
       description,
       systemPrompt,
-      toolNames,
       toolReferences,
       modelId,
       iconUrl,
@@ -655,7 +635,7 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
     }
 
     // Check that the agent exists
-    const existingAgent = getAgentById(agentId);
+    const existingAgent = await getAgentById(agentId);
     if (!existingAgent) {
       res.status(404).json({
         status: "error",
@@ -664,36 +644,13 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
       return;
     }
 
-    // Determine which tools to use - prioritize those from the request, fall back to existing tools
-    let finalToolReferences = toolReferences;
-    if (!finalToolReferences && toolNames) {
-      // Convert toolNames to toolReferences
-      finalToolReferences = toolNames.map((name: string) => {
-        const parts = name.split(":");
-        if (parts.length > 1) {
-          return {
-            mcpName: parts[0],
-            toolName: parts[1],
-            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
-          };
-        }
-        return {
-          mcpName: "Dev-MCP",
-          toolName: name,
-          isBuiltIn: true,
-        };
-      });
-    } else if (!finalToolReferences && !toolNames) {
-      // If no tools provided in the request, use the existing ones
-      finalToolReferences = existingAgent.toolReferences || [];
-    }
+    // Use provided toolReferences or fall back to existing ones
+    const finalToolReferences =
+      toolReferences || existingAgent.toolReferences || [];
 
     console.log(
       `Updating agent '${agentId}' with ${finalToolReferences.length} tool references`,
     );
-
-    // Map tool references to ToolSet
-    const tools = getToolsByNames(finalToolReferences);
 
     // Format tool names for display in system prompt
     const formattedToolNames = finalToolReferences.map(
@@ -706,7 +663,6 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
       id: agentId, // Keep the original ID
       name: name || existingAgent.name,
       description: description || existingAgent.description,
-      tools, // Use the re-mapped tools
       toolReferences: finalToolReferences, // Update tool references
       modelId: modelId || existingAgent.modelId,
       iconUrl: iconUrl || existingAgent.iconUrl,
@@ -780,7 +736,6 @@ app.get("/api/mcp/installed-servers", (req, res) => {
       const status = statusMap.get(id) || { id, running: false };
       const isPredefined = isPredefinedServerInstalled(id);
 
-      // 获取额外的预定义服务器信息
       let predefinedInfo = null;
       if (isPredefined) {
         const allPredefined = getAvailablePredefinedServers();
@@ -831,10 +786,7 @@ app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
     const success = manager.installPredefinedServer(id);
 
     if (success) {
-      // Get the server config to check if it's enabled
       const serverConfig = manager.getServerConfig(id);
-
-      // If the server is configured to be enabled, start it automatically
       if (serverConfig && serverConfig.enabled) {
         console.log(`Auto-starting newly installed MCP server: ${id}`);
         manager
@@ -967,17 +919,16 @@ app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       });
     }
 
-    // 对于运行中的服务器，返回其工具并标记是否启用
     const availableTools = serverStatus.tools || [];
 
     return res.json({
       status: "success",
       tools: availableTools.map((tool) => ({
         ...tool,
-        enabled: !disabledTools.includes(tool.name), // 使用disabledTools判断是否启用
+        enabled: !disabledTools.includes(tool.name),
       })),
       serverId: id,
-      disabledTools, // 返回禁用的工具列表
+      disabledTools,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1042,6 +993,15 @@ router.post(
 const PORT = 38000;
 
 export function startChatServer() {
+  // Initialize agent system first
+  initializeAgents()
+    .then(() => {
+      console.log("Agent system initialized successfully");
+    })
+    .catch((error) => {
+      console.error("Failed to initialize agent system:", error);
+    });
+
   initializeMCP();
 
   console.log("Starting all enabled MCP servers...");
@@ -1113,7 +1073,6 @@ router.get("/api/chats", async (req, res) => {
   try {
     const chats = await getChats();
 
-    // Return a simplified list for the overview
     const chatList = chats.map((chat) => ({
       id: chat.id,
       title: chat.title,

@@ -1,6 +1,7 @@
 /**
  * Dev MCP Server tools index file
  */
+import { ToolReference } from "@/server/agents/types";
 import { ToolSet, tool } from "ai";
 import { z } from "zod";
 import {
@@ -9,10 +10,9 @@ import {
   renameFileTool,
   writeFileTool,
 } from "./fileTools";
-import { webSearch } from "./webSearchTool";
-import { initProjectTool } from "./projectTools";
 import { listProjectStructureTool } from "./listProjectStructureTool";
-import { ToolReference } from "@/server/agents/types";
+import { initProjectTool } from "./projectTools";
+import { webSearch } from "./webSearchTool";
 
 // Export all available tools as an object for registration
 export const serverTools: ToolSet = {
@@ -126,7 +126,6 @@ export const getToolsByNames = (
           serverTools[toolName]
         ) {
           subset[toolName] = serverTools[toolName];
-          console.log(`✅ Tool found in serverTools: ${toolName}`);
         } else {
           console.log(`⚠️ Tool not found for ${mcpId}:${toolName}`);
           notFound.push(fullName);
@@ -158,11 +157,11 @@ export const getToolsByNames = (
 
 // Export individual tools for modular use
 export {
-  writeFileTool,
-  renameFileTool,
-  deleteFileTool,
   addDependencyTool,
-  webSearch,
+  deleteFileTool,
   initProjectTool,
   listProjectStructureTool,
+  renameFileTool,
+  webSearch,
+  writeFileTool,
 };

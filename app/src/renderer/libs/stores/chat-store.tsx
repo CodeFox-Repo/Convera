@@ -5,7 +5,9 @@ import {
 import { getSettings } from "@/renderer/libs/utils/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useAgentStore } from "./agent-store";
+import { useModelStore } from "./model-store";
 
 interface ChatContextType {
   messages: UIMessage[];
@@ -48,7 +50,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const settings = getSettings();
-
+  
+  const { selectedAgent } = useAgentStore();
+  const { selectedModelId } = useModelStore();
+  const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
+  const currentModelIdRef = useRef<string>(selectedModelId);
+  
+  useEffect(() => {
+    currentAgentIdRef.current = selectedAgent?.id;
+  }, [selectedAgent?.id]);
+  
+  useEffect(() => {
+    currentModelIdRef.current = selectedModelId;
+  }, [selectedModelId]);
+  
   // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
     api: "http://localhost:38000/api/chat",
@@ -56,11 +71,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${settings.openai.apiKey}`,
     },
-    body: {
-      config: settings,
-      agentId: localStorage.getItem("selectedAgentId") || undefined,
-      modelId:
-        localStorage.getItem("selectedModelId") || settings.openai.modelId,
+    experimental_prepareRequestBody: ({ messages, requestData, requestBody }) => {
+      const baseBody = {
+        ...requestBody,
+        config: settings,
+        agentId: currentAgentIdRef.current,
+        modelId: currentModelIdRef.current || settings.openai.modelId,
+        messages,
+      };
+      
+      if (requestData && typeof requestData === 'object') {
+        return { ...baseBody, ...requestData };
+      }
+      
+      return baseBody;
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
