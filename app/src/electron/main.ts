@@ -1,6 +1,6 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
-import { initializeChatServer } from "@/electron/chatServer";
+import { initializeChatServer } from "@/electron/chat-server";
 import {
   isHiddenOffscreen,
   toggleMainWindowVisibility,
