@@ -2,13 +2,13 @@
  * Project management tools for agents
  */
 import { tool } from "ai";
-import { z } from "zod";
 import fs from "fs-extra";
-import path from "path";
 import os from "os";
+import path from "path";
+import { z } from "zod";
 
 // Import from listProjectStructureTool (these functions will be used directly)
-import { buildFileTree, formatFileTree } from "./listProjectStructureTool";
+import { buildFileTree, formatFileTree } from "./list-project-structure-tool";
 
 /**
  * Tool for initializing a new project from a template

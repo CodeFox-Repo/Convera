@@ -9,10 +9,10 @@ import {
   deleteFileTool,
   renameFileTool,
   writeFileTool,
-} from "./fileTools";
-import { listProjectStructureTool } from "./listProjectStructureTool";
-import { initProjectTool } from "./projectTools";
-import { webSearch } from "./webSearchTool";
+} from "./file-tools";
+import { listProjectStructureTool } from "./list-project-structure-tool";
+import { initProjectTool } from "./project-tools";
+import { webSearch } from "./web-search-tool";
 
 // Export all available tools as an object for registration
 export const serverTools: ToolSet = {
