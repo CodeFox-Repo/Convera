@@ -768,7 +768,15 @@ export default function AgentPopover() {
                             No MCP servers available
                           </div>
                         ) : (
-                          mcpServers.map(server => (
+                          mcpServers
+                            .sort((a, b) => {
+                              // Sort running servers to the top
+                              if (a.running && !b.running) return -1;
+                              if (!a.running && b.running) return 1;
+                              // If both have same running status, sort by name
+                              return a.name.localeCompare(b.name);
+                            })
+                            .map(server => (
                             <div
                               key={server.id}
                               onClick={() => server.status !== "offline" && handleMcpServerSelect(server)}
