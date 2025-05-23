@@ -90,7 +90,7 @@ export function ContextButtons({
           
           {copiedContent && (
             <div
-              className="group relative h-7 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+              className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
                 bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />
