@@ -118,10 +118,14 @@ export default function AgentPopover() {
           console.log(`Loaded ${data.tools.length} tools for server ${id}:`, data.tools);
           setMcpServerTools(prev => ({ ...prev, [id]: data.tools }));
           
-          // Initialize enabled status for tools (assume all enabled by default)
+          // Initialize enabled status based on selected agent's tool references
           const enabledStatus: Record<string, boolean> = {};
           data.tools.forEach((tool: ToolDefinition) => {
-            enabledStatus[tool.name] = true; // Default to enabled
+            // Check if this tool is in the selected agent's tool references
+            const isEnabled = selectedAgent?.toolReferences?.some(ref => 
+              ref.mcpName === id && ref.toolName === tool.name
+            ) ?? false;
+            enabledStatus[tool.name] = isEnabled;
           });
           setMcpToolsEnabled(prev => ({ ...prev, [id]: enabledStatus }));
         } else {
@@ -191,16 +195,34 @@ export default function AgentPopover() {
     };
   }, []);
 
+  // Recalculate MCP tools enabled state when selected agent changes
+  useEffect(() => {
+    if (selectedAgent && Object.keys(mcpServerTools).length > 0) {
+      console.log("Recalculating MCP tools enabled state for agent:", selectedAgent.name);
+      const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
+      
+      Object.entries(mcpServerTools).forEach(([serverId, tools]) => {
+        const enabledStatus: Record<string, boolean> = {};
+        tools.forEach((tool: ToolDefinition) => {
+          const isEnabled = selectedAgent.toolReferences?.some(ref => 
+            ref.mcpName === serverId && ref.toolName === tool.name
+          ) ?? false;
+          enabledStatus[tool.name] = isEnabled;
+        });
+        newMcpToolsEnabled[serverId] = enabledStatus;
+      });
+      
+      setMcpToolsEnabled(newMcpToolsEnabled);
+    }
+  }, [selectedAgent, mcpServerTools]);
+
   // Handle agent selection
   const handleAgentSelect = (agent: Agent | null) => {
     console.log(`Agent selected: ${agent?.name || "Default Assistant"}`);
     setSelectedAgent(agent);
-    // setShowAgentList(false); // No longer needed here as popover will close
 
-    
-      setAgentTools([]); 
-    
-
+    // setAgentTools([]); 
+  
     if (window.electronAPI) {
       try {
         if (agent) {
@@ -250,23 +272,68 @@ export default function AgentPopover() {
   };
 
   const handleMcpToolToggle = async (serverId: string, toolName: string) => {
-    const currentEnabled = mcpToolsEnabled[serverId]?.[toolName] ?? true;
+    if (!selectedAgent) {
+      console.error("No agent selected for tool toggle");
+      return;
+    }
+
+    const currentEnabled = mcpToolsEnabled[serverId]?.[toolName] ?? false;
     const newEnabled = !currentEnabled;
     
     console.log(`Toggling tool ${toolName} for server ${serverId} to ${newEnabled ? 'enabled' : 'disabled'}`);
     
     try {
-      // Update the server
-      const response = await fetch(`http://localhost:38000/api/mcp/server/${serverId}/tool/${toolName}`, {
+      // Update agent's tool references
+      const currentToolReferences = selectedAgent.toolReferences || [];
+      const currentToolNames = selectedAgent.toolNames || [];
+      
+      let updatedToolReferences: ToolReference[];
+      let updatedToolNames: string[];
+      
+      if (newEnabled) {
+        // Add the tool
+        const newToolRef: ToolReference = {
+          mcpName: serverId,
+          toolName: toolName,
+          isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
+        };
+        updatedToolReferences = [...currentToolReferences, newToolRef];
+        updatedToolNames = [...currentToolNames, `${serverId}:${toolName}`];
+      } else {
+        // Remove the tool
+        updatedToolReferences = currentToolReferences.filter(ref => 
+          !(ref.mcpName === serverId && ref.toolName === toolName)
+        );
+        updatedToolNames = currentToolNames.filter(name => 
+          name !== `${serverId}:${toolName}`
+        );
+      }
+
+      const agentData = {
+        id: selectedAgent.id,
+        name: selectedAgent.name,
+        description: selectedAgent.description,
+        toolNames: updatedToolNames,
+        toolReferences: updatedToolReferences,
+      };
+
+      const response = await fetch(`http://localhost:38000/api/agents/${selectedAgent.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ enabled: newEnabled }),
+        body: JSON.stringify(agentData),
       });
       
       if (response.ok) {
         // Update local state if server update was successful
+        const updatedAgent = { ...selectedAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
+        setSelectedAgent(updatedAgent);
+        
+        // Update localStorage
+        localStorage.setItem("selectedAgent", JSON.stringify(updatedAgent));
+        
+        // Update MCP tools enabled state
         setMcpToolsEnabled(prev => ({
           ...prev,
           [serverId]: {
@@ -274,9 +341,15 @@ export default function AgentPopover() {
             [toolName]: newEnabled
           }
         }));
+        
+        // Dispatch events to notify other components
+        const event = new CustomEvent("agent-selected", { detail: { agent: updatedAgent } });
+        window.dispatchEvent(event);
+        window.dispatchEvent(new CustomEvent("agent-list-updated"));
+        
         console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
       } else {
-        console.error(`Failed to toggle tool ${toolName}: ${response.status} ${response.statusText}`);
+        console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error(`Error toggling MCP tool ${toolName}:`, error);
