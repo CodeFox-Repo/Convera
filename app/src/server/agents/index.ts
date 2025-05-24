@@ -22,12 +22,24 @@ const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
 // Built-in predefined agents
 const builtInAgents: AgentDefinition[] = [
   {
-    id: "coder",
+    id: "DefaultAssistant",
+    name: "Default Assistant",
+    description: "Default Assistant for FoxyChat",
+    category: "General",
+    iconUrl: "/assets/images/agents/coder.png",
+    avatar: "🦊‍💻",
+    predefined: true,
+    systemPrompt: getDefaultSystemPrompt(),
+    toolReferences: [],
+  },
+  {
+    id: "codefox",
     name: "Code Fox",
     description: "A specialized coding assistant for programming help",
     category: "Development",
     iconUrl: "/assets/images/agents/coder.png",
     avatar: "🦊‍💻",
+    predefined: true,
     systemPrompt: `<role> You are Codefox, an AI editor that creates and modifies web applications. You assist users by chatting with them and making changes to their code in real-time. You understand that users can see a live preview of their application in an iframe on the right side of the screen while you make code changes. Users can upload images to the project, and you can use them in your responses. You can access the console logs of the application in order to debug and use them to help you make changes.
 Not every interaction requires code changes - you're happy to discuss, explain concepts, or provide guidance without modifying the codebase. When code changes are needed, you make efficient and effective updates to React codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations whether you're making changes or just chatting. </role>
 
@@ -148,13 +160,13 @@ DON'T DO MORE THAN WHAT THE USER ASKS FOR.`,
 // Combines built-in and custom agents
 export const predefinedAgents: AgentDefinition[] = [...builtInAgents];
 
-// Load custom agents on module initialization
-loadCustomAgents();
+// Load agents on module initialization
+loadAgents();
 
 /**
- * Load custom agents from the config file
+ * Load agents from the config file
  */
-function loadCustomAgents(): void {
+function loadAgents(): void {
   try {
     // Ensure the .FoxyChat directory exists
     const configDir = path.dirname(AGENTS_CONFIG_PATH);
@@ -165,51 +177,51 @@ function loadCustomAgents(): void {
     // Check if the config file exists
     if (fs.existsSync(AGENTS_CONFIG_PATH)) {
       const data = fs.readFileSync(AGENTS_CONFIG_PATH, "utf8");
-      const customAgents = JSON.parse(data) as AgentDefinition[];
-      console.log("customAgents", customAgents);
+      const agents = JSON.parse(data) as AgentDefinition[];
+      console.log("agents", agents);
 
-      // Only process if there are actually custom agents to load
-      if (customAgents && customAgents.length > 0) {
-        // Clear any existing custom agents (keeping built-ins)
-        predefinedAgents.length = builtInAgents.length;
-
-        // Add loaded custom agents
-        predefinedAgents.push(...customAgents);
+      // Only process if there are actually agents to load
+      if (agents && agents.length > 0) {
+        // Load all agents from file
+        predefinedAgents.push(...agents);
 
         console.log(
-          `Loaded ${customAgents.length} custom agents from ${AGENTS_CONFIG_PATH}`,
+          `Loaded ${agents.length} agents from ${AGENTS_CONFIG_PATH}`,
         );
       } else {
-        console.log(`No custom agents found in ${AGENTS_CONFIG_PATH}`);
+        console.log(`No agents found in ${AGENTS_CONFIG_PATH}`);
+        // Initialize with built-in agents
+        predefinedAgents.push(...builtInAgents);
+        saveAgents();
       }
     } else {
-      console.log(`No custom agents found at ${AGENTS_CONFIG_PATH}`);
-      // Create empty file for future use
-      fs.writeFileSync(AGENTS_CONFIG_PATH, JSON.stringify([], null, 2));
+      console.log(`No agents file found at ${AGENTS_CONFIG_PATH}`);
+      // Initialize with built-in agents and create file
+      predefinedAgents.push(...builtInAgents);
+      saveAgents();
     }
   } catch (error) {
-    console.error("Error loading custom agents:", error);
+    console.error("Error loading agents:", error);
+    // Fallback to built-in agents
+    predefinedAgents.push(...builtInAgents);
   }
 }
 
 /**
- * Save custom agents to the config file
+ * Save agents to the config file
  */
-function saveCustomAgents(): void {
+function saveAgents(): void {
   try {
-    // Filter out built-in agents
-    const builtInIds = builtInAgents.map((agent) => agent.id);
-    const customAgents = predefinedAgents.filter(
-      (agent) => !builtInIds.includes(agent.id),
-    );
-
     // Write to file
-    fs.writeFileSync(AGENTS_CONFIG_PATH, JSON.stringify(customAgents, null, 2));
+    fs.writeFileSync(
+      AGENTS_CONFIG_PATH,
+      JSON.stringify(predefinedAgents, null, 2),
+    );
     console.log(
-      `Saved ${customAgents.length} custom agents to ${AGENTS_CONFIG_PATH}`,
+      `Saved ${predefinedAgents.length} agents to ${AGENTS_CONFIG_PATH}`,
     );
   } catch (error) {
-    console.error("Error saving custom agents:", error);
+    console.error("Error saving agents:", error);
   }
 }
 
@@ -529,7 +541,7 @@ export async function saveCustomAgent(agent: AgentDefinition): Promise<void> {
   }
 
   // Persist to disk
-  saveCustomAgents();
+  saveAgents();
 }
 
 /**
@@ -539,30 +551,30 @@ export async function saveCustomAgent(agent: AgentDefinition): Promise<void> {
  * @returns True if the agent was found and deleted, false otherwise
  */
 export async function deleteCustomAgent(agentId: string): Promise<boolean> {
-  // Find the agent index
-  const agentIndex = predefinedAgents.findIndex(
-    (agent) => agent.id === agentId,
-  );
-
-  // Check if it's a built-in agent (which cannot be deleted)
-  const builtInIds = builtInAgents.map((agent) => agent.id);
-  if (builtInIds.includes(agentId)) {
-    console.log(`Cannot delete built-in agent: ${agentId}`);
-    return false;
-  }
+  // Find the agent
+  const agent = predefinedAgents.find((agent) => agent.id === agentId);
 
   // Check if agent exists
-  if (agentIndex === -1) {
+  if (!agent) {
     console.log(`Agent not found: ${agentId}`);
     return false;
   }
 
-  // Remove from array
+  // Check if it's a predefined agent (which cannot be deleted)
+  if (agent.predefined) {
+    console.log(`Cannot delete predefined agent: ${agentId}`);
+    return false;
+  }
+
+  // Find the agent index and remove
+  const agentIndex = predefinedAgents.findIndex(
+    (agent) => agent.id === agentId,
+  );
   predefinedAgents.splice(agentIndex, 1);
   console.log(`Agent deleted: ${agentId}`);
 
   // Update file storage
-  saveCustomAgents();
+  saveAgents();
 
   return true;
 }

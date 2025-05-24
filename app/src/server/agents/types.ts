@@ -20,6 +20,7 @@ export interface AgentDefinition {
   category?: string;
   avatar?: string;
   type?: string;
+  predefined?: boolean; // Flag to indicate if this is a built-in agent
 }
 
 export interface AgentListItem {
