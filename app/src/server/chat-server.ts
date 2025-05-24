@@ -758,6 +758,9 @@ router.delete("/api/chats/:chatId", async (req, res) => {
 const PORT = 38000;
 
 function startChatServer() {
+  // Mount the router to the app
+  app.use(router);
+
   initializeAgents()
     .then(() => console.log("Agent system initialized successfully"))
     .catch((error) =>
