@@ -20,6 +20,16 @@ import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
 // Built-in predefined agents
 const builtInAgents: AgentDefinition[] = [
   {
+    id: "DefaultAssistant",
+    name: "Default Assistant",
+    description: "Default Assistant for FoxyChat",
+    category: "General",
+    iconUrl: "/assets/images/agents/coder.png",
+    avatar: "🦊",
+    systemPrompt: getDefaultSystemPrompt(),
+    toolReferences: [],
+  },
+  {
     id: "coder",
     name: "Code Fox",
     description: "A specialized coding assistant for programming help",
