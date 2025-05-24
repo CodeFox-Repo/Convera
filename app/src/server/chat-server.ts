@@ -456,15 +456,7 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
         : existingAgent.systemPrompt,
   };
 
-  const deleteSuccess = await deleteCustomAgent(agentId);
-  if (!deleteSuccess) {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to update agent: could not remove old version",
-    });
-    return;
-  }
-
+  // No need to delete first - saveCustomAgent handles updates
   await saveCustomAgent(updatedAgent);
   res.json({ status: "success", agent: updatedAgent });
 });
