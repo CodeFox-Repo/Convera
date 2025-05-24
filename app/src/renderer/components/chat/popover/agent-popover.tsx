@@ -1,14 +1,8 @@
+import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
+
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import React, { useEffect, useState } from "react";
-
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  toolNames?: string[];
-  toolReferences?: ToolReference[];
-}
 
 interface Tool {
   id: string;
@@ -44,8 +38,7 @@ const mockBasicToolsData: Tool[] = [
  */
 // TODO: this component need to refactor
 export default function AgentPopover() {
-  const [agents] = useState<Agent[]>([]); 
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  // const [agents] = useState<Agent[]>([]); 
   const [basicTools, setBasicTools] = useState<Tool[]>(mockBasicToolsData);
   const [agentTools, setAgentTools] = useState<Tool[]>([]);
   const [mcpServerConfigs, setMcpServerConfigs] = useState<Record<string, MCPServerConfig>>({});
@@ -63,12 +56,12 @@ export default function AgentPopover() {
   const [showMcpServersSection, setShowMcpServersSection] = useState(true);
 
 
-  // const { 
-  //   selectedAgent, 
-  //   setSelectedAgent, 
-  //   availableAgents, 
-  //   setAvailableAgents 
-  // } = useAgentStore();
+  const { 
+    selectedAgent, 
+    setSelectedAgent, 
+    availableAgents, 
+    setAvailableAgents 
+  } = useAgentStore();
   
 
   // Function to fetch agents from the server
@@ -80,7 +73,7 @@ export default function AgentPopover() {
         const data = await response.json();
         if (data.status === "success" && Array.isArray(data.agents)) {
           console.log(`Loaded ${data.agents.length} agents`);
-          // setAvailableAgents(data.agents);
+          setAvailableAgents(data.agents);
         }
       }
     } catch (error) {
@@ -166,7 +159,7 @@ export default function AgentPopover() {
       } else {
         // Default to the "default-assistant" agent if no saved agent
         fetchAgents().then(() => {
-          const defaultAgent = agents.find(agent => agent.id === "default-assistant");
+          const defaultAgent = availableAgents.find(agent => agent.id === "default-assistant");
           if (defaultAgent) {
             setSelectedAgent(defaultAgent);
             localStorage.setItem("selectedAgent", JSON.stringify(defaultAgent));
@@ -351,10 +344,15 @@ export default function AgentPopover() {
       if (response.ok) {
         // Update local state if server update was successful
         const updatedAgent = { ...selectedAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
-        setSelectedAgent(updatedAgent);
         
-        // Update localStorage
-        localStorage.setItem("selectedAgent", JSON.stringify(updatedAgent));
+        // Update the agent store state directly without calling setSelectedAgent
+        // to avoid triggering the automatic popover close
+        useAgentStore.setState({ selectedAgent: updatedAgent });
+        
+        // Also update the agent in availableAgents list
+        setAvailableAgents(availableAgents.map((agent: Agent) => 
+          agent.id === selectedAgent.id ? updatedAgent : agent
+        ));
         
         // Update MCP tools enabled state
         setMcpToolsEnabled(prev => ({
@@ -365,9 +363,7 @@ export default function AgentPopover() {
           }
         }));
         
-        // Dispatch events to notify other components
-        const event = new CustomEvent("agent-selected", { detail: { agent: updatedAgent } });
-        window.dispatchEvent(event);
+        // Dispatch events to notify other components - removed agent-selected to prevent popover closing
         window.dispatchEvent(new CustomEvent("agent-list-updated"));
         
         console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
@@ -447,10 +443,15 @@ export default function AgentPopover() {
       if (response.ok) {
         // Update local state if server update was successful
         const updatedAgent = { ...selectedAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
-        setSelectedAgent(updatedAgent);
         
-        // Update localStorage
-        localStorage.setItem("selectedAgent", JSON.stringify(updatedAgent));
+        // Update the agent store state directly without calling setSelectedAgent
+        // to avoid triggering the automatic popover close
+        useAgentStore.setState({ selectedAgent: updatedAgent });
+        
+        // Also update the agent in availableAgents list
+        setAvailableAgents(availableAgents.map((agent: Agent) => 
+          agent.id === selectedAgent.id ? updatedAgent : agent
+        ));
         
         // Update MCP tools enabled state
         const newEnabledState: Record<string, boolean> = {};
@@ -463,9 +464,7 @@ export default function AgentPopover() {
           [serverId]: newEnabledState
         }));
         
-        // Dispatch events to notify other components
-        const event = new CustomEvent("agent-selected", { detail: { agent: updatedAgent } });
-        window.dispatchEvent(event);
+        // Dispatch events to notify other components - removed agent-selected to prevent popover closing
         window.dispatchEvent(new CustomEvent("agent-list-updated"));
         
         console.log(`Successfully ${shouldEnableAll ? 'enabled' : 'disabled'} all tools for server ${serverId}`);
@@ -607,7 +606,7 @@ export default function AgentPopover() {
                 className="max-h-60 overflow-y-auto bg-muted/5 border-t border-border transition-all duration-300"
               >
                 {/* List of Agents */}
-                {agents.map((agent) => (
+                {availableAgents.map((agent) => (
                   <div
                     key={agent.id}
                     className={`cursor-pointer p-3 transition-all duration-200 rounded-md ${
