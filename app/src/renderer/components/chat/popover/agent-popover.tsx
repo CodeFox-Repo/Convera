@@ -157,15 +157,6 @@ export default function AgentPopover() {
           "Restored selected agent from localStorage:",
           savedAgent.name,
         );
-      } else {
-        // Default to the "default-assistant" agent if no saved agent
-        fetchAgents().then(() => {
-          const defaultAgent = availableAgents.find(agent => agent.id === "default-assistant");
-          if (defaultAgent) {
-            setSelectedAgent(defaultAgent);
-            localStorage.setItem("selectedAgent", JSON.stringify(defaultAgent));
-          }
-        });
       }
     } catch (error) {
       console.error("Error loading saved agent:", error);
@@ -216,6 +207,18 @@ export default function AgentPopover() {
     };
   }, []);
 
+  // Set default agent when agents are loaded and no agent is selected
+  useEffect(() => {
+    if (availableAgents.length > 0 && !selectedAgent) {
+      const defaultAgent = availableAgents.find(agent => agent.id === "DefaultAssistant");
+      if (defaultAgent) {
+        setSelectedAgent(defaultAgent);
+        localStorage.setItem("selectedAgent", JSON.stringify(defaultAgent));
+        console.log("Set default agent: DefaultAssistant");
+      }
+    }
+  }, [availableAgents, selectedAgent]);
+
   // Recalculate MCP tools enabled state when selected agent changes
   useEffect(() => {
     if (selectedAgent && Object.keys(mcpServerTools).length > 0) {
@@ -241,8 +244,6 @@ export default function AgentPopover() {
   const handleAgentSelect = (agent: Agent) => {
     console.log(`Agent selected: ${agent.name}`);
     setSelectedAgent(agent);
-
-    // setAgentTools([]); 
   
     if (window.electronAPI) {
       try {
