@@ -42,8 +42,9 @@ const mockBasicToolsData: Tool[] = [
 /**
  * AgentPopover component to be displayed in a dedicated BrowserWindow
  */
+// TODO: this component need to refactor
 export default function AgentPopover() {
-  const [agents, setAgents] = useState<Agent[]>([]); 
+  const [agents] = useState<Agent[]>([]); 
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [basicTools, setBasicTools] = useState<Tool[]>(mockBasicToolsData);
   const [agentTools, setAgentTools] = useState<Tool[]>([]);
@@ -61,6 +62,15 @@ export default function AgentPopover() {
   const [showAgentTools, setShowAgentTools] = useState(true);
   const [showMcpServersSection, setShowMcpServersSection] = useState(true);
 
+
+  // const { 
+  //   selectedAgent, 
+  //   setSelectedAgent, 
+  //   availableAgents, 
+  //   setAvailableAgents 
+  // } = useAgentStore();
+  
+
   // Function to fetch agents from the server
   const fetchAgents = async () => {
     try {
@@ -70,7 +80,7 @@ export default function AgentPopover() {
         const data = await response.json();
         if (data.status === "success" && Array.isArray(data.agents)) {
           console.log(`Loaded ${data.agents.length} agents`);
-          setAgents(data.agents);
+          // setAvailableAgents(data.agents);
         }
       }
     } catch (error) {
@@ -183,12 +193,20 @@ export default function AgentPopover() {
       setShowAgentTools(true);
       setShowMcpServersSection(true);
     };
-    const handleAgentListUpdated = () => fetchAgents();
+
+    // Listen for custom events for agent list updates
+    const handleAgentListUpdated = () => {
+      console.log("Agent list updated, refreshing agent list");
+      fetchAgents();
+    };
+
     const handleMcpServersUpdated = () => fetchMcpConfigs();
+
 
     window.addEventListener("agent-popover-opened", handlePopoverOpened);
     window.addEventListener("agent-list-updated", handleAgentListUpdated);
     window.addEventListener("mcp-servers-updated", handleMcpServersUpdated);
+
     window.addEventListener("focus", handlePopoverOpened);
 
     let cleanup: (() => void) | undefined;

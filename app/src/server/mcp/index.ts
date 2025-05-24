@@ -3,20 +3,20 @@
  * MCP Module Entry Point
  * Provides a unified API interface
  */
-import { MCPManager } from "./mcp-manager";
-import { MCPClient } from "./mcp-client";
-import type { ToolDefinition, PredefinedMCPServer } from "./types";
 import { tool, Tool } from "ai";
 import { z } from "zod";
-import { initProjectTool } from "./dev-mcp/tools/projectTools";
-import { listProjectStructureTool } from "./dev-mcp/tools/listProjectStructureTool";
 import {
-  writeFileTool,
-  renameFileTool,
-  deleteFileTool,
   addDependencyTool,
-} from "./dev-mcp/tools/fileTools";
-import { webSearch } from "./dev-mcp/tools/webSearchTool";
+  deleteFileTool,
+  renameFileTool,
+  writeFileTool,
+} from "./dev-mcp/tools/file-tools";
+import { listProjectStructureTool } from "./dev-mcp/tools/list-project-structure-tool";
+import { initProjectTool } from "./dev-mcp/tools/project-tools";
+import { webSearch } from "./dev-mcp/tools/web-search-tool";
+import { MCPClient } from "./mcp-client";
+import { MCPManager } from "./mcp-manager";
+import type { PredefinedMCPServer, ToolDefinition } from "./types";
 
 // Initialize MCP manager instance
 let manager: MCPManager | null = null;
@@ -480,12 +480,12 @@ export function uninstallPredefinedMCPServer(id: string): boolean {
 }
 
 // Export MCPManager and MCPClient classes
-export { MCPManager, MCPClient };
+export { MCPClient, MCPManager };
 
 // Re-export types
 export type {
-  ToolDefinition,
   MCPServerConfig,
-  ServerStatus,
   PredefinedMCPServer,
+  ServerStatus,
+  ToolDefinition,
 } from "./types";

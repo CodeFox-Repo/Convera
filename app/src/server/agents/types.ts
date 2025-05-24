@@ -1,5 +1,3 @@
-import { ToolSet } from "ai";
-
 // New interface for standardized tool reference
 export interface ToolReference {
   mcpName: string;
@@ -13,8 +11,6 @@ export interface AgentDefinition {
   description: string;
   systemPrompt: string;
   toolReferences: ToolReference[]; // Primary field for tools
-  tools?: ToolSet; // @deprecated - Use only at runtime, not for storage
-  toolNames?: string[]; // @deprecated - For backward compatibility only
   modelId?: string;
   iconUrl?: string;
   category?: string;
@@ -30,7 +26,6 @@ export interface AgentListItem {
   category: string;
   iconUrl?: string;
   toolReferences: ToolReference[]; // Primary field for tools
-  toolNames?: string[]; // @deprecated - For backward compatibility only
 }
 
 export interface AgentChatOptions {

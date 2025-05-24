@@ -8,38 +8,24 @@
 import { AppSettings } from "@/shared/types/settings";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
-import fs from "fs";
-import os from "os";
-import path from "path";
 import { getMCPToolsForChat } from "../mcp";
-import { codefoxTools } from "../mcp/dev-mcp/tools";
+import { getToolsByNames } from "../mcp/dev-mcp/tools";
+import {
+  loadCustomAgentsFromFile,
+  saveCustomAgentsToFile,
+} from "../service/agent";
 import { saveChat } from "../service/chat";
 import { AgentChatOptions, AgentDefinition, AgentListItem } from "./types";
-
-// Define a path for agents configuration file
-const AGENTS_CONFIG_PATH = path.join(os.homedir(), ".foxychat", "agents.json");
 
 // Built-in predefined agents
 const builtInAgents: AgentDefinition[] = [
   {
-    id: "DefaultAssistant",
-    name: "Default Assistant",
-    description: "Default Assistant for FoxyChat",
-    category: "General",
-    iconUrl: "/assets/images/agents/coder.png",
-    avatar: "🦊‍💻",
-    predefined: true,
-    systemPrompt: getDefaultSystemPrompt(),
-    toolReferences: [],
-  },
-  {
-    id: "codefox",
+    id: "coder",
     name: "Code Fox",
     description: "A specialized coding assistant for programming help",
     category: "Development",
     iconUrl: "/assets/images/agents/coder.png",
     avatar: "🦊‍💻",
-    predefined: true,
     systemPrompt: `<role> You are Codefox, an AI editor that creates and modifies web applications. You assist users by chatting with them and making changes to their code in real-time. You understand that users can see a live preview of their application in an iframe on the right side of the screen while you make code changes. Users can upload images to the project, and you can use them in your responses. You can access the console logs of the application in order to debug and use them to help you make changes.
 Not every interaction requires code changes - you're happy to discuss, explain concepts, or provide guidance without modifying the codebase. When code changes are needed, you make efficient and effective updates to React codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations whether you're making changes or just chatting. </role>
 
@@ -142,7 +128,6 @@ In the latest version of @tanstack/react-query, the onError property has been re
 Do not hesitate to extensively use console logs to follow the flow of the code. This will be very helpful when debugging.
 DO NOT OVERENGINEER THE CODE. You take great pride in keeping things simple and elegant. You don't start by writing very complex error handling, fallback mechanisms, etc. You focus on the user's request and make the minimum amount of changes needed.
 DON'T DO MORE THAN WHAT THE USER ASKS FOR.`,
-    tools: codefoxTools,
     toolReferences: [
       { mcpName: "codefox-mcp", toolName: "initProject", isBuiltIn: true },
       { mcpName: "codefox-mcp", toolName: "writefileTool", isBuiltIn: true },
@@ -156,121 +141,33 @@ DON'T DO MORE THAN WHAT THE USER ASKS FOR.`,
   },
 ];
 
-// Available agents with different personalities and capabilities
-// Combines built-in and custom agents
-export const predefinedAgents: AgentDefinition[] = [...builtInAgents];
-
-// Load agents on module initialization
-loadAgents();
-
 /**
- * Load agents from the config file
+ * Get all agents (built-in + custom) by reading from file
  */
-function loadAgents(): void {
-  try {
-    // Ensure the .FoxyChat directory exists
-    const configDir = path.dirname(AGENTS_CONFIG_PATH);
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-
-    // Check if the config file exists
-    if (fs.existsSync(AGENTS_CONFIG_PATH)) {
-      const data = fs.readFileSync(AGENTS_CONFIG_PATH, "utf8");
-      const agents = JSON.parse(data) as AgentDefinition[];
-      console.log("agents", agents);
-
-      // Only process if there are actually agents to load
-      if (agents && agents.length > 0) {
-        // Load all agents from file
-        predefinedAgents.push(...agents);
-
-        console.log(
-          `Loaded ${agents.length} agents from ${AGENTS_CONFIG_PATH}`,
-        );
-      } else {
-        console.log(`No agents found in ${AGENTS_CONFIG_PATH}`);
-        // Initialize with built-in agents
-        predefinedAgents.push(...builtInAgents);
-        saveAgents();
-      }
-    } else {
-      console.log(`No agents file found at ${AGENTS_CONFIG_PATH}`);
-      // Initialize with built-in agents and create file
-      predefinedAgents.push(...builtInAgents);
-      saveAgents();
-    }
-  } catch (error) {
-    console.error("Error loading agents:", error);
-    // Fallback to built-in agents
-    predefinedAgents.push(...builtInAgents);
-  }
+async function getAllAgents(): Promise<AgentDefinition[]> {
+  const customAgents = await loadCustomAgentsFromFile();
+  return [...builtInAgents, ...customAgents];
 }
 
 /**
- * Save agents to the config file
+ * Initialize the agent system by ensuring the agents file exists
  */
-function saveAgents(): void {
-  try {
-    // Write to file
-    fs.writeFileSync(
-      AGENTS_CONFIG_PATH,
-      JSON.stringify(predefinedAgents, null, 2),
-    );
-    console.log(
-      `Saved ${predefinedAgents.length} agents to ${AGENTS_CONFIG_PATH}`,
-    );
-  } catch (error) {
-    console.error("Error saving agents:", error);
-  }
+export async function initializeAgents(): Promise<void> {
+  // Just ensure the file exists, no need to load into memory
+  await loadCustomAgentsFromFile();
+  console.log("Agent system initialized - file-based storage ready");
 }
 
 /**
  * Get a list of all available agents
  * @returns Array of agent list items
  */
-export function getAgentList(): AgentListItem[] {
-  return predefinedAgents.map((agent) => {
-    // Prepare toolReferences (primary field) and toolNames (backward compatibility)
-    let toolReferences = agent.toolReferences || [];
-    let toolNames: string[] = agent.toolNames || [];
+export async function getAgentList(): Promise<AgentListItem[]> {
+  const allAgents = await getAllAgents();
 
-    // If no tool references but has tools object, extract names and create references
-    if (toolReferences.length === 0 && !toolNames.length && agent.tools) {
-      toolNames = Object.keys(agent.tools);
-      console.log(`Agent [${agent.id}]: Created toolNames from tools object`);
-
-      // Create toolReferences from tool names
-      toolReferences = toolNames.map((name) => ({
-        mcpName: "Dev-MCP", // Default to Dev-MCP
-        toolName: name,
-        isBuiltIn: true,
-      }));
-    }
-    // If no tool references but has toolNames, convert them to references
-    else if (toolReferences.length === 0 && toolNames.length > 0) {
-      console.log(
-        `Agent [${agent.id}]: Converting toolNames to toolReferences`,
-      );
-
-      toolReferences = toolNames.map((name) => {
-        // Check if it's in format "mcpName:toolName"
-        const parts = name.split(":");
-        if (parts.length > 1) {
-          return {
-            mcpName: parts[0],
-            toolName: parts[1],
-            isBuiltIn: parts[0] === "Dev-MCP" || parts[0] === "codefox-mcp",
-          };
-        }
-        // Default to Dev-MCP if no prefix
-        return {
-          mcpName: "Dev-MCP",
-          toolName: name,
-          isBuiltIn: true,
-        };
-      });
-    }
+  return allAgents.map((agent) => {
+    // Use toolReferences as the primary field
+    const toolReferences = agent.toolReferences || [];
 
     console.log(
       `Agent [${agent.id}]: Has ${toolReferences.length} tool references`,
@@ -283,7 +180,6 @@ export function getAgentList(): AgentListItem[] {
       category: agent.category || "General",
       iconUrl: agent.iconUrl,
       toolReferences: toolReferences,
-      toolNames: toolNames,
     };
   });
 }
@@ -293,8 +189,11 @@ export function getAgentList(): AgentListItem[] {
  * @param agentId The ID of the agent to retrieve
  * @returns The agent definition or undefined if not found
  */
-export function getAgentById(agentId: string): AgentDefinition | undefined {
-  return predefinedAgents.find((agent) => agent.id === agentId);
+export async function getAgentById(
+  agentId: string,
+): Promise<AgentDefinition | undefined> {
+  const allAgents = await getAllAgents();
+  return allAgents.find((agent) => agent.id === agentId);
 }
 
 /**
@@ -302,10 +201,12 @@ export function getAgentById(agentId: string): AgentDefinition | undefined {
  * @param agentId The ID of the agent
  * @returns The system prompt string or undefined if agent not found
  */
-export function getAgentSystemPrompt(agentId?: string): string | undefined {
+export async function getAgentSystemPrompt(
+  agentId?: string,
+): Promise<string | undefined> {
   if (!agentId) return undefined;
 
-  const agent = getAgentById(agentId);
+  const agent = await getAgentById(agentId);
   if (!agent) return undefined;
 
   let prompt = agent.systemPrompt;
@@ -314,16 +215,10 @@ export function getAgentSystemPrompt(agentId?: string): string | undefined {
   if (prompt && !prompt.includes("Available tools:")) {
     const toolsList: string[] = [];
 
-    // Use toolReferences if available
+    // Use toolReferences to build tools list
     if (agent.toolReferences && agent.toolReferences.length > 0) {
       agent.toolReferences.forEach((ref) => {
         toolsList.push(`${ref.toolName} (${ref.mcpName})`);
-      });
-    }
-    // Fall back to tool names from the tools object
-    else if (agent.tools) {
-      Object.keys(agent.tools).forEach((toolName) => {
-        toolsList.push(toolName);
       });
     }
 
@@ -433,35 +328,42 @@ export async function processChatRequest(
   // Get all MCP tools
   const mcpTools = await getMCPToolsForChat();
 
-  // Combine all tools
-  const tools: ToolSet = {
-    ...mcpTools,
-  };
-
   // Get the model ID
   const modelId = options.modelId || "anthropic/claude-3-7-sonnet";
 
-  // Determine the system prompt
+  // Determine the system prompt and filter tools based on agent
   let systemPrompt: string | undefined;
+  let tools: ToolSet = {};
   let toolsList: string[] = [];
 
   if (options.agentId) {
-    const agent = getAgentById(options.agentId);
+    const agent = await getAgentById(options.agentId);
 
     if (agent) {
       systemPrompt = agent.systemPrompt;
 
-      // Format tool references for display in system prompt if needed
+      // Filter tools based on agent's toolReferences
       if (agent.toolReferences && agent.toolReferences.length > 0) {
+        // Use getToolsByNames to properly filter tools based on toolReferences
+        tools = getToolsByNames(agent.toolReferences);
+
+        // Format tool references for display in system prompt
         toolsList = agent.toolReferences.map(
           (ref) => `${ref.toolName} (${ref.mcpName})`,
         );
-      } else if (agent.tools) {
-        toolsList = Object.keys(agent.tools);
+
+        console.log(
+          `Agent [${agent.id}]: Filtered to ${Object.keys(tools).length} tools from ${agent.toolReferences.length} references`,
+        );
+      } else {
+        console.log(
+          `Agent [${agent.id}]: No tool references, no tools available`,
+        );
       }
     }
   } else {
-    // Get tool names from all available MCP tools
+    // For non-agent chats, use all available MCP tools
+    tools = { ...mcpTools };
     toolsList = Object.keys(mcpTools);
     systemPrompt = getDefaultSystemPrompt(toolsList);
   }
@@ -469,8 +371,6 @@ export async function processChatRequest(
   // Create the OpenRouter client
   const model = getOpenRouterClient(apiKey).chat(modelId);
 
-  console.log("systemPrompt:", systemPrompt);
-  console.log("messages:", messages);
   // Stream the response
   const result = streamText({
     model,
@@ -519,62 +419,67 @@ export async function processAgentChat(
 }
 
 /**
- * Save a custom agent by adding it to predefinedAgents.
- * Also persists to disk at ~/.FoxyChat/agents.json
+ * Save a custom agent by writing to file
  */
 export async function saveCustomAgent(agent: AgentDefinition): Promise<void> {
+  // Check if it's a built-in agent (which cannot be saved as custom)
+  const builtInIds = builtInAgents.map((a) => a.id);
+  if (builtInIds.includes(agent.id)) {
+    throw new Error(`Cannot save built-in agent: ${agent.id}`);
+  }
+
+  // Load current custom agents
+  const customAgents = await loadCustomAgentsFromFile();
+
   // Check if agent with this ID already exists
-  const existingIndex = predefinedAgents.findIndex((a) => a.id === agent.id);
+  const existingIndex = customAgents.findIndex((a) => a.id === agent.id);
 
   if (existingIndex >= 0) {
     // Update existing agent
-    predefinedAgents[existingIndex] = agent;
-    console.log(
-      `[Agent Updated] ${agent.name} (${agent.id}) updated in predefinedAgents`,
-    );
+    customAgents[existingIndex] = agent;
+    console.log(`[Agent Updated] ${agent.name} (${agent.id}) updated in file`);
   } else {
     // Add new agent
-    predefinedAgents.push(agent);
-    console.log(
-      `[Agent Saved] ${agent.name} (${agent.id}) added to predefinedAgents`,
-    );
+    customAgents.push(agent);
+    console.log(`[Agent Saved] ${agent.name} (${agent.id}) added to file`);
   }
 
-  // Persist to disk
-  saveAgents();
+  // Save back to file
+  await saveCustomAgentsToFile(customAgents);
 }
 
 /**
  * Delete a custom agent by ID
- * Removes from both in-memory array and disk storage
+ * Removes from file storage
  * @param agentId The ID of the agent to delete
  * @returns True if the agent was found and deleted, false otherwise
  */
 export async function deleteCustomAgent(agentId: string): Promise<boolean> {
-  // Find the agent
-  const agent = predefinedAgents.find((agent) => agent.id === agentId);
+  // Check if it's a built-in agent (which cannot be deleted)
+  const builtInIds = builtInAgents.map((agent) => agent.id);
+  if (builtInIds.includes(agentId)) {
+    console.log(`Cannot delete built-in agent: ${agentId}`);
+    return false;
+  }
+
+  // Load current custom agents
+  const customAgents = await loadCustomAgentsFromFile();
+
+  // Find the agent index
+  const agentIndex = customAgents.findIndex((agent) => agent.id === agentId);
 
   // Check if agent exists
-  if (!agent) {
+  if (agentIndex === -1) {
     console.log(`Agent not found: ${agentId}`);
     return false;
   }
 
-  // Check if it's a predefined agent (which cannot be deleted)
-  if (agent.predefined) {
-    console.log(`Cannot delete predefined agent: ${agentId}`);
-    return false;
-  }
-
-  // Find the agent index and remove
-  const agentIndex = predefinedAgents.findIndex(
-    (agent) => agent.id === agentId,
-  );
-  predefinedAgents.splice(agentIndex, 1);
+  // Remove from array
+  customAgents.splice(agentIndex, 1);
   console.log(`Agent deleted: ${agentId}`);
 
-  // Update file storage
-  saveAgents();
+  // Save back to file
+  await saveCustomAgentsToFile(customAgents);
 
   return true;
 }

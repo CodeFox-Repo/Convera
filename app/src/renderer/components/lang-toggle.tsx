@@ -1,8 +1,8 @@
-import React from "react";
-import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
+import { setAppLanguage } from "@/renderer/libs/helper/language_helpers";
 import langs from "@/shared/localization/langs";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { setAppLanguage } from "@/renderer/helper/language_helpers";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 
 export default function LangToggle() {
   const { i18n } = useTranslation();

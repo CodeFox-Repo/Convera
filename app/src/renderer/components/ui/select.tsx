@@ -1,8 +1,8 @@
-import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import * as React from "react"
 
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function Select({
   ...props
@@ -179,5 +179,6 @@ export {
   SelectScrollUpButton,
   SelectSeparator,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 }
+

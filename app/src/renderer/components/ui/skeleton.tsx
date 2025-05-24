@@ -1,4 +1,4 @@
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 import React from "react"
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {

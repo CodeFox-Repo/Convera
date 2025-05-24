@@ -1,5 +1,5 @@
+import { cn } from "@/renderer/libs/utils/tailwind";
 import React from "react";
-import { cn } from "@/renderer/utils/tailwind";
 
 interface DragLayerProps extends React.HTMLAttributes<HTMLDivElement> {
   height?: number;

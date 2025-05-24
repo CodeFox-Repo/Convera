@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@/renderer/utils/tailwind"
+import { cn } from "@/renderer/libs/utils/tailwind"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (

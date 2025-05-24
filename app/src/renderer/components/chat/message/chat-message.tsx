@@ -1,7 +1,7 @@
-import React, { memo } from "react";
-import { UIMessage } from "ai";
-import { Check, Copy, RefreshCw, Edit } from "lucide-react";
+import { Attachment, UIMessage } from "ai";
 import { motion } from "framer-motion";
+import { Check, Copy, Edit, File, RefreshCw } from "lucide-react";
+import React, { memo } from "react";
 
 /**
  * Individual chat message component props
@@ -21,6 +21,27 @@ export interface ChatMessageProps {
   onRegenerate: () => void;
   renderContent: React.ReactNode;
 }
+
+
+
+
+// Attachment preview component
+const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
+  const isImage = attachment.contentType?.startsWith("image/");
+  return (
+    <div className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+        bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5">
+      {isImage  ? (
+        <div className="size-4 flex-shrink-0 mr-1 rounded overflow-hidden">
+          <img src={attachment.url} alt="" className="size-full object-cover" />
+        </div>
+      ) : (
+        <File size={12} className="flex-shrink-0 mr-1" />
+      )}
+      <span className="truncate -mr-1">{attachment.name}</span>
+    </div>
+  );
+};
 
 /**
  * Individual chat message component for displaying messages with actions
@@ -42,6 +63,7 @@ const ChatMessage = memo(
     renderContent,
   }: ChatMessageProps) => {
     const isUser = message.role === "user";
+    const hasAttachments = message.experimental_attachments && message.experimental_attachments.length > 0;
 
     return (
       <motion.div
@@ -97,12 +119,21 @@ const ChatMessage = memo(
                         {isUser ? "Empty message" : "..."}
                       </div>
                     )}
+
+                    {/* Render attachments if any */}
+                    {hasAttachments && (
+                      <div className={`flex flex-wrap gap-2 ${message.content ? "mt-2" : ""} max-w-full`}>
+                        {message.experimental_attachments?.map((attachment, index) => (
+                          <AttachmentPreview key={index} attachment={attachment} />
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
 
               {/* Message action buttons - below the message */}
-              {(message.content || message.parts) && !isEditing && (
+              {(message.content || message.parts || hasAttachments) && !isEditing && (
                 <div
                   className={`control-layer mt-2 flex ${isUser ? "justify-end" : "justify-start"}`}
                 >

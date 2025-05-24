@@ -1,6 +1,11 @@
-import Chat from "@/renderer/components/chat";
 import React from "react";
+import Chat from "../components/chat";
+import { ChatProvider } from "../libs/stores/chat-store";
 
 export default function HomePage() {
-  return <Chat />;
+  return (
+    <ChatProvider>
+      <Chat />
+    </ChatProvider>
+  );
 }

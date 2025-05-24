@@ -3,31 +3,55 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AppSettings } from "@/shared/types/settings";
 import { X } from "lucide-react";
 
-import { loadFuzzyInstance, searchModels } from "@/renderer/utils/model-search-utils";
-import { OFFICIAL_MODELS, fetchOpenRouterModels } from "@/shared/constants/officialModels";
+import { useModelStore } from "@/renderer/libs/stores/model-store";
+import {
+  loadFuzzyInstance,
+  searchModels,
+} from "@/renderer/libs/utils/model-search-utils";
+import {
+  OFFICIAL_MODELS,
+  fetchOpenRouterModels,
+} from "@/shared/constants/officialModels";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 type AIModelSectionProps = {
   settings: AppSettings;
   onOpenAIChange: (field: string, value: string) => void;
-  onAddSupportedModel: (model: string) => void;
-  onRemoveSupportedModel: (model: string) => void;
+  onAddSupportedModel?: (model: string) => void;
+  onRemoveSupportedModel?: (model: string) => void;
 };
 
 export function AIModelSection({
   settings,
   onOpenAIChange,
-  onAddSupportedModel,
-  onRemoveSupportedModel,
 }: AIModelSectionProps) {
   const [newModelInput, setNewModelInput] = useState("");
-  const [officialModels, setOfficialModels] = useState<string[]>(OFFICIAL_MODELS);
+  const [officialModels, setOfficialModels] =
+    useState<string[]>(OFFICIAL_MODELS);
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredModels, setFilteredModels] = useState<string[]>([]);
+
+  const {
+    supportedModelIds,
+    setSupportedModelIds,
+    setSelectedModelId,
+    subscribeToModelChanges,
+    selectedModelId,
+  } = useModelStore();
+  useEffect(() => {
+    const unsubscribe = subscribeToModelChanges();
+    return unsubscribe;
+  }, [subscribeToModelChanges]);
 
   /**
    * Fetch models from OpenRouter API and sort them alphabetically.
@@ -45,13 +69,14 @@ export function AIModelSection({
 
   // Get list of models that aren't already added
   const getAvailableModels = () => {
-    return officialModels.filter(
-      (m) => !settings.openai.supportedModels.includes(m)
-    );
+    return officialModels.filter((m) => !supportedModelIds.includes(m));
   };
 
   // Available models list
-  const availableModels = useMemo(() => getAvailableModels(), [officialModels, settings.openai.supportedModels]);
+  const availableModels = useMemo(
+    () => getAvailableModels(),
+    [officialModels, supportedModelIds],
+  );
 
   /**
    * Memoize fuzzy instance for model search
@@ -60,7 +85,12 @@ export function AIModelSection({
 
   // Update filtered models when input or availableModels changes
   useEffect(() => {
-    searchModels(newModelInput, availableModels, setFilteredModels, fuzzyInstance);
+    searchModels(
+      newModelInput,
+      availableModels,
+      setFilteredModels,
+      fuzzyInstance,
+    );
   }, [newModelInput, availableModels, fuzzyInstance]);
 
   /**
@@ -69,15 +99,15 @@ export function AIModelSection({
    */
   const handleAddModel = (model: string) => {
     if (!model.trim()) return;
-    
-    onAddSupportedModel(model);
-    
-    const newModels = [...settings.openai.supportedModels, model];
-    localStorage.setItem("supportedModels", JSON.stringify(newModels));
-    window.dispatchEvent(new Event("supportedModels-updated"));
-    
+
+    const newModels = [...supportedModelIds];
+    if (!newModels.includes(model)) {
+      newModels.push(model);
+      setSupportedModelIds(newModels);
+    }
     setTimeout(() => {
       onOpenAIChange("modelId", model);
+      setSelectedModelId(model);
     }, 0);
   };
 
@@ -86,24 +116,31 @@ export function AIModelSection({
    * and trigger events to notify other components
    */
   const handleRemoveModel = (model: string) => {
-    onRemoveSupportedModel(model);
-    
-    const newModels = settings.openai.supportedModels.filter(m => m !== model);
-    localStorage.setItem("supportedModels", JSON.stringify(newModels));
-    window.dispatchEvent(new Event("supportedModels-updated"));
+    console.log("aaa a a a Removing model:", model);
+    const newModels = supportedModelIds.filter((m) => m !== model);
+    setSupportedModelIds(newModels);
+    console.log("New models after removal:", newModels);
+    console.log("Current model in settings:", selectedModelId);
+    if (model === settings.openai.modelId) {
+      const newSelectedModel = newModels.length > 0 ? newModels[0] : "";
+      console.log("new selected model:", newSelectedModel);
+      setSelectedModelId(newSelectedModel);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="mb-6">
         <div className="mb-4">
-          <h2 className="text-2xl font-medium text-foreground">AI Model Settings</h2>
+          <h2 className="text-2xl font-medium text-foreground">
+            AI Model Settings
+          </h2>
           <p className="text-muted-foreground mt-1">
             Configure your AI API settings
           </p>
         </div>
       </div>
-      
+
       <div className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="endpoint" className="text-foreground">
@@ -138,7 +175,9 @@ export function AIModelSection({
           </Label>
           <Select
             value={settings.openai.modelId}
-            onValueChange={(value) => onOpenAIChange("modelId", value)}
+            onValueChange={(value) => {
+              setSelectedModelId(value);
+            }}
           >
             <SelectTrigger className="border-input bg-background text-foreground w-full rounded-md">
               <SelectValue placeholder="Select a model">
@@ -146,8 +185,12 @@ export function AIModelSection({
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="w-full border-none shadow-none">
-              {settings.openai.supportedModels.map((model) => (
-                <SelectItem key={model} value={model} className="focus:bg-secondary/30 cursor-pointer">
+              {supportedModelIds.map((model) => (
+                <SelectItem
+                  key={model}
+                  value={model}
+                  className="focus:bg-secondary/30 cursor-pointer"
+                >
                   {model}
                 </SelectItem>
               ))}
@@ -157,9 +200,11 @@ export function AIModelSection({
 
         {/* Add New Models */}
         <div className="pt-4 border-t border-border">
-          <Label className="text-foreground text-sm font-medium">Add New Models</Label>
+          <Label className="text-foreground text-sm font-medium">
+            Add New Models
+          </Label>
           <div className="mt-2 flex flex-wrap gap-2">
-            {settings.openai.supportedModels.map((model) => (
+            {supportedModelIds.map((model) => (
               <Badge
                 key={model}
                 className="bg-secondary/50 text-foreground border border-border flex items-center gap-1 px-2 py-1"
@@ -248,4 +293,4 @@ export function AIModelSection({
       </div>
     </div>
   );
-} 
+}
