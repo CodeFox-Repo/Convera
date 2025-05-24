@@ -132,6 +132,10 @@ function preCreateAgentPopoverWindow() {
     );
   }
 
+  // if (inDevelopment && agentPopoverWindow) {
+  //   agentPopoverWindow.webContents.openDevTools({ mode: "detach" });
+  // }
+
   // Handle hash parameter
   handleUrlHash(agentPopoverWindow);
 
@@ -680,13 +684,11 @@ function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
 
   if (agentPopoverWindow) {
     // Get dimensions from presets if not provided
-    if (width === 0 || height === 0) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
-      );
-      width = dimensions.width;
-      height = dimensions.height;
-    }
+    const presetDimensions = calculateWindowDimensions(
+      WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+    );
+    width = presetDimensions.width;
+    height = presetDimensions.height;
 
     // Reposition and show
     console.log(
