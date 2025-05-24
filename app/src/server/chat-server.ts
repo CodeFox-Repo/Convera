@@ -68,9 +68,9 @@ const authenticateRequest = (
 };
 
 // Apply authentication to routes that need it
-app.use("/api/chat", authenticateRequest);
+router.use("/api/chat", authenticateRequest);
 
-app.post("/api/agents/create", (async (req: Request, res: Response) => {
+router.post("/api/agents/create", (async (req: Request, res: Response) => {
   const {
     name,
     description,
@@ -202,7 +202,7 @@ router.get("/api/mcp/servers", async (req: Request, res: Response) => {
 });
 
 // Start specific MCP server endpoint
-app.post("/api/mcp/servers/:id/start", (async (req, res) => {
+router.post("/api/mcp/servers/:id/start", (async (req, res) => {
   const { id } = req.params;
   const manager = getMCPManager();
   const success = await manager.startServer(id);
@@ -216,7 +216,7 @@ app.post("/api/mcp/servers/:id/start", (async (req, res) => {
 }) as RequestHandler);
 
 // Stop specific MCP server endpoint
-app.post("/api/mcp/servers/:id/stop", (async (req, res) => {
+router.post("/api/mcp/servers/:id/stop", (async (req, res) => {
   const { id } = req.params;
   const manager = getMCPManager();
   const success = await manager.stopServer(id);
@@ -470,7 +470,7 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
 });
 
 // MCP predefined servers endpoint
-app.get("/api/mcp/predefined-servers", (req, res) => {
+router.get("/api/mcp/predefined-servers", (req, res) => {
   const predefinedServers = getAvailablePredefinedServers();
   const serversWithStatus = predefinedServers.map((server) => ({
     ...server,
@@ -485,7 +485,7 @@ app.get("/api/mcp/predefined-servers", (req, res) => {
 });
 
 // Get all installed MCP servers endpoint (both predefined and manually added)
-app.get("/api/mcp/installed-servers", (req, res) => {
+router.get("/api/mcp/installed-servers", (req, res) => {
   const manager = getMCPManager();
   const serverConfigs = manager.getAllServerConfigs();
   const serverStatuses = manager.getAllServerStatus();
@@ -528,7 +528,7 @@ app.get("/api/mcp/installed-servers", (req, res) => {
 });
 
 // Install predefined MCP server endpoint
-app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
+router.post("/api/mcp/predefined-servers/install", (async (req, res) => {
   const { id } = req.body;
 
   if (!id) {
@@ -562,7 +562,7 @@ app.post("/api/mcp/predefined-servers/install", (async (req, res) => {
 }) as RequestHandler);
 
 // Uninstall predefined MCP server endpoint
-app.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
+router.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
   const { id } = req.body;
 
   if (!id) {
@@ -589,7 +589,7 @@ app.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
 }) as RequestHandler);
 
 // Get tools for a specific MCP server
-app.get("/api/mcp/servers/:id/tools", (async (req, res) => {
+router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
   const { id } = req.params;
   const manager = getMCPManager();
   const serverStatus = manager.getServerStatus(id);
@@ -758,6 +758,9 @@ router.delete("/api/chats/:chatId", async (req, res) => {
 const PORT = 38000;
 
 function startChatServer() {
+  // Mount the router to the app
+  app.use(router);
+
   initializeAgents()
     .then(() => console.log("Agent system initialized successfully"))
     .catch((error) =>
