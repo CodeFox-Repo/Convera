@@ -2,7 +2,7 @@ import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface Tool {
   id: string;
@@ -38,6 +38,7 @@ const mockBasicToolsData: Tool[] = [
  */
 // TODO: this component need to refactor
 export default function AgentPopover() {
+  const popoverRef = useRef<HTMLDivElement>(null);
   // const [agents] = useState<Agent[]>([]); 
   const [basicTools, setBasicTools] = useState<Tool[]>(mockBasicToolsData);
   const [agentTools, setAgentTools] = useState<Tool[]>([]);
@@ -546,8 +547,34 @@ export default function AgentPopover() {
     );
   };
 
+  // Handle click outside to close popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        if (window.electronAPI) {
+          window.electronAPI.toggleAgentPopover();
+        }
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (window.electronAPI) {
+          window.electronAPI.toggleAgentPopover();
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={popoverRef}>
       {/* Arrow pointing to the trigger button */}
       <div
         className="absolute -top-2 left-5 h-2 w-4 overflow-hidden"
@@ -562,7 +589,10 @@ export default function AgentPopover() {
         <div className="bg-background absolute inset-0"></div>
       </div>
 
-      <div className="bg-background border-border w-72 rounded-xl border p-3">
+      <div 
+        className="bg-background border-border w-72 rounded-xl border p-3"
+        onClick={(e) => e.stopPropagation()} // Prevent clicks inside the popover from bubbling up
+      >
         <div className="space-y-3">
           {/* Agent Selector Section */}
           <div className="border-border border rounded-lg">

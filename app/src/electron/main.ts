@@ -119,6 +119,7 @@ function preCreateAgentPopoverWindow() {
     alwaysOnTop: true,
     type: "popover",
     backgroundColor: "#00000000",
+    focusable: true,
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -139,11 +140,40 @@ function preCreateAgentPopoverWindow() {
   // Handle hash parameter
   handleUrlHash(agentPopoverWindow);
 
-  // Click outside to close
+  // Improved click outside handling
   agentPopoverWindow.on("blur", () => {
+    console.log("Agent popover lost focus - hiding");
     if (agentPopoverWindow) {
       agentPopoverWindow.hide();
     }
+  });
+
+  // Handle mouse events to allow clicking through transparent areas
+  agentPopoverWindow.webContents.on("did-finish-load", () => {
+    // Inject JavaScript to handle mouse events properly
+    agentPopoverWindow?.webContents
+      .executeJavaScript(
+        `
+      // Allow clicks to pass through transparent areas
+      document.addEventListener('click', (e) => {
+        const target = e.target;
+        const popoverContent = document.querySelector('[class*="bg-background"]');
+        
+        // If click is outside the actual popover content, close the popover
+        if (popoverContent && !popoverContent.contains(target)) {
+          window.electronAPI?.toggleAgentPopover?.();
+        }
+      });
+
+      // Handle escape key to close popover
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          window.electronAPI?.toggleAgentPopover?.();
+        }
+      });
+    `,
+      )
+      .catch(console.error);
   });
 
   agentPopoverWindow.on("closed", () => {
