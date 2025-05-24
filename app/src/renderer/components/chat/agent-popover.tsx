@@ -153,6 +153,15 @@ export default function AgentPopover() {
           "Restored selected agent from localStorage:",
           savedAgent.name,
         );
+      } else {
+        // Default to the "default-assistant" agent if no saved agent
+        fetchAgents().then(() => {
+          const defaultAgent = agents.find(agent => agent.id === "default-assistant");
+          if (defaultAgent) {
+            setSelectedAgent(defaultAgent);
+            localStorage.setItem("selectedAgent", JSON.stringify(defaultAgent));
+          }
+        });
       }
     } catch (error) {
       console.error("Error loading saved agent:", error);
@@ -217,19 +226,15 @@ export default function AgentPopover() {
   }, [selectedAgent, mcpServerTools]);
 
   // Handle agent selection
-  const handleAgentSelect = (agent: Agent | null) => {
-    console.log(`Agent selected: ${agent?.name || "Default Assistant"}`);
+  const handleAgentSelect = (agent: Agent) => {
+    console.log(`Agent selected: ${agent.name}`);
     setSelectedAgent(agent);
 
     // setAgentTools([]); 
   
     if (window.electronAPI) {
       try {
-        if (agent) {
-          localStorage.setItem("selectedAgent", JSON.stringify(agent));
-        } else {
-          localStorage.removeItem("selectedAgent");
-        }
+        localStorage.setItem("selectedAgent", JSON.stringify(agent));
         const event = new CustomEvent("agent-selected", { detail: { agent } });
         window.dispatchEvent(event);
         window.electronAPI.toggleAgentPopover(); // Close popover after selection
@@ -572,7 +577,7 @@ export default function AgentPopover() {
                 <div>
                   <div className="text-xs font-medium text-muted-foreground">Current Agent</div>
                   <div className="text-sm font-medium">
-                    {selectedAgent ? selectedAgent.name : "Default Assistant"}
+                    {selectedAgent ? selectedAgent.name : "No Agent Selected"}
                   </div>
                 </div>
               </div>
@@ -583,24 +588,6 @@ export default function AgentPopover() {
               <div 
                 className="max-h-60 overflow-y-auto bg-muted/5 border-t border-border transition-all duration-300"
               >
-                {/* Default Assistant Option */}
-                <div
-                  className={`cursor-pointer p-3 transition-all duration-200 rounded-md ${
-                    !selectedAgent
-                      ? "bg-primary/10 border-l-2 border-primary"
-                      : "hover:bg-muted/30"
-                  }`}
-                  onClick={() => handleAgentSelect(null)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-sm">Default Assistant</div>
-                    {!selectedAgent && (
-                      <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
-                      </svg>
-                    )}
-                  </div>
-                </div>
                 {/* List of Agents */}
                 {agents.map((agent) => (
                   <div
