@@ -1,4 +1,5 @@
 // app/src/renderer/stores/agent-store.ts
+import { ToolReference } from "@/server/agents/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -8,6 +9,8 @@ export interface Agent {
   description: string;
   category: string;
   iconUrl?: string;
+  toolNames?: string[];
+  toolReferences?: ToolReference[];
 }
 
 interface AgentState {
