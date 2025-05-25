@@ -6,6 +6,7 @@ import { getSettings } from "@/renderer/libs/utils/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useChatHistory } from "../hooks/use-chat-history";
 import { useAgentStore } from "./agent-store";
 import { useModelStore } from "./model-store";
 
@@ -91,6 +92,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Chat API error:", parsedError);
     },
   });
+
+  // Integrate the useChatHistory hook
+  const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
 
   const addAttachments = useCallback((files: File | File[]) => {
     setAttachments((prev) => {
@@ -247,8 +251,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const openHistoryWindow = useCallback(() => {
-    window.electronAPI.toggleHistoryWindow();
-  }, []);
+    triggerHistoryWindow();
+  }, [triggerHistoryWindow]);
 
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
