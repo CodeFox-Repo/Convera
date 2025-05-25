@@ -22,29 +22,31 @@ export interface ChatMessageProps {
   renderContent: React.ReactNode;
 }
 
-
-
-
-// Attachment preview component
+// Enhanced attachment preview component with more visual interest
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
   const isImage = attachment.contentType?.startsWith("image/");
   return (
-    <div className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
-        bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5">
-      {isImage  ? (
-        <div className="size-4 flex-shrink-0 mr-1 rounded overflow-hidden">
+    <motion.div 
+      className="group relative h-8 no-drag-region flex items-center rounded-xl border border-white/15 dark:border-gray-600/20 bg-gradient-to-r from-white/25 via-white/20 to-white/15 dark:from-gray-800/15 dark:via-gray-750/12 dark:to-gray-700/8 backdrop-blur-2xl px-3 py-2 text-xs font-medium max-w-[16ch] overflow-hidden transition-all duration-200"
+      whileHover={{ scale: 1.05, y: -1 }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      {isImage ? (
+        <div className="size-4 flex-shrink-0 mr-2 rounded overflow-hidden">
           <img src={attachment.url} alt="" className="size-full object-cover" />
         </div>
       ) : (
-        <File size={12} className="flex-shrink-0 mr-1" />
+        <File size={14} className="flex-shrink-0 mr-2 text-gray-600 dark:text-gray-400" />
       )}
-      <span className="truncate -mr-1">{attachment.name}</span>
-    </div>
+      <span className="truncate text-gray-700 dark:text-gray-300">{attachment.name}</span>
+    </motion.div>
   );
 };
 
 /**
- * Individual chat message component for displaying messages with actions
+ * Enhanced individual chat message component
  */
 const ChatMessage = memo(
   ({
@@ -67,42 +69,67 @@ const ChatMessage = memo(
 
     return (
       <motion.div
-        className="group/message no-drag-region flex w-full"
-        initial={{ opacity: 0, y: 10 }}
+        className="group/message no-drag-region flex w-full mb-6"
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <div className="mx-auto mb-2 w-full max-w-3xl">
-          <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+        <div className="w-full max-w-none">
+          <div className={`flex gap-4 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+            {/* Avatar - only show for assistant/bot messages */}
+            {!isUser && (
+              <motion.div 
+                className="flex-shrink-0 w-14 h-14 overflow-hidden"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, duration: 0.3, type: "spring" }}
+              >
+                <img 
+                  src="../../../images/icon.png" 
+                  alt="FoxyChat Agent" 
+                  className="w-8 h-8 object-contain opacity-90"
+                />
+              </motion.div>
+            )}
+
             {/* Message content */}
-            <div
-              className={`text-foreground overflow-hidden text-sm ${isUser ? "flex flex-col items-end" : ""} max-w-[80%]`}
-            >
-              <div
-                className={`${
-                  isUser
-                    ? "text-foreground inline-block rounded-[24px] rounded-br-[8px] border-none bg-gray-100 px-4 py-2.5 dark:bg-slate-800/90"
-                    : "rounded-[var(--app-border-radius)]"
-                } group relative`}
+            <div className={`flex-1 min-w-0 ${isUser ? "flex flex-col items-end" : ""}`}>
+              {/* Message bubble with enhanced visual interest */}
+              <motion.div
+                className={`relative max-w-[85%] ${
+                  isUser 
+                    ? "bg-gradient-to-br from-blue-50/40 via-blue-100/35 to-blue-150/30 dark:from-blue-900/15 dark:via-blue-800/12 dark:to-blue-700/8 border-blue-200/20 dark:border-blue-600/15" 
+                    : ""
+                } backdrop-blur-2xl ${
+                  isUser ? "rounded-2xl rounded-tl-none" : "rounded-2xl rounded-bl-md"
+                } overflow-hidden hover:scale-[1.02] transition-all duration-200`}
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.15, duration: 0.3 }}
+                whileHover={{ 
+                  y: -2,
+                  transition: { duration: 0.2 }
+                }}
               >
                 {/* Editing mode */}
                 {isUser && isEditing ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="p-4 space-y-4">
                     <textarea
-                      className="bg-foreground/10 text-foreground min-h-[100px] w-full rounded-md p-2 text-sm"
+                      className="w-full min-h-[100px] p-3 rounded-xl bg-white/30 dark:bg-gray-800/30 backdrop-blur-2xl border border-gray-200/15 dark:border-gray-600/15 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
                       value={editedContent}
                       onChange={(e) => onEditContentChange(e.target.value)}
+                      placeholder="Edit your message..."
                       autoFocus
                     />
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-3">
                       <button
-                        className="text-foreground/70 hover:text-foreground rounded-md px-2 py-1 text-xs"
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200"
                         onClick={onEditCancel}
                       >
                         Cancel
                       </button>
                       <button
-                        className="bg-foreground/10 hover:bg-foreground/20 rounded-md px-2 py-1 text-xs"
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
                         onClick={onEditSave}
                       >
                         Save & Regenerate
@@ -110,69 +137,86 @@ const ChatMessage = memo(
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {/* Regular message display */}
+                  <div className="p-4">
+                    {/* Message content */}
                     {message.content || message.parts ? (
-                      renderContent
+                      <div className={`text-sm leading-relaxed ${
+                        isUser 
+                          ? "text-blue-900 dark:text-blue-100" 
+                          : "text-gray-900 dark:text-gray-100"
+                      }`}>
+                        {renderContent}
+                      </div>
                     ) : (
-                      <div className="text-foreground/50 italic">
+                      <div className="text-gray-500 dark:text-gray-400 italic text-sm">
                         {isUser ? "Empty message" : "..."}
                       </div>
                     )}
 
-                    {/* Render attachments if any */}
+                    {/* Attachments */}
                     {hasAttachments && (
-                      <div className={`flex flex-wrap gap-2 ${message.content ? "mt-2" : ""} max-w-full`}>
+                      <div className={`flex flex-wrap gap-2 ${message.content ? "mt-3" : ""}`}>
                         {message.experimental_attachments?.map((attachment, index) => (
                           <AttachmentPreview key={index} attachment={attachment} />
                         ))}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
-              </div>
+              </motion.div>
 
-              {/* Message action buttons - below the message */}
+              {/* Action buttons */}
               {(message.content || message.parts || hasAttachments) && !isEditing && (
-                <div
-                  className={`control-layer mt-2 flex ${isUser ? "justify-end" : "justify-start"}`}
+                <motion.div
+                  className={`mt-3 flex ${isUser ? "justify-end" : "justify-start"}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ 
+                    opacity: isLastMessage ? 1 : 0,
+                    y: isLastMessage ? 0 : 10
+                  }}
+                  whileHover={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <div
-                    className={`flex items-center rounded-md shadow-md transition-opacity duration-200 ${
-                      isLastMessage
-                        ? "opacity-100"
-                        : "opacity-0 group-hover/message:opacity-100"
-                    }`}
-                  >
-                    <button
-                      className="text-foreground/50 hover:text-primary active:text-primary/70 mr-2.5 transition-colors"
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-white/30 via-white/25 to-white/20 dark:from-gray-800/25 dark:via-gray-750/20 dark:to-gray-700/15 backdrop-blur-2xl border border-white/15 dark:border-gray-600/15 hover:from-white/40 hover:via-white/35 hover:to-white/30 dark:hover:from-gray-800/35 dark:hover:via-gray-750/30 dark:hover:to-gray-700/25 transition-all duration-200">
+                    <motion.button
+                      className={`p-1.5 rounded-full transition-all duration-200 ${
+                        isCopied 
+                          ? "text-green-600 dark:text-green-400 bg-green-100/80 dark:bg-green-900/30" 
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
+                      }`}
                       onClick={onCopy}
                       title={isCopied ? "Copied!" : "Copy to clipboard"}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      {isCopied ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
+                      {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                    </motion.button>
 
                     {isUser && isLastUserMessage && (
-                      <button
-                        className="text-foreground/50 hover:text-primary active:text-primary/70 transition-colors"
+                      <motion.button
+                        className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-100/80 dark:hover:bg-blue-900/30 transition-all duration-200"
                         onClick={onEditStart}
                         title="Edit message"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        <Edit size={16} />
-                      </button>
+                        <Edit size={14} />
+                      </motion.button>
                     )}
 
                     {!isUser && isLastMessage && (
-                      <button
-                        className="text-foreground/50 hover:text-primary active:text-primary/70 transition-colors"
+                      <motion.button
+                        className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-100/80 dark:hover:bg-orange-900/30 transition-all duration-200"
                         onClick={onRegenerate}
                         title="Regenerate response"
+                        whileHover={{ scale: 1.1, rotate: 180 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        <RefreshCw size={16} />
-                      </button>
+                        <RefreshCw size={14} />
+                      </motion.button>
                     )}
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>

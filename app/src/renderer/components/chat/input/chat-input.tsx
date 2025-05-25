@@ -4,12 +4,12 @@ import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
 import { File } from "lucide-react";
 import React, {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
 } from "react";
 import { ChatInputButtons } from "./chat-input-button";
 import { ContextButtons } from "./context-button";
@@ -177,13 +177,15 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
+        <div className="h-full w-full flex-1 flex flex-col p-0 min-h-0">
           <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 transition-all duration-200 ${
-              hasMessages ? "bg-background/80" : "bg-background/30"
-            } ${isDragging 
-              ? "border-primary/70 border-2 shadow-lg ring-2 ring-primary/20" 
-              : "border-gray-500/45"}`}
+            className={`relative flex-1 flex h-full overflow-auto flex-col rounded-2xl border transition-all duration-300 ${
+              hasMessages 
+                ? "bg-white/12 dark:bg-black/8 border-white/8 dark:border-gray-700/10" 
+                : "bg-white/18 dark:bg-black/12 border-white/12 dark:border-gray-600/12"
+            } backdrop-blur-3xl ${isDragging 
+              ? "border-orange-400/30 border-2 ring-4 ring-orange-200/10 dark:ring-orange-800/10 bg-orange-50/10 dark:bg-orange-900/8" 
+              : ""}`}
           >
             <ContextButtons
               copiedContent={copiedContent || null}
@@ -193,15 +195,20 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             />
 
             {isDragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-[var(--app-border-radius)] z-10 pointer-events-none">
-                <div className="flex flex-col items-center gap-2 animate-pulse">
-                  <File size={32} className="text-primary" />
-                  <p className="text-foreground/70 font-medium">Drop files here</p>
+              <div className="absolute inset-0 flex items-center justify-center bg-white/20 dark:bg-black/15 backdrop-blur-3xl rounded-2xl z-10 pointer-events-none">
+                <div className="flex flex-col items-center gap-3 animate-pulse">
+                  <File size={40} className="text-orange-500" />
+                  <p className="text-gray-700 dark:text-gray-300 font-semibold text-lg">Drop files here</p>
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="drag-region mb-2 w-full flex-1 px-2">
+            <div className="drag-region mb-3 w-full flex-1 px-4">
               <TiptapEditor
                 ref={editorRef}
                 content={input}

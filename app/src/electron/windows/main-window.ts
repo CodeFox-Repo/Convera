@@ -89,11 +89,11 @@ export function createMainWindow() {
 
   if (mainWindow && process.platform === "darwin") {
     mainWindow.setWindowButtonVisibility(false);
-    mainWindow.setBackgroundColor("#00000000");
+    mainWindow.setBackgroundColor("#f8fafc");
   } else if (process.platform === "win32") {
-    mainWindow.setBackgroundColor("#00000000");
+    mainWindow.setBackgroundColor("#f8fafc");
   } else {
-    mainWindow.setBackgroundColor("#00000000");
+    mainWindow.setBackgroundColor("#f8fafc");
   }
 
   setMainWindowResizable(false, mainWindow!);

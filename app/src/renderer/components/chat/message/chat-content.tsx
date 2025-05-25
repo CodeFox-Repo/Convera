@@ -8,26 +8,26 @@ import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
 /**
- * Simple markdown renderer component
+ * Simple markdown renderer component with improved styling
  */
 const Markdown = memo(({ children }: { children: string }) => {
-  // Simple markdown rendering
+  // Enhanced markdown rendering with better styling
   const formattedText = children
     .replace(
       /```([\s\S]*?)```/g,
-      "<pre class='bg-foreground/10 p-3 rounded-md my-2 overflow-x-auto'><code>$1</code></pre>",
+      "<pre class='bg-black/5 dark:bg-white/5 p-4 rounded-xl my-3 overflow-x-auto border border-black/10 dark:border-white/10 backdrop-blur-sm'><code class='text-sm font-mono'>$1</code></pre>",
     )
     .replace(
       /`([^`]+)`/g,
-      "<code class='bg-foreground/10 px-1 py-0.5 rounded text-xs'>$1</code>",
+      "<code class='bg-orange-100/80 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-md text-sm font-mono border border-orange-200/50 dark:border-orange-800/50'>$1</code>",
     )
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong class='font-semibold text-gray-900 dark:text-white'>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em class='italic text-gray-700 dark:text-gray-300'>$1</em>")
     .replace(/\n/g, "<br />");
 
   return (
     <div
-      className="markdown no-drag-region"
+      className="markdown no-drag-region prose prose-sm dark:prose-invert leading-relaxed"
       dangerouslySetInnerHTML={{ __html: formattedText }}
     />
   );
@@ -319,14 +319,19 @@ export default function ChatContent({
     [renderMessageContent, renderToolCall],
   );
 
-  // Renders regenerating indicator
+  // Renders regenerating indicator with enhanced visual interest
   function renderLoadingIndicator() {
     return (
-      <div className="border-foreground/10 bg-foreground/5 no-drag-region flex items-center gap-2 rounded-md border px-3 py-1.5">
-        <Loader2 className="text-foreground h-3 w-3 animate-spin" />
-        <span className="text-foreground">
+      <div className="no-drag-region flex items-center gap-3 rounded-2xl border border-orange-200/15 dark:border-orange-800/15 bg-gradient-to-r from-orange-50/25 via-amber-50/20 to-yellow-50/15 dark:from-orange-900/8 dark:via-amber-900/6 dark:to-yellow-900/4 backdrop-blur-2xl px-4 py-3 hover:from-orange-50/35 hover:via-amber-50/30 hover:to-yellow-50/25 dark:hover:from-orange-900/12 dark:hover:via-amber-900/10 dark:hover:to-yellow-900/8 transition-all duration-300">
+        <Loader2 className="h-4 w-4 animate-spin text-orange-600 dark:text-orange-400" />
+        <span className="text-gray-700 dark:text-gray-300 font-medium">
           {hasReceivedFirstToken ? "Generating response..." : "Loading..."}
         </span>
+        <div className="ml-2 flex gap-1">
+          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" />
+          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+        </div>
       </div>
     );
   }
@@ -360,17 +365,58 @@ export default function ChatContent({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="no-drag-region flex max-w-md flex-col items-center p-8 text-center"
         >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <Bot className="h-8 w-8 text-zinc-500" />
-          </div>
-          <h3 className="mb-2 text-xl font-semibold">Welcome to FoxChat</h3>
-          <p className="text-zinc-500 dark:text-zinc-400">
-            Ask me anything about coding, tech, or problems you&apos;re facing
-            with your projects.
-          </p>
+          {/* Enhanced welcome design */}
+          <motion.div 
+            className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 border border-orange-200/50 dark:border-orange-800/50"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
+          >
+            <Bot className="h-10 w-10 text-orange-600 dark:text-orange-400" />
+          </motion.div>
+          
+          <motion.h3 
+            className="mb-3 text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent"
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            Welcome to FoxyChat
+          </motion.h3>
+          
+          {/* <motion.p 
+            className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-sm"
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            I'm your intelligent AI assistant, ready to help you with coding, creative projects, and problem-solving. What would you like to explore today?
+          </motion.p> */}
+          
+          {/* Animated suggestion chips with enhanced visual interest */}
+          <motion.div 
+            className="mt-6 flex flex-wrap gap-2 justify-center"
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            {["Code Review", "Creative Writing", "Problem Solving"].map((suggestion, index) => (
+              <motion.div
+                key={suggestion}
+                className="px-3 py-1.5 bg-gradient-to-r from-white/30 via-white/25 to-white/20 dark:from-black/12 dark:via-black/10 dark:to-black/8 backdrop-blur-2xl rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-200/20 dark:border-gray-700/20 hover:from-white/40 hover:via-white/35 hover:to-white/30 dark:hover:from-black/18 dark:hover:via-black/15 dark:hover:to-black/12 cursor-pointer transition-all duration-200"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.6 + index * 0.1, duration: 0.3 }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {suggestion}
+              </motion.div>
+            ))}
+          </motion.div>
         </motion.div>
       </div>
     );
@@ -431,26 +477,25 @@ export default function ChatContent({
   ]);
 
   return (
-    <div className="drag-region h-full flex-1 overflow-y-auto p-4 pt-10">
-      <div className="no-drag-region flex h-full flex-col">
+    <div className="h-full flex-1 overflow-y-auto px-6 py-8">
+      <div className="no-drag-region flex h-full flex-col space-y-6 max-w-4xl mx-auto">
         {renderMessages()}
 
-        {/* Show waiting for first token animation */}
+        {/* Show waiting for first token animation with improved styling */}
         <AnimatePresence mode="wait">
           {isLoading && messages.length > 0 && (
             <motion.div
               key="waiting-first-token"
               className="no-drag-region flex w-full"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
             >
-              <div className="mx-auto w-full max-w-3xl">
+              <div className="w-full">
                 <div className="flex justify-start">
-                  <div className="max-w-[80%] overflow-hidden text-sm">
-                    <div className="rounded-[var(--app-border-radius)] bg-transparent">
-                      {renderLoadingIndicator()}
-                    </div>
+                  <div className="max-w-[80%] overflow-hidden">
+                    {renderLoadingIndicator()}
                   </div>
                 </div>
               </div>
