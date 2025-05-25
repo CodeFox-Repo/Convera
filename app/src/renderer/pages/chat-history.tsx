@@ -1,172 +1,70 @@
-import React, { useState, useEffect } from "react";
-import { Search, Trash2, MessageSquare, X, RefreshCw } from "lucide-react";
-
-// Interface for chat data
-interface ChatData {
-  id: string;
-  title: string;
-  createdAt: string;
-  lastUpdated: string;
-  messageCount: number;
-  messages?: {
-    id: string;
-    role: string;
-    content: string;
-    timestamp: string;
-  }[];
-}
+import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useChatHistory } from "../libs/hooks/use-chat-history";
 
 const ChatHistoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [chatHistory, setChatHistory] = useState<ChatData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   
-  // Function to fetch chat history
-  const fetchChatHistory = async () => {
-    try {
-      setRefreshing(true);
-      const response = await fetch('http://localhost:38000/api/chats');
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setChatHistory(data.chats);
-        setError(null);
-      } else {
-        setError("Failed to load chat history");
-      }
-    } catch (err) {
-      console.error("Error fetching chat history:", err);
-      setError("Error connecting to server");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-  
-  // Fetch on initial load
+  // we don't need to set messages in this window
+  const {
+    chatHistory,
+    loading,
+    error,
+    refreshing,
+    fetchChatHistory,
+    selectChat,
+    deleteChat,
+    triggerHistoryWindow,
+  } = useChatHistory(() => {}); 
+
+  // Handle initial fetch and window focus/visibility events
   useEffect(() => {
     fetchChatHistory();
-    
-    // Add event listeners for window focus and visibility
     const handleFocus = () => {
-      console.log("Window focused, refreshing chat history");
       fetchChatHistory();
     };
     
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("Window visible, refreshing chat history");
         fetchChatHistory();
       }
     };
     
-    // Listen for when the window gets focus
     window.addEventListener('focus', handleFocus);
-    
-    // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Custom event for Electron window show
     window.addEventListener('window-show', handleFocus);
     
-    // Cleanup event listeners
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('window-show', handleFocus);
     };
-  }, []);
-  
+  }, [fetchChatHistory]);
+
   // Filter chats based on search query
   const filteredHistory = chatHistory.filter((chat) =>
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
-  // Handle refreshing chat list manually
-  const handleRefresh = () => {
-    fetchChatHistory();
-  };
-  
+
   // Handle selecting a chat
   const handleSelectChat = async (chatId: string) => {
-    try {
-      const response = await fetch(`http://localhost:38000/api/chats/${chatId}`);
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        // Dispatch a custom event to notify the main window that a chat was selected
-        try {
-          const chatSelectedEvent = new CustomEvent("chat-history-selected", {
-            detail: { chat: data.chat }
-          });
-          window.dispatchEvent(chatSelectedEvent);
-
-          // For cross-window communication, use localStorage as a bridge
-          const chatData = JSON.stringify({
-            eventType: "chat-history-selected",
-            timestamp: new Date().toISOString(),
-            chat: data.chat
-          });
-          localStorage.setItem("selectedChatHistory", chatData);
-
-          // If we have the Electron API, try to close the window
-          if (window.electronAPI) {
-            window.electronAPI.toggleHistoryWindow();
-          }
-        } catch (error) {
-          console.error("Error dispatching chat selection event:", error);
-        }
-      } else {
-        setError("Failed to load chat");
-      }
-    } catch (err) {
-      console.error("Error fetching chat details:", err);
-      setError("Error loading chat");
-    }
+    await selectChat(chatId);
   };
   
   // Handle deleting a chat
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
     e.stopPropagation();
-    
-    try {
-      const response = await fetch(`http://localhost:38000/api/chats/${chatId}`, {
-        method: 'DELETE'
-      });
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        // Remove chat from the local state
-        setChatHistory(prevChats => prevChats.filter(chat => chat.id !== chatId));
-      } else {
-        setError("Failed to delete chat");
-      }
-    } catch (err) {
-      console.error("Error deleting chat:", err);
-      setError("Error deleting chat");
-    }
+    await deleteChat(chatId);
   };
   
   // Handle closing the history window
   const handleCloseHistory = () => {
-    try {
-      if (window.electronAPI) {
-        console.log("Closing history window...");
-        window.electronAPI.toggleHistoryWindow()
-          .then(() => {
-            console.log("History window toggled successfully");
-          })
-          .catch((error: Error) => {
-            console.error("Error toggling history window:", error);
-          });
-      } else {
-        console.error("electronAPI is not available!");
-      }
-    } catch (error: unknown) {
-      console.error("Error toggling history window:", error);
-    }
+    triggerHistoryWindow();
+  };
+  
+  // Handle refreshing chat list manually
+  const handleRefresh = () => {
+    fetchChatHistory();
   };
   
   // Format the date for display
