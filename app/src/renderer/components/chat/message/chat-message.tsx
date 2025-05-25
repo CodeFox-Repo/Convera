@@ -74,6 +74,25 @@ const ChatMessage = memo(
       >
         <div className="mx-auto mb-2 w-full max-w-3xl">
           <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+            {/* Agent avatar - only show for non-user messages */}
+            {!isUser && (
+              <div className="mr-3 mt-1 flex-shrink-0">
+                <div className="size-8 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
+                  <img 
+                    src="../../images/icon.png" 
+                    alt="Agent" 
+                    className="size-6 object-contain"
+                    onError={(e) => {
+                      // Fallback to a simple circle if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.parentElement!.innerHTML = '<div class="size-4 rounded-full bg-primary/20"></div>';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Message content */}
             <div
               className={`text-foreground overflow-hidden text-sm ${isUser ? "flex flex-col items-end" : ""} max-w-[80%]`}
