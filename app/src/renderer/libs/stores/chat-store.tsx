@@ -145,7 +145,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (copiedContent) {
         messageText = messageText
-          ? `${messageText}\n<copied>\n${copiedContent}\n</copied>\n`
+          ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
           : `<copied>\n${copiedContent}\n</copied>`;
 
         setCopiedContent(null);
