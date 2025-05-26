@@ -96,21 +96,23 @@ const ChatHistoryPage: React.FC = () => {
   const cleanTitle = (title: string) => {
     if (!title) return "Untitled Conversation";
     
-    // Remove <copied>...</copied> tags and replace with a cleaner indicator
-    let cleanedTitle = title.replace(/<copied>(.*?)<\/copied>/gi, (match, content) => {
-      // If the content is very long, truncate it
-      const truncatedContent = content.length > 50 ? content.substring(0, 50) + "..." : content;
-      return `📋 ${truncatedContent}`;
+    // A single regex to handle both <copied>...</copied> and standalone <copied>
+    // and optionally trims whitespace around the content.
+    let cleanedTitle = title.replace(/<copied>(.*?)<\/copied>|<copied>/gi, (match, content) => {
+      if (content) {
+        // If content exists, truncate it.
+        const truncatedContent = content.trim().length > 50 ? content.trim().substring(0, 50) + "..." : content.trim();
+        return `📋 ${truncatedContent}`;
+      }
+      // If no content (just <copied>), return the emoji.
+      return '📋 ';
     });
     
     // Remove other common XML-like tags that might appear
-    cleanedTitle = cleanedTitle.replace(/<[^>]*>/g, '');
+    // cleanedTitle = cleanedTitle.replace(/<[^>]*>/g, '');
     
-    // Clean up extra whitespace
-    cleanedTitle = cleanedTitle.replace(/\s+/g, ' ').trim();
-    
-    // If title is still empty or too generic, provide a fallback
-    if (!cleanedTitle || cleanedTitle.length < 3) {
+    // If title is empty after cleaning, provide a fallback
+    if (!cleanedTitle) {
       return "Untitled Conversation";
     }
     
