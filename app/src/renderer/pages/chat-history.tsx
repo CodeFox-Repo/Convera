@@ -91,6 +91,36 @@ const ChatHistoryPage: React.FC = () => {
       return dateString;
     }
   };
+
+  // Clean up chat title to handle copied content and other formatting
+  const cleanTitle = (title: string) => {
+    if (!title) return "Untitled Conversation";
+    
+    // Remove <copied>...</copied> tags and replace with a cleaner indicator
+    let cleanedTitle = title.replace(/<copied>(.*?)<\/copied>/gi, (match, content) => {
+      // If the content is very long, truncate it
+      const truncatedContent = content.length > 50 ? content.substring(0, 50) + "..." : content;
+      return `📋 ${truncatedContent}`;
+    });
+    
+    // Remove other common XML-like tags that might appear
+    cleanedTitle = cleanedTitle.replace(/<[^>]*>/g, '');
+    
+    // Clean up extra whitespace
+    cleanedTitle = cleanedTitle.replace(/\s+/g, ' ').trim();
+    
+    // If title is still empty or too generic, provide a fallback
+    if (!cleanedTitle || cleanedTitle.length < 3) {
+      return "Untitled Conversation";
+    }
+    
+    // Truncate very long titles
+    if (cleanedTitle.length > 100) {
+      cleanedTitle = cleanedTitle.substring(0, 100) + "...";
+    }
+    
+    return cleanedTitle;
+  };
   
   return (
     <div className="flex h-screen flex-col bg-background p-6">
@@ -152,7 +182,7 @@ const ChatHistoryPage: React.FC = () => {
                 <MessageSquare className="mr-4 shrink-0 text-primary" size={24} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-lg truncate">{chat.title}</h3>
+                    <h3 className="font-medium text-lg truncate">{cleanTitle(chat.title)}</h3>
                     <span className="text-sm text-gray-500 whitespace-nowrap ml-2">{formatDate(chat.lastUpdated)}</span>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-400">
