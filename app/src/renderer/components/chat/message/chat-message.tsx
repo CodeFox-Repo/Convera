@@ -22,7 +22,7 @@ export interface ChatMessageProps {
   renderContent: React.ReactNode;
 }
 
-
+const avatar = "../../images/icon.png";
 
 
 // Attachment preview component
@@ -79,7 +79,7 @@ const ChatMessage = memo(
               <div className="mr-3 mt-1 flex-shrink-0">
                 <div className="size-8 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
                   <img 
-                    src="../../images/icon.png" 
+                    src={avatar} 
                     alt="Agent" 
                     className="size-6 object-contain"
                     onError={(e) => {
