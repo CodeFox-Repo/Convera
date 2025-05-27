@@ -1,5 +1,5 @@
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
-import { AlertCircle, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -12,6 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 type MarketplaceSectionProps = {
@@ -126,6 +132,30 @@ export function MarketplaceSection({
       console.error(`Error uninstalling server ${serverId}:`, error);
     } finally {
       setUninstallingServers((prev) => ({ ...prev, [serverId]: false }));
+    }
+  };
+
+  const handleOpenMCPConfigFolder = async () => {
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.openMCPConfigFolder();
+      } else {
+        console.error("electronAPI is not available!");
+      }
+    } catch (error) {
+      console.error("Error opening MCP config folder:", error);
+    }
+  };
+
+  const handleOpenMCPConfigFile = async () => {
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.openMCPConfigFile();
+      } else {
+        console.error("electronAPI is not available!");
+      }
+    } catch (error) {
+      console.error("Error opening MCP config file:", error);
     }
   };
 
@@ -372,9 +402,33 @@ export function MarketplaceSection({
 
         <TabsContent value="installed" className="space-y-6">
           <div>
-            <h3 className="text-foreground mb-4 text-xl font-semibold">
-              Installed MCP Servers
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-foreground text-xl font-semibold">
+                Installed MCP Servers
+              </h3>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="dark:bg-background/60 flex items-center gap-1 dark:border-gray-700"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Edit MCP Config
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleOpenMCPConfigFolder}>
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    Open Config Folder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenMCPConfigFile}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Open Config File
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <div className="space-y-4">
               {loadingMcpServers ? (
                 <div className="flex items-center justify-center py-8">

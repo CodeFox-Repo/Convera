@@ -60,6 +60,9 @@ export interface IElectronAPI {
     width: number;
     height: number;
   }>;
+  // MCP Config
+  openMCPConfigFolder: () => Promise<void>;
+  openMCPConfigFile: () => Promise<void>;
 }
 
 // Extend the global Window interface

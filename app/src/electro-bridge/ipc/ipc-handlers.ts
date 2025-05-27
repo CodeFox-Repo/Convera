@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, nativeTheme } from "electron";
+import { BrowserWindow, clipboard, nativeTheme, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -9,6 +9,8 @@ import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
 import { exec } from "child_process";
+import os from "os";
+import path from "path";
 import { CHANNELS } from "./channels";
 
 let currentActivateShortcut =
@@ -445,4 +447,24 @@ export function pasteModifiedContent(content: string): void {
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }
+}
+
+/**
+ * Open MCP config folder in system file explorer
+ */
+export function openMCPConfigFolder(): void {
+  const configPath = path.join(os.homedir(), ".foxychat");
+  shell.openPath(configPath).catch((error) => {
+    console.error("Error opening MCP config folder:", error);
+  });
+}
+
+/**
+ * Open MCP config file in default editor
+ */
+export function openMCPConfigFile(): void {
+  const configFilePath = path.join(os.homedir(), ".foxychat", "mcp.json");
+  shell.openPath(configFilePath).catch((error) => {
+    console.error("Error opening MCP config file:", error);
+  });
 }

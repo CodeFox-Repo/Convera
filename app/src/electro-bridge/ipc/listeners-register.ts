@@ -1,34 +1,36 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ipcMain, BrowserWindow, IpcRenderer } from "electron";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
+import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
-  getPreviousApp,
   closeSettingsWindow,
-  toggleSettingsWindow,
-  updateGlobalShortcut,
-  initGlobalShortcut,
-  minimizeWindow,
-  maximizeWindow,
   closeWindow,
-  resizeWindow,
-  resizeMessageContent,
+  getClipboardText,
   getCurrentTheme,
-  toggleTheme,
+  getCurrentWindowPosition,
+  getCurrentWindowSize,
+  getPreviousApp,
+  getPreviousAppID,
+  initGlobalShortcut,
+  maximizeWindow,
+  minimizeWindow,
+  modelSelected,
+  openMCPConfigFile,
+  openMCPConfigFolder,
+  pasteModifiedContent,
+  resizeMessageContent,
+  resizeWindow,
   setDarkTheme,
   setLightTheme,
   setSystemTheme,
   toggleAgentPopover,
-  getCurrentWindowPosition,
   toggleModelSelector,
-  modelSelected,
+  toggleSettingsWindow,
+  toggleTheme,
   toggleViewMode,
-  getClipboardText,
-  pasteModifiedContent,
-  getCurrentWindowSize,
   toggleWindow,
-  getPreviousAppID,
+  updateGlobalShortcut,
 } from "./ipc-handlers";
-import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
-import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -320,6 +322,17 @@ export default function registerListeners(
       return true;
     },
   );
+
+  // MCP Config handlers
+  ipcMain.handle(CHANNELS.MCP.OPEN_CONFIG_FOLDER, () => {
+    console.log("Handling MCP.OPEN_CONFIG_FOLDER");
+    openMCPConfigFolder();
+  });
+
+  ipcMain.handle(CHANNELS.MCP.OPEN_CONFIG_FILE, () => {
+    console.log("Handling MCP.OPEN_CONFIG_FILE");
+    openMCPConfigFile();
+  });
 
   console.log("All IPC listeners registered successfully.");
 }

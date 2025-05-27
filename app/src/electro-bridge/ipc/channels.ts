@@ -53,6 +53,10 @@ export interface IPCServer {
     width: number;
     height: number;
   };
+
+  // MCP Config
+  openMCPConfigFolder(): void;
+  openMCPConfigFile(): void;
 }
 
 export const CHANNELS = {
@@ -102,6 +106,10 @@ export const CHANNELS = {
     TOGGLE_SELECTOR: "model:toggle-selector",
     MODEL_SELECTED: "model:selected",
   },
+  MCP: {
+    OPEN_CONFIG_FOLDER: "mcp:open-config-folder",
+    OPEN_CONFIG_FILE: "mcp:open-config-file",
+  },
 } as const;
 
 export const methodChannelMap: { [K in keyof IPCServer]: string } = {
@@ -140,4 +148,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // Model
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
+  // MCP Config
+  openMCPConfigFolder: CHANNELS.MCP.OPEN_CONFIG_FOLDER,
+  openMCPConfigFile: CHANNELS.MCP.OPEN_CONFIG_FILE,
 };
