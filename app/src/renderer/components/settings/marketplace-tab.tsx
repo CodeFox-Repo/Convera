@@ -1,6 +1,7 @@
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
-import { ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
+import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -50,6 +51,8 @@ export function MarketplaceSection({
     Record<string, boolean>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [manualConfigError, setManualConfigError] = useState<string | null>(null);
+  const [communityConfigError, setCommunityConfigError] = useState<string | null>(null);
 
   const handleTabChange = (value: string) => {
     if (value === "installed" && onRefreshServers) {
@@ -61,12 +64,16 @@ export function MarketplaceSection({
     if (!manualConfig.trim() || !onManualInstallMcp) return;
 
     setIsSubmitting(true);
+    setManualConfigError(null);
     try {
       await onManualInstallMcp(manualConfig);
       setShowManualConfigDialog(false);
       setManualConfig("");
+      setManualConfigError(null);
     } catch (error) {
       console.error("Error submitting manual config:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setManualConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -76,17 +83,21 @@ export function MarketplaceSection({
     if (!communityConfig.trim() || !onManualInstallMcp) return;
 
     setIsSubmitting(true);
+    setCommunityConfigError(null);
     try {
       await onManualInstallMcp(communityConfig);
       setShowCommunityConfigDialog(false);
       setCommunityConfig("");
       setSelectedCommunityItem(null);
+      setCommunityConfigError(null);
 
       if (selectedCommunityItem) {
         onInstallMcpTool(selectedCommunityItem);
       }
     } catch (error) {
       console.error("Error submitting community config:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setCommunityConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +106,14 @@ export function MarketplaceSection({
   const handleOpenCommunityDialog = (item: McpMarketplaceItem) => {
     setSelectedCommunityItem(item);
     setCommunityConfig("");
+    setCommunityConfigError(null);
     setShowCommunityConfigDialog(true);
+  };
+
+  const handleOpenManualDialog = () => {
+    setManualConfig("");
+    setManualConfigError(null);
+    setShowManualConfigDialog(true);
   };
 
   const handleUninstallServer = async (serverId: string) => {
@@ -149,7 +167,7 @@ export function MarketplaceSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowManualConfigDialog(true)}
+            onClick={handleOpenManualDialog}
             className="dark:bg-background/60 flex items-center gap-1 dark:border-gray-700"
           >
             <Plus className="h-4 w-4" />
@@ -196,7 +214,7 @@ export function MarketplaceSection({
             <Button
               variant="link"
               className="text-primary ml-1 h-auto p-0"
-              onClick={() => setShowManualConfigDialog(true)}
+              onClick={handleOpenManualDialog}
             >
               Configure Manually
             </Button>
@@ -455,7 +473,12 @@ export function MarketplaceSection({
             <div className="relative">
               <textarea
                 value={manualConfig}
-                onChange={(e) => setManualConfig(e.target.value)}
+                onChange={(e) => {
+                  setManualConfig(e.target.value);
+                  if (manualConfigError) {
+                    setManualConfigError(null);
+                  }
+                }}
                 className="bg-secondary/50 dark:bg-background/60 h-[300px] w-full rounded-md border p-4 font-mono text-xs dark:border-gray-700"
                 placeholder={`// Example:
 // {
@@ -471,6 +494,14 @@ export function MarketplaceSection({
 // }`}
               />
             </div>
+            {manualConfigError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {manualConfigError}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter className="mt-4">
             <DialogClose asChild>
@@ -518,7 +549,12 @@ export function MarketplaceSection({
             <div className="relative">
               <textarea
                 value={communityConfig}
-                onChange={(e) => setCommunityConfig(e.target.value)}
+                onChange={(e) => {
+                  setCommunityConfig(e.target.value);
+                  if (communityConfigError) {
+                    setCommunityConfigError(null);
+                  }
+                }}
                 className="bg-secondary/50 dark:bg-background/60 h-[200px] w-full rounded-md border p-4 font-mono text-xs dark:border-gray-700"
                 placeholder={`// Example:
 // {
@@ -548,6 +584,14 @@ export function MarketplaceSection({
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
+            )}
+            {communityConfigError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {communityConfigError}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
           <DialogFooter className="mt-4">
