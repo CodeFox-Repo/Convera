@@ -2,6 +2,7 @@ import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   positionWindowAtCenterBottom,
   setWindowHidden,
+  setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
@@ -13,17 +14,8 @@ import path from "path";
 export function createMainWindow() {
   const preload = path.join(__dirname, "preload.js");
 
-  // Initial dimensions that we'll also use as desired bounds
+  // Initial dimensions for window creation
   const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
-
-  // Store desired bounds for restoration
-  let desiredBounds = {
-    width: dimensions.width,
-    height: dimensions.height,
-    x: dimensions.x,
-    y: dimensions.y,
-  };
-  let restoreTimeout: NodeJS.Timeout | null = null;
 
   console.log(
     `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
@@ -132,59 +124,23 @@ export function createMainWindow() {
 
   // Add event handlers for window state
   if (mainWindow) {
-    // Update desired bounds when window is manually moved/resized while focused
-    const recordBounds = () => {
-      if (mainWindow?.isFocused()) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    };
-    mainWindow.on("resize", recordBounds);
-    mainWindow.on("move", recordBounds);
+    // Set up window position tracking
+    setupWindowPositionTracking(mainWindow);
 
-    // Handle blur with checks for minimize/maximize
-    mainWindow.on("blur", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      restoreTimeout = setTimeout(() => {
-        // Only restore if window isn't focused and isn't minimized/maximized
-        if (
-          mainWindow &&
-          !mainWindow.isFocused() &&
-          !mainWindow.isMinimized() &&
-          !mainWindow.isMaximized()
-        ) {
-          mainWindow.setBounds(desiredBounds, false);
-        }
-        restoreTimeout = null;
-      }, 100);
-    });
-
-    // Update desired bounds when window is manually restored
-    mainWindow.on("unmaximize", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      if (mainWindow) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    });
-
-    mainWindow.on("restore", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      if (mainWindow) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    });
-
-    // Handle display changes
+    // Handle display changes - recalculate centered position
     screen.on("display-metrics-changed", () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setBounds(desiredBounds, false);
+        const dimensions = calculateWindowDimensions(
+          WINDOW_SIZE_PRESETS.MAIN,
+          undefined,
+          true,
+        );
+        mainWindow.setBounds(dimensions, false);
       }
     });
   }
 
   mainWindow?.on("closed", () => {
-    if (restoreTimeout) {
-      clearTimeout(restoreTimeout);
-    }
     mainWindow = null;
   });
 
