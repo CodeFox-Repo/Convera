@@ -1,6 +1,7 @@
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
+import { cleanTitle } from "../libs/utils/tag";
 
 const ChatHistoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,38 +91,6 @@ const ChatHistoryPage: React.FC = () => {
     } catch (e) {
       return dateString;
     }
-  };
-
-  // Clean up chat title to handle copied content and other formatting
-  const cleanTitle = (title: string) => {
-    if (!title) return "Untitled Conversation";
-    
-    // A single regex to handle both <copied>...</copied> and standalone <copied>
-    // and optionally trims whitespace around the content.
-    let cleanedTitle = title.replace(/<copied>(.*?)<\/copied>|<copied>/gi, (match, content) => {
-      if (content) {
-        // If content exists, truncate it.
-        const truncatedContent = content.trim().length > 50 ? content.trim().substring(0, 50) + "..." : content.trim();
-        return `📋 ${truncatedContent}`;
-      }
-      // If no content (just <copied>), return the emoji.
-      return '📋 ';
-    });
-    
-    // Remove other common XML-like tags that might appear
-    // cleanedTitle = cleanedTitle.replace(/<[^>]*>/g, '');
-    
-    // If title is empty after cleaning, provide a fallback
-    if (!cleanedTitle) {
-      return "Untitled Conversation";
-    }
-    
-    // Truncate very long titles
-    if (cleanedTitle.length > 100) {
-      cleanedTitle = cleanedTitle.substring(0, 100) + "...";
-    }
-    
-    return cleanedTitle;
   };
   
   return (
