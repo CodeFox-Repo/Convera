@@ -4,11 +4,14 @@ import { appConfig } from "@/electron/config";
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   WINDOW_SIZE_PRESETS,
+  WindowDimensions,
   WindowSizeConfig,
 } from "@/electron/windows/window-size";
 import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
 
+export let expectedPosition: WindowDimensions | null = null;
+let isFixingPosition = false;
 /**
  * Position a window at the center bottom of the screen with margin
  * bottomMarginPercent: percentage of screen height to use as bottom margin
@@ -79,17 +82,6 @@ export function centerWindowHorizontally(window: BrowserWindow) {
   // Keep the same Y position
   window.setPosition(newX, bounds.y);
 }
-
-// Track the expected window position (only updated when user manually moves window)
-interface WindowPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-let expectedPosition: WindowPosition | null = null;
-let isFixingPosition = false;
 
 /**
  * Update expected position when window is manually moved

@@ -1,5 +1,6 @@
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
+  expectedPosition,
   positionWindowAtCenterBottom,
   setWindowHidden,
   setupWindowPositionTracking,
@@ -130,11 +131,13 @@ export function createMainWindow() {
     // Handle display changes - recalculate centered position
     screen.on("display-metrics-changed", () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        const dimensions = calculateWindowDimensions(
-          WINDOW_SIZE_PRESETS.MAIN,
-          undefined,
-          true,
-        );
+        const dimensions = expectedPosition
+          ? expectedPosition
+          : calculateWindowDimensions(
+              WINDOW_SIZE_PRESETS.MAIN,
+              undefined,
+              true,
+            );
         mainWindow.setBounds(dimensions, false);
       }
     });
