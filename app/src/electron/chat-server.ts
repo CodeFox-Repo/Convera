@@ -2,7 +2,7 @@
  * Helper to integrate chat server with Electron
  */
 
-import startChatServer from "@/server/chat-server";
+import { startChatServer } from "@/server/chat-server";
 
 export async function initializeChatServer() {
   // Start chat server directly, as we're already in app.whenReady() in main.ts
