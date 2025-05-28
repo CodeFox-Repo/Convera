@@ -1,34 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ipcMain, BrowserWindow, IpcRenderer } from "electron";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
+import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
-  getPreviousApp,
   closeSettingsWindow,
-  toggleSettingsWindow,
-  updateGlobalShortcut,
-  initGlobalShortcut,
-  minimizeWindow,
-  maximizeWindow,
   closeWindow,
-  resizeWindow,
-  resizeMessageContent,
+  getClipboardText,
   getCurrentTheme,
-  toggleTheme,
+  getCurrentWindowPosition,
+  getCurrentWindowSize,
+  getPreviousApp,
+  getPreviousAppID,
+  initGlobalShortcut,
+  maximizeWindow,
+  minimizeWindow,
+  modelSelected,
+  pasteModifiedContent,
+  resizeMessageContent,
+  resizeWindow,
   setDarkTheme,
   setLightTheme,
   setSystemTheme,
   toggleAgentPopover,
-  getCurrentWindowPosition,
   toggleModelSelector,
-  modelSelected,
+  toggleSettingsWindow,
+  toggleTheme,
   toggleViewMode,
-  getClipboardText,
-  pasteModifiedContent,
-  getCurrentWindowSize,
   toggleWindow,
-  getPreviousAppID,
+  updateGlobalShortcut,
 } from "./ipc-handlers";
-import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
-import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {

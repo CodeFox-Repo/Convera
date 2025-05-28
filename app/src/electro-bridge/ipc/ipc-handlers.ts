@@ -11,8 +11,8 @@ import robot from "@/shared/robot";
 import { exec } from "child_process";
 import { CHANNELS } from "./channels";
 
-let currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
+// Simple in-memory storage for current shortcut
+let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
 
@@ -99,6 +99,7 @@ export function updateGlobalShortcut(
   registerGlobalShortcuts: () => void,
 ): boolean {
   if (shortcut && shortcut !== currentActivateShortcut) {
+    console.log(`Updating global shortcut to: ${shortcut}`);
     currentActivateShortcut = shortcut;
     registerGlobalShortcuts();
     return true;
@@ -110,7 +111,8 @@ export function initGlobalShortcut(
   shortcut: string,
   registerGlobalShortcuts: () => void,
 ): boolean {
-  if (shortcut && shortcut !== currentActivateShortcut) {
+  if (shortcut) {
+    console.log(`Initializing global shortcut to: ${shortcut}`);
     currentActivateShortcut = shortcut;
     registerGlobalShortcuts();
     return true;

@@ -114,7 +114,7 @@ export function getSettings(): AppSettings {
  * Initialize the global shortcut based on user settings
  */
 export function initGlobalShortcut(): void {
-  if (typeof window !== "undefined" && window.require) {
+  if (typeof window !== "undefined" && window.electronAPI) {
     try {
       const settings = getSettings();
       // Find the activate shortcut
@@ -122,17 +122,21 @@ export function initGlobalShortcut(): void {
         (s) => s.id === "activate",
       );
       if (activateShortcut && activateShortcut.enabled) {
-        const { ipcRenderer } = window.require("electron");
-        ipcRenderer
-          .invoke("init-global-shortcut", activateShortcut.shortcut)
+        console.log(
+          `Initializing global shortcut: ${activateShortcut.shortcut}`,
+        );
+        window.electronAPI
+          .initGlobalShortcut(activateShortcut.shortcut)
           .then((success: boolean) => {
             console.log(
-              `Global shortcut initialization ${success ? "succeeded" : "already set"}`,
+              `Global shortcut initialization ${success ? "succeeded" : "failed"}`,
             );
           })
           .catch((error: Error) => {
             console.error("Error initializing global shortcut:", error);
           });
+      } else {
+        console.log("No activate shortcut found or it's disabled");
       }
     } catch (error: unknown) {
       console.error("Failed to initialize global shortcut:", error);
@@ -204,12 +208,11 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
   if (
     shortcut.id === "activate" &&
     typeof window !== "undefined" &&
-    window.require
+    window.electronAPI
   ) {
     try {
-      const { ipcRenderer } = window.require("electron");
-      ipcRenderer
-        .invoke("update-global-shortcut", shortcut.shortcut)
+      window.electronAPI
+        .updateGlobalShortcut(shortcut.shortcut)
         .then((success: boolean) => {
           console.log(
             `Global shortcut update ${success ? "succeeded" : "failed"}`,
@@ -219,7 +222,7 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
           console.error("Error updating global shortcut:", error);
         });
     } catch (error: unknown) {
-      console.error("Failed to update global shortcut via IPC:", error);
+      console.error("Failed to update global shortcut via electronAPI:", error);
     }
   }
 
