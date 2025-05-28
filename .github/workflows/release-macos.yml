@@ -25,9 +25,9 @@ jobs:
         with:
           version: 8
 
-      # Install dependencies with pnpm
+      # Install dependencies with pnpm from workspace root
       - name: Install dependencies
-        run: cd app && pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Run tests
       - name: Run tests
