@@ -63,6 +63,7 @@ export interface IElectronAPI {
   // MCP Config
   openMCPConfigFolder: () => Promise<void>;
   openMCPConfigFile: () => Promise<void>;
+  openPath: (path: string) => Promise<void>;
 }
 
 // Extend the global Window interface

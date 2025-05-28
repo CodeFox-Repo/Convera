@@ -15,8 +15,7 @@ import {
   maximizeWindow,
   minimizeWindow,
   modelSelected,
-  openMCPConfigFile,
-  openMCPConfigFolder,
+  openPath,
   pasteModifiedContent,
   resizeMessageContent,
   resizeWindow,
@@ -323,15 +322,9 @@ export default function registerListeners(
     },
   );
 
-  // MCP Config handlers
-  ipcMain.handle(CHANNELS.MCP.OPEN_CONFIG_FOLDER, () => {
-    console.log("Handling MCP.OPEN_CONFIG_FOLDER");
-    openMCPConfigFolder();
-  });
-
-  ipcMain.handle(CHANNELS.MCP.OPEN_CONFIG_FILE, () => {
-    console.log("Handling MCP.OPEN_CONFIG_FILE");
-    openMCPConfigFile();
+  ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (event, path: string) => {
+    console.log(`Handling FILE.OPEN_PATH: ${path}`);
+    openPath(path);
   });
 
   console.log("All IPC listeners registered successfully.");

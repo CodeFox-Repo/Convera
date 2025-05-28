@@ -33,6 +33,10 @@ type MarketplaceSectionProps = {
   onRefreshServers?: () => void;
 };
 
+// MCP configuration paths - these are standard across platforms
+const MCP_CONFIG_FOLDER_PATH = '~/.foxychat';
+const MCP_CONFIG_FILE_PATH = '~/.foxychat/mcp.json';
+
 export function MarketplaceSection({
   mcpMarketItems,
   mcpServers,
@@ -138,7 +142,7 @@ export function MarketplaceSection({
   const handleOpenMCPConfigFolder = async () => {
     try {
       if (window.electronAPI) {
-        await window.electronAPI.openMCPConfigFolder();
+        await window.electronAPI.openPath(MCP_CONFIG_FOLDER_PATH);
       } else {
         console.error("electronAPI is not available!");
       }
@@ -150,7 +154,7 @@ export function MarketplaceSection({
   const handleOpenMCPConfigFile = async () => {
     try {
       if (window.electronAPI) {
-        await window.electronAPI.openMCPConfigFile();
+        await window.electronAPI.openPath(MCP_CONFIG_FILE_PATH);
       } else {
         console.error("electronAPI is not available!");
       }

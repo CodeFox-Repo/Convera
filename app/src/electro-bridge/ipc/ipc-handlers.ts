@@ -450,21 +450,18 @@ export function pasteModifiedContent(content: string): void {
 }
 
 /**
- * Open MCP config folder in system file explorer
+ * Open file or directory path in system default application
  */
-export function openMCPConfigFolder(): void {
-  const configPath = path.join(os.homedir(), ".foxychat");
-  shell.openPath(configPath).catch((error) => {
-    console.error("Error opening MCP config folder:", error);
-  });
-}
+export function openPath(targetPath: string): void {
+  // Handle tilde expansion for home directory
+  let resolvedPath = targetPath;
+  if (targetPath.startsWith("~/")) {
+    resolvedPath = path.join(os.homedir(), targetPath.slice(2));
+  } else if (targetPath === "~") {
+    resolvedPath = os.homedir();
+  }
 
-/**
- * Open MCP config file in default editor
- */
-export function openMCPConfigFile(): void {
-  const configFilePath = path.join(os.homedir(), ".foxychat", "mcp.json");
-  shell.openPath(configFilePath).catch((error) => {
-    console.error("Error opening MCP config file:", error);
+  shell.openPath(resolvedPath).catch((error) => {
+    console.error(`Error opening path ${resolvedPath}:`, error);
   });
 }
