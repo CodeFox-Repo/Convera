@@ -1,7 +1,7 @@
 {
   "name": "codefox-foxychat",
   "productName": "FoxyChat",
-  "version": "0.0.1",
+  "version": "0.0.6",
   "description": "FoxyChat - All in one Chat App",
   "main": ".vite/build/main.js",
   "private": true,
@@ -10,7 +10,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "postinstall": "electron-rebuild -f -w @hurdlegroup/robotjs",
+    "postinstall": "test \"$CI\" = \"true\" || electron-rebuild -f -w @hurdlegroup/robotjs",
+    "rebuild": "electron-rebuild -f -w @hurdlegroup/robotjs",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",

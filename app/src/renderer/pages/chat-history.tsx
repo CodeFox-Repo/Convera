@@ -1,6 +1,7 @@
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
+import { cleanTitle } from "../libs/utils/tag";
 
 const ChatHistoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,7 +153,7 @@ const ChatHistoryPage: React.FC = () => {
                 <MessageSquare className="mr-4 shrink-0 text-primary" size={24} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-lg truncate">{chat.title}</h3>
+                    <h3 className="font-medium text-lg truncate">{cleanTitle(chat.title)}</h3>
                     <span className="text-sm text-gray-500 whitespace-nowrap ml-2">{formatDate(chat.lastUpdated)}</span>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-400">
