@@ -1,11 +1,17 @@
-import { exec } from "child_process";
-import { BrowserWindow, screen } from "electron";
-import { WindowSizeConfig } from "@/electron/windows/window-size";
-import { calculateWindowDimensions } from "@/electron/windows/utils";
-import { appConfig } from "@/electron/config";
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
 import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
+import { appConfig } from "@/electron/config";
+import { calculateWindowDimensions } from "@/electron/windows/utils";
+import {
+  WINDOW_SIZE_PRESETS,
+  WindowDimensions,
+  WindowSizeConfig,
+} from "@/electron/windows/window-size";
+import { exec } from "child_process";
+import { BrowserWindow, screen } from "electron";
 
+export let expectedPosition: WindowDimensions | null = null;
+let isFixingPosition = false;
 /**
  * Position a window at the center bottom of the screen with margin
  * bottomMarginPercent: percentage of screen height to use as bottom margin
@@ -77,15 +83,44 @@ export function centerWindowHorizontally(window: BrowserWindow) {
   window.setPosition(newX, bounds.y);
 }
 
-// Track the last known good position and a timestamp of when it was set
-let expectedWindowPosition: {
-  x: number;
-  y: number;
-  height: number;
-  timestamp: number;
-} | null = null;
-// Track if we're currently in a position fix attempt to avoid correction loops
-let isFixingPosition = false;
+/**
+ * Update expected position when window is manually moved
+ */
+function updateExpectedPosition(window: BrowserWindow) {
+  if (!window || isFixingPosition) return;
+  const bounds = window.getBounds();
+  // Only update if the current position is valid
+  if (bounds.x >= 0 && bounds.y >= 0) {
+    expectedPosition = bounds;
+    console.log(
+      `Updated expected position to: ${JSON.stringify(expectedPosition)}`,
+    );
+  }
+}
+
+/**
+ * Restore window to expected position if current position deviates
+ */
+function restoreToExpectedPosition(window: BrowserWindow): boolean {
+  if (!window || !expectedPosition) return false;
+
+  const currentBounds = window.getBounds();
+  // Check if current position deviates significantly from expected
+  if (
+    Math.abs(currentBounds.x - expectedPosition.x) > 100 ||
+    currentBounds.x < 0 ||
+    Math.abs(currentBounds.y - expectedPosition.y) > 100
+  ) {
+    console.log(
+      `Restoring window to expected position: ${JSON.stringify(expectedPosition)}`,
+    );
+    isFixingPosition = true;
+    window.setBounds(expectedPosition, false);
+    isFixingPosition = false;
+    return true;
+  }
+  return false;
+}
 
 /**
  * Resize window and maintain its bottom position
@@ -118,36 +153,7 @@ export function resizeWindowAndMaintainPosition(
   try {
     // Get current bounds
     const bounds = window.getBounds();
-
-    // Additional logging for debugging
     console.log(`Current window bounds: ${JSON.stringify(bounds)}`);
-
-    // Only check for unexpected changes if enough time has passed (1 second)
-    // This prevents position correction loops
-    const now = Date.now();
-    const isHeightChange =
-      expectedWindowPosition &&
-      Math.abs(height - expectedWindowPosition.height) > 10;
-    const timeSinceLastPositionSet = expectedWindowPosition
-      ? now - expectedWindowPosition.timestamp
-      : 0;
-
-    // Restore position if it changed unexpectedly, but not during height changes and not too frequently
-    if (
-      expectedWindowPosition &&
-      !isHeightChange &&
-      !isFixingPosition &&
-      timeSinceLastPositionSet > 1000 &&
-      (bounds.x < 0 || Math.abs(bounds.x - expectedWindowPosition.x) > 100)
-    ) {
-      console.warn(
-        `Window position changed unexpectedly: expected (${expectedWindowPosition.x}, ${expectedWindowPosition.y}), got (${bounds.x}, ${bounds.y})`,
-      );
-
-      // Force restore to expected position
-      bounds.x = expectedWindowPosition.x;
-      bounds.y = expectedWindowPosition.y;
-    }
 
     // Calculate the bottom edge position
     const bottomEdgeY = bounds.y + bounds.height;
@@ -158,20 +164,15 @@ export function resizeWindowAndMaintainPosition(
 
     // Determine X position - preserve current X if requested, otherwise center
     let newX;
-    if (preserveX) {
-      newX = bounds.x;
-      console.log(`Preserving X position: ${newX}`);
+    if (preserveX && expectedPosition) {
+      newX = expectedPosition.x;
+      console.log(`Using expected X position: ${newX}`);
     } else {
       // Center horizontally
       const primaryDisplay = screen.getPrimaryDisplay();
       const screenWidth = primaryDisplay.workAreaSize.width;
       newX = Math.round((screenWidth - width) / 2);
     }
-
-    // Log change details
-    console.log(
-      `Bottom edge: ${bottomEdgeY}, New position: (${newX}, ${newY}), New size: ${width}x${height}`,
-    );
 
     // Create new bounds
     const newBounds = {
@@ -184,42 +185,14 @@ export function resizeWindowAndMaintainPosition(
     // Mark that we're in a position fixing state
     isFixingPosition = true;
 
-    // Save expected position for future reference with current time
-    expectedWindowPosition = {
-      x: newX,
-      y: newY,
-      height: height,
-      timestamp: now,
-    };
-
     // Disable animation for more reliable positioning
     window.setBounds(newBounds, false);
 
     // Force window to be visible
     window.show();
 
-    // Verify final position but only make one correction attempt to avoid loops
-    setTimeout(() => {
-      const finalBounds = window.getBounds();
-      console.log(`Final window bounds: ${JSON.stringify(finalBounds)}`);
-
-      // Check if position is significantly different than requested
-      // Use a higher tolerance to avoid minor corrections
-      const xPositionDifference = Math.abs(finalBounds.x - newX);
-
-      if (xPositionDifference > 100 || finalBounds.x < 0) {
-        console.warn(
-          `Window off screen or severely mispositioned, applying final correction`,
-        );
-
-        // Only fix extreme positioning issues
-        window.setPosition(newX, newY, false);
-        window.show();
-      }
-
-      // We're done with position fixing
-      isFixingPosition = false;
-    }, 200);
+    // Done with position fixing
+    isFixingPosition = false;
   } catch (error) {
     console.error("Error in resizeWindowAndMaintainPosition:", error);
     isFixingPosition = false;
@@ -228,6 +201,21 @@ export function resizeWindowAndMaintainPosition(
 
 export let isHiddenOffscreen = true;
 export let lastVisibleBounds: Electron.Rectangle | null = null;
+
+/**
+ * Set up window position tracking
+ * This should be called when the window is created
+ */
+export function setupWindowPositionTracking(window: BrowserWindow) {
+  if (!window) return;
+
+  // Update expected position when window is manually moved
+  window.on("move", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+}
 
 export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
   if (!mainWindow) return;
@@ -244,20 +232,35 @@ export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
     console.log("Window is currently hidden, making it visible");
 
     // === Restore display ===
-    // 1) Restore the saved bounds, or center if no bounds were saved
-    if (lastVisibleBounds) {
-      mainWindow.setBounds(lastVisibleBounds);
-    } else {
-      positionWindowAtCenterBottom(mainWindow);
+    // Try position restoration in order of preference:
+    // 1. Expected position (from manual moves)
+    // 2. Last visible bounds
+    // 3. Default centered position
+    let restored = false;
+
+    // First try expected position
+    if (expectedPosition) {
+      restored = restoreToExpectedPosition(mainWindow);
     }
 
-    // 2) Re-enable mouse events so the window can receive input again
+    // If that fails, try last visible bounds
+    if (!restored && lastVisibleBounds) {
+      restored = restoreToExpectedPosition(mainWindow);
+    }
+
+    // If all else fails, use default position
+    if (!restored) {
+      const dimensions = calculateWindowDimensions(
+        WINDOW_SIZE_PRESETS.MAIN,
+        undefined,
+        true,
+      );
+      mainWindow.setBounds(dimensions, false);
+    }
+
+    // Re-enable mouse events and make window visible
     mainWindow.setIgnoreMouseEvents(false);
-
-    // 3) Make the window opaque again
     mainWindow.setOpacity(1);
-
-    // 4) Show and focus the window, then send focus event to the chat input
     mainWindow.show();
     mainWindow.focus();
     mainWindow.webContents.send(CHANNELS.APP.FOCUS_CHAT_INPUT);
@@ -266,7 +269,6 @@ export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
   } else {
     console.log("Window is currently visible, hiding it");
 
-    // === Pseudo-hide ===
     // Try to activate previous app
     try {
       const prevApp = getPreviousApp();
@@ -277,21 +279,21 @@ export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
       console.error("Error activating previous app:", error);
     }
 
-    // 1) Save current window bounds
-    lastVisibleBounds = mainWindow.getBounds();
+    // Save current position only if it's valid
+    const currentBounds = mainWindow.getBounds();
+    if (currentBounds.x >= 0 && currentBounds.y >= 0) {
+      expectedPosition = currentBounds;
+      lastVisibleBounds = currentBounds;
+    }
 
-    // 2) Ignore mouse events so clicks pass through to the app underneath
+    // Hide window
     mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-    // 3) Make the window fully transparent
     mainWindow.setOpacity(0);
-
-    // 4) Move the window off the visible screen
     mainWindow.setBounds({
       x: -9999,
       y: -9999,
-      width: lastVisibleBounds.width,
-      height: lastVisibleBounds.height,
+      width: currentBounds.width,
+      height: currentBounds.height,
     });
 
     isHiddenOffscreen = true;
