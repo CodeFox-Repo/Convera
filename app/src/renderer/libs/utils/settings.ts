@@ -1,9 +1,9 @@
 import {
   AppSettings,
+  McpServerSettings,
+  McpSettings,
   OpenAISettings,
   ShortcutSettings,
-  McpSettings,
-  McpServerSettings,
 } from "@/shared/types/settings";
 
 const SETTINGS_KEY = "foxchat_settings";
@@ -25,13 +25,21 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
   {
     id: "activate",
     name: "Activate App",
-    shortcut: "Control+Shift+Space",
+    shortcut:
+      typeof window !== "undefined" &&
+      window.electronAPI?.getPlatform?.() === "darwin"
+        ? "Alt+Space"
+        : "Control+Shift+Space",
     enabled: true,
   },
   {
     id: "open_settings",
     name: "Open Settings",
-    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+E" : "Control+E",
+    shortcut:
+      typeof window !== "undefined" &&
+      window.electronAPI?.getPlatform?.() === "darwin"
+        ? "Command+E"
+        : "Control+E",
     enabled: true,
   },
 ];
