@@ -3,7 +3,7 @@ name: Release macOS App
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   build-and-release:
@@ -17,24 +17,25 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'yarn'
+          node-version: "18"
 
-      # Install dependencies with yarn
+      # Install pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      # Install dependencies with pnpm
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: cd app && pnpm install --frozen-lockfile
 
       # Run tests
       - name: Run tests
-        run: yarn test
+        run: cd app && pnpm test
 
-      # Package the app for distribution
-      - name: Package app
-        run: yarn package
-
-      # Make distributable
+      # Make app distributable (this will also package)
       - name: Make app distributable
-        run: yarn make
+        run: cd app && pnpm make
 
       # Get version from tag
       - name: Get version from tag
@@ -47,8 +48,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            out/make/**/*.dmg
-            out/make/**/*.zip
+            app/out/make/**/*.dmg
+            app/out/make/**/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,14 +62,14 @@ jobs:
           # Clone Homebrew repository
           git clone https://x-access-token:${GITHUB_TOKEN}@github.com/CodeFox-Repo/homebrew-codefox.git
           cd homebrew-codefox
-          
+
           # Create Formula directory if it doesn't exist
           mkdir -p Formula
-          
+
           # Get DMG URL and calculate SHA
           DMG_URL="https://github.com/CodeFox-Repo/foxychat/releases/download/v${VERSION}/FoxyChat-${VERSION}-arm64.dmg"
           DMG_SHA=$(curl -sL "$DMG_URL" | shasum -a 256 | cut -d' ' -f1)
-          
+
           # Create or update formula file
           cat > Formula/foxychat.rb << EOF
           cask "foxychat" do
@@ -90,10 +91,10 @@ jobs:
             ]
           end
           EOF
-          
+
           # Commit and push changes
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Formula/foxychat.rb
           git commit -m "Update FoxyChat to version ${VERSION}"
-          git push 
+          git push
