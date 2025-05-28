@@ -29,10 +29,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Rebuild native modules for production
-      - name: Rebuild native modules
-        run: cd app && npx electron-rebuild -f -w @hurdlegroup/robotjs
-
       # Run tests
       - name: Run tests
         run: cd app && pnpm test
