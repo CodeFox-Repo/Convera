@@ -414,20 +414,14 @@ export default function SettingsPage() {
     // Handle special cases first
     if (event.key === " " || event.code === "Space") {
       key = "Space";
-    } else if (event.key === "Dead" || event.code.startsWith("Key")) {
-      // Handle Dead keys and use event.code for letters
-      if (event.code.startsWith("Key")) {
-        // Extract letter from code (e.g., "KeyA" -> "A")
-        key = event.code.replace("Key", "");
-        console.log(`Using code for letter: ${key}`);
-      } else if (event.key === "Dead" && event.code.startsWith("Key")) {
-        // Fallback for dead keys
-        key = event.code.replace("Key", "");
-        console.log(`Dead key detected, using code: ${key}`);
-      } else {
-        // Use the key if it's not a dead key
-        key = event.key.toUpperCase();
-      }
+    } else if (event.code.startsWith("Key")) {
+      // Handle letter keys using event.code (works for both normal and dead keys)
+      key = event.code.replace("Key", "");
+      console.log(`Using code for letter: ${key}`);
+    } else if (event.key === "Dead") {
+      // Handle dead keys that don't have a proper code
+      console.log(`Dead key detected without proper code, skipping`);
+      key = ""; // Skip dead keys without proper code
     } else if (event.code.startsWith("Digit")) {
       // Handle number keys (e.g., "Digit1" -> "1")
       key = event.code.replace("Digit", "");
