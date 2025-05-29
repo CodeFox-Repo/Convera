@@ -378,7 +378,24 @@ export default function SettingsPage() {
   const handleResetShortcuts = () => {
     const updated = resetShortcutsToDefault();
     setSettings(updated);
-    toast.success("Shortcuts reset to default");
+    
+    // Update the main process with the new activate shortcut
+    const activateShortcut = updated.shortcuts.find(s => s.id === "activate");
+    if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
+      window.electronAPI
+        .updateGlobalShortcut(activateShortcut.shortcut)
+        .then((success: boolean) => {
+          console.log(
+            `Global shortcut reset to default: ${success ? "succeeded" : "failed"}`,
+          );
+        })
+        .catch((error: Error) => {
+          console.error("Error updating global shortcut after reset:", error);
+          toast.warning("Shortcuts reset to default, but global shortcut update failed");
+        });
+    } else {
+      toast.success("Shortcuts reset to default");
+    }
   };
 
   // --- Shortcut Recording Logic ---
