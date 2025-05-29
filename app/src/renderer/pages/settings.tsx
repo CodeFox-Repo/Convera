@@ -411,47 +411,115 @@ export default function SettingsPage() {
     return parts.join("+");
   };
 
-  const handleShortcutKeyDown = useCallback(
+  // Use ref to track recording state without causing re-renders
+  const recordingStateRef = useRef<string>("");
+
+  // Single event handler for both keydown and keyup
+  const handleRecordingKeyEvent = useCallback(
     (event: KeyboardEvent) => {
+      if (!activeShortcut) {
+        console.log("Event received but no active shortcut");
+        return; // Safety check
+      }
+
+      console.log(`Recording event: ${event.type}, key: ${event.key}, activeShortcut: ${activeShortcut}`);
+      
       event.preventDefault();
       event.stopPropagation();
 
-      const newShortcutKeys = formatShortcut(event);
-      setRecordingShortcut(newShortcutKeys);
+      // Handle escape key to cancel
+      if (event.key === "Escape") {
+        console.log("Escape pressed, cancelling recording");
+        setActiveShortcut(null);
+        setRecordingShortcut("");
+        recordingStateRef.current = "";
+        return;
+      }
 
-      // If key is released and it's not just a modifier key press
-      if (
-        newShortcutKeys &&
-        !["Command", "Control", "Alt", "Shift"].includes(newShortcutKeys)
-      ) {
-        if (activeShortcut) {
-          const shortcut = settings.shortcuts.find(
+      if (event.type === "keydown") {
+        // Capture the complete shortcut on keydown (when all keys are pressed)
+        const shortcutKeys = formatShortcut(event);
+        console.log(`Keydown - formatted shortcut: ${shortcutKeys}`);
+        
+        // Show live feedback
+        setRecordingShortcut(shortcutKeys);
+        
+        // Check if this is a complete shortcut (has non-modifier keys)
+        const hasNonModifierKey = shortcutKeys && 
+          !["Command", "Control", "Alt", "Shift"].includes(shortcutKeys) &&
+          shortcutKeys.split("+").some(part => 
+            !["Command", "Control", "Alt", "Shift"].includes(part)
+          );
+
+        console.log(`Keydown - has non-modifier key: ${hasNonModifierKey}`);
+
+        // Store the complete shortcut for use on keyup
+        if (hasNonModifierKey) {
+          recordingStateRef.current = shortcutKeys;
+          setRecordingShortcut(`${shortcutKeys} (release to save)`);
+        }
+      } else if (event.type === "keyup") {
+        // On keyup, check if we're releasing a non-modifier key
+        const isNonModifierKey = !["Meta", "Control", "Alt", "Shift"].includes(event.key);
+        
+        console.log(`Keyup - key: ${event.key}, isNonModifierKey: ${isNonModifierKey}`);
+        
+        if (isNonModifierKey && recordingStateRef.current) {
+          const shortcutToSave = recordingStateRef.current;
+          
+          console.log(`Saving complete shortcut: ${shortcutToSave}`);
+          
+          // Get current settings at the time of saving (not as a dependency)
+          const currentSettings = getSettings();
+          const shortcut = currentSettings.shortcuts.find(
             (s) => s.id === activeShortcut,
           );
           if (shortcut) {
             const updated = updateShortcut({
               ...shortcut,
-              shortcut: newShortcutKeys,
+              shortcut: shortcutToSave,
             });
             setSettings(updated);
             toast.success("Shortcut updated");
           }
+          
+          // Reset recording state
           setActiveShortcut(null);
           setRecordingShortcut("");
-          window.removeEventListener("keydown", handleShortcutKeyDown, true);
+          recordingStateRef.current = "";
         }
       }
     },
-    [activeShortcut, settings],
+    [activeShortcut], // Removed settings dependency - get it directly when needed
   );
 
+  // Effect to manage event listeners based on recording state
+  useEffect(() => {
+    if (activeShortcut) {
+      console.log("Adding recording event listeners");
+      window.addEventListener("keydown", handleRecordingKeyEvent, true);
+      window.addEventListener("keyup", handleRecordingKeyEvent, true);
+      
+      // Focus the button to ensure we capture events
+      setTimeout(() => {
+        shortcutInputRef.current?.focus();
+      }, 0);
+    } else {
+      console.log("Removing recording event listeners");
+      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
+      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
+      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+    };
+  }, [activeShortcut, handleRecordingKeyEvent]);
+
   const startRecording = (id: string) => {
+    console.log(`Starting recording for shortcut: ${id}`);
     setActiveShortcut(id);
-    setRecordingShortcut("Recording...");
-    // Use capture phase to prevent other handlers
-    window.addEventListener("keydown", handleShortcutKeyDown, true);
-    // Optionally focus a hidden element or the button itself to ensure capture
-    shortcutInputRef.current?.focus();
+    setRecordingShortcut("Press keys...");
   };
 
   // Handle click outside to cancel recording
@@ -465,7 +533,7 @@ export default function SettingsPage() {
         console.log("Clicked outside, cancelling recording");
         setActiveShortcut(null);
         setRecordingShortcut("");
-        window.removeEventListener("keydown", handleShortcutKeyDown, true);
+        recordingStateRef.current = "";
       }
     };
 
@@ -475,10 +543,8 @@ export default function SettingsPage() {
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      // Ensure keydown listener is removed on unmount or when editing stops
-      window.removeEventListener("keydown", handleShortcutKeyDown, true);
     };
-  }, [activeShortcut, handleShortcutKeyDown]);
+  }, [activeShortcut]);
   // --- End Shortcut Recording Logic ---
 
   const handleCloseSettings = () => {
