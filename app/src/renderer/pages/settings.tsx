@@ -406,26 +406,55 @@ export default function SettingsPage() {
     if (event.altKey) parts.push("Alt");
     if (event.shiftKey) parts.push("Shift");
 
-    // Handle specific key names
-    let key = event.key.toUpperCase();
-    if (key === " ") key = "Space";
-    else if (key === "CONTROL")
-      key = "Control"; // Avoid duplicate Control
-    else if (key === "ALT")
-      key = "Alt"; // Avoid duplicate Alt
-    else if (key === "SHIFT")
-      key = "Shift"; // Avoid duplicate Shift
-    else if (key === "META")
-      key = "Command"; // Avoid duplicate Command/Meta
-    else if (key.length === 1 && /[A-Z0-9]/.test(key)) {
-      // Standard keys
-      parts.push(key);
-    } else if (!["CONTROL", "ALT", "SHIFT", "META", "COMMAND"].includes(key)) {
-      // Other keys like ArrowUp, F1, etc.
-      parts.push(event.key); // Use original case for special keys if needed
+    console.log(`Key detection - key: "${event.key}", code: "${event.code}", keyCode: ${event.keyCode}`);
+
+    // Use event.code for more reliable key detection, especially with Alt combinations
+    let key = "";
+    
+    // Handle special cases first
+    if (event.key === " " || event.code === "Space") {
+      key = "Space";
+    } else if (event.key === "Dead" || event.code.startsWith("Key")) {
+      // Handle Dead keys and use event.code for letters
+      if (event.code.startsWith("Key")) {
+        // Extract letter from code (e.g., "KeyA" -> "A")
+        key = event.code.replace("Key", "");
+        console.log(`Using code for letter: ${key}`);
+      } else if (event.key === "Dead" && event.code.startsWith("Key")) {
+        // Fallback for dead keys
+        key = event.code.replace("Key", "");
+        console.log(`Dead key detected, using code: ${key}`);
+      } else {
+        // Use the key if it's not a dead key
+        key = event.key.toUpperCase();
+      }
+    } else if (event.code.startsWith("Digit")) {
+      // Handle number keys (e.g., "Digit1" -> "1")
+      key = event.code.replace("Digit", "");
+    } else if (event.code.startsWith("Numpad")) {
+      // Handle numpad keys (e.g., "Numpad1" -> "Numpad1")
+      key = event.code;
+    } else if (event.code.startsWith("F") && /^F\d+$/.test(event.code)) {
+      // Handle function keys (F1, F2, etc.)
+      key = event.code;
+    } else if (event.code.startsWith("Arrow")) {
+      // Handle arrow keys
+      key = event.code.replace("Arrow", "") + "Arrow"; // "ArrowUp" -> "UpArrow"
+    } else if (!["Control", "Alt", "Shift", "Meta", "Command"].includes(event.key)) {
+      // For other keys, use the key value but filter out modifier keys
+      key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
     }
 
-    return parts.join("+");
+    console.log(`Final key determined: "${key}"`);
+
+    // Only add the key if it's not empty and not a modifier key
+    if (key && !["CONTROL", "ALT", "SHIFT", "META", "COMMAND"].includes(key.toUpperCase())) {
+      parts.push(key);
+    }
+
+    const result = parts.join("+");
+    console.log(`Formatted shortcut result: "${result}"`);
+    return result;
   };
 
   // Use ref to track recording state without causing re-renders
