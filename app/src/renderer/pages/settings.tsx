@@ -459,6 +459,39 @@ export default function SettingsPage() {
 
   // Use ref to track recording state without causing re-renders
   const recordingStateRef = useRef<string>("");
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Function to save the recorded shortcut
+  const saveRecordedShortcut = useCallback((shortcutToSave: string) => {
+    if (!activeShortcut || !shortcutToSave) return;
+
+    console.log(`Saving recorded shortcut: ${shortcutToSave}`);
+    
+    // Get current settings at the time of saving
+    const currentSettings = getSettings();
+    const shortcut = currentSettings.shortcuts.find(
+      (s) => s.id === activeShortcut,
+    );
+    if (shortcut) {
+      const updated = updateShortcut({
+        ...shortcut,
+        shortcut: shortcutToSave,
+      });
+      setSettings(updated);
+      toast.success("Shortcut updated");
+    }
+    
+    // Reset recording state
+    setActiveShortcut(null);
+    setRecordingShortcut("");
+    recordingStateRef.current = "";
+    
+    // Clear any pending timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, [activeShortcut]);
 
   // Single event handler for both keydown and keyup
   const handleRecordingKeyEvent = useCallback(
@@ -479,6 +512,10 @@ export default function SettingsPage() {
         setActiveShortcut(null);
         setRecordingShortcut("");
         recordingStateRef.current = "";
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
         return;
       }
 
@@ -499,44 +536,37 @@ export default function SettingsPage() {
 
         console.log(`Keydown - has non-modifier key: ${hasNonModifierKey}`);
 
-        // Store the complete shortcut for use on keyup
+        // Store the complete shortcut and set up auto-save
         if (hasNonModifierKey) {
           recordingStateRef.current = shortcutKeys;
           setRecordingShortcut(`${shortcutKeys} (release to save)`);
+          
+          // Clear any existing timeout
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          
+          // Set a timeout to save the shortcut automatically after 1 second
+          // This ensures it saves even if keyup events don't work as expected
+          saveTimeoutRef.current = setTimeout(() => {
+            console.log("Auto-saving shortcut after timeout");
+            saveRecordedShortcut(shortcutKeys);
+          }, 1000);
         }
       } else if (event.type === "keyup") {
-        // On keyup, check if we're releasing a non-modifier key
+        // On keyup, check if we're releasing a non-modifier key and have a recorded shortcut
         const isNonModifierKey = !["Meta", "Control", "Alt", "Shift"].includes(event.key);
         
         console.log(`Keyup - key: ${event.key}, isNonModifierKey: ${isNonModifierKey}`);
         
+        // Save immediately on keyup of non-modifier key if we have a recorded shortcut
         if (isNonModifierKey && recordingStateRef.current) {
-          const shortcutToSave = recordingStateRef.current;
-          
-          console.log(`Saving complete shortcut: ${shortcutToSave}`);
-          
-          // Get current settings at the time of saving (not as a dependency)
-          const currentSettings = getSettings();
-          const shortcut = currentSettings.shortcuts.find(
-            (s) => s.id === activeShortcut,
-          );
-          if (shortcut) {
-            const updated = updateShortcut({
-              ...shortcut,
-              shortcut: shortcutToSave,
-            });
-            setSettings(updated);
-            toast.success("Shortcut updated");
-          }
-          
-          // Reset recording state
-          setActiveShortcut(null);
-          setRecordingShortcut("");
-          recordingStateRef.current = "";
+          console.log("Saving on keyup");
+          saveRecordedShortcut(recordingStateRef.current);
         }
       }
     },
-    [activeShortcut], // Removed settings dependency - get it directly when needed
+    [activeShortcut, saveRecordedShortcut],
   );
 
   // Effect to manage event listeners based on recording state
@@ -554,11 +584,22 @@ export default function SettingsPage() {
       console.log("Removing recording event listeners");
       window.removeEventListener("keydown", handleRecordingKeyEvent, true);
       window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+      
+      // Clear any pending timeout when stopping recording
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
     }
 
     return () => {
       window.removeEventListener("keydown", handleRecordingKeyEvent, true);
       window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+      // Clean up timeout on effect cleanup
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
     };
   }, [activeShortcut, handleRecordingKeyEvent]);
 
@@ -580,6 +621,12 @@ export default function SettingsPage() {
         setActiveShortcut(null);
         setRecordingShortcut("");
         recordingStateRef.current = "";
+        
+        // Clear any pending timeout
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
       }
     };
 
@@ -589,6 +636,11 @@ export default function SettingsPage() {
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      // Clean up timeout on unmount
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
     };
   }, [activeShortcut]);
   // --- End Shortcut Recording Logic ---
