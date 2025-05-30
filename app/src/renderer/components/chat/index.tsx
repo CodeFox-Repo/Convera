@@ -1,5 +1,6 @@
 // app/src/renderer/components/chat/index.tsx
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { useThemeSync } from '@/renderer/libs/hooks/use-theme-sync';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import React, { useEffect, useRef, useState } from 'react';
@@ -15,6 +16,9 @@ export default function Chat() {
   
   const [initializing, setInitializing] = useState(true);
   const [mounted, setMounted] = useState(false);
+  
+  // Listen for theme changes from settings
+  useThemeSync();
   
   useEffect(() => {
     const mountTimer = setTimeout(() => {
