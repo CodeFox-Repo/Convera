@@ -86,6 +86,7 @@ export const CHANNELS = {
     SET_DARK: "theme:set-dark",
     SET_LIGHT: "theme:set-light",
     SET_SYSTEM: "theme:set-system",
+    CHANGED: "theme:changed",
   },
   WINDOW: {
     MINIMIZE: "window:minimize",

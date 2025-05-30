@@ -72,20 +72,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${settings.openai.apiKey}`,
     },
-    experimental_prepareRequestBody: ({ messages, requestData, requestBody }) => {
-      const baseBody = {
-        ...requestBody,
-        config: settings,
-        agentId: currentAgentIdRef.current,
-        modelId: currentModelIdRef.current || settings.openai.modelId,
-        messages,
-      };
-      
-      if (requestData && typeof requestData === 'object') {
-        return { ...baseBody, ...requestData };
-      }
-      
-      return baseBody;
+    body: {
+      config: settings,
+      agentId: currentAgentIdRef.current,
+      modelId: currentModelIdRef.current || settings.openai.modelId,
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);

@@ -1,3 +1,4 @@
+import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import React, { useEffect } from "react";
 
@@ -12,6 +13,9 @@ export default function AgentPopover() {
     availableAgents, 
     setAvailableAgents 
   } = useAgentStore();
+  
+  // Listen for theme changes from settings
+  useThemeSync();
   
   // Function to fetch agents from the server
   const fetchAgents = async () => {
@@ -43,6 +47,7 @@ export default function AgentPopover() {
       console.log("Agent list updated, refreshing agent list");
       fetchAgents();
     };
+
     window.addEventListener("agent-popover-opened", handlePopoverOpened);
     window.addEventListener("agent-list-updated", handleAgentListUpdated);
     window.addEventListener("focus", handlePopoverOpened);

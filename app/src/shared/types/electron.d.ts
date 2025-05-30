@@ -56,6 +56,7 @@ export interface IElectronAPI {
   onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
   onAgentListUpdated: (callback: () => void) => () => void; // Agent list updated event
   onSetInputText: (callback: (text: string) => void) => () => void; // Input text event
+  onThemeChanged: (callback: (theme: string) => void) => () => void; // Theme change event listener
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
     width: number;
     height: number;

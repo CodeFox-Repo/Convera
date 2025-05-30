@@ -182,6 +182,15 @@ export function getCurrentWindowPosition(mainWindow: BrowserWindow | null): {
 
 // ========== THEME HANDLERS ==========
 
+// Helper function to broadcast theme change to all windows
+function broadcastThemeChange(theme: string) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(CHANNELS.THEME.CHANGED, theme);
+    }
+  });
+}
+
 export function getCurrentTheme(): string {
   return nativeTheme.themeSource === "system"
     ? nativeTheme.shouldUseDarkColors
@@ -191,23 +200,41 @@ export function getCurrentTheme(): string {
 }
 
 export function toggleTheme(): string {
-  nativeTheme.themeSource = nativeTheme.shouldUseDarkColors ? "light" : "dark";
-  return nativeTheme.themeSource;
+  const newTheme = nativeTheme.shouldUseDarkColors ? "light" : "dark";
+  nativeTheme.themeSource = newTheme;
+
+  // Broadcast the theme change to all windows
+  broadcastThemeChange(newTheme);
+
+  return newTheme;
 }
 
 export function setDarkTheme(): string {
   nativeTheme.themeSource = "dark";
+
+  // Broadcast the theme change to all windows
+  broadcastThemeChange("dark");
+
   return "dark";
 }
 
 export function setLightTheme(): string {
   nativeTheme.themeSource = "light";
+
+  // Broadcast the theme change to all windows
+  broadcastThemeChange("light");
+
   return "light";
 }
 
 export function setSystemTheme(): string {
   nativeTheme.themeSource = "system";
-  return nativeTheme.shouldUseDarkColors ? "dark" : "light";
+  const resultTheme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
+
+  // Broadcast the theme change to all windows
+  broadcastThemeChange(resultTheme);
+
+  return resultTheme;
 }
 
 // ========== AGENT POPOVER HANDLERS ==========

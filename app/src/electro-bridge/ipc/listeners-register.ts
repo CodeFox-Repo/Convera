@@ -40,6 +40,7 @@ interface ElectronAPI extends IPCServer {
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
+  onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
 export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
@@ -91,6 +92,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
+    };
+  };
+
+  api.onThemeChanged = (callback: (theme: string) => void) => {
+    const handler = (_: any, theme: string) => callback(theme);
+    ipcRenderer.on(CHANNELS.THEME.CHANGED, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.THEME.CHANGED, handler);
     };
   };
 

@@ -1,3 +1,4 @@
+import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
 import { Check } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -19,6 +20,10 @@ export default function ModelSelector() {
     supportedModelIds.length * ITEM_HEIGHT + POPUP_PADDING,
     MAX_HEIGHT,
   );
+
+  // Listen for theme changes from settings
+  useThemeSync();
+  
   useEffect(() => {
     const unsubscribe = subscribeToModelChanges();
     return unsubscribe;

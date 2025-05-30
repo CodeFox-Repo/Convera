@@ -287,6 +287,18 @@ export function MarketplaceSection({
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
+                              {server.logoUrl && (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={server.logoUrl}
+                                    alt={`${server.name} logo`}
+                                    className="h-10 w-10 rounded-md object-contain"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h4 className="text-foreground font-semibold">
@@ -357,6 +369,18 @@ export function MarketplaceSection({
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
+                              {item.logoUrl && (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={item.logoUrl}
+                                    alt={`${item.name} logo`}
+                                    className="h-10 w-10 rounded-md object-contain"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h4 className="text-foreground font-semibold">
@@ -451,6 +475,18 @@ export function MarketplaceSection({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
+                          {server.logoUrl && (
+                            <div className="flex-shrink-0">
+                              <img
+                                src={server.logoUrl}
+                                alt={`${server.name} logo`}
+                                className="h-10 w-10 rounded-md object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="text-foreground font-semibold">

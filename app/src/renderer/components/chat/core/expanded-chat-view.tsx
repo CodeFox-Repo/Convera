@@ -3,21 +3,10 @@ import { useAgentStore } from '@/renderer/libs/stores/agent-store';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, X } from 'lucide-react';
+import { Plus, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import ChatInput, { ChatInputRef } from '../input/chat-input';
 import ChatContent from '../message/chat-content';
-
-const buttonVariants = {
-  hidden: { opacity: 0, y: -10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  hover: {
-    scale: 1.1,
-    backgroundColor: "hsl(var(--secondary) / 0.7)",
-    transition: { duration: 0.15 },
-  },
-  tap: { scale: 0.95 },
-};
 
 interface ExpandedChatViewProps {
   chatInputRef: React.RefObject<ChatInputRef | null>;
@@ -88,35 +77,37 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
         <AnimatePresence>
           {showControls && (
             <motion.div
-              className="no-drag-region absolute inset-x-0 top-5 flex justify-between px-4"
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+              className="no-drag-region absolute inset-x-0 top-4 flex justify-between items-center px-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <motion.button
-                onClick={handleExit}
-                className="bg-background/50 pointer-events-auto rounded-md p-1"
-                aria-label="Exit"
-                variants={buttonVariants}
-                initial="visible"
-                whileHover="hover"
-                whileTap="tap"
-              >
-                <X size={22} />
-              </motion.button>
-              <motion.button
-                onClick={handleNewHistory}
-                className="bg-background/50 pointer-events-auto rounded-md p-1"
-                aria-label="New chat"
-                variants={buttonVariants}
-                initial="visible"
-                whileHover="hover"
-                whileTap="tap"
-              >
-                <Plus size={22} />
-              </motion.button>
+              {/* Left side - branding */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
+                  <Sparkles size={16} className="text-orange-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">FoxyChat</span>
+                </div>
+              </div>
+
+              {/* Right side controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleNewHistory}
+                  className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                  aria-label="New chat"
+                >
+                  <Plus size={18} />
+                </button>
+                <button
+                  onClick={handleExit}
+                  className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                  aria-label="Exit"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
