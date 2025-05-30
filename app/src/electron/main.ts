@@ -16,6 +16,7 @@ import path from "path";
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import {
+  getCurrentShortcut,
   getPreviousApp,
   setInputText,
   setPreviousApp,
@@ -37,8 +38,6 @@ const { activeWindowSync } =
 const inDevelopment = process.env.NODE_ENV === "development";
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
-const currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Shift+Space";
 
 let trackingAppFocus = false;
 
@@ -404,12 +403,18 @@ function startAppFocusTracking() {
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
 
-  console.log(
-    `Attempting to register global shortcut: ${currentActivateShortcut}`,
-  );
+  const currentShortcut = getCurrentShortcut();
+
+  // Don't register anything if no shortcut is set yet (renderer hasn't initialized)
+  if (!currentShortcut) {
+    console.log("No shortcut set yet, waiting for renderer initialization");
+    return;
+  }
+
+  console.log(`Attempting to register global shortcut: ${currentShortcut}`);
   try {
-    const ret = globalShortcut.register(currentActivateShortcut, async () => {
-      console.log(`${currentActivateShortcut} pressed globally`);
+    const ret = globalShortcut.register(currentShortcut, async () => {
+      console.log(`${currentShortcut} pressed globally`);
 
       const prevApp = getPreviousApp();
       if (prevApp) {
@@ -435,16 +440,16 @@ function registerGlobalShortcuts() {
 
     if (!ret) {
       console.error(
-        `Failed to register global shortcut: ${currentActivateShortcut}. It might be already in use.`,
+        `Failed to register global shortcut: ${currentShortcut}. It might be already in use.`,
       );
     } else {
       console.log(
-        `Global shortcut ${currentActivateShortcut} registered successfully.`,
+        `Global shortcut ${currentShortcut} registered successfully.`,
       );
     }
   } catch (error) {
     console.error(
-      `Error registering global shortcut ${currentActivateShortcut}:`,
+      `Error registering global shortcut ${currentShortcut}:`,
       error,
     );
   }

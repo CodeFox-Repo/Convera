@@ -1,9 +1,9 @@
 import {
   AppSettings,
+  McpServerSettings,
+  McpSettings,
   OpenAISettings,
   ShortcutSettings,
-  McpSettings,
-  McpServerSettings,
 } from "@/shared/types/settings";
 
 const SETTINGS_KEY = "foxchat_settings";
@@ -25,13 +25,21 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
   {
     id: "activate",
     name: "Activate App",
-    shortcut: "Control+Shift+Space",
+    shortcut:
+      typeof window !== "undefined" &&
+      window.electronAPI?.getPlatform?.() === "darwin"
+        ? "Alt+Space"
+        : "Control+Shift+Space",
     enabled: true,
   },
   {
     id: "open_settings",
     name: "Open Settings",
-    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+E" : "Control+E",
+    shortcut:
+      typeof window !== "undefined" &&
+      window.electronAPI?.getPlatform?.() === "darwin"
+        ? "Command+,"
+        : "Control+E",
     enabled: true,
   },
 ];
@@ -106,29 +114,13 @@ export function getSettings(): AppSettings {
  * Initialize the global shortcut based on user settings
  */
 export function initGlobalShortcut(): void {
-  if (typeof window !== "undefined" && window.require) {
-    try {
-      const settings = getSettings();
-      // Find the activate shortcut
-      const activateShortcut = settings.shortcuts.find(
-        (s) => s.id === "activate",
-      );
-      if (activateShortcut && activateShortcut.enabled) {
-        const { ipcRenderer } = window.require("electron");
-        ipcRenderer
-          .invoke("init-global-shortcut", activateShortcut.shortcut)
-          .then((success: boolean) => {
-            console.log(
-              `Global shortcut initialization ${success ? "succeeded" : "already set"}`,
-            );
-          })
-          .catch((error: Error) => {
-            console.error("Error initializing global shortcut:", error);
-          });
-      }
-    } catch (error: unknown) {
-      console.error("Failed to initialize global shortcut:", error);
-    }
+  const settings = getSettings();
+  // Find the activate shortcut
+  const activateShortcut = settings.shortcuts.find((s) => s.id === "activate");
+  if (activateShortcut) {
+    window.electronAPI.initGlobalShortcut(activateShortcut.shortcut);
+  } else {
+    console.log("No activate shortcut found or it's disabled");
   }
 }
 
@@ -196,12 +188,11 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
   if (
     shortcut.id === "activate" &&
     typeof window !== "undefined" &&
-    window.require
+    window.electronAPI
   ) {
     try {
-      const { ipcRenderer } = window.require("electron");
-      ipcRenderer
-        .invoke("update-global-shortcut", shortcut.shortcut)
+      window.electronAPI
+        .updateGlobalShortcut(shortcut.shortcut)
         .then((success: boolean) => {
           console.log(
             `Global shortcut update ${success ? "succeeded" : "failed"}`,
@@ -211,7 +202,7 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
           console.error("Error updating global shortcut:", error);
         });
     } catch (error: unknown) {
-      console.error("Failed to update global shortcut via IPC:", error);
+      console.error("Failed to update global shortcut via electronAPI:", error);
     }
   }
 

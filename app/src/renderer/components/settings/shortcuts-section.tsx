@@ -1,5 +1,5 @@
 import { AppSettings } from "@/shared/types/settings";
-import { Loader2, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
 
@@ -62,7 +62,6 @@ export function ShortcutsSection({
                 >
                   {activeShortcut === shortcut.id ? (
                     <span className="flex items-center justify-center">
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                       {recordingShortcut || "Press keys..."}
                     </span>
                   ) : (
