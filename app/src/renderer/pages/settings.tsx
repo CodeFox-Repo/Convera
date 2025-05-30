@@ -381,7 +381,7 @@ export default function SettingsPage() {
     
     // Update the main process with the new activate shortcut
     const activateShortcut = updated.shortcuts.find(s => s.id === "activate");
-    if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
+    if (activateShortcut && activateShortcut.enabled) {
       window.electronAPI
         .updateGlobalShortcut(activateShortcut.shortcut)
         .then((success: boolean) => {
@@ -393,8 +393,6 @@ export default function SettingsPage() {
           console.error("Error updating global shortcut after reset:", error);
           toast.warning("Shortcuts reset to default, but global shortcut update failed");
         });
-    } else {
-      toast.success("Shortcuts reset to default");
     }
   };
 
