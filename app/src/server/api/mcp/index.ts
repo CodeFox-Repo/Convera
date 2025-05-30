@@ -52,9 +52,7 @@ router.post("/servers/:id/stop", (async (req, res) => {
 // Get MCP marketplace data
 router.get("/marketplace", async (req: Request, res: Response) => {
   try {
-    const response = await fetch(
-      "https://raw.githubusercontent.com/modelcontextprotocol/servers/main/src/servers.json",
-    );
+    const response = await fetch("https://api.cline.bot/v1/mcp/marketplace");
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-release:
     runs-on: macos-latest
+    permissions:
+      contents: write # This is required for creating releases
     steps:
       # Checkout code
       - name: Checkout code
@@ -57,7 +59,7 @@ jobs:
       # Update Homebrew formula
       - name: Update Homebrew formula
         env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           # Clone Homebrew repository
           git clone https://x-access-token:${GITHUB_TOKEN}@github.com/CodeFox-Repo/homebrew-codefox.git
