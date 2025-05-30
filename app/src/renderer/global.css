@@ -323,10 +323,21 @@
     border-radius: var(--global-border-radius) !important;
   }
 
-  /* Apply transitions to all elements for smoother UI */
+  /* Apply transitions to all elements for smoother UI (excluding background-color for instant theme changes) */
   * {
     transition:
-      background-color 0.3s ease,
+      border-radius 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  /* Disable all color/background transitions during theme changes for instant switching */
+  .instant-theme-change * {
+    transition: none !important;
+  }
+
+  /* Re-enable non-color transitions after theme change */
+  .instant-theme-change.theme-change-complete * {
+    transition:
       border-radius 0.3s ease,
       opacity 0.3s ease;
   }

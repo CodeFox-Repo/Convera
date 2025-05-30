@@ -1,6 +1,7 @@
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
+import { useThemeSync } from "../libs/hooks/use-theme-sync";
 import { cleanTitle } from "../libs/utils/tag";
 
 const ChatHistoryPage: React.FC = () => {
@@ -17,6 +18,9 @@ const ChatHistoryPage: React.FC = () => {
     deleteChat,
     triggerHistoryWindow,
   } = useChatHistory(() => {}); 
+
+  // Listen for theme changes from settings
+  useThemeSync();
 
   // Handle initial fetch and window focus/visibility events
   useEffect(() => {

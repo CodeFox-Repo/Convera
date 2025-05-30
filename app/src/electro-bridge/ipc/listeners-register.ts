@@ -1,34 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ipcMain, BrowserWindow, IpcRenderer } from "electron";
+import { WindowSizeConfig } from "@/electron/windows/window-size";
+import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
-  getPreviousApp,
   closeSettingsWindow,
-  toggleSettingsWindow,
-  updateGlobalShortcut,
-  initGlobalShortcut,
-  minimizeWindow,
-  maximizeWindow,
   closeWindow,
-  resizeWindow,
-  resizeMessageContent,
+  getClipboardText,
   getCurrentTheme,
-  toggleTheme,
+  getCurrentWindowPosition,
+  getCurrentWindowSize,
+  getPreviousApp,
+  getPreviousAppID,
+  initGlobalShortcut,
+  maximizeWindow,
+  minimizeWindow,
+  modelSelected,
+  pasteModifiedContent,
+  resizeMessageContent,
+  resizeWindow,
   setDarkTheme,
   setLightTheme,
   setSystemTheme,
   toggleAgentPopover,
-  getCurrentWindowPosition,
   toggleModelSelector,
-  modelSelected,
+  toggleSettingsWindow,
+  toggleTheme,
   toggleViewMode,
-  getClipboardText,
-  pasteModifiedContent,
-  getCurrentWindowSize,
   toggleWindow,
-  getPreviousAppID,
+  updateGlobalShortcut,
 } from "./ipc-handlers";
-import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
-import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -39,6 +39,7 @@ interface ElectronAPI extends IPCServer {
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
+  onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
 export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
@@ -90,6 +91,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
+    };
+  };
+
+  api.onThemeChanged = (callback: (theme: string) => void) => {
+    const handler = (_: any, theme: string) => callback(theme);
+    ipcRenderer.on(CHANNELS.THEME.CHANGED, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.THEME.CHANGED, handler);
     };
   };
 
