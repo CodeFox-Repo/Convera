@@ -384,15 +384,12 @@ export default function SettingsPage() {
     if (activateShortcut && activateShortcut.enabled) {
       window.electronAPI
         .updateGlobalShortcut(activateShortcut.shortcut)
-        .then((success: boolean) => {
-          console.log(
-            `Global shortcut reset to default: ${success ? "succeeded" : "failed"}`,
-          );
-        })
         .catch((error: Error) => {
           console.error("Error updating global shortcut after reset:", error);
           toast.warning("Shortcuts reset to default, but global shortcut update failed");
         });
+    } else {
+      toast.success("Shortcuts reset to default");
     }
   };
 
