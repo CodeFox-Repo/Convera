@@ -8,8 +8,8 @@ import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
 import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
+import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
-import { serverTools } from "./mcp/dev-mcp/tools";
 import { deleteChat, getChatById, getChats } from "./service/chat";
 
 dotenv.config();
@@ -21,11 +21,6 @@ app.use(cors());
 
 router.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "FoxyChat API server is running" });
-});
-
-router.get("/api/tools", (req, res) => {
-  const tools = Object.keys(serverTools);
-  res.json({ tools });
 });
 
 router.get("/api/chats", async (req, res) => {
@@ -82,6 +77,7 @@ function startChatServer() {
   app.use(agentRouter);
   app.use(chatRouter);
   app.use(mcpRouter);
+  app.use(toolsRouter);
 
   initializeAgents()
     .then(() => console.log("Agent system initialized successfully"))
