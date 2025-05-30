@@ -50,10 +50,6 @@ export function useThemeSync() {
         applyThemeInstantly(theme);
       });
     } else {
-      console.warn(
-        "electronAPI.onThemeChanged not available, falling back to DOM events",
-      );
-
       // Fallback to DOM events if IPC is not available
       const handleThemeChange = (event: CustomEvent) => {
         if (event.detail && event.detail.theme) {
