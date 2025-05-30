@@ -61,9 +61,6 @@ export interface IElectronAPI {
     width: number;
     height: number;
   }>;
-  // MCP Config
-  openMCPConfigFolder: () => Promise<void>;
-  openMCPConfigFile: () => Promise<void>;
   openPath: (path: string) => Promise<void>;
 }
 
