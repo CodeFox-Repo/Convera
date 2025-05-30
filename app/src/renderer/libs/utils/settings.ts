@@ -38,7 +38,7 @@ const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
     shortcut:
       typeof window !== "undefined" &&
       window.electronAPI?.getPlatform?.() === "darwin"
-        ? "Command+E"
+        ? "Command+,"
         : "Control+E",
     enabled: true,
   },
@@ -114,33 +114,23 @@ export function getSettings(): AppSettings {
  * Initialize the global shortcut based on user settings
  */
 export function initGlobalShortcut(): void {
-  if (typeof window !== "undefined" && window.electronAPI) {
-    try {
-      const settings = getSettings();
-      // Find the activate shortcut
-      const activateShortcut = settings.shortcuts.find(
-        (s) => s.id === "activate",
-      );
-      if (activateShortcut && activateShortcut.enabled) {
+  const settings = getSettings();
+  // Find the activate shortcut
+  const activateShortcut = settings.shortcuts.find((s) => s.id === "activate");
+  if (activateShortcut && activateShortcut.enabled) {
+    console.log(`Initializing global shortcut: ${activateShortcut.shortcut}`);
+    window.electronAPI
+      .initGlobalShortcut(activateShortcut.shortcut)
+      .then((success: boolean) => {
         console.log(
-          `Initializing global shortcut: ${activateShortcut.shortcut}`,
+          `Global shortcut initialization ${success ? "succeeded" : "failed"}`,
         );
-        window.electronAPI
-          .initGlobalShortcut(activateShortcut.shortcut)
-          .then((success: boolean) => {
-            console.log(
-              `Global shortcut initialization ${success ? "succeeded" : "failed"}`,
-            );
-          })
-          .catch((error: Error) => {
-            console.error("Error initializing global shortcut:", error);
-          });
-      } else {
-        console.log("No activate shortcut found or it's disabled");
-      }
-    } catch (error: unknown) {
-      console.error("Failed to initialize global shortcut:", error);
-    }
+      })
+      .catch((error: Error) => {
+        console.error("Error initializing global shortcut:", error);
+      });
+  } else {
+    console.log("No activate shortcut found or it's disabled");
   }
 }
 
