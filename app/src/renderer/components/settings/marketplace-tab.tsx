@@ -140,27 +140,11 @@ export function MarketplaceSection({
   };
 
   const handleOpenMCPConfigFolder = async () => {
-    try {
-      if (window.electronAPI) {
-        await window.electronAPI.openPath(MCP_CONFIG_FOLDER_PATH);
-      } else {
-        console.error("electronAPI is not available!");
-      }
-    } catch (error) {
-      console.error("Error opening MCP config folder:", error);
-    }
+    await window.electronAPI.openPath(MCP_CONFIG_FOLDER_PATH);
   };
 
   const handleOpenMCPConfigFile = async () => {
-    try {
-      if (window.electronAPI) {
-        await window.electronAPI.openPath(MCP_CONFIG_FILE_PATH);
-      } else {
-        console.error("electronAPI is not available!");
-      }
-    } catch (error) {
-      console.error("Error opening MCP config file:", error);
-    }
+    await window.electronAPI.openPath(MCP_CONFIG_FILE_PATH);
   };
 
   const availableServers = mcpServers
