@@ -10,7 +10,6 @@ import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
 import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
-import { deleteChat, getChatById, getChats } from "./service/chat";
 
 dotenv.config();
 
@@ -21,52 +20,6 @@ app.use(cors());
 
 router.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "FoxyChat API server is running" });
-});
-
-router.get("/api/chats", async (req, res) => {
-  const chats = await getChats();
-  const chatList = chats.map((chat) => ({
-    id: chat.id,
-    title: chat.title,
-    createdAt: chat.createdAt,
-    lastUpdated: chat.lastUpdated,
-    messageCount: chat.messages.length,
-  }));
-
-  res.json({ status: "success", chats: chatList });
-});
-
-router.get("/api/chats/:chatId", async (req, res) => {
-  const { chatId } = req.params;
-  const chat = await getChatById(chatId);
-
-  if (!chat) {
-    res.status(404).json({
-      status: "error",
-      message: `Chat with ID '${chatId}' not found`,
-    });
-    return;
-  }
-
-  res.json({ status: "success", chat });
-});
-
-router.delete("/api/chats/:chatId", async (req, res) => {
-  const { chatId } = req.params;
-  const success = await deleteChat(chatId);
-
-  if (!success) {
-    res.status(404).json({
-      status: "error",
-      message: `Chat with ID '${chatId}' not found or could not be deleted`,
-    });
-    return;
-  }
-
-  res.json({
-    status: "success",
-    message: `Chat '${chatId}' deleted successfully`,
-  });
 });
 
 const PORT = 38000;

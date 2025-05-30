@@ -2,6 +2,7 @@
 import { standardErrors } from "@/renderer/libs/utils/error-handler";
 import express, { NextFunction, Request, Response } from "express";
 import { processAgentChat, processChatRequest } from "../agents";
+import { deleteChat, getChatById, getChats } from "../service/chat";
 
 const router = express.Router();
 
@@ -95,6 +96,52 @@ router.post("/api/chat", async (req: Request, res: Response) => {
       `data: ${JSON.stringify({ error: "Error processing stream" })}\n\n`,
     );
     res.end();
+  });
+});
+
+router.get("/api/chat", async (req, res) => {
+  const chats = await getChats();
+  const chatList = chats.map((chat) => ({
+    id: chat.id,
+    title: chat.title,
+    createdAt: chat.createdAt,
+    lastUpdated: chat.lastUpdated,
+    messageCount: chat.messages.length,
+  }));
+
+  res.json({ status: "success", chats: chatList });
+});
+
+router.get("/api/chat/:id", async (req, res) => {
+  const { id } = req.params;
+  const chat = await getChatById(id);
+
+  if (!chat) {
+    res.status(404).json({
+      status: "error",
+      message: `Chat with ID '${id}' not found`,
+    });
+    return;
+  }
+
+  res.json({ status: "success", chat });
+});
+
+router.delete("/api/chat/:id", async (req, res) => {
+  const { id } = req.params;
+  const success = await deleteChat(id);
+
+  if (!success) {
+    res.status(404).json({
+      status: "error",
+      message: `Chat with ID '${id}' not found or could not be deleted`,
+    });
+    return;
+  }
+
+  res.json({
+    status: "success",
+    message: `Chat '${id}' deleted successfully`,
   });
 });
 
