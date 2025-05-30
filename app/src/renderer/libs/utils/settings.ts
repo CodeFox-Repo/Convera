@@ -117,18 +117,8 @@ export function initGlobalShortcut(): void {
   const settings = getSettings();
   // Find the activate shortcut
   const activateShortcut = settings.shortcuts.find((s) => s.id === "activate");
-  if (activateShortcut && activateShortcut.enabled) {
-    console.log(`Initializing global shortcut: ${activateShortcut.shortcut}`);
-    window.electronAPI
-      .initGlobalShortcut(activateShortcut.shortcut)
-      .then((success: boolean) => {
-        console.log(
-          `Global shortcut initialization ${success ? "succeeded" : "failed"}`,
-        );
-      })
-      .catch((error: Error) => {
-        console.error("Error initializing global shortcut:", error);
-      });
+  if (activateShortcut) {
+    window.electronAPI.initGlobalShortcut(activateShortcut.shortcut);
   } else {
     console.log("No activate shortcut found or it's disabled");
   }
