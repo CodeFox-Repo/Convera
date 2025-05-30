@@ -186,7 +186,7 @@ export function MarketplaceSection({
             variant="outline"
             size="sm"
             onClick={handleOpenManualDialog}
-            className="dark:bg-background/60 flex items-center gap-1 dark:border-gray-700"
+            className="bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary dark:bg-primary/10 dark:hover:bg-primary/20 dark:border-primary/30 dark:text-primary flex items-center gap-2 transition-all duration-200"
           >
             <Plus className="h-4 w-4" />
             Manual Install
@@ -423,19 +423,25 @@ export function MarketplaceSection({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="dark:bg-background/60 flex items-center gap-1 dark:border-gray-700"
+                    className="bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-700/50 dark:border-gray-600 dark:text-gray-300 flex items-center gap-2 transition-all duration-200"
                   >
                     <FileText className="h-4 w-4" />
                     Edit MCP Config
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleOpenMCPConfigFolder}>
-                    <FolderOpen className="mr-2 h-4 w-4" />
+                <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg">
+                  <DropdownMenuItem 
+                    onClick={handleOpenMCPConfigFolder}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <FolderOpen className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
                     Open Config Folder
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenMCPConfigFile}>
-                    <FileText className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem 
+                    onClick={handleOpenMCPConfigFile}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <FileText className="mr-2 h-4 w-4 text-green-600 dark:text-green-400" />
                     Open Config File
                   </DropdownMenuItem>
                 </DropdownMenuContent>
