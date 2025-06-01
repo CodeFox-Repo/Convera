@@ -166,6 +166,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const handleSubmit = () => {
       if (!isLoading && (editorContent.trim() || attachments.length > 0)) {
         sendMessage();
+        
+        // Clear the input after sending
+        if (editorRef.current) {
+          editorRef.current.clearContent();
+        }
+        setInput("");
+        setEditorContent("");
       }
     };
 
