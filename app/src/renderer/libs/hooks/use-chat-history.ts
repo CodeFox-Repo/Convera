@@ -31,7 +31,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
    */
   const fetchChatHistory = useCallback(async () => {
     setRefreshing(true);
-    const response = await fetch("http://localhost:38000/api/chats");
+    const response = await fetch("http://localhost:38000/api/chat");
     const data = await response.json();
 
     if (data.status === "success") {
@@ -49,7 +49,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
    * Function to select a chat and dispatch events
    */
   const selectChat = useCallback(async (chatId: string) => {
-    const response = await fetch(`http://localhost:38000/api/chats/${chatId}`);
+    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`);
     const data = await response.json();
 
     if (data.status === "success") {
@@ -77,7 +77,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
    * Function to delete a chat
    */
   const deleteChat = useCallback(async (chatId: string) => {
-    const response = await fetch(`http://localhost:38000/api/chats/${chatId}`, {
+    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`, {
       method: "DELETE",
     });
     const data = await response.json();
