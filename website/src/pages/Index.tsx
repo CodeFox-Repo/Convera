@@ -1,384 +1,539 @@
-import React from 'react';
+import HeroImage from "@/components/HeroImage";
+import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, MessageSquare, Cpu, Zap, Sparkles, Globe, BrainCircuit } from "lucide-react";
-import Navbar from '@/components/Navbar';
-import HeroImage from '@/components/HeroImage';
-import FeaturesShowcase from '@/components/FeaturesShowcase';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Smooth infinite scroll effect
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let animationId: number;
+    const scrollSpeed = 0.5; // pixels per frame
+
+    const smoothScroll = () => {
+      if (!isHovered && container) {
+        container.scrollLeft += scrollSpeed;
+
+        // Reset to beginning when we've scrolled halfway (one complete set)
+        const maxScroll = container.scrollWidth / 2;
+        if (container.scrollLeft >= maxScroll) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(smoothScroll);
+    };
+
+    animationId = requestAnimationFrame(smoothScroll);
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [isHovered]);
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const cardWidth = 96 + 16; // w-24 (96px) + gap (16px)
+      const scrollAmount = cardWidth * 4; // Scroll 4 cards at a time
+      const maxScroll = container.scrollWidth / 2;
+
+      // Temporarily stop auto-scroll
+      setIsHovered(true);
+
+      if (container.scrollLeft <= 0) {
+        // If at the beginning, jump to near the end
+        container.scrollLeft = maxScroll - scrollAmount;
+      } else {
+        container.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+      }
+
+      // Resume auto-scroll after a delay
+      setTimeout(() => setIsHovered(false), 2000);
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const cardWidth = 96 + 16; // w-24 (96px) + gap (16px)
+      const scrollAmount = cardWidth * 4; // Scroll 4 cards at a time
+      const maxScroll = container.scrollWidth / 2;
+
+      // Temporarily stop auto-scroll
+      setIsHovered(true);
+
+      if (container.scrollLeft >= maxScroll - 50) {
+        // If near the end, jump to the beginning
+        container.scrollLeft = 0;
+      } else {
+        container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      }
+
+      // Resume auto-scroll after a delay
+      setTimeout(() => setIsHovered(false), 2000);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="bg-background flex min-h-screen flex-col">
       <Navbar />
-      
+
       {/* Hero Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-background to-muted">
-        <div className="container px-4 md:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
-            <div className="flex flex-col space-y-4">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
-                <span className="text-primary">Foxychat</span> - Your AI Assistant
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-white via-orange-50/40 to-orange-100/60 py-16 md:py-24 lg:py-32">
+        {/* Subtle Background Accent */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/20 to-transparent"></div>
+        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-orange-100/30 to-transparent"></div>
+
+        <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_1.5fr] lg:gap-16 xl:gap-24">
+            {/* Left side - Content */}
+            <div className="space-y-8 lg:space-y-10">
+              <h1
+                className="bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, rgb(30 41 59) 0%, rgb(30 41 59) 30%, rgb(251 146 60) 50%, rgb(251 146 60) 100%)",
+                }}
+              >
+                Your AI Desktop Companion
               </h1>
-              <p className="text-lg text-muted-foreground md:text-xl">
-                The next generation all-in-one chat AI agent for your operating system
+              <p className="text-muted-foreground max-w-[500px] text-lg leading-relaxed font-medium md:text-xl">
+                Your personal desktop AI assistant that leverages{" "}
+                <span className="font-semibold text-orange-500">
+                  
+Model Context Protocol (MCP)
+                </span>{" "}
+                to understand your workflows and automate repetitive tasks intelligently.
+              </p>
+              <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:gap-6">
+                <Button
+                  size="lg"
+                  className="bg-gradient-to-r from-orange-500 to-orange-400 px-8 py-3 text-base font-semibold shadow-lg transition-all duration-300 hover:from-orange-600 hover:to-orange-500 hover:shadow-orange-400/30"
+                  asChild
+                >
+                  <Link to="/download">
+                    Download Latest Version
+                    <Download className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            {/* Right side - Hero Image */}
+            <div className="mt-8 flex justify-center lg:mt-0 lg:justify-end">
+              <div className="min-h-96 w-full lg:min-h-[28rem] xl:min-h-[32rem]">
+                <HeroImage />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Start demo section */}
+      {/* Benefits Section */}
+      <section id="demo" className="w-full py-16 md:py-24">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          {/* Centered heading */}
+          <div className="text-center mb-16">
+            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Collaborate on your Computer
+            </h2>
+            <p className="text-muted-foreground text-lg leading-relaxed md:text-xl text-center max-w-2xl mx-auto">
+              Foxychat simplifies your daily computer interactions with AI.
+            </p>
+          </div>
+
+          {/* Workflow comparison - centered */}
+          <div className="flex justify-center mb-16">
+            <div className="bg-muted/20 space-y-6 rounded-xl p-8 md:p-10 max-w-2xl w-full border border-muted/30">
+              <div className="space-y-3">
+                <div className="text-muted-foreground text-sm font-medium">Instead of:</div>
+                <div className="font-mono text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+                  1. Open browser → 2. Copy → 3. Change tab → 4. Paste → 5. Ask
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="text-muted-foreground text-sm font-medium">Now Simply Do:</div>
+                <div className="font-mono text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+                  "1. Shortcut → 2. Ask"
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Demo Video Section */}
+          <div className="text-center">
+            <div className="mx-auto max-w-2xl">
+              <div className="relative overflow-hidden rounded-xl bg-gray-100 shadow-2xl">
+                <div className="aspect-video w-full">
+                  {/* Placeholder for demo video */}
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-100 to-orange-200">
+                    <div className="text-center space-y-4">
+                      <div className="mx-auto h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center">
+                        <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium">Demo Video Coming Soon</p>
+                      <p className="text-gray-500 text-sm">Watch how Foxychat transforms your workflow</p>
+                    </div>
+                  </div>
+                  {/* Uncomment and replace with actual video when ready */}
+                  {/* 
+                  <video 
+                    className="h-full w-full object-cover" 
+                    controls 
+                    poster="/path-to-video-thumbnail.jpg"
+                  >
+                    <source src="/path-to-demo-video.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video> 
+                  */}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Does a Lot More Than chat Section */}
+      <section className="w-full py-16 md:py-24 bg-gradient-to-b to-transparent">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div className="text-center mb-16">
+            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Does a Lot More Than Chat
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
+              Foxychat goes beyond simple conversations to become your intelligent desktop companion
+            </p>
+          </div>
+
+          {/* Small Demo Video */}
+          <div className="mb-16 flex justify-center">
+            <div className="max-w-2xl w-full">
+              <div className="relative overflow-hidden rounded-xl bg-white shadow-lg border border-orange-100">
+                <div className="aspect-video w-full">
+                  {/* Placeholder for small demo video */}
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
+                    <div className="text-center space-y-3">
+                      <div className="mx-auto h-10 w-10 rounded-full bg-orange-500 flex items-center justify-center">
+                        <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium text-sm">Feature Demo Video</p>
+                    </div>
+                  </div>
+                  {/* Uncomment and replace with actual video when ready */}
+                  {/* 
+                  <video 
+                    className="h-full w-full object-cover" 
+                    controls 
+                    poster="/path-to-feature-demo-thumbnail.jpg"
+                  >
+                    <source src="/path-to-feature-demo-video.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video> 
+                  */}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Feature grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center space-y-4 p-6 rounded-lg hover:bg-muted/20 transition-colors">
+              <div className="bg-orange-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto">
+                <span className="text-orange-600 text-lg">🔧</span>
+              </div>
+              <h4 className="text-xl font-semibold">Integrate with your favorite app</h4>
+              <p className="text-muted-foreground">
+                Integrate with your favorite app and use it with Foxychat through MCP Server
               </p>
             </div>
-            <div className="lg:block">
-              <HeroImage />
+            
+            <div className="text-center space-y-4 p-6 rounded-lg hover:bg-muted/20 transition-colors">
+              <div className="bg-orange-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto">
+                <span className="text-orange-600 text-lg">🧠</span>
+              </div>
+              <h4 className="text-xl font-semibold">Context Awareness</h4>
+              <p className="text-muted-foreground">
+                Understands what you're working on and provides relevant assistance
+              </p>
+            </div>
+            
+            <div className="text-center space-y-4 p-6 rounded-lg hover:bg-muted/20 transition-colors">
+              <div className="bg-orange-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto">
+                <span className="text-orange-600 text-lg">⚡</span>
+              </div>
+              <h4 className="text-xl font-semibold">Instant Actions</h4>
+              <p className="text-muted-foreground">
+                Execute complex operations with simple text commands
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Powerful AI Features
+      {/* Build Your Own Agent Section */}
+      <section className="w-full py-16 md:py-24 bg-gradient-to-b to-transparent">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div className="text-center mb-16">
+            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Build Your Own Agent
             </h2>
-            <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              Foxychat brings the power of advanced AI to your fingertips
+            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
+              Create custom AI agents tailored to your specific workflows and integrate them seamlessly with Foxychat
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-12">
-            <div>
-              <FeaturesShowcase />
+          {/* Agent Builder Demo Video */}
+          <div className="mb-16 flex justify-center">
+            <div className="max-w-2xl w-full">
+              <div className="relative overflow-hidden rounded-xl bg-white shadow-lg border border-blue-100">
+                <div className="aspect-video w-full">
+                  {/* Placeholder for agent builder demo video */}
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+                    <div className="text-center space-y-4">
+                      <div className="mx-auto h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
+                        <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium">Agent Builder Demo</p>
+                      <p className="text-gray-500 text-sm">See how to create your custom AI agent</p>
+                    </div>
+                  </div>
+                  {/* Uncomment and replace with actual video when ready */}
+                  {/* 
+                  <video 
+                    className="h-full w-full object-cover" 
+                    controls 
+                    poster="/path-to-agent-builder-thumbnail.jpg"
+                  >
+                    <source src="/path-to-agent-builder-video.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video> 
+                  */}
+                </div>
+              </div>
             </div>
-            <div className="space-y-4">
-              <h3 className="text-2xl font-bold">Designed for Productivity</h3>
-              <p className="text-muted-foreground">Foxychat understands your needs and adapts to your workflow, helping you accomplish more in less time.</p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                  <span>Understands natural language commands</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                  <span>Integrates with your favorite applications</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                  <span>Learns from your interactions</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                  <span>Works offline for privacy and reliability</span>
-                </li>
-              </ul>
+          </div>
+
+          {/* Agent Building Features */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="text-center space-y-4 p-8 rounded-lg hover:bg-muted/20 transition-colors">
+              <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto">
+                <span className="text-blue-600 text-lg">🛠️</span>
+              </div>
+              <h4 className="text-xl font-semibold">No-Code Builder</h4>
+              <p className="text-muted-foreground">
+                Create powerful agents without writing a single line of code using our intuitive visual builder
+              </p>
+            </div>
+            
+            <div className="text-center space-y-4 p-8 rounded-lg hover:bg-muted/20 transition-colors">
+              <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto">
+                <span className="text-blue-600 text-lg">🔗</span>
+              </div>
+              <h4 className="text-xl font-semibold">MCP Integration</h4>
+              <p className="text-muted-foreground">
+                Leverage Model Context Protocol to connect your agents with any application or service
+              </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard 
-              icon={<MessageSquare className="h-10 w-10 text-primary" />}
-              title="Natural Conversations"
-              description="Chat with Foxychat just like you would with a human. Natural language understanding makes interactions seamless."
-            />
-            <FeatureCard 
-              icon={<Cpu className="h-10 w-10 text-primary" />}
-              title="System Integration"
-              description="Foxychat integrates deeply with your operating system, providing powerful control and automation."
-            />
-            <FeatureCard 
-              icon={<Zap className="h-10 w-10 text-primary" />}
-              title="Lightning Fast"
-              description="Built for speed and efficiency, Foxychat responds instantly to your commands and questions."
-            />
-            <FeatureCard 
-              icon={<Sparkles className="h-10 w-10 text-primary" />}
-              title="Smart Assistance"
-              description="From writing emails to coding and creativity, Foxychat helps with a wide range of tasks."
-            />
-            <FeatureCard 
-              icon={<Globe className="h-10 w-10 text-primary" />}
-              title="Access Anywhere"
-              description="Use Foxychat across all your devices with perfect synchronization and continuity."
-            />
-            <FeatureCard 
-              icon={<BrainCircuit className="h-10 w-10 text-primary" />}
-              title="Always Learning"
-              description="Foxychat learns from your interactions to provide increasingly personalized assistance."
-            />
-          </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      {/* 
-      <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Simple, Transparent Pricing
+      {/* Apps We Support Section */}
+      <section className="w-full py-12 md:py-16">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Apps We Support
             </h2>
-            <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              Choose the plan that's right for you
+            <p className="text-muted-foreground mx-auto max-w-[600px] text-lg md:text-xl">
+              Foxychat's MCP integrates seamlessly with your favorite productivity tools
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <PricingCard 
-              title="Free"
-              price="$0"
-              description="Perfect for trying out Foxychat"
-              features={[
-                "Basic conversation abilities",
-                "System information",
-                "Limited requests per day",
-                "Standard response time"
-              ]}
-              buttonText="Get Started"
-              buttonVariant="outline"
-            />
-            <PricingCard 
-              title="Pro"
-              price="$9.99"
-              period="per month"
-              description="For individuals who need more power"
-              features={[
-                "Advanced conversation abilities",
-                "Deep system integration",
-                "Unlimited requests",
-                "Faster response time",
-                "Custom instructions"
-              ]}
-              buttonText="Subscribe Now"
-              buttonVariant="default"
-              highlighted={true}
-            />
-            <PricingCard 
-              title="Team"
-              price="$19.99"
-              period="per month"
-              description="For small teams and businesses"
-              features={[
-                "Everything in Pro",
-                "Team management",
-                "Shared resources",
-                "Analytics dashboard",
-                "Priority support"
-              ]}
-              buttonText="Contact Sales"
-              buttonVariant="outline"
-            />
+
+          <div className="relative">
+            {/* Left Arrow Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="bg-background/90 border-muted hover:bg-muted absolute top-1/2 left-0 z-10 -translate-y-1/2 shadow-md backdrop-blur-sm"
+              onClick={scrollLeft}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Right Arrow Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="bg-background/90 border-muted hover:bg-muted absolute top-1/2 right-0 z-10 -translate-y-1/2 shadow-md backdrop-blur-sm"
+              onClick={scrollRight}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+
+            <div className="mx-12 overflow-hidden">
+              <div
+                ref={scrollContainerRef}
+                className="scrollbar-hide flex space-x-4 overflow-x-auto px-2"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                {[
+                  // First set
+                  {
+                    name: "VS Code",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg",
+                  },
+                  {
+                    name: "Chrome",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg",
+                  },
+                  { name: "Notion", logo: "https://www.notion.so/images/favicon.ico" },
+                  {
+                    name: "Slack",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg",
+                  },
+                  {
+                    name: "Discord",
+                    logo: "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
+                  },
+                  {
+                    name: "Figma",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg",
+                  },
+                  {
+                    name: "Excel",
+                    logo: "https://img.icons8.com/color/48/microsoft-excel-2019.png",
+                  },
+                  { name: "Word", logo: "https://img.icons8.com/color/48/microsoft-word-2019.png" },
+                  {
+                    name: "GitHub",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+                  },
+                  {
+                    name: "Jira",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg",
+                  },
+                  {
+                    name: "Obsidian",
+                    logo: "https://obsidian.md/images/obsidian-logo-gradient.svg",
+                  },
+                  { name: "Terminal", logo: "https://img.icons8.com/color/48/terminal.png" },
+                  {
+                    name: "Photoshop",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/photoshop/photoshop-original.svg",
+                  },
+                  // Second set - exact duplicate for seamless loop
+                  {
+                    name: "VS Code",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg",
+                  },
+                  {
+                    name: "Chrome",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg",
+                  },
+                  { name: "Notion", logo: "https://www.notion.so/images/favicon.ico" },
+                  {
+                    name: "Slack",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg",
+                  },
+                  {
+                    name: "Discord",
+                    logo: "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
+                  },
+                  {
+                    name: "Figma",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg",
+                  },
+                  {
+                    name: "Excel",
+                    logo: "https://img.icons8.com/color/48/microsoft-excel-2019.png",
+                  },
+                  { name: "Word", logo: "https://img.icons8.com/color/48/microsoft-word-2019.png" },
+                  {
+                    name: "GitHub",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+                  },
+                  {
+                    name: "Jira",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg",
+                  },
+                  {
+                    name: "Obsidian",
+                    logo: "https://obsidian.md/images/obsidian-logo-gradient.svg",
+                  },
+                  { name: "Terminal", logo: "https://img.icons8.com/color/48/terminal.png" },
+                  {
+                    name: "Photoshop",
+                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/photoshop/photoshop-original.svg",
+                  },
+                ].map((app, index) => (
+                  <Card
+                    key={index}
+                    className="bg-background w-20 flex-shrink-0 border-0 shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md"
+                  >
+                    <CardContent className="flex flex-col items-center space-y-2 p-3">
+                      <div className="flex h-6 w-6 items-center justify-center">
+                        <img
+                          src={app.logo}
+                          alt={app.name}
+                          className="h-6 w-6 object-contain"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const nextElement = target.nextElementSibling as HTMLElement;
+                            target.style.display = "none";
+                            if (nextElement) {
+                              nextElement.style.display = "flex";
+                            }
+                          }}
+                        />
+                        <div className="bg-muted flex hidden h-6 w-6 items-center justify-center rounded text-xs">
+                          {app.name.slice(0, 2)}
+                        </div>
+                      </div>
+                      <span className="text-muted-foreground text-center text-xs font-medium">
+                        {app.name}
+                      </span>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      */}
-
-      {/* Testimonials */}
-      <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Loved by Users
-            </h2>
-            <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              See what others are saying about Foxychat
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <TestimonialCard 
-              content="Foxychat has completely changed how I interact with my computer. It's like having a smart assistant that understands exactly what I need."
-              author="Sarah Johnson"
-              role="Product Designer"
-            />
-            <TestimonialCard 
-              content="The coding assistance is phenomenal. It's helped me solve complex problems quickly and improved my productivity tenfold."
-              author="Michael Chen"
-              role="Software Developer"
-            />
-            <TestimonialCard 
-              content="I use Foxychat daily for everything from scheduling to research. It integrates perfectly with my workflow and saves me hours every week."
-              author="Emma Rodriguez"
-              role="Marketing Manager"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Frequently Asked Questions
-            </h2>
-            <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-              Find answers to common questions about Foxychat
-            </p>
-          </div>
-          
-          <div className="mx-auto max-w-3xl space-y-4">
-            <FaqItem 
-              question="What makes Foxychat different from other AI assistants?"
-              answer="Foxychat is designed specifically for deep operating system integration, providing a seamless experience across your entire digital environment. Unlike other AI assistants that work primarily through web interfaces, Foxychat works directly with your local applications and files."
-            />
-            <FaqItem 
-              question="Is my data secure with Foxychat?"
-              answer="Yes, we take security very seriously. All data processing happens on your device when possible, and any data sent to our servers is encrypted end-to-end. We never sell your data or use it for advertising."
-            />
-            <FaqItem 
-              question="Which operating systems does Foxychat support?"
-              answer="Foxychat currently supports Windows, macOS, and most popular Linux distributions. We're constantly working to expand our compatibility with more platforms."
-            />
-            <FaqItem 
-              question="Can I use Foxychat offline?"
-              answer="Yes, Foxychat has a core set of features that work offline. However, some advanced capabilities like web searches require an internet connection."
-            />
-            <FaqItem 
-              question="How do I update Foxychat?"
-              answer="Foxychat updates automatically by default, ensuring you always have the latest features and security improvements without any manual intervention."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-primary text-primary-foreground">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-6 text-center">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Ready to Experience the Future?
-            </h2>
-            <p className="mx-auto max-w-[700px] text-lg opacity-90">
-              Join thousands of users already enhancing their productivity with Foxychat
-            </p>
-            <p className="text-sm opacity-90">
-              Coming soon for macOS, Windows, and Linux
-            </p>
-          </div>
-        </div>
-      </section> */}
 
       {/* Footer */}
-      <footer className="w-full py-6 bg-gray-950 text-white">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-row justify-between items-center">
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2">
-                <svg 
-                  width="18" 
-                  height="18" 
-                  viewBox="0 0 40 40" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-white"
-                >
-                  <path 
-                    d="M20 5C11.716 5 5 11.716 5 20C5 28.284 11.716 35 20 35C28.284 35 35 28.284 35 20C35 11.716 28.284 5 20 5Z" 
-                    fill="currentColor" 
-                  />
-                </svg>
-              </div>
-              <span className="font-medium">Foxychat</span>
-            </div>
-            <div className="flex items-center gap-8">
-              <p className="text-sm opacity-70">
-                © 2023 Foxychat. All rights reserved.
-              </p>
-              <div className="flex gap-6">
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Privacy</a>
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Terms</a>
-                <a href="#" className="text-sm opacity-70 hover:opacity-100 hover:text-primary transition-colors duration-200 relative after:absolute after:left-0 after:bottom-[-2px] after:h-[1px] after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full focus:outline-none focus:text-primary">Contact</a>
-              </div>
-            </div>
+      <footer className="border-t py-12">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div className="text-muted-foreground text-center">
+            <p>&copy; 2025 Foxychat</p>
           </div>
         </div>
       </footer>
     </div>
-  );
-};
-
-const FeatureCard = ({ icon, title, description }: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) => {
-  return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/50">
-      <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-        <div className="transition-transform duration-300 hover:scale-110">
-          {icon}
-        </div>
-        <h3 className="text-xl font-bold">{title}</h3>
-        <p className="text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  );
-};
-
-const PricingCard = ({ title, price, period, description, features, buttonText, buttonVariant, highlighted = false }: {
-  title: string;
-  price: string;
-  period?: string;
-  description: string;
-  features: string[];
-  buttonText: string;
-  buttonVariant: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  highlighted?: boolean;
-}) => {
-  return (
-    <Card className={`flex flex-col justify-between ${highlighted ? 'border-primary shadow-lg' : ''}`}>
-      <CardContent className="p-6">
-        <div className="mb-6 space-y-2 text-center">
-          <h3 className="text-2xl font-bold">{title}</h3>
-          <div className="flex justify-center items-end">
-            <span className="text-4xl font-bold">{price}</span>
-            {period && <span className="text-muted-foreground ml-1">{period}</span>}
-          </div>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-        <ul className="mb-6 space-y-2">
-          {features.map((feature, index) => (
-            <li key={index} className="flex items-center">
-              <Sparkles className="h-4 w-4 mr-2 text-primary" />
-              <span className="text-sm">{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-      <div className="p-6 pt-0">
-        <Button variant={buttonVariant} className={`w-full transition-all duration-300 ${highlighted ? 'shadow-lg hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1' : 'hover:shadow-md hover:-translate-y-0.5'}`}>
-          {buttonText}
-        </Button>
-      </div>
-    </Card>
-  );
-};
-
-const TestimonialCard = ({ content, author, role }: {
-  content: string;
-  author: string;
-  role: string;
-}) => {
-  return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
-      <CardContent className="p-6 space-y-4">
-        <p className="italic text-muted-foreground">"{content}"</p>
-        <div>
-          <p className="font-semibold">{author}</p>
-          <p className="text-sm text-muted-foreground">{role}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const FaqItem = ({ question, answer }: {
-  question: string;
-  answer: string;
-}) => {
-  return (
-    <Card className="transition-all duration-300 hover:shadow-md hover:border-primary/20">
-      <CardContent className="p-6">
-        <h3 className="text-lg font-bold mb-2">{question}</h3>
-        <p className="text-muted-foreground">{answer}</p>
-      </CardContent>
-    </Card>
   );
 };
 
