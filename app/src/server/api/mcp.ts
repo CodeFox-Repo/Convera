@@ -1,5 +1,4 @@
 import express, { Request, RequestHandler, Response } from "express";
-import { z } from "zod";
 import {
   mcpSettingsSchema,
   mcpServerConfigSchema,
@@ -78,7 +77,7 @@ router.post(
   "/api/mcp/settings",
   validateBody(mcpSettingsSchema),
   (req: Request, res: Response) => {
-    const { toolId, settings } = req.body as z.infer<typeof mcpSettingsSchema>;
+    const { toolId, settings } = req.body;
 
   // Here you would save the settings for the specific MCP tool
   // This is a placeholder for the actual implementation
@@ -111,8 +110,7 @@ router.put(
   validateBody(mcpServerConfigSchema.partial()),
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const updatedConfig: Partial<MCPServerConfig> =
-      req.body as Partial<MCPServerConfig>;
+    const updatedConfig: Partial<MCPServerConfig> = req.body;
     const manager = getMCPManager();
 
     if (id === "Dev-MCP") {
@@ -138,7 +136,7 @@ router.post(
   "/api/mcp/configurations/manual",
   validateBody(manualConfigSchema),
   async (req: Request, res: Response) => {
-    const configData = req.body as z.infer<typeof manualConfigSchema>;
+    const configData = req.body;
 
     const manager = getMCPManager();
     const serverIds = Object.keys(configData.mcpServers);
@@ -236,7 +234,7 @@ router.post(
   "/api/mcp/predefined-servers/install",
   validateBody(serverIdSchema),
   (async (req, res) => {
-    const { id } = req.body as z.infer<typeof serverIdSchema>;
+    const { id } = req.body;
 
   const manager = getMCPManager();
   const success = manager.installPredefinedServer(id);
@@ -266,7 +264,7 @@ router.post(
   "/api/mcp/predefined-servers/uninstall",
   validateBody(serverIdSchema),
   (async (req, res) => {
-    const { id } = req.body as z.infer<typeof serverIdSchema>;
+    const { id } = req.body;
 
   const manager = getMCPManager();
   const serverStatus = manager.getServerStatus(id);
@@ -363,7 +361,7 @@ router.post(
   validateBody(updateToolsSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { disabledTools } = req.body as z.infer<typeof updateToolsSchema>;
+    const { disabledTools } = req.body;
 
     const manager = getMCPManager();
     const serverStatus = manager.getServerStatus(id);

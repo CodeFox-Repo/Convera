@@ -51,8 +51,7 @@ router.post(
   "/api/chat",
   validateBody(chatRequestSchema),
   async (req: Request, res: Response) => {
-    const { messages, config, agentId, modelId, id } =
-      req.body as z.infer<typeof chatRequestSchema>;
+    const { messages, config, agentId, modelId, id } = req.body;
   const apiKey = (req as any).apiToken;
 
   if (!apiKey) {

@@ -1,5 +1,4 @@
 import express, { Request, RequestHandler, Response } from "express";
-import { z } from "zod";
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -31,7 +30,7 @@ router.post(
       avatar,
       category,
       type,
-    } = req.body as z.infer<typeof createAgentSchema>;
+    } = req.body;
 
   const formattedToolNames = toolReferences.map(
     (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
@@ -120,7 +119,7 @@ router.put(
       avatar,
       category,
       type,
-    } = req.body as z.infer<typeof updateAgentSchema>;
+    } = req.body;
 
   if (id !== agentId) {
     res.status(400).json({
