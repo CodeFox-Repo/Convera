@@ -322,11 +322,38 @@ export default function ChatContent({
   // Renders regenerating indicator
   function renderLoadingIndicator() {
     return (
-      <div className="border-foreground/10 bg-foreground/5 no-drag-region flex items-center gap-2 rounded-md border px-3 py-1.5">
-        <Loader2 className="text-foreground h-3 w-3 animate-spin" />
-        <span className="text-foreground">
-          {hasReceivedFirstToken ? "Generating response..." : "Loading..."}
-        </span>
+      <div className="w-full py-4 border-b border-border/30">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex gap-4">
+            {/* Avatar section */}
+            <div className="flex-shrink-0 mt-1">
+              <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                <Bot className="size-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Content section */}
+            <div className="flex-1 min-w-0">
+              {/* Header */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-foreground">
+                  FoxyChat
+                </span>
+                <span className="text-xs text-muted-foreground">Now</span>
+              </div>
+
+              {/* Loading content */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>
+                  {hasReceivedFirstToken
+                    ? "Generating response..."
+                    : "Loading..."}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -431,7 +458,7 @@ export default function ChatContent({
   ]);
 
   return (
-    <div className="drag-region h-full flex-1 overflow-y-auto p-4 pt-10">
+    <div className="drag-region h-full flex-1 overflow-y-auto">
       <div className="no-drag-region flex h-full flex-col">
         {renderMessages()}
 
@@ -440,25 +467,17 @@ export default function ChatContent({
           {isLoading && messages.length > 0 && (
             <motion.div
               key="waiting-first-token"
-              className="no-drag-region flex w-full"
+              className="no-drag-region w-full"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="mx-auto w-full max-w-3xl">
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] overflow-hidden text-sm">
-                    <div className="rounded-[var(--app-border-radius)] bg-transparent">
-                      {renderLoadingIndicator()}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {renderLoadingIndicator()}
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div ref={messagesEndRef} className="h-4" />
+        <div ref={messagesEndRef} className="h-8" />
       </div>
     </div>
   );

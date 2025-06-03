@@ -1,6 +1,6 @@
 import { Attachment, UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { Check, Copy, Edit, File, RefreshCw } from "lucide-react";
+import { Check, Copy, Edit, File, RefreshCw, User } from "lucide-react";
 import React, { memo } from "react";
 
 /**
@@ -24,27 +24,49 @@ export interface ChatMessageProps {
 
 const avatar = "../../images/icon.png";
 
-
-// Attachment preview component
+// Attachment preview component - simplified for file display above content
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
   const isImage = attachment.contentType?.startsWith("image/");
   return (
-    <div className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
-        bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5">
-      {isImage  ? (
-        <div className="size-4 flex-shrink-0 mr-1 rounded overflow-hidden">
+    <div className="group relative flex items-center gap-2 p-2 rounded-md border border-border bg-background/50 text-sm">
+      {isImage ? (
+        <div className="size-8 flex-shrink-0 rounded overflow-hidden">
           <img src={attachment.url} alt="" className="size-full object-cover" />
         </div>
       ) : (
-        <File size={12} className="flex-shrink-0 mr-1" />
+        <File size={16} className="flex-shrink-0 text-muted-foreground" />
       )}
-      <span className="truncate -mr-1">{attachment.name}</span>
+      <div className="flex-1 min-w-0">
+        <span className="block truncate font-medium text-foreground">
+          {attachment.name}
+        </span>
+        {attachment.contentType && (
+          <span className="text-xs text-muted-foreground">
+            {attachment.contentType}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
 
+// Simple timestamp formatter
+const formatTimestamp = (timestamp?: string | number | Date) => {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+  if (diffMins < 1) return "Now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return date.toLocaleDateString();
+};
+
 /**
- * Individual chat message component for displaying messages with actions
+ * Individual chat message component for displaying messages with unified left alignment
  */
 const ChatMessage = memo(
   ({
@@ -63,65 +85,89 @@ const ChatMessage = memo(
     renderContent,
   }: ChatMessageProps) => {
     const isUser = message.role === "user";
-    const hasAttachments = message.experimental_attachments && message.experimental_attachments.length > 0;
+    const hasAttachments =
+      message.experimental_attachments &&
+      message.experimental_attachments.length > 0;
 
     return (
       <motion.div
-        className="group/message no-drag-region flex w-full"
+        className="group/message no-drag-region w-full py-4 border-b border-border/30 last:border-b-0"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="mx-auto mb-2 w-full max-w-3xl">
-          <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-            {/* Agent avatar - only show for non-user messages */}
-            {!isUser && (
-              <div className="mr-3 mt-1 flex-shrink-0">
-                <div className="size-8 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
-                  <img 
-                    src={avatar} 
-                    alt="Agent" 
+        <div className="max-w-4xl mx-auto px-4">
+          {/* Unified left-aligned layout for all messages */}
+          <div className="flex gap-4">
+            {/* Avatar section */}
+            <div className="flex-shrink-0 mt-1">
+              <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                {isUser ? (
+                  <User size={16} className="text-muted-foreground" />
+                ) : (
+                  <img
+                    src={avatar}
+                    alt="Agent"
                     className="size-6 object-contain"
                     onError={(e) => {
-                      // Fallback to a simple circle if image fails to load
                       const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.parentElement!.innerHTML = '<div class="size-4 rounded-full bg-primary/20"></div>';
+                      target.style.display = "none";
+                      const parent = target.parentElement!;
+                      parent.innerHTML = "";
+                      const botIcon = document.createElement("div");
+                      botIcon.innerHTML =
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                      botIcon.className = "text-muted-foreground";
+                      parent.appendChild(botIcon);
                     }}
                   />
-                </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Message content */}
-            <div
-              className={`text-foreground overflow-hidden text-sm ${isUser ? "flex flex-col items-end" : ""} max-w-[80%]`}
-            >
-              <div
-                className={`${
-                  isUser
-                    ? "text-foreground inline-block rounded-[24px] rounded-br-[8px] border-none bg-gray-100 px-4 py-2.5 dark:bg-slate-800/90"
-                    : "rounded-[var(--app-border-radius)]"
-                } group relative`}
-              >
-                {/* Editing mode */}
-                {isUser && isEditing ? (
-                  <div className="flex flex-col gap-2">
+            {/* Content section */}
+            <div className="flex-1 min-w-0">
+              {/* Header with role and timestamp */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-foreground">
+                  {isUser ? "You" : "FoxyChat"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatTimestamp(message.createdAt)}
+                </span>
+              </div>
+
+              {/* Attachments section - above content */}
+              {hasAttachments && (
+                <div className="mb-3 space-y-2">
+                  {message.experimental_attachments?.map(
+                    (attachment, index) => (
+                      <AttachmentPreview key={index} attachment={attachment} />
+                    ),
+                  )}
+                </div>
+              )}
+
+              {/* Message content */}
+              <div className="text-foreground text-sm leading-relaxed">
+                {isEditing ? (
+                  <div className="space-y-3">
                     <textarea
-                      className="bg-foreground/10 text-foreground min-h-[100px] w-full rounded-md p-2 text-sm"
+                      className="w-full min-h-[100px] p-3 rounded-md border border-border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
                       value={editedContent}
                       onChange={(e) => onEditContentChange(e.target.value)}
                       autoFocus
+                      placeholder="Edit your message..."
                     />
-                    <div className="flex justify-end gap-2">
+                    <div className="flex gap-2">
                       <button
-                        className="text-foreground/70 hover:text-foreground rounded-md px-2 py-1 text-xs"
+                        className="px-3 py-1.5 text-sm rounded-md bg-background border border-border text-muted-foreground hover:text-foreground transition-colors"
                         onClick={onEditCancel}
                       >
                         Cancel
                       </button>
                       <button
-                        className="bg-foreground/10 hover:bg-foreground/20 rounded-md px-2 py-1 text-xs"
+                        className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                         onClick={onEditSave}
                       >
                         Save & Regenerate
@@ -129,70 +175,59 @@ const ChatMessage = memo(
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {/* Regular message display */}
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
                     {message.content || message.parts ? (
                       renderContent
                     ) : (
-                      <div className="text-foreground/50 italic">
+                      <div className="text-muted-foreground italic">
                         {isUser ? "Empty message" : "..."}
                       </div>
                     )}
-
-                    {/* Render attachments if any */}
-                    {hasAttachments && (
-                      <div className={`flex flex-wrap gap-2 ${message.content ? "mt-2" : ""} max-w-full`}>
-                        {message.experimental_attachments?.map((attachment, index) => (
-                          <AttachmentPreview key={index} attachment={attachment} />
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
               </div>
 
-              {/* Message action buttons - below the message */}
-              {(message.content || message.parts || hasAttachments) && !isEditing && (
-                <div
-                  className={`control-layer mt-2 flex ${isUser ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`flex items-center rounded-md shadow-md transition-opacity duration-200 ${
-                      isLastMessage
-                        ? "opacity-100"
-                        : "opacity-0 group-hover/message:opacity-100"
-                    }`}
-                  >
-                    <button
-                      className="text-foreground/50 hover:text-primary active:text-primary/70 mr-2.5 transition-colors"
-                      onClick={onCopy}
-                      title={isCopied ? "Copied!" : "Copy to clipboard"}
+              {/* Action buttons */}
+              {(message.content || message.parts || hasAttachments) &&
+                !isEditing && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div
+                      className={`flex items-center gap-1 transition-opacity duration-200 ${
+                        isLastMessage
+                          ? "opacity-100"
+                          : "opacity-0 group-hover/message:opacity-100"
+                      }`}
                     >
-                      {isCopied ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-
-                    {isUser && isLastUserMessage && (
                       <button
-                        className="text-foreground/50 hover:text-primary active:text-primary/70 transition-colors"
-                        onClick={onEditStart}
-                        title="Edit message"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        onClick={onCopy}
+                        title={isCopied ? "Copied!" : "Copy to clipboard"}
                       >
-                        <Edit size={16} />
+                        {isCopied ? <Check size={14} /> : <Copy size={14} />}
                       </button>
-                    )}
 
-                    {!isUser && isLastMessage && (
-                      <button
-                        className="text-foreground/50 hover:text-primary active:text-primary/70 transition-colors"
-                        onClick={onRegenerate}
-                        title="Regenerate response"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                    )}
+                      {isUser && isLastUserMessage && (
+                        <button
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          onClick={onEditStart}
+                          title="Edit message"
+                        >
+                          <Edit size={14} />
+                        </button>
+                      )}
+
+                      {!isUser && isLastMessage && (
+                        <button
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          onClick={onRegenerate}
+                          title="Regenerate response"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         </div>
