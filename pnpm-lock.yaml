@@ -714,9 +714,6 @@ importers:
       globals:
         specifier: ^15.9.0
         version: 15.15.0
-      lovable-tagger:
-        specifier: ^1.1.7
-        version: 1.1.8(vite@5.4.19)
       postcss:
         specifier: ^8.4.47
         version: 8.5.3
@@ -12735,22 +12732,6 @@ packages:
 
   /loupe@3.1.3:
     resolution: {integrity: sha512-kkIp7XSkP78ZxJEsSxW3712C6teJVoeHHwgo9zJ380de7IYyJ2ISlxojcH2pC5OFLewESmnRi/+XCDIEEVyoug==}
-    dev: true
-
-  /lovable-tagger@1.1.8(vite@5.4.19):
-    resolution: {integrity: sha512-0a8lEpsgk+Z6crd+HE+GTmVzB0f++lMyTgW3QUF+hYZBjsA384RqUfCZAYccHlMLxYPI+dk7zjVuIvJcq8PiBg==}
-    peerDependencies:
-      vite: ^5.0.0
-    dependencies:
-      '@babel/parser': 7.27.2
-      '@babel/types': 7.27.1
-      esbuild: 0.25.4
-      estree-walker: 3.0.3
-      magic-string: 0.30.17
-      tailwindcss: 3.4.17
-      vite: 5.4.19(@types/node@22.15.3)
-    transitivePeerDependencies:
-      - ts-node
     dev: true
 
   /lowercase-keys@2.0.0:
