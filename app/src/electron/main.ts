@@ -35,7 +35,8 @@ const { activeWindowSync } =
       require("get-windows")
     : { activeWindowSync: null };
 
-const inDevelopment = process.env.NODE_ENV === "development";
+// Determine if the app is running from source or packaged
+const inDevelopment = !app.isPackaged;
 let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
 
