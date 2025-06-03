@@ -1,6 +1,7 @@
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
-import { ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
+import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -11,6 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 type MarketplaceSectionProps = {
@@ -25,6 +32,9 @@ type MarketplaceSectionProps = {
   onManualInstallMcp?: (configJson: string) => Promise<void>;
   onRefreshServers?: () => void;
 };
+
+const MCP_CONFIG_FOLDER_PATH = '~/.foxychat';
+const MCP_CONFIG_FILE_PATH = '~/.foxychat/mcp.json';
 
 export function MarketplaceSection({
   mcpMarketItems,
@@ -50,6 +60,8 @@ export function MarketplaceSection({
     Record<string, boolean>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [manualConfigError, setManualConfigError] = useState<string | null>(null);
+  const [communityConfigError, setCommunityConfigError] = useState<string | null>(null);
 
   const handleTabChange = (value: string) => {
     if (value === "installed" && onRefreshServers) {
@@ -61,12 +73,16 @@ export function MarketplaceSection({
     if (!manualConfig.trim() || !onManualInstallMcp) return;
 
     setIsSubmitting(true);
+    setManualConfigError(null);
     try {
       await onManualInstallMcp(manualConfig);
       setShowManualConfigDialog(false);
       setManualConfig("");
+      setManualConfigError(null);
     } catch (error) {
       console.error("Error submitting manual config:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setManualConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -76,17 +92,21 @@ export function MarketplaceSection({
     if (!communityConfig.trim() || !onManualInstallMcp) return;
 
     setIsSubmitting(true);
+    setCommunityConfigError(null);
     try {
       await onManualInstallMcp(communityConfig);
       setShowCommunityConfigDialog(false);
       setCommunityConfig("");
       setSelectedCommunityItem(null);
+      setCommunityConfigError(null);
 
       if (selectedCommunityItem) {
         onInstallMcpTool(selectedCommunityItem);
       }
     } catch (error) {
       console.error("Error submitting community config:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setCommunityConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +115,14 @@ export function MarketplaceSection({
   const handleOpenCommunityDialog = (item: McpMarketplaceItem) => {
     setSelectedCommunityItem(item);
     setCommunityConfig("");
+    setCommunityConfigError(null);
     setShowCommunityConfigDialog(true);
+  };
+
+  const handleOpenManualDialog = () => {
+    setManualConfig("");
+    setManualConfigError(null);
+    setShowManualConfigDialog(true);
   };
 
   const handleUninstallServer = async (serverId: string) => {
@@ -109,6 +136,14 @@ export function MarketplaceSection({
     } finally {
       setUninstallingServers((prev) => ({ ...prev, [serverId]: false }));
     }
+  };
+
+  const handleOpenMCPConfigFolder = async () => {
+    await window.electronAPI.openPath(MCP_CONFIG_FOLDER_PATH);
+  };
+
+  const handleOpenMCPConfigFile = async () => {
+    await window.electronAPI.openPath(MCP_CONFIG_FILE_PATH);
   };
 
   const availableServers = mcpServers
@@ -149,8 +184,8 @@ export function MarketplaceSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowManualConfigDialog(true)}
-            className="dark:bg-background/60 flex items-center gap-1 dark:border-gray-700"
+            onClick={handleOpenManualDialog}
+            className="bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary dark:bg-primary/10 dark:hover:bg-primary/20 dark:border-primary/30 dark:text-primary flex items-center gap-2 transition-all duration-200"
           >
             <Plus className="h-4 w-4" />
             Manual Install
@@ -196,7 +231,7 @@ export function MarketplaceSection({
             <Button
               variant="link"
               className="text-primary ml-1 h-auto p-0"
-              onClick={() => setShowManualConfigDialog(true)}
+              onClick={handleOpenManualDialog}
             >
               Configure Manually
             </Button>
@@ -378,9 +413,39 @@ export function MarketplaceSection({
 
         <TabsContent value="installed" className="space-y-6">
           <div>
-            <h3 className="text-foreground mb-4 text-xl font-semibold">
-              Installed MCP Servers
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-foreground text-xl font-semibold">
+                Installed MCP Servers
+              </h3>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-700/50 dark:border-gray-600 dark:text-gray-300 flex items-center gap-2 transition-all duration-200"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Edit MCP Config
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg">
+                  <DropdownMenuItem 
+                    onClick={handleOpenMCPConfigFolder}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <FolderOpen className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    Open Config Folder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleOpenMCPConfigFile}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <FileText className="mr-2 h-4 w-4 text-green-600 dark:text-green-400" />
+                    Open Config File
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <div className="space-y-4">
               {loadingMcpServers ? (
                 <div className="flex items-center justify-center py-8">
@@ -491,7 +556,12 @@ export function MarketplaceSection({
             <div className="relative">
               <textarea
                 value={manualConfig}
-                onChange={(e) => setManualConfig(e.target.value)}
+                onChange={(e) => {
+                  setManualConfig(e.target.value);
+                  if (manualConfigError) {
+                    setManualConfigError(null);
+                  }
+                }}
                 className="bg-secondary/50 dark:bg-background/60 h-[300px] w-full rounded-md border p-4 font-mono text-xs dark:border-gray-700"
                 placeholder={`// Example:
 // {
@@ -507,6 +577,14 @@ export function MarketplaceSection({
 // }`}
               />
             </div>
+            {manualConfigError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {manualConfigError}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter className="mt-4">
             <DialogClose asChild>
@@ -554,7 +632,12 @@ export function MarketplaceSection({
             <div className="relative">
               <textarea
                 value={communityConfig}
-                onChange={(e) => setCommunityConfig(e.target.value)}
+                onChange={(e) => {
+                  setCommunityConfig(e.target.value);
+                  if (communityConfigError) {
+                    setCommunityConfigError(null);
+                  }
+                }}
                 className="bg-secondary/50 dark:bg-background/60 h-[200px] w-full rounded-md border p-4 font-mono text-xs dark:border-gray-700"
                 placeholder={`// Example:
 // {
@@ -584,6 +667,14 @@ export function MarketplaceSection({
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
+            )}
+            {communityConfigError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {communityConfigError}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
           <DialogFooter className="mt-4">

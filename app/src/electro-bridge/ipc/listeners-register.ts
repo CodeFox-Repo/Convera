@@ -15,6 +15,7 @@ import {
   maximizeWindow,
   minimizeWindow,
   modelSelected,
+  openPath,
   pasteModifiedContent,
   resizeMessageContent,
   resizeWindow,
@@ -329,6 +330,11 @@ export default function registerListeners(
       return true;
     },
   );
+
+  ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (event, path: string) => {
+    console.log(`Handling FILE.OPEN_PATH: ${path}`);
+    openPath(path);
+  });
 
   console.log("All IPC listeners registered successfully.");
 }

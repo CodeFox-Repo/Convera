@@ -53,6 +53,8 @@ export interface IPCServer {
     width: number;
     height: number;
   };
+
+  openPath(path: string): void;
 }
 
 export const CHANNELS = {
@@ -103,6 +105,9 @@ export const CHANNELS = {
     TOGGLE_SELECTOR: "model:toggle-selector",
     MODEL_SELECTED: "model:selected",
   },
+  FILE: {
+    OPEN_PATH: "file:open-path",
+  },
 } as const;
 
 export const methodChannelMap: { [K in keyof IPCServer]: string } = {
@@ -141,4 +146,6 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // Model
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
+  // File
+  openPath: CHANNELS.FILE.OPEN_PATH,
 };

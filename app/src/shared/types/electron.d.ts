@@ -61,6 +61,7 @@ export interface IElectronAPI {
     width: number;
     height: number;
   }>;
+  openPath: (path: string) => Promise<void>;
 }
 
 // Extend the global Window interface

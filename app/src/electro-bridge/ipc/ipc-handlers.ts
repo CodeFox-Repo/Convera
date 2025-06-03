@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, nativeTheme } from "electron";
+import { BrowserWindow, clipboard, nativeTheme, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -9,6 +9,8 @@ import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
 import { exec } from "child_process";
+import os from "os";
+import path from "path";
 import { CHANNELS } from "./channels";
 
 // Simple in-memory storage for current shortcut
@@ -474,4 +476,21 @@ export function pasteModifiedContent(content: string): void {
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }
+}
+
+/**
+ * Open file or directory path in system default application
+ */
+export function openPath(targetPath: string): void {
+  // Handle tilde expansion for home directory
+  let resolvedPath = targetPath;
+  if (targetPath.startsWith("~/")) {
+    resolvedPath = path.join(os.homedir(), targetPath.slice(2));
+  } else if (targetPath === "~") {
+    resolvedPath = os.homedir();
+  }
+
+  shell.openPath(resolvedPath).catch((error) => {
+    console.error(`Error opening path ${resolvedPath}:`, error);
+  });
 }
