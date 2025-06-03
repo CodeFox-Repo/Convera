@@ -1,7 +1,7 @@
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
-  expectedPosition,
   positionWindowAtCenterBottom,
+  resizeWindowAndMaintainPosition,
   setWindowHidden,
   setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
@@ -108,13 +108,38 @@ function setupWindowEventHandlers(window: BrowserWindow) {
     // Window cleanup will be handled automatically
   });
 
-  // Handle display changes
+  // Handle display changes - ensure window fits within new screen bounds
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      const dimensions =
-        expectedPosition ||
-        calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN, undefined, true);
-      window.setBounds(dimensions, false);
+      console.log("Display metrics changed, updating window position");
+
+      // Get current window bounds
+      const currentBounds = window.getBounds();
+
+      // Check if window is currently in expanded chat mode (height > compact mode)
+      const isExpanded =
+        currentBounds.height > WINDOW_SIZE_PRESETS.MAIN.minHeight! * 2;
+
+      // Determine which config to use
+      const config = isExpanded
+        ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+        : WINDOW_SIZE_PRESETS.MAIN;
+
+      // Calculate new dimensions based on the new screen size
+      const newDimensions = calculateWindowDimensions(config, undefined, true);
+
+      // Use resize function to maintain position properly
+      resizeWindowAndMaintainPosition(
+        window,
+        newDimensions.width,
+        newDimensions.height,
+        true, // preserve X position
+        config,
+      );
+
+      console.log(
+        `Window repositioned for new display: ${JSON.stringify(newDimensions)}`,
+      );
     }
   });
 

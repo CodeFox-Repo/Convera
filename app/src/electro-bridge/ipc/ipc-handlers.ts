@@ -157,7 +157,14 @@ export function resizeMessageContent(
   preserveX: boolean = false, // Default to false for backward compatibility
 ): void {
   if (mainWindow) {
+    console.log(
+      `resizeMessageContent called: ${width}x${height}, preserveX: ${preserveX}`,
+    );
+
+    // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
     resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+
+    console.log("resizeMessageContent completed");
   }
 }
 

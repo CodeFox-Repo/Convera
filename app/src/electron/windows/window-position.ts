@@ -84,7 +84,7 @@ export function centerWindowHorizontally(window: BrowserWindow) {
 }
 
 /**
- * Update expected position when window is manually moved
+ * Update expected position when window is manually moved or resized
  */
 function updateExpectedPosition(window: BrowserWindow) {
   if (!window || isFixingPosition) return;
@@ -191,6 +191,12 @@ export function resizeWindowAndMaintainPosition(
     // Force window to be visible
     window.show();
 
+    // Update expected position after resize
+    expectedPosition = newBounds;
+    console.log(
+      `Updated expected position after resize: ${JSON.stringify(expectedPosition)}`,
+    );
+
     // Done with position fixing
     isFixingPosition = false;
   } catch (error) {
@@ -211,6 +217,26 @@ export function setupWindowPositionTracking(window: BrowserWindow) {
 
   // Update expected position when window is manually moved
   window.on("move", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  // Update expected position when window is resized
+  window.on("resize", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  // Also track when window bounds change (covers both move and resize)
+  window.on("moved", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  window.on("resized", () => {
     if (!window.isDestroyed()) {
       updateExpectedPosition(window);
     }
