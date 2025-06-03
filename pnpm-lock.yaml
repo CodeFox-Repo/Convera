@@ -665,6 +665,9 @@ importers:
       recharts:
         specifier: ^2.12.7
         version: 2.15.3(react-dom@18.3.1)(react@18.3.1)
+      simple-icons:
+        specifier: ^15.0.0
+        version: 15.0.0
       sonner:
         specifier: ^1.5.0
         version: 1.7.4(react-dom@18.3.1)(react@18.3.1)
@@ -16311,6 +16314,11 @@ packages:
       simple-concat: 1.0.1
     dev: true
     optional: true
+
+  /simple-icons@15.0.0:
+    resolution: {integrity: sha512-r6iy7Oqu13XZZ0IFcoqZnNkb8dqJwc+lyZW6KV/C/cbCJVMEMmPKNlntMrOfzVzzx+Uj8p9m13vOHWzU29jCVw==}
+    engines: {node: '>=0.12.18'}
+    dev: false
 
   /simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}

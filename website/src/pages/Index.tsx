@@ -5,10 +5,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ChevronLeft,
   ChevronRight,
-  Download
+  Code,
+  Download,
+  FileText,
+  Palette,
+  Table
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  siDiscord,
+  siFigma,
+  siGithub,
+  siGnubash,
+  siGooglechrome,
+  siJira,
+  siNotion,
+  siObsidian,
+  siSlack
+} from "simple-icons";
 
 const Index = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -404,90 +419,104 @@ Model Context Protocol (MCP)
                   // First set
                   {
                     name: "VS Code",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg",
+                    icon: Code,
+                    isLucide: true,
                   },
                   {
                     name: "Chrome",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg",
+                    logo: siGooglechrome.svg,
                   },
-                  { name: "Notion", logo: "https://www.notion.so/images/favicon.ico" },
+                  { name: "Notion", logo: siNotion.svg },
                   {
                     name: "Slack",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg",
+                    logo: siSlack.svg,
                   },
                   {
                     name: "Discord",
-                    logo: "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
+                    logo: siDiscord.svg,
                   },
                   {
                     name: "Figma",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg",
+                    logo: siFigma.svg,
                   },
                   {
                     name: "Excel",
-                    logo: "https://img.icons8.com/color/48/microsoft-excel-2019.png",
+                    icon: Table,
+                    isLucide: true,
                   },
-                  { name: "Word", logo: "https://img.icons8.com/color/48/microsoft-word-2019.png" },
+                  { 
+                    name: "Word", 
+                    icon: FileText,
+                    isLucide: true,
+                  },
                   {
                     name: "GitHub",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+                    logo: siGithub.svg,
                   },
                   {
                     name: "Jira",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg",
+                    logo: siJira.svg,
                   },
                   {
                     name: "Obsidian",
-                    logo: "https://obsidian.md/images/obsidian-logo-gradient.svg",
+                    logo: siObsidian.svg,
                   },
-                  { name: "Terminal", logo: "https://img.icons8.com/color/48/terminal.png" },
+                  { name: "Terminal", logo: siGnubash.svg },
                   {
                     name: "Photoshop",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/photoshop/photoshop-original.svg",
+                    icon: Palette,
+                    isLucide: true,
                   },
                   // Second set - exact duplicate for seamless loop
                   {
                     name: "VS Code",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg",
+                    icon: Code,
+                    isLucide: true,
                   },
                   {
                     name: "Chrome",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg",
+                    logo: siGooglechrome.svg,
                   },
-                  { name: "Notion", logo: "https://www.notion.so/images/favicon.ico" },
+                  { name: "Notion", logo: siNotion.svg },
                   {
                     name: "Slack",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg",
+                    logo: siSlack.svg,
                   },
                   {
                     name: "Discord",
-                    logo: "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
+                    logo: siDiscord.svg,
                   },
                   {
                     name: "Figma",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg",
+                    logo: siFigma.svg,
                   },
                   {
                     name: "Excel",
-                    logo: "https://img.icons8.com/color/48/microsoft-excel-2019.png",
+                    icon: Table,
+                    isLucide: true,
                   },
-                  { name: "Word", logo: "https://img.icons8.com/color/48/microsoft-word-2019.png" },
+                  { 
+                    name: "Word", 
+                    icon: FileText,
+                    isLucide: true,
+                  },
                   {
                     name: "GitHub",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+                    logo: siGithub.svg,
                   },
                   {
                     name: "Jira",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg",
+                    logo: siJira.svg,
                   },
                   {
                     name: "Obsidian",
-                    logo: "https://obsidian.md/images/obsidian-logo-gradient.svg",
+                    logo: siObsidian.svg,
                   },
-                  { name: "Terminal", logo: "https://img.icons8.com/color/48/terminal.png" },
+                  { name: "Terminal", logo: siGnubash.svg },
                   {
                     name: "Photoshop",
-                    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/photoshop/photoshop-original.svg",
+                    icon: Palette,
+                    isLucide: true,
                   },
                 ].map((app, index) => (
                   <Card
@@ -496,22 +525,19 @@ Model Context Protocol (MCP)
                   >
                     <CardContent className="flex flex-col items-center space-y-2 p-3">
                       <div className="flex h-6 w-6 items-center justify-center">
-                        <img
-                          src={app.logo}
-                          alt={app.name}
-                          className="h-6 w-6 object-contain"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            const nextElement = target.nextElementSibling as HTMLElement;
-                            target.style.display = "none";
-                            if (nextElement) {
-                              nextElement.style.display = "flex";
-                            }
-                          }}
-                        />
-                        <div className="bg-muted flex hidden h-6 w-6 items-center justify-center rounded text-xs">
-                          {app.name.slice(0, 2)}
-                        </div>
+                        {app.isLucide ? (
+                          <app.icon className="h-6 w-6" />
+                        ) : (
+                          <>
+                            <div
+                              className="h-6 w-6"
+                              dangerouslySetInnerHTML={{ __html: app.logo }}
+                            />
+                            <div className="bg-muted flex hidden h-6 w-6 items-center justify-center rounded text-xs">
+                              {app.name.slice(0, 2)}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <span className="text-muted-foreground text-center text-xs font-medium">
                         {app.name}
