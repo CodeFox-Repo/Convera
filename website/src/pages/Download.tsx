@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Apple,
-  ArrowLeft,
   CheckCircle,
   Cpu,
   Download as DownloadIcon,
@@ -12,7 +11,6 @@ import {
   Shield,
   Zap
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 const Download = () => {
   const currentVersion = "0.0.8";
@@ -50,16 +48,6 @@ const Download = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/10 to-transparent"></div>
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8 max-w-5xl">
-          {/* Back to Home Button */}
-          <div className="mb-6">
-            <Link 
-              to="/"
-              className="inline-flex items-center text-orange-600 hover:text-orange-700 transition-colors text-sm font-medium"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Link>
-          </div>
 
           <div className="text-center space-y-6">
             <div className="space-y-3">

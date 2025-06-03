@@ -1,11 +1,17 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import Logo from "./Logo";
 
 const Navbar: React.FC = () => {
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 w-full border-b backdrop-blur">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-        <Logo />
+        <Link to="/">
+          <div className={`flex items-center`}>
+            <Logo />
+            <span className="text-xl font-bold">Foxychat</span>
+          </div>
+        </Link>
         <div className="flex items-center gap-8">
           <nav className="flex items-center gap-8">
             <a

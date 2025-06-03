@@ -9,10 +9,7 @@ interface LogoProps {
 
 const Logo: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) => {
   return (
-    <div className={`flex items-center ${className}`}>
       <LogoImage height={height} width={width} />
-      <span className="font-bold text-xl">Foxychat</span>
-    </div>
   );
 };
 
