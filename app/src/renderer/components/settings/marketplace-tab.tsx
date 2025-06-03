@@ -33,7 +33,6 @@ type MarketplaceSectionProps = {
   onRefreshServers?: () => void;
 };
 
-// MCP configuration paths - these are standard across platforms
 const MCP_CONFIG_FOLDER_PATH = '~/.foxychat';
 const MCP_CONFIG_FILE_PATH = '~/.foxychat/mcp.json';
 
