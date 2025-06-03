@@ -1,0 +1,65 @@
+---
+title: Generic Validation Middleware
+description: Validate Express request bodies with Zod
+---
+
+# Creating a Generic Validation Middleware
+
+Express.js is a popular web framework for Node.js applications, and validation is crucial for handling incoming data securely. This guide shows how to build a reusable middleware using [Zod](https://github.com/colinhacks/zod) to validate request payloads.
+
+## Directory Structure
+
+```text
+project-root
+|-- src
+|   |-- routes
+|   |   |-- userRoutes.ts
+|   |-- middleware
+|   |   |-- validationMiddleware.ts
+|   |-- schemas
+|   |   |-- userSchemas.ts
+|   |-- index.ts
+```
+
+## Implementation
+
+Create a validation middleware:
+
+```ts
+import { Request, Response, NextFunction } from 'express';
+import { ZodError, ZodSchema } from 'zod';
+
+export function validateData(schema: ZodSchema<any>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      schema.parse(req.body);
+      next();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const messages = error.errors.map(issue => ({
+          message: `${issue.path.join('.')} is ${issue.message}`,
+        }));
+        res.status(400).json({ error: 'Invalid data', details: messages });
+      } else {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    }
+  };
+}
+```
+
+Use it in your routes:
+
+```ts
+import { Router } from 'express';
+import { validateData } from '../middleware/validationMiddleware';
+import { userRegistrationSchema } from '../schemas/userSchemas';
+
+const router = Router();
+router.post('/register', validateData(userRegistrationSchema), (req, res) => {
+  res.json({ message: 'User registered', data: req.body });
+});
+export default router;
+```
+
+This approach ensures all incoming data adheres to predefined schemas across your API endpoints.

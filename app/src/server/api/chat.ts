@@ -1,6 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { standardErrors } from "@/renderer/libs/utils/error-handler";
 import express, { NextFunction, Request, Response } from "express";
+import { z } from "zod";
+import { validateBody } from "../middleware/validation";
+
+const chatRequestSchema = z.object({
+  messages: z.array(z.any()).min(1),
+  config: z.any().optional(),
+  agentId: z.string().optional(),
+  modelId: z.string().optional(),
+  id: z.string().optional(),
+});
 import { processAgentChat, processChatRequest } from "../agents";
 import { deleteChat, getChatById, getChats } from "../service/chat";
 
@@ -37,8 +47,12 @@ const authenticateRequest = (
 router.use("/api/chat", authenticateRequest);
 
 // Chat endpoint
-router.post("/api/chat", async (req: Request, res: Response) => {
-  const { messages, config, agentId, modelId, id } = await req.body;
+router.post(
+  "/api/chat",
+  validateBody(chatRequestSchema),
+  async (req: Request, res: Response) => {
+    const { messages, config, agentId, modelId, id } =
+      req.body as z.infer<typeof chatRequestSchema>;
   const apiKey = (req as any).apiToken;
 
   if (!apiKey) {

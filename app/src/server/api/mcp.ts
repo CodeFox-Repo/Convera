@@ -1,4 +1,12 @@
 import express, { Request, RequestHandler, Response } from "express";
+import { z } from "zod";
+import {
+  mcpSettingsSchema,
+  mcpServerConfigSchema,
+  manualConfigSchema,
+  serverIdSchema,
+  updateToolsSchema,
+} from "../mcp/types";
 import {
   getAvailablePredefinedServers,
   getMCPManager,
@@ -6,6 +14,7 @@ import {
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
 import { MCPServerConfig } from "../mcp/types";
+import { validateBody } from "../middleware/validation";
 
 const router = express.Router();
 
@@ -65,16 +74,11 @@ router.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
 });
 
 // MCP settings endpoint
-router.post("/api/mcp/settings", (req: Request, res: Response) => {
-  const { toolId, settings } = req.body;
-
-  if (!toolId || !settings) {
-    res.status(400).json({
-      error:
-        "Missing required parameters. 'toolId' and 'settings' are required.",
-    });
-    return;
-  }
+router.post(
+  "/api/mcp/settings",
+  validateBody(mcpSettingsSchema),
+  (req: Request, res: Response) => {
+    const { toolId, settings } = req.body as z.infer<typeof mcpSettingsSchema>;
 
   // Here you would save the settings for the specific MCP tool
   // This is a placeholder for the actual implementation
@@ -104,9 +108,11 @@ router.get("/api/mcp/configurations", async (req: Request, res: Response) => {
 // Update a specific MCP server configuration
 router.put(
   "/api/mcp/configurations/:id",
+  validateBody(mcpServerConfigSchema.partial()),
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const updatedConfig: Partial<MCPServerConfig> = req.body;
+    const updatedConfig: Partial<MCPServerConfig> =
+      req.body as Partial<MCPServerConfig>;
     const manager = getMCPManager();
 
     if (id === "Dev-MCP") {
@@ -130,16 +136,9 @@ router.put(
 // Manual MCP configuration installation endpoint
 router.post(
   "/api/mcp/configurations/manual",
+  validateBody(manualConfigSchema),
   async (req: Request, res: Response) => {
-    const configData = req.body;
-
-    if (!configData?.mcpServers || typeof configData.mcpServers !== "object") {
-      res.status(400).json({
-        status: "error",
-        message: "Invalid configuration format. Expected {mcpServers: {...}}",
-      });
-      return;
-    }
+    const configData = req.body as z.infer<typeof manualConfigSchema>;
 
     const manager = getMCPManager();
     const serverIds = Object.keys(configData.mcpServers);
@@ -233,15 +232,11 @@ router.get("/api/mcp/installed-servers", (req, res) => {
 });
 
 // Install predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/install", (async (req, res) => {
-  const { id } = req.body;
-
-  if (!id) {
-    return res.status(400).json({
-      status: "error",
-      message: "Server ID is required",
-    });
-  }
+router.post(
+  "/api/mcp/predefined-servers/install",
+  validateBody(serverIdSchema),
+  (async (req, res) => {
+    const { id } = req.body as z.infer<typeof serverIdSchema>;
 
   const manager = getMCPManager();
   const success = manager.installPredefinedServer(id);
@@ -267,15 +262,11 @@ router.post("/api/mcp/predefined-servers/install", (async (req, res) => {
 }) as RequestHandler);
 
 // Uninstall predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
-  const { id } = req.body;
-
-  if (!id) {
-    return res.status(400).json({
-      status: "error",
-      message: "Server ID is required",
-    });
-  }
+router.post(
+  "/api/mcp/predefined-servers/uninstall",
+  validateBody(serverIdSchema),
+  (async (req, res) => {
+    const { id } = req.body as z.infer<typeof serverIdSchema>;
 
   const manager = getMCPManager();
   const serverStatus = manager.getServerStatus(id);
@@ -369,17 +360,10 @@ router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
 // Update MCP server enabled tools
 router.post(
   "/api/mcp/servers/:id/tools",
+  validateBody(updateToolsSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { disabledTools } = req.body;
-
-    if (!Array.isArray(disabledTools)) {
-      res.status(400).json({
-        status: "error",
-        message: "disabledTools must be an array of tool names",
-      });
-      return;
-    }
+    const { disabledTools } = req.body as z.infer<typeof updateToolsSchema>;
 
     const manager = getMCPManager();
     const serverStatus = manager.getServerStatus(id);

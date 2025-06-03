@@ -1,42 +1,37 @@
 import express, { Request, RequestHandler, Response } from "express";
+import { z } from "zod";
+import {
+  createAgentSchema,
+  updateAgentSchema,
+  ToolReference,
+} from "../agents/types";
+import { validateBody } from "../middleware/validation";
 import {
   deleteCustomAgent,
   getAgentById,
   getAgentList,
   saveCustomAgent,
 } from "../agents";
-import { AgentDefinition, ToolReference } from "../agents/types";
+import { AgentDefinition } from "../agents/types";
 import { createCustomAgent } from "../service/agent";
 
 const router = express.Router();
 
-router.post("/api/agents/create", (async (req: Request, res: Response) => {
-  const {
-    name,
-    description,
-    systemPrompt,
-    toolReferences,
-    modelId,
-    iconUrl,
-    avatar,
-    category,
-    type,
-  } = req.body;
-
-  if (!name || !description || !systemPrompt) {
-    return res.status(400).json({
-      status: "error",
-      message:
-        "Missing required fields: name, description, and systemPrompt are required",
-    });
-  }
-
-  if (!toolReferences || !Array.isArray(toolReferences)) {
-    return res.status(400).json({
-      status: "error",
-      message: "toolReferences must be provided as an array",
-    });
-  }
+router.post(
+  "/api/agents/create",
+  validateBody(createAgentSchema),
+  (async (req: Request, res: Response) => {
+    const {
+      name,
+      description,
+      systemPrompt,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = req.body as z.infer<typeof createAgentSchema>;
 
   const formattedToolNames = toolReferences.map(
     (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
@@ -109,20 +104,23 @@ router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
 });
 
 // Add endpoint for updating an agent
-router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
-  const { agentId } = req.params;
-  const {
-    id,
-    name,
-    description,
-    systemPrompt,
-    toolReferences,
-    modelId,
-    iconUrl,
-    avatar,
-    category,
-    type,
-  } = req.body;
+router.put(
+  "/api/agents/:agentId",
+  validateBody(updateAgentSchema),
+  async (req: Request, res: Response) => {
+    const { agentId } = req.params;
+    const {
+      id,
+      name,
+      description,
+      systemPrompt,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = req.body as z.infer<typeof updateAgentSchema>;
 
   if (id !== agentId) {
     res.status(400).json({
