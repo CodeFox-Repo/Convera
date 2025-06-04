@@ -1,5 +1,5 @@
 import { Attachment, UIMessage } from "ai";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronUp, Clipboard, Copy, Edit, File, RefreshCw, User } from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
 
@@ -56,11 +56,104 @@ const avatar = "../../images/icon.png";
 // Attachment preview component - simplified for file display above content
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
   const isImage = attachment.contentType?.startsWith("image/");
+  const [showPreview, setShowPreview] = useState(false);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const [imageRect, setImageRect] = useState<DOMRect | null>(null);
+
+  const handleMouseEnter = () => {
+    if (imageRef.current) {
+      const rect = imageRef.current.getBoundingClientRect();
+      setImageRect(rect);
+    }
+    setShowPreview(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowPreview(false);
+  };
+
+  // Calculate preview position to avoid screen edges
+  const getPreviewStyle = () => {
+    if (!imageRect) return {};
+    
+    const previewWidth = 320;
+    const previewHeight = 280;
+    const padding = 16;
+    
+    let left = imageRect.left;
+    let top = imageRect.bottom + 8;
+    
+    // Adjust if preview goes beyond right edge
+    if (left + previewWidth > window.innerWidth - padding) {
+      left = window.innerWidth - previewWidth - padding;
+    }
+    
+    // Adjust if preview goes beyond bottom edge
+    if (top + previewHeight > window.innerHeight - padding) {
+      top = imageRect.top - previewHeight - 8;
+    }
+    
+    // Ensure preview doesn't go beyond left edge
+    if (left < padding) {
+      left = padding;
+    }
+    
+    return { left: `${left}px`, top: `${top}px` };
+  };
+
   return (
     <div className="group relative flex items-center gap-2 p-2 rounded-md border border-border bg-background/50 text-sm">
       {isImage ? (
-        <div className="size-8 flex-shrink-0 rounded overflow-hidden">
+        <div 
+          ref={imageRef}
+          className="size-8 flex-shrink-0 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <img src={attachment.url} alt="" className="size-full object-cover" />
+          
+          {/* Preview overlay with expanding animation */}
+          <AnimatePresence>
+            {showPreview && imageRect && (
+              <motion.div
+                initial={{
+                  scale: 0.1,
+                  opacity: 0,
+                }}
+                animate={{
+                  scale: 1,
+                  opacity: 1,
+                }}
+                exit={{
+                  scale: 0.1,
+                  opacity: 0,
+                }}
+                transition={{
+                  type: "spring",
+                  damping: 20,
+                  stiffness: 300,
+                  duration: 0.2,
+                }}
+                className="fixed z-50 w-80 bg-background rounded-lg shadow-xl border border-border p-3 pointer-events-none"
+                style={{
+                  ...getPreviewStyle(),
+                  transformOrigin: "top left",
+                }}
+              >
+                <img 
+                  src={attachment.url} 
+                  alt={attachment.name} 
+                  className="w-full h-auto max-h-60 object-contain rounded"
+                />
+                <div className="mt-2 text-center">
+                  <span className="text-sm font-medium text-foreground">{attachment.name}</span>
+                  {attachment.contentType && (
+                    <div className="text-xs text-muted-foreground">{attachment.contentType}</div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ) : (
         <File size={16} className="flex-shrink-0 text-muted-foreground" />
