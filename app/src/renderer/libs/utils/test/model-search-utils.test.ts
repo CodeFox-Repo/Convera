@@ -44,6 +44,12 @@ describe("fuzzySearchUtils", () => {
     expect(cb).toHaveBeenCalledWith(["gpt-3.5-turbo", "gpt3.5", "gpt-3.5.2"]);
   });
 
+  it("fallbackSearch: returns empty array when no matches", () => {
+    const cb = vi.fn();
+    fallbackSearch("not-a-model", MODELS, cb);
+    expect(cb).toHaveBeenCalledWith([]);
+  });
+
   it("searchModels: finds fuzzy matches (async)", async () => {
     const cb = vi.fn();
     const fuzzyInstance = loadFuzzyInstance();

@@ -1,82 +1,42 @@
 # FoxyChat
 
-## PNPM Workspace Setup
+FoxyChat is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces.
 
-This project uses PNPM workspaces to manage multiple packages in a monorepo structure.
+## Getting Started
 
-### Requirements
-
-- Node.js >= 18.0.0
-- PNPM >= 8.0.0
-
-### Installation
-
-To install PNPM globally:
-
-```bash
-npm install -g pnpm
-```
-
-### Setup
-
-Initialize the workspace:
+Install dependencies in every workspace:
 
 ```bash
 pnpm install
 ```
 
-### Available Scripts
+### Running the Desktop App
 
-Run these commands from the root directory:
-
-```bash
-# Start the application
+```
 pnpm start
+```
 
-# start the market server
+### Running the Marketplace Server
+
+```
 pnpm start:market
-
-# Run linting across all packages
-pnpm lint
-
-# Format code
-pnpm format
-
-# Format and write changes
-pnpm format:write
-
-# Run tests
-pnpm test
-
-# Run all tests
-pnpm test:all
 ```
 
-### Workspace Structure
-
-The workspace includes the following packages:
-
-- `app/`: Main Electron application
-- `website/`: Website for the project
-- `mcps/`: MCP related packages
-- `market/`: server for market 
-
-### Adding Dependencies
-
-To add a dependency to a specific workspace:
+### Development Utilities
 
 ```bash
-pnpm --filter <package-name> add <dependency>
+pnpm lint      # check lint errors
+pnpm format    # verify formatting
+pnpm format:write  # fix formatting
+pnpm test      # run unit tests
+pnpm test:all  # run all tests
 ```
 
-To add a dependency to all workspaces:
+## Packages
 
-```bash
-pnpm -r add <dependency>
-```
+- **app** – Electron application containing the FoxyChat desktop client.
+- **website** – Documentation and marketing site.
+- **market** – Express server providing a simple MCP marketplace.
 
-To add a dev dependency to all workspaces:
+Environment variables are no longer required. Any configurable values can be set directly in the application interface.
 
-```bash
-pnpm -r add -D <dependency>
-``` 
