@@ -2,12 +2,12 @@ import path from "path";
 
 let robotjs;
 
-if (process.env.NODE_ENV === "development") {
-  // For development
+try {
+  // Attempt to load from the normal package location first
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   robotjs = require("@hurdlegroup/robotjs");
-} else {
-  // Try multiple possible locations for the native module in production
+} catch {
+  // Fallback locations used when the app is packaged
   const possiblePaths = [
     // Standard auto-unpack-natives location
     path.join(

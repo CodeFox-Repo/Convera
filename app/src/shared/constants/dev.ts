@@ -1,1 +1,4 @@
-export const inDevelopment = process.env.NODE_ENV === "development";
+import { app } from "electron";
+
+// Use Electron's packaging state instead of environment variables
+export const inDevelopment = !app.isPackaged;

@@ -2,7 +2,6 @@
  * Express server for handling chat API requests with OpenAI
  */
 import cors from "cors";
-import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
@@ -10,8 +9,6 @@ import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
 import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
-
-dotenv.config();
 
 const app = express();
 const router = express.Router();
