@@ -2,7 +2,6 @@ import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
-import CopiedContentBlock from "../clipboard/copied-content-block";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
@@ -157,96 +156,69 @@ export default function ChatContent({
     console.log(`Accepted modification for message ${messageId}`);
   }, []);
 
+  // Extract copied content from message content
+  const extractCopiedContent = useCallback((content: string) => {
+    if (!content) return { copiedContent: null, cleanContent: content };
+    
+    const copiedContentPattern = /<copied>\n([\s\S]*?)\n<\/copied>/;
+    const copiedContentMatch = content.match(copiedContentPattern);
+    
+    if (copiedContentMatch) {
+      const copiedContent = copiedContentMatch[1];
+      const cleanContent = content.replace(copiedContentPattern, "").trim();
+      return { copiedContent, cleanContent };
+    }
+    
+    return { copiedContent: null, cleanContent: content };
+  }, []);
+
   // Renders text content using Markdown
   const renderMessageContent = useCallback(
     (content: string, messageId: string) => {
       if (!content) return null;
 
-      // Check for copied content tags
-      const copiedContentMatch = content.match(
-        /<copied>\n([\s\S]*?)\n<\/copied>/,
-      );
+      // Define regex patterns for special content blocks (excluding copied content)
+      const modifiedContentPattern = /<modified>\n([\s\S]*?)\n<\/modified>/;
 
-      // Check for modified content tags
-      const modifiedContentMatch = content.match(
-        /<modified>\n([\s\S]*?)\n<\/modified>/,
-      );
-
+      // Extract special content
+      const modifiedContentMatch = content.match(modifiedContentPattern);
+      
       // Check if this message's modified content has already been responded to
       const modificationResponse = modifiedResponses[messageId];
 
-      if (copiedContentMatch && modifiedContentMatch) {
-        // Both copied and modified content exist
-        const copiedContent = copiedContentMatch[1];
-        const modifiedContent = modifiedContentMatch[1];
+      // Clean the content by removing special blocks
+      let cleanContent = content;
+      if (modifiedContentMatch) {
+        cleanContent = cleanContent.replace(modifiedContentPattern, "");
+      }
+      cleanContent = cleanContent.trim();
 
-        // Remove both blocks from the original content
-        const otherContent = content
-          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
-          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
-          .trim();
+      // Render content sections in order
+      const contentSections: React.ReactNode[] = [];
 
-        // Return a fragment with all three sections
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <CopiedContentBlock>
-              <Markdown>{copiedContent}</Markdown>
-            </CopiedContentBlock>
-            {modificationResponse !== "rejected" && (
-              <ModifiedContentBlock
-                modifiedContent={modifiedContent}
-                onAccept={() => handleAcceptModification(messageId)}
-                // onReject={() => handleRejectModification(messageId)} (TODO ALLEN: Implement this)
-              >
-                <Markdown>{modifiedContent}</Markdown>
-              </ModifiedContentBlock>
-            )}
-          </>
-        );
-      } else if (copiedContentMatch) {
-        // Only copied content exists
-        const copiedContent = copiedContentMatch[1];
-
-        // Remove the copied block from the original content
-        const otherContent = content
-          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
-          .trim();
-
-        // Return a fragment with copied content block and regular markdown
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <CopiedContentBlock>
-              <Markdown>{copiedContent}</Markdown>
-            </CopiedContentBlock>
-          </>
-        );
-      } else if (modifiedContentMatch && modificationResponse !== "rejected") {
-        // Only modified content exists and hasn't been rejected
-        const modifiedContent = modifiedContentMatch[1];
-
-        // Remove the modified block from the original content
-        const otherContent = content
-          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
-          .trim();
-
-        // Return a fragment with modified content block and regular markdown
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <ModifiedContentBlock
-              modifiedContent={modifiedContent}
-              onAccept={() => handleAcceptModification(messageId)}
-            >
-              <Markdown>{modifiedContent}</Markdown>
-            </ModifiedContentBlock>
-          </>
+      // Add main content if it exists
+      if (cleanContent) {
+        contentSections.push(
+          <Markdown key="main-content">{cleanContent}</Markdown>
         );
       }
 
-      // If no special content, just render as normal markdown
-      return <Markdown>{content}</Markdown>;
+      // Add modified content block if it exists and hasn't been rejected
+      if (modifiedContentMatch && modificationResponse !== "rejected") {
+        const modifiedContent = modifiedContentMatch[1];
+        contentSections.push(
+          <ModifiedContentBlock
+            key="modified-content"
+            modifiedContent={modifiedContent}
+            onAccept={() => handleAcceptModification(messageId)}
+          >
+            <Markdown>{modifiedContent}</Markdown>
+          </ModifiedContentBlock>
+        );
+      }
+
+      // Return all sections or fallback to original content
+      return contentSections.length > 0 ? <>{contentSections}</> : <Markdown>{content}</Markdown>;
     },
     [modifiedResponses, handleAcceptModification],
   );
@@ -413,13 +385,23 @@ export default function ChatContent({
       const isEditing = editingMessageId === message.id;
       const isCopied = copiedMessageId === message.id ? true : false;
 
+      // Extract copied content for user messages
+      let copiedContent: string | null = null;
+      let contentToRender = message.content;
+
+      if (message.role === "user" && message.content) {
+        const { copiedContent: extracted, cleanContent } = extractCopiedContent(message.content);
+        copiedContent = extracted;
+        contentToRender = cleanContent;
+      }
+
       // Prepare the correct content based on message type
       let content: React.ReactNode;
       if (message.role === "assistant") {
         content = renderToolCalls(message);
       } else {
-        content = message.content
-          ? renderMessageContent(message.content, message.id)
+        content = contentToRender
+          ? renderMessageContent(contentToRender, message.id)
           : null;
       }
 
@@ -432,6 +414,7 @@ export default function ChatContent({
           isEditing={isEditing}
           editedContent={editedContent}
           isCopied={isCopied}
+          copiedContent={copiedContent}
           onEditStart={() => handleEditStart(message)}
           onEditSave={() => handleEditSave(message)}
           onEditCancel={handleEditCancel}
@@ -448,6 +431,7 @@ export default function ChatContent({
     editingMessageId,
     editedContent,
     copiedMessageId,
+    extractCopiedContent,
     handleEditStart,
     handleEditSave,
     handleEditCancel,

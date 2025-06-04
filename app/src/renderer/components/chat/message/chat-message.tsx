@@ -1,7 +1,35 @@
 import { Attachment, UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { Check, Copy, Edit, File, RefreshCw, User } from "lucide-react";
-import React, { memo } from "react";
+import { Check, ChevronDown, ChevronUp, Clipboard, Copy, Edit, File, RefreshCw, User } from "lucide-react";
+import React, { memo, useEffect, useRef, useState } from "react";
+
+/**
+ * Simple markdown renderer component
+ */
+const Markdown = memo(({ children }: { children: string }) => {
+  // Simple markdown rendering
+  const formattedText = children
+    .replace(
+      /```([\s\S]*?)```/g,
+      "<pre class='bg-foreground/10 p-3 rounded-md my-2 overflow-x-auto'><code>$1</code></pre>",
+    )
+    .replace(
+      /`([^`]+)`/g,
+      "<code class='bg-foreground/10 px-1 py-0.5 rounded text-xs'>$1</code>",
+    )
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/\n/g, "<br />");
+
+  return (
+    <div
+      className="markdown no-drag-region"
+      dangerouslySetInnerHTML={{ __html: formattedText }}
+    />
+  );
+});
+
+Markdown.displayName = "Markdown";
 
 /**
  * Individual chat message component props
@@ -13,6 +41,7 @@ export interface ChatMessageProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
+  copiedContent?: string | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -76,6 +105,7 @@ const ChatMessage = memo(
     isEditing,
     editedContent,
     isCopied,
+    copiedContent,
     onEditStart,
     onEditSave,
     onEditCancel,
@@ -88,6 +118,24 @@ const ChatMessage = memo(
     const hasAttachments =
       message.experimental_attachments &&
       message.experimental_attachments.length > 0;
+
+    // State for copied content expansion
+    const [copiedContentExpanded, setCopiedContentExpanded] = useState(false);
+    const copiedContentRef = useRef<HTMLDivElement>(null);
+    const [copiedContentHeight, setCopiedContentHeight] = useState<number | undefined>(undefined);
+
+    // Get the full height of the copied content when mounted or content changes
+    useEffect(() => {
+      if (copiedContentRef.current && copiedContent) {
+        const height = copiedContentRef.current.scrollHeight;
+        setCopiedContentHeight(height);
+      }
+    }, [copiedContent]);
+
+    const toggleCopiedContent = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCopiedContentExpanded(!copiedContentExpanded);
+    };
 
     return (
       <motion.div
@@ -145,6 +193,48 @@ const ChatMessage = memo(
                       <AttachmentPreview key={index} attachment={attachment} />
                     ),
                   )}
+                </div>
+              )}
+
+              {/* Copied content section - below attachments, above message content */}
+              {copiedContent && (
+                <div className="mb-3">
+                  <div className="group relative rounded-md border border-border bg-background/50 p-3">
+                    <div 
+                      className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      onClick={toggleCopiedContent}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clipboard size={12} />
+                        <span>Copied Content</span>
+                      </div>
+                      <span className="flex items-center gap-1">
+                        {copiedContentExpanded ? (
+                          <>
+                            <span className="mr-1">Collapse</span>
+                            <ChevronUp size={14} />
+                          </>
+                        ) : (
+                          <>
+                            <span className="mr-1">Expand</span>
+                            <ChevronDown size={14} />
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div 
+                      ref={copiedContentRef}
+                      className="text-foreground/90 text-sm whitespace-pre-wrap relative overflow-hidden transition-all duration-300"
+                      style={{ 
+                        maxHeight: copiedContentExpanded ? `${copiedContentHeight}px` : '60px' 
+                      }}
+                    >
+                      {copiedContent}
+                      {!copiedContentExpanded && (
+                        <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-background/50 to-transparent" />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
