@@ -1,68 +1,10 @@
 import { useEffect } from "react";
 import { getSettings } from "./settings";
+import { parseShortcut, matchesShortcut } from "./keyboard-utils";
 
 /**
  * Parse keyboard shortcut string to event properties
  */
-function parseShortcut(shortcut: string): {
-  key: string;
-  metaKey?: boolean;
-  ctrlKey?: boolean;
-  altKey?: boolean;
-  shiftKey?: boolean;
-} {
-  const parts = shortcut.split("+").map((part) => part.trim().toLowerCase());
-  const result: {
-    key: string;
-    metaKey?: boolean;
-    ctrlKey?: boolean;
-    altKey?: boolean;
-    shiftKey?: boolean;
-  } = {
-    key: parts[parts.length - 1],
-  };
-
-  if (
-    parts.includes("meta") ||
-    parts.includes("command") ||
-    parts.includes("cmd")
-  ) {
-    result.metaKey = true;
-  }
-
-  if (parts.includes("ctrl") || parts.includes("control")) {
-    result.ctrlKey = true;
-  }
-
-  if (parts.includes("alt") || parts.includes("option")) {
-    result.altKey = true;
-  }
-
-  if (parts.includes("shift")) {
-    result.shiftKey = true;
-  }
-
-  return result;
-}
-
-/**
- * Match keyboard event against shortcut string
- */
-function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
-  const parsed = parseShortcut(shortcut);
-
-  if (parsed.key !== event.key.toLowerCase()) return false;
-  if (parsed.metaKey && !event.metaKey) return false;
-  if (!parsed.metaKey && event.metaKey) return false;
-  if (parsed.ctrlKey && !event.ctrlKey) return false;
-  if (!parsed.ctrlKey && event.ctrlKey) return false;
-  if (parsed.altKey && !event.altKey) return false;
-  if (!parsed.altKey && event.altKey) return false;
-  if (parsed.shiftKey && !event.shiftKey) return false;
-  if (!parsed.shiftKey && event.shiftKey) return false;
-
-  return true;
-}
 
 /**
  * Hook to register global keyboard shortcuts
