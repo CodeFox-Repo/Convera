@@ -25,7 +25,11 @@ let localStorageMock: Storage;
 
 beforeEach(() => {
   localStorageMock = mockLocalStorage();
-  Object.defineProperty(global, "localStorage", { value: localStorageMock });
+  Object.defineProperty(global, "localStorage", {
+    value: localStorageMock,
+    configurable: true,
+    writable: true,
+  });
 });
 
 describe("getMergedConfig", () => {
