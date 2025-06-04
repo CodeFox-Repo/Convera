@@ -8,8 +8,8 @@
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
     "format:write": "pnpm -r format:write",
-    "test": "pnpm -r test",
-    "test:all": "pnpm -r test:all",
+    "test": "pnpm --filter ./app test",
+    "test:all": "pnpm --filter ./app test:all",
     "prepare": "husky"
   },
   "engines": {

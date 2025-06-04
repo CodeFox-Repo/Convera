@@ -73,15 +73,14 @@ export class MCPClient {
         const options: any = {
           command: this.serverCommand,
           args: this.serverArgs || [],
-          env: { ...process.env }, // Always include system environment variables
+          env: {},
         };
 
         // Create a merged environment that includes system environment variables
         // This ensures PATH and other critical variables are available
         if (this.serverEnv && Object.keys(this.serverEnv).length > 0) {
           options.env = {
-            ...process.env, // Inherit system environment variables (if remove this then we get error, need to check if it is nessysary)
-            ...this.serverEnv, // Override with custom environment variables
+            ...this.serverEnv,
           };
           console.log(
             `Using environment variables for MCP server: ${Object.keys(this.serverEnv).join(", ")}`,
@@ -109,7 +108,6 @@ export class MCPClient {
             console.error(
               `Could not find the command '${this.serverCommand}'. Make sure it's installed and in your PATH.`,
             );
-            console.error(`Current PATH: ${process.env.PATH}`);
             // Suggest some common locations to check
             console.error("Common locations to check:");
             console.error("- Global npm: ~/.npm-global/bin or /usr/local/bin");
