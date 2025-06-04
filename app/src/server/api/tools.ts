@@ -1,11 +1,11 @@
-import express from "express";
+import { Hono } from "hono";
 import { serverTools } from "../mcp/dev-mcp/tools";
 
-const router = express.Router();
+const router = new Hono();
 
-router.get("/api/tools", (req, res) => {
+router.get("/api/tools", (c) => {
   const tools = Object.keys(serverTools);
-  res.json({ tools });
+  return c.json({ tools });
 });
 
 export default router;

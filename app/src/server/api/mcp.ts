@@ -1,4 +1,4 @@
-import express, { Request, RequestHandler, Response } from "express";
+import { Hono } from "hono";
 import {
   getAvailablePredefinedServers,
   getMCPManager,
@@ -7,18 +7,18 @@ import {
 import { serverTools } from "../mcp/dev-mcp/tools";
 import { MCPServerConfig } from "../mcp/types";
 
-const router = express.Router();
+const router = new Hono();
 
 // MCP servers endpoint
-router.get("/api/mcp/servers", async (req: Request, res: Response) => {
+router.get("/api/mcp/servers", async (c) => {
   const manager = getMCPManager();
   const servers = manager.getAllServerStatus();
-  res.json({ status: "success", servers });
+  return c.json({ status: "success", servers });
 });
 
 // Start specific MCP server endpoint
-router.post("/api/mcp/servers/:id/start", (async (req, res) => {
-  const { id } = req.params;
+router.post("/api/mcp/servers/:id/start", async (c) => {
+  const id = c.req.param("id");
   const manager = getMCPManager();
   const success = await manager.startServer(id);
 
@@ -27,12 +27,12 @@ router.post("/api/mcp/servers/:id/start", (async (req, res) => {
     ? `Server ${id} started successfully`
     : `Failed to start server ${id}`;
 
-  res.status(status).json({ status: success ? "success" : "error", message });
-}) as RequestHandler);
+  return c.json({ status: success ? "success" : "error", message }, status);
+});
 
 // Stop specific MCP server endpoint
-router.post("/api/mcp/servers/:id/stop", (async (req, res) => {
-  const { id } = req.params;
+router.post("/api/mcp/servers/:id/stop", async (c) => {
+  const id = c.req.param("id");
   const manager = getMCPManager();
   const success = await manager.stopServer(id);
 
@@ -41,11 +41,11 @@ router.post("/api/mcp/servers/:id/stop", (async (req, res) => {
     ? `Server ${id} stopped successfully`
     : `Failed to stop server ${id}`;
 
-  res.status(status).json({ status: success ? "success" : "error", message });
-}) as RequestHandler);
+  return c.json({ status: success ? "success" : "error", message }, status);
+});
 
 // MCP marketplace endpoint
-router.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
+router.get("/api/mcp/marketplace", async (c) => {
   const response = await fetch("https://api.cline.bot/v1/mcp/marketplace", {
     headers: { Accept: "application/json" },
   });
@@ -61,19 +61,21 @@ router.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
     ? { items: externalData }
     : externalData;
 
-  res.json({ status: "success", catalog });
+  return c.json({ status: "success", catalog });
 });
 
 // MCP settings endpoint
-router.post("/api/mcp/settings", (req: Request, res: Response) => {
-  const { toolId, settings } = req.body;
+router.post("/api/mcp/settings", async (c) => {
+  const { toolId, settings } = await c.req.json();
 
   if (!toolId || !settings) {
-    res.status(400).json({
-      error:
-        "Missing required parameters. 'toolId' and 'settings' are required.",
-    });
-    return;
+    return c.json(
+      {
+        error:
+          "Missing required parameters. 'toolId' and 'settings' are required.",
+      },
+      400,
+    );
   }
 
   // Here you would save the settings for the specific MCP tool
@@ -81,14 +83,14 @@ router.post("/api/mcp/settings", (req: Request, res: Response) => {
   console.log(`Saving settings for MCP tool: ${toolId}`, settings);
 
   // Return success
-  res.json({
+  return c.json({
     success: true,
     message: `Settings for ${toolId} saved successfully`,
   });
 });
 
 // Get all MCP server configurations
-router.get("/api/mcp/configurations", async (req: Request, res: Response) => {
+router.get("/api/mcp/configurations", async (c) => {
   const manager = getMCPManager();
   const configs = manager.getAllServerConfigs();
   const configsWithTools = { ...configs };
@@ -98,15 +100,13 @@ router.get("/api/mcp/configurations", async (req: Request, res: Response) => {
     configsWithTools["Dev-MCP"].builtInToolsList = allDevMCPTools;
   }
 
-  res.json({ status: "success", configurations: configsWithTools });
+  return c.json({ status: "success", configurations: configsWithTools });
 });
 
 // Update a specific MCP server configuration
-router.put(
-  "/api/mcp/configurations/:id",
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const updatedConfig: Partial<MCPServerConfig> = req.body;
+router.put("/api/mcp/configurations/:id", async (c) => {
+    const id = c.req.param("id");
+    const updatedConfig: Partial<MCPServerConfig> = await c.req.json();
     const manager = getMCPManager();
 
     if (id === "Dev-MCP") {
@@ -120,36 +120,34 @@ router.put(
     }
 
     manager.updateServerConfig(id, updatedConfig);
-    res.json({
+    return c.json({
       status: "success",
       message: `Configuration for ${id} updated.`,
     });
-  },
-);
+});
 
 // Manual MCP configuration installation endpoint
-router.post(
-  "/api/mcp/configurations/manual",
-  async (req: Request, res: Response) => {
-    const configData = req.body;
+router.post("/api/mcp/configurations/manual", async (c) => {
+    const configData = await c.req.json();
 
     if (!configData?.mcpServers || typeof configData.mcpServers !== "object") {
-      res.status(400).json({
-        status: "error",
-        message: "Invalid configuration format. Expected {mcpServers: {...}}",
-      });
-      return;
+      return c.json(
+        {
+          status: "error",
+          message: "Invalid configuration format. Expected {mcpServers: {...}}",
+        },
+        400,
+      );
     }
 
     const manager = getMCPManager();
     const serverIds = Object.keys(configData.mcpServers);
 
     if (serverIds.length === 0) {
-      res.status(400).json({
-        status: "error",
-        message: "No MCP servers found in configuration",
-      });
-      return;
+      return c.json(
+        { status: "error", message: "No MCP servers found in configuration" },
+        400,
+      );
     }
 
     for (const id of serverIds) {
@@ -166,16 +164,15 @@ router.post(
       });
     }
 
-    res.json({
+    return c.json({
       status: "success",
       message: `Manually configured ${serverIds.length} MCP server(s)`,
       serverIds,
     });
-  },
-);
+});
 
 // MCP predefined servers endpoint
-router.get("/api/mcp/predefined-servers", (req, res) => {
+router.get("/api/mcp/predefined-servers", (c) => {
   const predefinedServers = getAvailablePredefinedServers();
   const serversWithStatus = predefinedServers.map((server) => ({
     ...server,
@@ -183,14 +180,14 @@ router.get("/api/mcp/predefined-servers", (req, res) => {
     isInstalled: isPredefinedServerInstalled(server.id),
   }));
 
-  res.json({
+  return c.json({
     status: "success",
     servers: serversWithStatus,
   });
 });
 
 // Get all installed MCP servers endpoint (both predefined and manually added)
-router.get("/api/mcp/installed-servers", (req, res) => {
+router.get("/api/mcp/installed-servers", (c) => {
   const manager = getMCPManager();
   const serverConfigs = manager.getAllServerConfigs();
   const serverStatuses = manager.getAllServerStatus();
@@ -226,21 +223,18 @@ router.get("/api/mcp/installed-servers", (req, res) => {
     };
   });
 
-  res.json({
+  return c.json({
     status: "success",
     servers: installedServers,
   });
 });
 
 // Install predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/install", (async (req, res) => {
-  const { id } = req.body;
+router.post("/api/mcp/predefined-servers/install", async (c) => {
+  const { id } = await c.req.json();
 
   if (!id) {
-    return res.status(400).json({
-      status: "error",
-      message: "Server ID is required",
-    });
+    return c.json({ status: "error", message: "Server ID is required" }, 400);
   }
 
   const manager = getMCPManager();
@@ -254,27 +248,24 @@ router.post("/api/mcp/predefined-servers/install", (async (req, res) => {
       });
     }
 
-    res.json({
+    return c.json({
       status: "success",
       message: `Server ${id} installed successfully`,
     });
   } else {
-    res.status(400).json({
-      status: "error",
-      message: `Failed to install server ${id}`,
-    });
+    return c.json(
+      { status: "error", message: `Failed to install server ${id}` },
+      400,
+    );
   }
-}) as RequestHandler);
+});
 
 // Uninstall predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
-  const { id } = req.body;
+router.post("/api/mcp/predefined-servers/uninstall", async (c) => {
+  const { id } = await c.req.json();
 
   if (!id) {
-    return res.status(400).json({
-      status: "error",
-      message: "Server ID is required",
-    });
+    return c.json({ status: "error", message: "Server ID is required" }, 400);
   }
 
   const manager = getMCPManager();
@@ -290,21 +281,20 @@ router.post("/api/mcp/predefined-servers/uninstall", (async (req, res) => {
     ? `Server ${id} uninstalled successfully`
     : `Failed to uninstall server ${id}`;
 
-  res.status(status).json({ status: success ? "success" : "error", message });
-}) as RequestHandler);
+  return c.json({ status: success ? "success" : "error", message }, status);
+});
 
 // Get tools for a specific MCP server
-router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
-  const { id } = req.params;
+router.get("/api/mcp/servers/:id/tools", async (c) => {
+  const id = c.req.param("id");
   const manager = getMCPManager();
   const serverStatus = manager.getServerStatus(id);
 
   if (!serverStatus) {
-    res.status(404).json({
-      status: "error",
-      message: `Server with id ${id} not found`,
-    });
-    return;
+    return c.json(
+      { status: "error", message: `Server with id ${id} not found` },
+      404,
+    );
   }
 
   const serverConfig = manager.getServerConfig(id);
@@ -317,7 +307,7 @@ router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       config.builtInToolsList &&
       config.builtInToolsList.length > 0
     ) {
-      res.json({
+      return c.json({
         status: "success",
         tools: config.builtInToolsList.map((name) => ({
           name,
@@ -336,26 +326,25 @@ router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
       enabled: !disabledTools.includes(name),
     }));
 
-    res.json({
-      status: "success",
-      tools: allTools,
-      serverId: id,
+      return c.json({
+        status: "success",
+        tools: allTools,
+        serverId: id,
       disabledTools,
     });
     return;
   }
 
   if (!serverStatus.running) {
-    res.status(400).json({
-      status: "error",
-      message: `Server ${id} is not running`,
-    });
-    return;
+    return c.json(
+      { status: "error", message: `Server ${id} is not running` },
+      400,
+    );
   }
 
   const availableTools = serverStatus.tools || [];
 
-  res.json({
+  return c.json({
     status: "success",
     tools: availableTools.map((tool) => ({
       ...tool,
@@ -364,32 +353,28 @@ router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
     serverId: id,
     disabledTools,
   });
-}) as RequestHandler);
+});
 
 // Update MCP server enabled tools
-router.post(
-  "/api/mcp/servers/:id/tools",
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { disabledTools } = req.body;
+router.post("/api/mcp/servers/:id/tools", async (c) => {
+    const id = c.req.param("id");
+    const { disabledTools } = await c.req.json();
 
     if (!Array.isArray(disabledTools)) {
-      res.status(400).json({
-        status: "error",
-        message: "disabledTools must be an array of tool names",
-      });
-      return;
+      return c.json(
+        { status: "error", message: "disabledTools must be an array of tool names" },
+        400,
+      );
     }
 
     const manager = getMCPManager();
     const serverStatus = manager.getServerStatus(id);
 
     if (!serverStatus) {
-      res.status(404).json({
-        status: "error",
-        message: `Server with id ${id} not found`,
-      });
-      return;
+      return c.json(
+        { status: "error", message: `Server with id ${id} not found` },
+        404,
+      );
     }
 
     const availableTools = serverStatus.tools || [];
@@ -401,12 +386,11 @@ router.post(
       await manager.startServer(id);
     }
 
-    res.json({
+    return c.json({
       status: "success",
       message: `Disabled ${disabledCount} tools for server ${id}. ${totalTools - disabledCount} tools are now available.`,
       disabledTools,
     });
-  },
-);
+});
 
 export default router;

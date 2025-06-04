@@ -1,59 +1,52 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { standardErrors } from "@/renderer/libs/utils/error-handler";
-import express, { NextFunction, Request, Response } from "express";
+import { Hono } from "hono";
 import { processAgentChat, processChatRequest } from "../agents";
 import { deleteChat, getChatById, getChats } from "../service/chat";
 
-const router = express.Router();
+const router = new Hono();
 
 // Updated authentication middleware using standardized error responses
-const authenticateRequest = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const authHeader = req.headers.authorization;
+const authenticateRequest = async (c: any, next: () => Promise<void>) => {
+  const authHeader = c.req.header("Authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json(standardErrors.authFailed);
-    return;
+    return c.json(standardErrors.authFailed, 401);
   }
 
   // Extract token from header
   const token = authHeader.split(" ")[1];
 
   if (!token) {
-    res.status(401).json(standardErrors.authFailed);
-    return;
+    return c.json(standardErrors.authFailed, 401);
   }
 
   // Store token in request for use in downstream handlers
-  (req as any).apiToken = token;
-
-  next();
+  (c as any).apiToken = token;
+  await next();
 };
 
 // Apply authentication to routes that need it
 router.use("/api/chat", authenticateRequest);
 
 // Chat endpoint
-router.post("/api/chat", async (req: Request, res: Response) => {
-  const { messages, config, agentId, modelId, id } = await req.body;
-  const apiKey = (req as any).apiToken;
+router.post("/api/chat", async (c) => {
+  const { messages, config, agentId, modelId, id } = await c.req.json();
+  const apiKey = (c as any).apiToken;
 
   if (!apiKey) {
-    res.status(401).json(standardErrors.authFailed);
-    return;
+    return c.json(standardErrors.authFailed, 401);
   }
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json(standardErrors.emptyMessage);
-    return;
+    return c.json(standardErrors.emptyMessage, 400);
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
+  const headers = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  };
 
   const response = agentId
     ? await processAgentChat(
@@ -71,35 +64,16 @@ router.post("/api/chat", async (req: Request, res: Response) => {
       });
 
   if (!response.body) {
-    res.write(`data: ${JSON.stringify({ error: "No response body" })}\n\n`);
-    res.end();
-    return;
+    return new Response(
+      `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
+      { headers },
+    );
   }
 
-  const reader = response.body.getReader();
-
-  const processStream = async () => {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        res.end();
-        return;
-      }
-
-      res.write(value);
-    }
-  };
-
-  processStream().catch(() => {
-    res.write(
-      `data: ${JSON.stringify({ error: "Error processing stream" })}\n\n`,
-    );
-    res.end();
-  });
+  return new Response(response.body, { headers });
 });
 
-router.get("/api/chat", async (req, res) => {
+router.get("/api/chat", async (c) => {
   const chats = await getChats();
   const chatList = chats.map((chat) => ({
     id: chat.id,
@@ -109,37 +83,38 @@ router.get("/api/chat", async (req, res) => {
     messageCount: chat.messages.length,
   }));
 
-  res.json({ status: "success", chats: chatList });
+  return c.json({ status: "success", chats: chatList });
 });
 
-router.get("/api/chat/:id", async (req, res) => {
-  const { id } = req.params;
+router.get("/api/chat/:id", async (c) => {
+  const id = c.req.param("id");
   const chat = await getChatById(id);
 
   if (!chat) {
-    res.status(404).json({
-      status: "error",
-      message: `Chat with ID '${id}' not found`,
-    });
-    return;
+    return c.json(
+      { status: "error", message: `Chat with ID '${id}' not found` },
+      404,
+    );
   }
 
-  res.json({ status: "success", chat });
+  return c.json({ status: "success", chat });
 });
 
-router.delete("/api/chat/:id", async (req, res) => {
-  const { id } = req.params;
+router.delete("/api/chat/:id", async (c) => {
+  const id = c.req.param("id");
   const success = await deleteChat(id);
 
   if (!success) {
-    res.status(404).json({
-      status: "error",
-      message: `Chat with ID '${id}' not found or could not be deleted`,
-    });
-    return;
+    return c.json(
+      {
+        status: "error",
+        message: `Chat with ID '${id}' not found or could not be deleted`,
+      },
+      404,
+    );
   }
 
-  res.json({
+  return c.json({
     status: "success",
     message: `Chat '${id}' deleted successfully`,
   });

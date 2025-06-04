@@ -1,4 +1,4 @@
-import express, { Request, RequestHandler, Response } from "express";
+import { Hono } from "hono";
 import {
   deleteCustomAgent,
   getAgentById,
@@ -8,9 +8,9 @@ import {
 import { AgentDefinition, ToolReference } from "../agents/types";
 import { createCustomAgent } from "../service/agent";
 
-const router = express.Router();
+const router = new Hono();
 
-router.post("/api/agents/create", (async (req: Request, res: Response) => {
+router.post("/api/agents/create", async (c) => {
   const {
     name,
     description,
@@ -21,21 +21,27 @@ router.post("/api/agents/create", (async (req: Request, res: Response) => {
     avatar,
     category,
     type,
-  } = req.body;
+  } = await c.req.json();
 
   if (!name || !description || !systemPrompt) {
-    return res.status(400).json({
-      status: "error",
-      message:
-        "Missing required fields: name, description, and systemPrompt are required",
-    });
+    return c.json(
+      {
+        status: "error",
+        message:
+          "Missing required fields: name, description, and systemPrompt are required",
+      },
+      400,
+    );
   }
 
   if (!toolReferences || !Array.isArray(toolReferences)) {
-    return res.status(400).json({
-      status: "error",
-      message: "toolReferences must be provided as an array",
-    });
+    return c.json(
+      {
+        status: "error",
+        message: "toolReferences must be provided as an array",
+      },
+      400,
+    );
   }
 
   const formattedToolNames = toolReferences.map(
@@ -60,57 +66,58 @@ router.post("/api/agents/create", (async (req: Request, res: Response) => {
   const agent = await createCustomAgent(agentData);
   await saveCustomAgent(agent);
 
-  res.status(200).json({
+  return c.json({
     status: "success",
     message: `Agent '${agent.name}' created successfully`,
     agent,
   });
-}) as RequestHandler);
+});
 
 // Add endpoint for agent list
-router.get("/api/agents", async (req: Request, res: Response) => {
+router.get("/api/agents", async (c) => {
   const agents = await getAgentList();
-  res.json({ status: "success", agents });
+  return c.json({ status: "success", agents });
 });
 
 // Add endpoint for getting specific agent details
-router.get("/api/agents/:agentId", async (req: Request, res: Response) => {
-  const { agentId } = req.params;
+router.get("/api/agents/:agentId", async (c) => {
+  const agentId = c.req.param("agentId");
   const agent = await getAgentById(agentId);
 
   if (!agent) {
-    res.status(404).json({
-      status: "error",
-      message: `Agent with ID '${agentId}' not found`,
-    });
-    return;
+    return c.json(
+      { status: "error", message: `Agent with ID '${agentId}' not found` },
+      404,
+    );
   }
 
-  res.json({ status: "success", agent });
+  return c.json({ status: "success", agent });
 });
 
 // Add endpoint for deleting an agent
-router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
-  const { agentId } = req.params;
+router.delete("/api/agents/:agentId", async (c) => {
+  const agentId = c.req.param("agentId");
   const success = await deleteCustomAgent(agentId);
 
   if (!success) {
-    res.status(404).json({
-      status: "error",
-      message: `Agent with ID '${agentId}' not found or cannot be deleted`,
-    });
-    return;
+    return c.json(
+      {
+        status: "error",
+        message: `Agent with ID '${agentId}' not found or cannot be deleted`,
+      },
+      404,
+    );
   }
 
-  res.json({
+  return c.json({
     status: "success",
     message: `Agent '${agentId}' deleted successfully`,
   });
 });
 
 // Add endpoint for updating an agent
-router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
-  const { agentId } = req.params;
+router.put("/api/agents/:agentId", async (c) => {
+  const agentId = c.req.param("agentId");
   const {
     id,
     name,
@@ -122,23 +129,21 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
     avatar,
     category,
     type,
-  } = req.body;
+  } = await c.req.json();
 
   if (id !== agentId) {
-    res.status(400).json({
-      status: "error",
-      message: "Agent ID mismatch between URL and request body",
-    });
-    return;
+    return c.json(
+      { status: "error", message: "Agent ID mismatch between URL and request body" },
+      400,
+    );
   }
 
   const existingAgent = await getAgentById(agentId);
   if (!existingAgent) {
-    res.status(404).json({
-      status: "error",
-      message: `Agent with ID '${agentId}' not found`,
-    });
-    return;
+    return c.json(
+      { status: "error", message: `Agent with ID '${agentId}' not found` },
+      404,
+    );
   }
 
   const finalToolReferences =
@@ -166,15 +171,17 @@ router.put("/api/agents/:agentId", async (req: Request, res: Response) => {
 
   const deleteSuccess = await deleteCustomAgent(agentId);
   if (!deleteSuccess) {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to update agent: could not remove old version",
-    });
-    return;
+    return c.json(
+      {
+        status: "error",
+        message: "Failed to update agent: could not remove old version",
+      },
+      500,
+    );
   }
 
   await saveCustomAgent(updatedAgent);
-  res.json({ status: "success", agent: updatedAgent });
+  return c.json({ status: "success", agent: updatedAgent });
 });
 
 export default router;
