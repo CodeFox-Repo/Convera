@@ -157,6 +157,7 @@ export function resizeMessageContent(
   preserveX: boolean = false, // Default to false for backward compatibility
 ): void {
   if (mainWindow) {
+    // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
     resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
   }
 }

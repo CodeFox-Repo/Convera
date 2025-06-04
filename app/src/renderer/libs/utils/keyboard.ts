@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { matchesShortcut } from "./keyboard-utils";
 import { getSettings } from "./settings";
-import { parseShortcut, matchesShortcut } from "./keyboard-utils";
 
 /** Hook to register global keyboard shortcuts */
 export function useGlobalShortcuts() {
@@ -11,8 +11,13 @@ export function useGlobalShortcuts() {
       console.log(`Key pressed: ${event.key}, ctrlKey: ${event.ctrlKey}`);
 
       // Command+. (period) or Command+, (comma) or Control+E to open settings
-      if ((event.metaKey && (event.key === "." || event.key === ",")) || 
-          (event.ctrlKey && (event.key === "." || event.key === "," || event.key.toLowerCase() === "e"))) {
+      if (
+        (event.metaKey && (event.key === "." || event.key === ",")) ||
+        (event.ctrlKey &&
+          (event.key === "." ||
+            event.key === "," ||
+            event.key.toLowerCase() === "e"))
+      ) {
         event.preventDefault();
         console.log(
           "Settings shortcut triggered, calling window.electronAPI.toggleSettingsWindow()",

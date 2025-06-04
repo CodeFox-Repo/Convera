@@ -84,7 +84,7 @@ export function centerWindowHorizontally(window: BrowserWindow) {
 }
 
 /**
- * Update expected position when window is manually moved
+ * Update expected position when window is manually moved or resized
  */
 function updateExpectedPosition(window: BrowserWindow) {
   if (!window || isFixingPosition) return;
@@ -150,53 +150,35 @@ export function resizeWindowAndMaintainPosition(
     `resizeWindowAndMaintainPosition called with size ${width}x${height}, preserveX: ${preserveX}`,
   );
 
-  try {
-    // Get current bounds
-    const bounds = window.getBounds();
-    console.log(`Current window bounds: ${JSON.stringify(bounds)}`);
+  const bounds = window.getBounds();
 
-    // Calculate the bottom edge position
-    const bottomEdgeY = bounds.y + bounds.height;
+  const bottomEdgeY = bounds.y + bounds.height;
 
-    // Calculate new Y to maintain bottom edge position
-    // Ensure newY is never negative to prevent window from going above screen
-    const newY = Math.max(0, bottomEdgeY - height);
+  const newY = Math.max(0, bottomEdgeY - height);
 
-    // Determine X position - preserve current X if requested, otherwise center
-    let newX;
-    if (preserveX && expectedPosition) {
-      newX = expectedPosition.x;
-      console.log(`Using expected X position: ${newX}`);
-    } else {
-      // Center horizontally
-      const primaryDisplay = screen.getPrimaryDisplay();
-      const screenWidth = primaryDisplay.workAreaSize.width;
-      newX = Math.round((screenWidth - width) / 2);
-    }
-
-    // Create new bounds
-    const newBounds = {
-      x: newX,
-      y: newY,
-      width: width,
-      height: height,
-    };
-
-    // Mark that we're in a position fixing state
-    isFixingPosition = true;
-
-    // Disable animation for more reliable positioning
-    window.setBounds(newBounds, false);
-
-    // Force window to be visible
-    window.show();
-
-    // Done with position fixing
-    isFixingPosition = false;
-  } catch (error) {
-    console.error("Error in resizeWindowAndMaintainPosition:", error);
-    isFixingPosition = false;
+  let newX;
+  if (preserveX && expectedPosition) {
+    newX = expectedPosition.x;
+  } else {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const screenWidth = primaryDisplay.workAreaSize.width;
+    newX = Math.round((screenWidth - width) / 2);
   }
+
+  const newBounds = {
+    x: newX,
+    y: newY,
+    width: width,
+    height: height,
+  };
+
+  isFixingPosition = true;
+
+  window.setBounds(newBounds, false);
+
+  window.show();
+  expectedPosition = newBounds;
+  isFixingPosition = false;
 }
 
 export let isHiddenOffscreen = true;
@@ -211,6 +193,26 @@ export function setupWindowPositionTracking(window: BrowserWindow) {
 
   // Update expected position when window is manually moved
   window.on("move", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  // Update expected position when window is resized
+  window.on("resize", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  // Also track when window bounds change (covers both move and resize)
+  window.on("moved", () => {
+    if (!window.isDestroyed()) {
+      updateExpectedPosition(window);
+    }
+  });
+
+  window.on("resized", () => {
     if (!window.isDestroyed()) {
       updateExpectedPosition(window);
     }

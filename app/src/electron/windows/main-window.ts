@@ -1,7 +1,7 @@
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
-  expectedPosition,
   positionWindowAtCenterBottom,
+  resizeWindowAndMaintainPosition,
   setWindowHidden,
   setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
@@ -108,13 +108,27 @@ function setupWindowEventHandlers(window: BrowserWindow) {
     // Window cleanup will be handled automatically
   });
 
-  // Handle display changes
+  // Handle display changes - ensure window fits within new screen bounds
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      const dimensions =
-        expectedPosition ||
-        calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN, undefined, true);
-      window.setBounds(dimensions, false);
+      const currentBounds = window.getBounds();
+
+      const isExpanded =
+        currentBounds.height > WINDOW_SIZE_PRESETS.MAIN.minHeight! * 2;
+
+      const config = isExpanded
+        ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
+        : WINDOW_SIZE_PRESETS.MAIN;
+
+      const newDimensions = calculateWindowDimensions(config, undefined, true);
+
+      resizeWindowAndMaintainPosition(
+        window,
+        newDimensions.width,
+        newDimensions.height,
+        true,
+        config,
+      );
     }
   });
 
