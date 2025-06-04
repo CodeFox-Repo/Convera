@@ -1,8 +1,9 @@
 /**
- * Express server for handling chat API requests with OpenAI
+ * Hono server for handling chat API requests with OpenAI
  */
-import cors from "cors";
-import express, { Request, Response } from "express";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { serve } from "@hono/node-server";
 import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
 import chatRouter from "./api/chat";
@@ -10,24 +11,21 @@ import mcpRouter from "./api/mcp";
 import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
 
-const app = express();
-const router = express.Router();
-app.use(express.json());
-app.use(cors());
+const app = new Hono();
+app.use("*", cors());
 
-router.get("/api/health", (req: Request, res: Response) => {
-  res.json({ status: "ok", message: "FoxyChat API server is running" });
-});
+app.get("/api/health", (c) =>
+  c.json({ status: "ok", message: "FoxyChat API server is running" }),
+);
 
 const PORT = 38000;
 
 function startChatServer() {
   // Mount the routers to the app
-  app.use(router);
-  app.use(agentRouter);
-  app.use(chatRouter);
-  app.use(mcpRouter);
-  app.use(toolsRouter);
+  app.route("/", agentRouter);
+  app.route("/", chatRouter);
+  app.route("/", mcpRouter);
+  app.route("/", toolsRouter);
 
   initializeAgents()
     .then(() => console.log("Agent system initialized successfully"))
@@ -47,15 +45,10 @@ function startChatServer() {
       console.error("Error starting enabled MCP servers:", error),
     );
 
-  const server = app.listen(PORT, () => {
-    console.log(`Chat server running on port ${PORT}`);
-    console.log(`Chat API endpoint: http://localhost:${PORT}/api/chat`);
-    console.log(`Health check endpoint: http://localhost:${PORT}/api/health`);
-  });
-
-  server.on("error", (error) => {
-    console.error("Chat server error:", error);
-  });
+  const server = serve({ fetch: app.fetch, port: PORT });
+  console.log(`Chat server running on port ${PORT}`);
+  console.log(`Chat API endpoint: http://localhost:${PORT}/api/chat`);
+  console.log(`Health check endpoint: http://localhost:${PORT}/api/health`);
 
   return server;
 }
