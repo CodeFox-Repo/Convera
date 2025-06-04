@@ -1,42 +1,26 @@
 # FoxyChat
 
-FoxyChat is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces.
+FoxyChat is a cross‑platform desktop client for chatting with AI models. The repository is a pnpm workspace containing the app itself, a documentation site and a lightweight marketplace server.
 
-## Getting Started
-
-Install dependencies in every workspace:
+## Quick Start
 
 ```bash
 pnpm install
-```
-
-### Running the Desktop App
-
-```
 pnpm start
 ```
 
-### Running the Marketplace Server
+### Useful Commands
 
-```
-pnpm start:market
-```
-
-### Development Utilities
-
-```bash
-pnpm lint      # check lint errors
-pnpm format    # verify formatting
-pnpm format:write  # fix formatting
-pnpm test      # run unit tests
-pnpm test:all  # run all tests
-```
+- `pnpm start` – launch the Electron app
+- `pnpm start:market` – run the marketplace server
+- `pnpm lint` – check lint rules
+- `pnpm format` – verify formatting
+- `pnpm test` – run unit tests
 
 ## Packages
 
-- **app** – Electron application containing the FoxyChat desktop client.
-- **website** – Documentation and marketing site.
-- **market** – Express server providing a simple MCP marketplace.
+- **app** – the Electron client
+- **website** – docs and marketing site
+- **market** – Express API server
 
-Environment variables are no longer required. Any configurable values can be set directly in the application interface.
-
+All configuration can be updated directly from the application settings.

@@ -1,132 +1,39 @@
 ---
 title: Configuration
-description: Customize FoxyChat to suit your needs
+description: Adjust FoxyChat to your preferences
 icon: SettingsIcon
 ---
 
-# FoxyChat Configuration Guide
+# Configuration
 
-This document explains how to configure FoxyChat after installation to connect with various AI providers and customize your experience.
+After installation, you can fine‑tune FoxyChat from the **Settings** panel.
 
-## Setting Up AI Providers
+## Providers
 
-FoxyChat supports multiple AI providers. You can configure one or more of the following:
+Connect your favorite AI services by entering API keys for providers such as OpenAI or OpenRouter. You can manage models and set a default provider per workspace.
 
-### OpenAI
+## General Options
 
-1. Create an account at [OpenAI](https://platform.openai.com/)
-2. Generate an API key from your account dashboard
-3. In FoxyChat, go to Settings > AI Providers > OpenAI
-4. Enter your API key and save
+- **Theme** – switch between light and dark mode.
+- **Notifications** – toggle desktop notifications.
+- **Startup** – choose whether FoxyChat launches when you log in.
 
-### OpenRouter
+## Config File
 
-1. Create an account at [OpenRouter](https://openrouter.ai/)
-2. Generate an API key from your account dashboard
-3. In FoxyChat, go to Settings > AI Providers > OpenRouter
-4. Enter your API key and save
-
-## Application Settings
-
-### General Settings
-
-Access general settings by navigating to Settings > General.
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Theme | Choose between Light, Dark, or System | System |
-| Language | Set the application language | English |
-| Startup | Launch on system startup | Disabled |
-| Notifications | Enable/disable notifications | Enabled |
-
-### Chat Settings
-
-Configure your chat experience in Settings > Chat.
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Message History | Number of messages to keep in history | 100 |
-| Auto-save Chats | Automatically save chat sessions | Enabled |
-| Chat Backup | Enable cloud backup of chats | Disabled |
-| Code Highlighting | Syntax highlighting for code blocks | Enabled |
-
-### Advanced Settings
-
-For advanced users, additional settings are available in Settings > Advanced.
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Proxy | Configure proxy settings | Disabled |
-| Debug Mode | Enable verbose logging | Disabled |
-| Custom Models | Add custom AI model endpoints | None |
-| API Timeout | Set timeout for API requests (in seconds) | 30 |
-
-## Configuration Files
-
-FoxyChat stores configuration in the following locations:
-
-- **Windows**: `%APPDATA%\FoxyChat\config.json`
-- **macOS**: `~/Library/Application Support/FoxyChat/config.json`
-- **Linux**: `~/.config/FoxyChat/config.json`
-
-### Manual Configuration
-
-Advanced users can edit the configuration files directly. The structure is as follows:
+Advanced users can edit the configuration file directly. It is stored in your operating system's application data folder and looks like this:
 
 ```json
 {
   "providers": {
     "openai": {
-      "apiKey": "your-api-key",
-      "defaultModel": "gpt-4"
-    },
-    "openrouter": {
-      "apiKey": "your-api-key",
-      "defaultModel": "anthropic/claude-3-haiku"
+      "apiKey": "YOUR_KEY"
     }
   },
   "settings": {
-    "general": {
-      "theme": "dark",
-      "language": "en",
-      "startupLaunch": false,
-      "notifications": true
-    },
-    "chat": {
-      "messageHistory": 100,
-      "autoSave": true,
-      "cloudBackup": false,
-      "codeHighlighting": true
-    },
-    "advanced": {
-      "proxy": {
-        "enabled": false,
-        "host": "",
-        "port": 0
-      },
-      "debugMode": false,
-      "apiTimeout": 30
-    }
+    "theme": "system",
+    "notifications": true
   }
 }
 ```
 
-## Environment Variables
-
-For development or deployment in controlled environments, FoxyChat supports the following environment variables:
-
-| Variable | Description |
-|----------|-------------|
-| `FOXYCHAT_OPENAI_API_KEY` | OpenAI API key |
-| `FoxyCHAT_OPENROUTER_API_KEY` | OpenRouter API key |
-| `FoxyCHAT_PROXY_HOST` | Proxy host |
-| `FoxyCHAT_PROXY_PORT` | Proxy port |
-| `FoxyCHAT_DEBUG` | Enable debug mode (set to "true") |
-
-## Next Steps
-
-After configuring your application, you might want to:
-
-1. [Learn about the user interface](/docs/user-interface)
-2. [Explore advanced features](/docs/advanced-features)
-3. [Understand keyboard shortcuts](/docs/keyboard-shortcuts) 
+Changes are applied the next time you restart the app.
