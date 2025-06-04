@@ -2,13 +2,7 @@ import { useEffect } from "react";
 import { getSettings } from "./settings";
 import { parseShortcut, matchesShortcut } from "./keyboard-utils";
 
-/**
- * Parse keyboard shortcut string to event properties
- */
-
-/**
- * Hook to register global keyboard shortcuts
- */
+/** Hook to register global keyboard shortcuts */
 export function useGlobalShortcuts() {
   useEffect(() => {
     // Handle keyboard shortcuts
