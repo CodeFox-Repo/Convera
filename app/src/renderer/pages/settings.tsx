@@ -15,12 +15,13 @@ import {
   MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
-import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Plug, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
+import { ConnectAppsTab } from "@/renderer/components/settings/connect-apps-tab";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -1013,6 +1014,7 @@ export default function SettingsPage() {
   const navigationItems = [
     { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
     { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
+    { id: "connect-apps", label: "Connect Apps", icon: <Plug className="h-5 w-5" /> },
     { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
   ];
 
@@ -1135,6 +1137,11 @@ export default function SettingsPage() {
         {/* MCP Market Tab Content */}
         {activeTab === "mcp" && (
           <MarketplaceSection {...marketplaceProps} />
+        )}
+
+        {/* Connect Apps Tab Content */}
+        {activeTab === "connect-apps" && (
+          <ConnectAppsTab />
         )}
 
         {/* Agents Tab Content */}
