@@ -11,6 +11,7 @@ const chatRequestSchema = z.object({
   modelId: z.string().optional(),
   id: z.string().optional(),
 });
+type ChatRequest = z.infer<typeof chatRequestSchema>;
 import { processAgentChat, processChatRequest } from "../agents";
 import { deleteChat, getChatById, getChats } from "../service/chat";
 
@@ -50,7 +51,10 @@ router.use("/api/chat", authenticateRequest);
 router.post(
   "/api/chat",
   validateBody(chatRequestSchema),
-  async (req: Request, res: Response) => {
+  async (
+    req: Request<{}, any, ChatRequest>,
+    res: Response,
+  ) => {
     const { messages, config, agentId, modelId, id } = req.body;
   const apiKey = (req as any).apiToken;
 

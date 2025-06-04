@@ -5,6 +5,11 @@ import {
   manualConfigSchema,
   serverIdSchema,
   updateToolsSchema,
+  MCPSettingsInput,
+  MCPServerConfigInput,
+  ManualConfigInput,
+  ServerIdInput,
+  UpdateToolsInput,
 } from "../mcp/types";
 import {
   getAvailablePredefinedServers,
@@ -76,7 +81,10 @@ router.get("/api/mcp/marketplace", async (req: Request, res: Response) => {
 router.post(
   "/api/mcp/settings",
   validateBody(mcpSettingsSchema),
-  (req: Request, res: Response) => {
+  (
+    req: Request<{}, any, MCPSettingsInput>,
+    res: Response,
+  ) => {
     const { toolId, settings } = req.body;
 
   // Here you would save the settings for the specific MCP tool
@@ -108,7 +116,10 @@ router.get("/api/mcp/configurations", async (req: Request, res: Response) => {
 router.put(
   "/api/mcp/configurations/:id",
   validateBody(mcpServerConfigSchema.partial()),
-  async (req: Request, res: Response) => {
+  async (
+    req: Request<{ id: string }, any, Partial<MCPServerConfigInput>>,
+    res: Response,
+  ) => {
     const { id } = req.params;
     const updatedConfig: Partial<MCPServerConfig> = req.body;
     const manager = getMCPManager();
@@ -135,7 +146,10 @@ router.put(
 router.post(
   "/api/mcp/configurations/manual",
   validateBody(manualConfigSchema),
-  async (req: Request, res: Response) => {
+  async (
+    req: Request<{}, any, ManualConfigInput>,
+    res: Response,
+  ) => {
     const configData = req.body;
 
     const manager = getMCPManager();
@@ -233,7 +247,10 @@ router.get("/api/mcp/installed-servers", (req, res) => {
 router.post(
   "/api/mcp/predefined-servers/install",
   validateBody(serverIdSchema),
-  (async (req, res) => {
+  (async (
+    req: Request<{}, any, ServerIdInput>,
+    res: Response,
+  ) => {
     const { id } = req.body;
 
   const manager = getMCPManager();
@@ -263,7 +280,10 @@ router.post(
 router.post(
   "/api/mcp/predefined-servers/uninstall",
   validateBody(serverIdSchema),
-  (async (req, res) => {
+  (async (
+    req: Request<{}, any, ServerIdInput>,
+    res: Response,
+  ) => {
     const { id } = req.body;
 
   const manager = getMCPManager();
@@ -359,7 +379,10 @@ router.get("/api/mcp/servers/:id/tools", (async (req, res) => {
 router.post(
   "/api/mcp/servers/:id/tools",
   validateBody(updateToolsSchema),
-  async (req: Request, res: Response) => {
+  async (
+    req: Request<{ id: string }, any, UpdateToolsInput>,
+    res: Response,
+  ) => {
     const { id } = req.params;
     const { disabledTools } = req.body;
 

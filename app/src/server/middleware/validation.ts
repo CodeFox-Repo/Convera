@@ -1,12 +1,14 @@
-import { Request, Response, NextFunction } from "express";
-import { ZodError, ZodSchema } from "zod";
+import { Request, Response, NextFunction, RequestHandler } from "express";
+import { ZodError, ZodTypeAny, z } from "zod";
 
 /**
  * Generic middleware to validate request bodies using Zod schemas.
  * Returns a 400 error response if validation fails.
  */
-export function validateBody(schema: ZodSchema<any>) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export function validateBody<T extends ZodTypeAny>(
+  schema: T,
+): RequestHandler<{}, any, z.infer<T>> {
+  return (req: Request<{}, any, z.infer<T>>, res: Response, next: NextFunction) => {
     try {
       const result = schema.parse(req.body);
       // Replace body with parsed data to ensure correct types downstream

@@ -3,6 +3,8 @@ import {
   createAgentSchema,
   updateAgentSchema,
   ToolReference,
+  CreateAgentInput,
+  UpdateAgentInput,
 } from "../agents/types";
 import { validateBody } from "../middleware/validation";
 import {
@@ -19,7 +21,10 @@ const router = express.Router();
 router.post(
   "/api/agents/create",
   validateBody(createAgentSchema),
-  (async (req: Request, res: Response) => {
+  (async (
+    req: Request<{}, any, CreateAgentInput>,
+    res: Response,
+  ) => {
     const {
       name,
       description,
@@ -59,7 +64,7 @@ router.post(
     message: `Agent '${agent.name}' created successfully`,
     agent,
   });
-}) as RequestHandler);
+}) as RequestHandler<{}, any, CreateAgentInput>);
 
 // Add endpoint for agent list
 router.get("/api/agents", async (req: Request, res: Response) => {
@@ -106,7 +111,10 @@ router.delete("/api/agents/:agentId", async (req: Request, res: Response) => {
 router.put(
   "/api/agents/:agentId",
   validateBody(updateAgentSchema),
-  async (req: Request, res: Response) => {
+  async (
+    req: Request<{ agentId: string }, any, UpdateAgentInput>,
+    res: Response,
+  ) => {
     const { agentId } = req.params;
     const {
       id,

@@ -123,6 +123,7 @@ export const updateToolsSchema = z.object({
   disabledTools: z.array(z.string()),
 });
 
+export type MCPSettingsInput = z.infer<typeof mcpSettingsSchema>;
 export type MCPServerConfigInput = z.infer<typeof mcpServerConfigSchema>;
 export type ManualConfigInput = z.infer<typeof manualConfigSchema>;
 export type ServerIdInput = z.infer<typeof serverIdSchema>;
