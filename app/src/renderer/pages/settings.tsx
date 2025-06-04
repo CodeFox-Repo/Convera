@@ -15,7 +15,7 @@ import {
   MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
-import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Plug, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Import our component tabs
@@ -23,6 +23,7 @@ import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
+import { AppIntegrationTab } from "@/renderer/components/settings/app-integration-tab";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AgentDefinition {
@@ -1013,7 +1014,8 @@ export default function SettingsPage() {
   const navigationItems = [
     { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
     { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
-    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
+    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> },
+    { id: "integrations", label: "App Integration", icon: <Plug className="h-5 w-5" /> }
   ];
 
   return (
@@ -1141,6 +1143,9 @@ export default function SettingsPage() {
         {activeTab === "agents" && (
           <AgentsTab onNavigateToMcp={() => setActiveTab("mcp")} />
         )}
+
+        {/* App Integration Tab Content */}
+        {activeTab === "integrations" && <AppIntegrationTab />}
       </div>
     </div>
   );
