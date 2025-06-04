@@ -111,34 +111,23 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle display changes - ensure window fits within new screen bounds
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      console.log("Display metrics changed, updating window position");
-
-      // Get current window bounds
       const currentBounds = window.getBounds();
 
-      // Check if window is currently in expanded chat mode (height > compact mode)
       const isExpanded =
         currentBounds.height > WINDOW_SIZE_PRESETS.MAIN.minHeight! * 2;
 
-      // Determine which config to use
       const config = isExpanded
         ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
         : WINDOW_SIZE_PRESETS.MAIN;
 
-      // Calculate new dimensions based on the new screen size
       const newDimensions = calculateWindowDimensions(config, undefined, true);
 
-      // Use resize function to maintain position properly
       resizeWindowAndMaintainPosition(
         window,
         newDimensions.width,
         newDimensions.height,
-        true, // preserve X position
+        true,
         config,
-      );
-
-      console.log(
-        `Window repositioned for new display: ${JSON.stringify(newDimensions)}`,
       );
     }
   });

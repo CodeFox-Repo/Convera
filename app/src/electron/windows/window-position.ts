@@ -150,59 +150,35 @@ export function resizeWindowAndMaintainPosition(
     `resizeWindowAndMaintainPosition called with size ${width}x${height}, preserveX: ${preserveX}`,
   );
 
-  try {
-    // Get current bounds
-    const bounds = window.getBounds();
-    console.log(`Current window bounds: ${JSON.stringify(bounds)}`);
+  const bounds = window.getBounds();
 
-    // Calculate the bottom edge position
-    const bottomEdgeY = bounds.y + bounds.height;
+  const bottomEdgeY = bounds.y + bounds.height;
 
-    // Calculate new Y to maintain bottom edge position
-    // Ensure newY is never negative to prevent window from going above screen
-    const newY = Math.max(0, bottomEdgeY - height);
+  const newY = Math.max(0, bottomEdgeY - height);
 
-    // Determine X position - preserve current X if requested, otherwise center
-    let newX;
-    if (preserveX && expectedPosition) {
-      newX = expectedPosition.x;
-      console.log(`Using expected X position: ${newX}`);
-    } else {
-      // Center horizontally
-      const primaryDisplay = screen.getPrimaryDisplay();
-      const screenWidth = primaryDisplay.workAreaSize.width;
-      newX = Math.round((screenWidth - width) / 2);
-    }
-
-    // Create new bounds
-    const newBounds = {
-      x: newX,
-      y: newY,
-      width: width,
-      height: height,
-    };
-
-    // Mark that we're in a position fixing state
-    isFixingPosition = true;
-
-    // Disable animation for more reliable positioning
-    window.setBounds(newBounds, false);
-
-    // Force window to be visible
-    window.show();
-
-    // Update expected position after resize
-    expectedPosition = newBounds;
-    console.log(
-      `Updated expected position after resize: ${JSON.stringify(expectedPosition)}`,
-    );
-
-    // Done with position fixing
-    isFixingPosition = false;
-  } catch (error) {
-    console.error("Error in resizeWindowAndMaintainPosition:", error);
-    isFixingPosition = false;
+  let newX;
+  if (preserveX && expectedPosition) {
+    newX = expectedPosition.x;
+  } else {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const screenWidth = primaryDisplay.workAreaSize.width;
+    newX = Math.round((screenWidth - width) / 2);
   }
+
+  const newBounds = {
+    x: newX,
+    y: newY,
+    width: width,
+    height: height,
+  };
+
+  isFixingPosition = true;
+
+  window.setBounds(newBounds, false);
+
+  window.show();
+  expectedPosition = newBounds;
+  isFixingPosition = false;
 }
 
 export let isHiddenOffscreen = true;
