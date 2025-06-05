@@ -63,18 +63,18 @@ function simulateClipboardCopy(): Promise<void> {
       console.log("Using RobotJS to simulate copy command");
 
       // Release modifier keys first to prevent conflicts
-      (robot as any).keyToggle("shift", "up");
-      (robot as any).keyToggle("control", "up");
-      (robot as any).keyToggle("alt", "up");
+      robot.keyToggle("shift", "up");
+      robot.keyToggle("control", "up");
+      robot.keyToggle("alt", "up");
 
       // Small delay to ensure modifiers are released
       setTimeout(() => {
         if (process.platform === "darwin") {
           // For macOS, use Command+C
-          (robot as any).keyTap("c", "command");
+          robot.keyTap("c", "command");
         } else {
           // For Windows/Linux, use Control+C
-          (robot as any).keyTap("c", "control");
+          robot.keyTap("c", "control");
         }
 
         // Add a delay to ensure clipboard has been updated
