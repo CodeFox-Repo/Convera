@@ -1,4 +1,5 @@
 import { RouterProvider } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
@@ -12,8 +13,9 @@ import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
 import { router } from "./routes/router";
 
 export default function App() {
-  const { i18n } = useTranslation();
-  const [view, setView] = useState<string | null>(null);
+const { i18n } = useTranslation();
+const [view, setView] = useState<string | null>(null);
+const queryClient = new QueryClient();
 
   useEffect(() => {
     syncThemeWithLocal();
@@ -65,6 +67,8 @@ export default function App() {
 const root = createRoot(document.getElementById("app")!);
 root.render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </React.StrictMode>,
 );

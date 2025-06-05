@@ -1,6 +1,7 @@
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import React, { useEffect } from "react";
+import client from "@/renderer/libs/apiClient";
 
 /**
  * AgentPopover component to be displayed in a dedicated BrowserWindow
@@ -21,13 +22,10 @@ export default function AgentPopover() {
   const fetchAgents = async () => {
     try {
       console.log("Fetching available agents...");
-      const response = await fetch("http://localhost:38000/api/agents");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === "success" && Array.isArray(data.agents)) {
-          console.log(`Loaded ${data.agents.length} agents`);
-          setAvailableAgents(data.agents);
-        }
+      const data = await client.api.agents.$get().then(r => r.json());
+      if (data.status === "success" && Array.isArray(data.agents)) {
+        console.log(`Loaded ${data.agents.length} agents`);
+        setAvailableAgents(data.agents);
       }
     } catch (error) {
       console.error("Error fetching agents:", error);

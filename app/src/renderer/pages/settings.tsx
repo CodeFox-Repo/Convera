@@ -24,6 +24,8 @@ import { AIModelSection } from "@/renderer/components/settings/ai-model-section"
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import client from "@/renderer/libs/apiClient";
 
 export interface AgentDefinition {
   id: string;
@@ -52,6 +54,14 @@ export default function SettingsPage() {
   const [loadingMarketplace, setLoadingMarketplace] = useState<boolean>(true);
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
+  const predefinedServersQuery = useQuery({
+    queryKey: ['predefinedServers'],
+    queryFn: () => client.api.mcp['predefined-servers'].$get().then(r => r.json()),
+  });
+  const installedServersQuery = useQuery({
+    queryKey: ['installedServers'],
+    queryFn: () => client.api.mcp['installed-servers'].$get().then(r => r.json()),
+  });
   const [loadingMcpServers, setLoadingMcpServers] = useState<boolean>(true);
   const [installingTools, setInstallingTools] = useState<
     Record<string, boolean>
@@ -70,6 +80,25 @@ export default function SettingsPage() {
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+
+  useEffect(() => {
+    setLoadingMcpServers(
+      predefinedServersQuery.isLoading || installedServersQuery.isLoading,
+    );
+    if (
+      predefinedServersQuery.data?.status === 'success' &&
+      installedServersQuery.data?.status === 'success'
+    ) {
+      const predefinedServers = predefinedServersQuery.data.servers || [];
+      const installedServers = installedServersQuery.data.servers || [];
+      const merged: MCPServer[] = [];
+      merged.push(...installedServers);
+      predefinedServers.forEach((s: MCPServer) => {
+        if (!s.isInstalled) merged.push(s);
+      });
+      setMcpServers(merged);
+    }
+  }, [predefinedServersQuery.data, installedServersQuery.data, predefinedServersQuery.isLoading, installedServersQuery.isLoading]);
 
   // Add effect to listen for model selection changes
   useEffect(() => {
@@ -129,60 +158,16 @@ export default function SettingsPage() {
   };
 
   const fetchAllMcpServers = async () => {
-    setLoadingMcpServers(true);
-    try {
-      const [predefinedResponse, installedResponse] = await Promise.all([
-        fetch("http://localhost:38000/api/mcp/predefined-servers"),
-        fetch("http://localhost:38000/api/mcp/installed-servers"),
-      ]);
-
-      if (!predefinedResponse.ok || !installedResponse.ok) {
-        throw new Error("Failed to fetch MCP servers");
-      }
-
-      const predefinedData = await predefinedResponse.json();
-      const installedData = await installedResponse.json();
-
-      if (
-        predefinedData.status === "success" &&
-        installedData.status === "success"
-      ) {
-        const predefinedServers = predefinedData.servers || [];
-        const installedServers = installedData.servers || [];
-
-        const mergedServers: MCPServer[] = [];
-
-        mergedServers.push(...installedServers);
-
-        predefinedServers.forEach((server: MCPServer) => {
-          if (!server.isInstalled) {
-            mergedServers.push(server);
-          }
-        });
-
-        setMcpServers(mergedServers);
-      } else {
-        throw new Error("Failed to fetch MCP servers data");
-      }
-    } catch (error) {
-      console.error("Error fetching MCP servers:", error);
-      toast.error("Failed to load MCP server data");
-      setMcpServers([]); // Reset on error
-    } finally {
-      setLoadingMcpServers(false);
-    }
+    await Promise.all([
+      predefinedServersQuery.refetch(),
+      installedServersQuery.refetch(),
+    ]);
   };
 
   const fetchMcpMarketplace = async () => {
     setLoadingMarketplace(true);
     try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/marketplace",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch marketplace data");
-      }
-      const data = await response.json();
+      const data = await client.api.mcp.marketplace.$get().then(r => r.json());
       setMcpMarketItems(data.catalog?.items || []);
     } catch (error) {
       console.error("Error fetching MCP marketplace:", error);
@@ -195,22 +180,16 @@ export default function SettingsPage() {
   const fetchMcpConfigurations = async () => {
     setLoadingMcpConfigs(true);
     try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/configurations",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch MCP configurations");
-      }
-      const data = await response.json();
-      if (data.status === "success") {
+      const data = await client.api.mcp.configurations.$get().then(r => r.json());
+      if (data.status === 'success') {
         setMcpServerConfigs(data.configurations || {});
       } else {
-        throw new Error(data.message || "Failed to fetch MCP configurations");
+        throw new Error(data.message || 'Failed to fetch MCP configurations');
       }
     } catch (error) {
-      console.error("Error fetching MCP configurations:", error);
-      toast.error("Failed to load MCP configurations");
-      setMcpServerConfigs({}); // Reset on error
+      console.error('Error fetching MCP configurations:', error);
+      toast.error('Failed to load MCP configurations');
+      setMcpServerConfigs({});
     } finally {
       setLoadingMcpConfigs(false);
     }
@@ -219,20 +198,11 @@ export default function SettingsPage() {
   const handleInstallPredefinedServer = async (serverId: string) => {
     setInstallingTools((prev) => ({ ...prev, [serverId]: true }));
     try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers/install",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: serverId }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to install server" }));
-        throw new Error(errorData.message || "Failed to install server");
+      const data = await client.api.mcp['predefined-servers'].install
+        .$post({ json: { id: serverId } })
+        .then(r => r.json());
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to install server');
       }
 
       toast.success(`Server ${serverId} installed successfully`);
@@ -252,21 +222,11 @@ export default function SettingsPage() {
     serverId: string,
   ): Promise<void> => {
     try {
-      // Call the new API endpoint to uninstall the server
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers/uninstall",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: serverId }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to uninstall server" }));
-        throw new Error(errorData.message || "Failed to uninstall server");
+      const data = await client.api.mcp['predefined-servers'].uninstall
+        .$post({ json: { id: serverId } })
+        .then(r => r.json());
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to uninstall server');
       }
 
       toast.success(`Server ${serverId} uninstalled successfully`);
@@ -694,21 +654,11 @@ export default function SettingsPage() {
         throw new Error("Invalid configuration structure");
       }
 
-      // Submit the config to the backend
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/configurations/manual",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Failed to install MCP configuration",
-        );
+      const data = await client.api.mcp.configurations.manual
+        .$post({ json: config })
+        .then(r => r.json());
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to install MCP configuration');
       }
 
       toast.success("MCP configuration installed successfully");
@@ -729,18 +679,9 @@ export default function SettingsPage() {
   ): Promise<ToolDefinition[]> => {
     setLoadingMcpTools((prev) => ({ ...prev, [serverId]: true }));
     try {
-      const response = await fetch(
-        `http://localhost:38000/api/mcp/servers/${serverId}/tools`,
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to fetch server tools" }));
-        throw new Error(errorData.message || "Failed to fetch server tools");
-      }
-
-      const data = await response.json();
+      const data = await client.api.mcp.servers[':id'].tools
+        .$get({ param: { id: serverId } })
+        .then(r => r.json());
       if (data.status === "success") {
         const tools = data.tools || [];
         setMcpServerTools((prev) => ({
@@ -791,24 +732,11 @@ export default function SettingsPage() {
           env: mcpServerConfigs[id].env || {}, // Ensure env is included
         };
 
-        const response = await fetch(
-          `http://localhost:38000/api/mcp/configurations/${id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(currentConfig),
-          },
-        );
-
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "Failed to save MCP configuration" }));
-          throw new Error(
-            errorData.message || "Failed to save MCP configuration",
-          );
+        const saveResult = await client.api.mcp.configurations[':id']
+          .$put({ param: { id }, json: currentConfig })
+          .then(r => r.json());
+        if (saveResult.status !== 'success') {
+          throw new Error(saveResult.message || 'Failed to save MCP configuration');
         }
 
         // If enabling the server, start it
@@ -817,18 +745,11 @@ export default function SettingsPage() {
             `Starting MCP server ${mcpServerConfigs[id].name || id}...`,
           );
 
-          const startResponse = await fetch(
-            `http://localhost:38000/api/mcp/servers/${id}/start`,
-            {
-              method: "POST",
-            },
-          );
-
-          if (!startResponse.ok) {
-            const errorData = await startResponse
-              .json()
-              .catch(() => ({ message: "Failed to start MCP server" }));
-            throw new Error(errorData.message || "Failed to start MCP server");
+          const startResult = await client.api.mcp.servers[':id'].start
+            .$post({ param: { id } })
+            .then(r => r.json());
+          if (startResult.status !== 'success') {
+            throw new Error(startResult.message || 'Failed to start MCP server');
           }
 
           // After starting the server, fetch its tools with increased delay for MCP startup
@@ -891,29 +812,16 @@ export default function SettingsPage() {
           );
 
           try {
-            const stopResponse = await fetch(
-              `http://localhost:38000/api/mcp/servers/${id}/stop`,
-              {
-                method: "POST",
-              },
-            );
-
-            if (!stopResponse.ok) {
-              const errorData = await stopResponse
-                .json()
-                .catch(() => ({ message: "Failed to stop MCP server" }));
-              console.warn(
-                `Warning when stopping server: ${errorData.message}`,
-              );
-              // Don't throw, as the config is already updated to disabled
+            const stopResult = await client.api.mcp.servers[':id'].stop
+              .$post({ param: { id } })
+              .then(r => r.json());
+            if (stopResult.status !== 'success') {
+              console.warn(`Warning when stopping server: ${stopResult.message}`);
             } else {
-              toast.success(
-                `Server ${mcpServerConfigs[id].name || id} stopped and disabled`,
-              );
+              toast.success(`Server ${mcpServerConfigs[id].name || id} stopped and disabled`);
             }
           } catch (err) {
             console.error(`Error stopping server ${id}:`, err);
-            // Continue anyway as the disabled state is saved
           }
 
           // Remove tools from the UI display for this server
@@ -954,24 +862,11 @@ export default function SettingsPage() {
 
       console.log(`Saving config for ${id}:`, payload);
 
-      const response = await fetch(
-        `http://localhost:38000/api/mcp/configurations/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to save MCP configuration" }));
-        throw new Error(
-          errorData.message || "Failed to save MCP configuration",
-        );
+      const result = await client.api.mcp.configurations[':id']
+        .$put({ param: { id }, json: payload })
+        .then(r => r.json());
+      if (result.status !== 'success') {
+        throw new Error(result.message || 'Failed to save MCP configuration');
       }
 
       toast.success(`Configuration for ${configToSave.name || id} saved.`);

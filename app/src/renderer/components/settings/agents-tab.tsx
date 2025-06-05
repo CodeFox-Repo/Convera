@@ -25,6 +25,8 @@ import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import client from "@/renderer/libs/apiClient";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
@@ -120,9 +122,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const fetchAgents = async () => {
     setLoadingAgents(true);
     try {
-      const res = await fetch("http://localhost:38000/api/agents");
-      if (!res.ok) throw new Error("Failed to fetch agents");
-      const data = await res.json();
+      const data = await client.api.agents.$get().then(r => r.json());
       console.log("Fetched agents data:", data.agents);
       setAgents(data.agents || []);
     } catch (err) {
@@ -136,9 +136,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
     try {
-      const res = await fetch("http://localhost:38000/api/mcp/configurations");
-      if (!res.ok) throw new Error("Failed to fetch MCP configurations");
-      const data = await res.json();
+      const data = await client.api.mcp.configurations.$get().then(r => r.json());
 
       const configs = (data.configurations || {}) as Record<
         string,
@@ -163,13 +161,8 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const fetchMcpServerTools = async (id: string) => {
     setLoadingMcpTools((prev) => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(
-        `http://localhost:38000/api/mcp/servers/${id}/tools`,
-      );
       console.log("Fetching tools for MCP server:", id);
-      if (!res.ok)
-        throw new Error(`Failed to fetch tools for MCP server ${id}`);
-      const data = await res.json();
+      const data = await client.api.mcp.servers[':id'].tools.$get({ param: { id } }).then(r => r.json());
       const tools = data.tools || [];
 
       const processedTools = tools.map((tool: ToolDefinition) => {
@@ -286,17 +279,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       }
 
       // Save to server
-      const res = await fetch(
-        `http://localhost:38000/api/mcp/configurations/${id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedConfig),
-        },
-      );
-
-      if (!res.ok) {
-        throw new Error("Failed to update MCP configuration");
+      const res = await client.api.mcp.configurations[':id']
+        .$put({ param: { id }, json: updatedConfig })
+        .then(r => r.json());
+      if (res.status !== 'success') {
+        throw new Error(res.message || 'Failed to update MCP configuration');
       }
     } catch (err) {
       console.error("Error updating MCP config:", err);
@@ -347,15 +334,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     };
 
     try {
-      const res = await fetch("http://localhost:38000/api/agents/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(agentData),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || "Failed to save agent");
+      const res = await client.api.agents.create
+        .$post({ json: agentData })
+        .then(r => r.json());
+      if (res.status !== 'success') {
+        throw new Error(res.message || 'Failed to save agent');
       }
 
       toast.success("Agent saved successfully");
@@ -435,18 +418,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         toolReferences: allToolReferences,
       };
 
-      const res = await fetch(
-        `http://localhost:38000/api/agents/${editingAgent.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(agentData),
-        },
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to update agent");
+      const res = await client.api.agents[':id']
+        .$put({ param: { id: editingAgent.id }, json: agentData })
+        .then(r => r.json());
+      if (res.status !== 'success') {
+        throw new Error(res.message || 'Failed to update agent');
       }
 
       toast.success(`Agent "${editingAgent.name}" updated successfully`);
@@ -477,13 +453,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:38000/api/agents/${agentId}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to delete agent");
+      const res = await client.api.agents[':id']
+        .$delete({ param: { id: agentId } })
+        .then(r => r.json());
+      if (res.status !== 'success') {
+        throw new Error(res.message || 'Failed to delete agent');
       }
 
       toast.success(`Agent "${agentName}" deleted successfully`);
