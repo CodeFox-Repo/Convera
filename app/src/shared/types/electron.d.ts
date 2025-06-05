@@ -3,12 +3,7 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Enum for window types
-export type WindowType =
-  | "settings"
-  | "history"
-  | "main"
-  | "agent-popover"
-  | "model-selector";
+export type WindowType = "settings" | "history" | "main";
 
 // Enum for theme modes
 export type ThemeMode = "light" | "dark" | "system";
@@ -67,6 +62,22 @@ export interface IElectronAPI {
 
   // Model functionality
   modelSelected: (modelId: string) => Promise<boolean>;
+  toggleModelSelector: (
+    x?: number,
+    y?: number,
+    width?: number,
+    height?: number,
+  ) => Promise<void>;
+  hideModelSelector: () => Promise<void>;
+
+  // Agent functionality
+  toggleAgentPopover: (
+    x?: number,
+    y?: number,
+    width?: number,
+    height?: number,
+  ) => Promise<void>;
+  hideAgentPopover: () => Promise<void>;
 
   // File operations
   openPath: (path: string) => Promise<void>;

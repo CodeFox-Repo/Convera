@@ -99,40 +99,6 @@ export function toggleWindow(
       toggleGenericWindow(getMainWindow, createMainWindow);
       break;
 
-    case "agent-popover":
-      if (options?.x !== undefined && options?.y !== undefined) {
-        const agentWindow = getAgentPopoverWindow();
-
-        if (agentWindow && agentWindow.isVisible()) {
-          agentWindow.hide();
-        } else {
-          createAgentPopoverWindow(
-            options.x,
-            options.y,
-            options.width,
-            options.height,
-          );
-        }
-      }
-      break;
-
-    case "model-selector":
-      if (options?.x !== undefined && options?.y !== undefined) {
-        const modelWindow = getModelSelectorWindow();
-
-        if (modelWindow && modelWindow.isVisible()) {
-          modelWindow.hide();
-        } else {
-          createModelSelectorWindow(
-            options.x,
-            options.y,
-            options.width,
-            options.height,
-          );
-        }
-      }
-      break;
-
     default:
       console.warn(`Unknown window type: ${type}`);
   }
@@ -328,47 +294,49 @@ export function resizeMessageContent(
 
 // ========== AGENT POPOVER HANDLERS ==========
 
-export function toggleAgentPopover(
-  agentPopoverWindow: BrowserWindow | null,
-  mainWindow: BrowserWindow | null,
-  createAgentPopoverFn: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined,
+export function toggleAgentPopoverWindow(
   x?: number,
   y?: number,
   width?: number,
   height?: number,
 ): void {
-  if (agentPopoverWindow && agentPopoverWindow.isVisible()) {
-    agentPopoverWindow.hide();
-  } else if (mainWindow && x !== undefined && y !== undefined) {
-    createAgentPopoverFn(x, y, width, height);
+  const agentWindow = getAgentPopoverWindow();
+
+  if (agentWindow && agentWindow.isVisible()) {
+    agentWindow.hide();
+  } else if (x !== undefined && y !== undefined) {
+    createAgentPopoverWindow(x, y, width, height);
+  }
+}
+
+export function hideAgentPopoverWindow(): void {
+  const agentWindow = getAgentPopoverWindow();
+  if (agentWindow && agentWindow.isVisible()) {
+    agentWindow.hide();
   }
 }
 
 // ========== MODEL SELECTOR HANDLERS ==========
 
-export function toggleModelSelector(
-  modelSelectorWindow: BrowserWindow | null,
-  mainWindow: BrowserWindow | null,
-  createModelSelectorFn: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined,
+export function toggleModelSelectorWindow(
   x?: number,
   y?: number,
   width?: number,
   height?: number,
 ): void {
-  if (modelSelectorWindow && modelSelectorWindow.isVisible()) {
-    modelSelectorWindow.hide();
-  } else if (mainWindow && x !== undefined && y !== undefined) {
-    createModelSelectorFn(x, y, width, height);
+  const modelWindow = getModelSelectorWindow();
+
+  if (modelWindow && modelWindow.isVisible()) {
+    modelWindow.hide();
+  } else if (x !== undefined && y !== undefined) {
+    createModelSelectorWindow(x, y, width, height);
+  }
+}
+
+export function hideModelSelectorWindow(): void {
+  const modelWindow = getModelSelectorWindow();
+  if (modelWindow && modelWindow.isVisible()) {
+    modelWindow.hide();
   }
 }
 

@@ -16,6 +16,8 @@ import {
   getPlatform,
   getPreviousApp,
   getPreviousAppID,
+  hideAgentPopoverWindow,
+  hideModelSelectorWindow,
   initGlobalShortcut,
   maximizeWindow,
   minimizeWindow,
@@ -24,6 +26,8 @@ import {
   pasteModifiedContent,
   resizeWindow,
   setTheme,
+  toggleAgentPopoverWindow,
+  toggleModelSelectorWindow,
   toggleViewMode,
   toggleWindow,
   updateGlobalShortcut,
@@ -234,6 +238,30 @@ export function registerListeners(options: ListenerOptions = {}) {
   // File operations
   ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (_event, path: string) => {
     return openPath(path);
+  });
+
+  // Model selector functionality
+  ipcMain.handle(
+    CHANNELS.MODEL.TOGGLE_SELECTOR,
+    (_event, x?: number, y?: number, width?: number, height?: number) => {
+      return toggleModelSelectorWindow(x, y, width, height);
+    },
+  );
+
+  ipcMain.handle(CHANNELS.MODEL.HIDE_SELECTOR, () => {
+    return hideModelSelectorWindow();
+  });
+
+  // Agent popover functionality
+  ipcMain.handle(
+    CHANNELS.AGENT.TOGGLE_POPOVER,
+    (_event, x?: number, y?: number, width?: number, height?: number) => {
+      return toggleAgentPopoverWindow(x, y, width, height);
+    },
+  );
+
+  ipcMain.handle(CHANNELS.AGENT.HIDE_POPOVER, () => {
+    return hideAgentPopoverWindow();
   });
 
   console.log("All IPC listeners registered successfully");

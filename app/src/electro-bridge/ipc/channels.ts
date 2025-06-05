@@ -43,6 +43,22 @@ export interface IPCServer {
 
   // Model functionality
   modelSelected(modelId: string): boolean;
+  toggleModelSelector(
+    x?: number,
+    y?: number,
+    width?: number,
+    height?: number,
+  ): void;
+  hideModelSelector(): void;
+
+  // Agent functionality
+  toggleAgentPopover(
+    x?: number,
+    y?: number,
+    width?: number,
+    height?: number,
+  ): void;
+  hideAgentPopover(): void;
 
   // File operations
   openPath(path: string): void;
@@ -84,9 +100,13 @@ export const CHANNELS = {
   },
   AGENT: {
     LIST_UPDATED: "agent:list-updated",
+    TOGGLE_POPOVER: "agent:toggle-popover",
+    HIDE_POPOVER: "agent:hide-popover",
   },
   MODEL: {
     MODEL_SELECTED: "model:selected",
+    TOGGLE_SELECTOR: "model:toggle-selector",
+    HIDE_SELECTOR: "model:hide-selector",
   },
   FILE: {
     OPEN_PATH: "file:open-path",
@@ -132,6 +152,12 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // Model functionality
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
+  toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
+  hideModelSelector: CHANNELS.MODEL.HIDE_SELECTOR,
+
+  // Agent functionality
+  toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
+  hideAgentPopover: CHANNELS.AGENT.HIDE_POPOVER,
 
   // File operations
   openPath: CHANNELS.FILE.OPEN_PATH,

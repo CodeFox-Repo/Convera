@@ -1,33 +1,33 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {
-  getCurrentTheme,
-  toggleTheme,
+    getCurrentTheme,
+    toggleTheme,
 } from "@/renderer/libs/helper/theme_helpers";
 import { ErrorCode } from "@/renderer/libs/utils/error-handler";
 import {
-  getSettings,
-  resetShortcutsToDefault,
-  updateOpenAISettings,
-  updateShortcut,
+    getSettings,
+    resetShortcutsToDefault,
+    updateOpenAISettings,
+    updateShortcut,
 } from "@/renderer/libs/utils/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
-  AppSettings,
-  McpMarketplaceItem,
-  MCPServer,
+    AppSettings,
+    McpMarketplaceItem,
+    MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Code,
-  LayoutGrid,
-  Moon,
-  Server,
-  Settings as SettingsIcon,
-  Sun,
-  X,
+    ChevronLeft,
+    ChevronRight,
+    Code,
+    LayoutGrid,
+    Moon,
+    Server,
+    Settings as SettingsIcon,
+    Sun,
+    X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1277,15 +1277,23 @@ export default function SettingsPage() {
                           Agent Popover
                         </h5>
                         <p className="text-foreground/60 text-sm mb-3">
-                          Agent selection popover window
+                          Agent selection popover window (test position)
                         </p>
                         <button
-                          onClick={() =>
-                            window.electronAPI?.toggleWindow("agent-popover", {
-                              x: 100,
-                              y: 100,
-                            })
-                          }
+                          onClick={(e) => {
+                            // Get button position for realistic positioning
+                            const button = e.currentTarget;
+                            const rect = button.getBoundingClientRect();
+                            const x = rect.right + 10; // Position to the right of the button
+                            const y = rect.top;
+                            
+                            window.electronAPI?.toggleAgentPopover(
+                              Math.round(x),
+                              Math.round(y),
+                              280,
+                              200,
+                            );
+                          }}
                           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         >
                           Toggle Agent Popover
@@ -1297,15 +1305,23 @@ export default function SettingsPage() {
                           Model Selector
                         </h5>
                         <p className="text-foreground/60 text-sm mb-3">
-                          Model selection popover window
+                          Model selection popover window (test position)
                         </p>
                         <button
-                          onClick={() =>
-                            window.electronAPI?.toggleWindow("model-selector", {
-                              x: 200,
-                              y: 200,
-                            })
-                          }
+                          onClick={(e) => {
+                            // Get button position for realistic positioning
+                            const button = e.currentTarget;
+                            const rect = button.getBoundingClientRect();
+                            const x = rect.right + 10; // Position to the right of the button
+                            const y = rect.top;
+                            
+                            window.electronAPI?.toggleModelSelector(
+                              Math.round(x),
+                              Math.round(y),
+                              280,
+                              200,
+                            );
+                          }}
                           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         >
                           Toggle Model Selector

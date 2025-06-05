@@ -117,14 +117,11 @@ export default function ModelSelector() {
               const absX = Math.round(px);
               const absY = Math.round(py - computedHeight);
 
-              window.electronAPI.toggleWindow(
-                "model-selector",
-                {
-                  x: absX,
-                  y: absY,
-                  width: 280,
-                  height: 200,
-                }
+              window.electronAPI.toggleModelSelector(
+                absX,
+                absY,
+                280,
+                200,
               );
             })
             .catch((err: Error) => {
