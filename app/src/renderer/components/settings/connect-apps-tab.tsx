@@ -268,7 +268,7 @@ export function ConnectAppsTab() {
       <div className="mb-6">
         <h2 className="text-2xl font-medium text-foreground mb-2">Connect Apps</h2>
         <p className="text-muted-foreground">
-          Connect external applications using Composio to enhance your AI assistant's capabilities
+          Connect external applications using Composio to enhance your AI assistants capabilities
         </p>
       </div>
 
