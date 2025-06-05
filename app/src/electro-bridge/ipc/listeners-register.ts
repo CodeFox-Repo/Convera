@@ -128,8 +128,15 @@ export type ListenerOptions = {
   modelSelectorWindow?: BrowserWindow | null;
 };
 
+// Global reference for main window creator
+let globalCreateMainWindow: (() => void) | null = null;
+
+export function setMainWindowCreator(creator: () => void) {
+  globalCreateMainWindow = creator;
+}
+
 export default function registerListeners(
-  mainWindow: BrowserWindow,
+  chatWindow: BrowserWindow,
   options: ListenerOptions,
 ) {
   console.log("Registering IPC listeners...");
@@ -153,6 +160,15 @@ export default function registerListeners(
   ipcMain.handle(CHANNELS.HISTORY.CLOSE, () => {
     console.log("Handling HISTORY.CLOSE");
     toggleWindow(options.historyWindow);
+  });
+
+  ipcMain.handle(CHANNELS.MAIN_WINDOW.TOGGLE, () => {
+    console.log("Handling MAIN_WINDOW.TOGGLE");
+    if (globalCreateMainWindow) {
+      globalCreateMainWindow();
+    } else {
+      console.warn("Main window creator not set");
+    }
   });
 
   ipcMain.handle(
@@ -180,24 +196,24 @@ export default function registerListeners(
 
   ipcMain.handle(CHANNELS.WINDOW.MINIMIZE, () => {
     console.log("Handling WINDOW.MINIMIZE");
-    minimizeWindow(mainWindow);
+    minimizeWindow(chatWindow);
   });
 
   ipcMain.handle(CHANNELS.WINDOW.MAXIMIZE, () => {
     console.log("Handling WINDOW.MAXIMIZE");
-    maximizeWindow(mainWindow);
+    maximizeWindow(chatWindow);
   });
 
   ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
     console.log("Handling WINDOW.CLOSE");
-    closeWindow(mainWindow);
+    closeWindow(chatWindow);
   });
 
   ipcMain.handle(
     CHANNELS.WINDOW.RESIZE,
     (event, width: number, height: number) => {
       console.log(`Handling WINDOW.RESIZE to ${width}x${height}`);
-      resizeWindow(mainWindow, width, height);
+      resizeWindow(chatWindow, width, height);
     },
   );
 
@@ -207,13 +223,13 @@ export default function registerListeners(
       console.log(
         `Handling WINDOW.RESIZE_MESSAGE_CONTENT to ${width}x${height}, preserveX: ${preserveX}`,
       );
-      resizeMessageContent(mainWindow, width, height, preserveX);
+      resizeMessageContent(chatWindow, width, height, preserveX);
     },
   );
 
   ipcMain.handle(CHANNELS.WINDOW.GET_POSITION, () => {
     console.log("Handling WINDOW.GET_POSITION");
-    return getCurrentWindowPosition(mainWindow);
+    return getCurrentWindowPosition(chatWindow);
   });
 
   ipcMain.handle(CHANNELS.THEME.GET_CURRENT, () => {
@@ -258,7 +274,7 @@ export default function registerListeners(
       if (options.createAgentPopoverWindow) {
         toggleAgentPopover(
           options.agentPopoverWindow ?? null,
-          mainWindow,
+          chatWindow,
           options.createAgentPopoverWindow,
           x,
           y,
@@ -289,7 +305,7 @@ export default function registerListeners(
       if (options.createModelSelectorWindow) {
         toggleModelSelector(
           options.modelSelectorWindow ?? null,
-          mainWindow,
+          chatWindow,
           options.createModelSelectorWindow,
           x,
           y,
@@ -303,8 +319,8 @@ export default function registerListeners(
   // Handle model selection from the model selector window
   ipcMain.handle(CHANNELS.MODEL.MODEL_SELECTED, (event, modelId: string) => {
     console.log(`Handling MODEL.MODEL_SELECTED: ${modelId}`);
-    // Forward the selected model to the main window
-    modelSelected(mainWindow, modelId);
+    // Forward the selected model to the chat window
+    modelSelected(chatWindow, modelId);
     return true;
   });
 
@@ -313,7 +329,7 @@ export default function registerListeners(
     console.log(
       `Handling APP.TOGGLE_VIEW_MODE: ${expanded ? "expanded" : "compact"}`,
     );
-    return toggleViewMode(expanded, mainWindow);
+    return toggleViewMode(expanded, chatWindow);
   });
 
   // Clipboard handlers

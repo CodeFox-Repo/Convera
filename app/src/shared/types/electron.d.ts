@@ -11,17 +11,21 @@ export interface IElectronAPI {
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
   // History
   toggleHistoryWindow: () => Promise<void>;
+  toggleMainWindow: () => Promise<void>;
+  // Hello World
   getPlatform: () => string;
   // App
   getPreviousApp: () => Promise<string>;
+  getPreviousAppID: () => Promise<number>;
   getClipboardText: () => Promise<string>;
-  pasteModifiedContent: (content: string) => Promise<boolean>;
+  setInputText: (text: string) => Promise<void>;
+  pasteModifiedContent: (content: string) => Promise<void>;
   // Theme (Assuming theme functions return void or specific theme string)
   getCurrentTheme: () => Promise<string>;
-  toggleTheme: () => Promise<void>;
-  setThemeDark: () => Promise<void>;
-  setThemeLight: () => Promise<void>;
-  setThemeSystem: () => Promise<void>;
+  toggleTheme: () => Promise<string>;
+  setThemeDark: () => Promise<string>;
+  setThemeLight: () => Promise<string>;
+  setThemeSystem: () => Promise<string>;
   // Window
   minimizeWindow: () => Promise<void>;
   maximizeWindow: () => Promise<void>;
@@ -52,7 +56,9 @@ export interface IElectronAPI {
   modelSelected: (modelId: string) => Promise<boolean>;
   // Listener registration (Main -> Renderer)
   onFocusChatInput: (callback: () => void) => () => void; // Returns a cleanup function
-  onAppChanged: (callback: (appName: string) => void) => () => void; // App change event listener
+  onAppChanged: (
+    callback: (appName: string, appId?: number) => void,
+  ) => () => void; // App change event listener
   onToggleSettings: (callback: () => void) => () => void; // Settings toggle event
   onAgentListUpdated: (callback: () => void) => () => void; // Agent list updated event
   onSetInputText: (callback: (text: string) => void) => () => void; // Input text event

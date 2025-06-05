@@ -1,5 +1,5 @@
 {
-  "name": "codefox-foxychat",
+  "name": "@foxychat/app",
   "productName": "FoxyChat",
   "version": "0.0.8",
   "description": "FoxyChat - All in one Chat App",

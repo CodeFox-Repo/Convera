@@ -11,7 +11,6 @@ import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
-import path from "path";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
@@ -23,10 +22,33 @@ import {
 } from "@/electro-bridge/ipc/ipc-handlers";
 import registerListeners, {
   ListenerOptions,
+  setMainWindowCreator,
 } from "@/electro-bridge/ipc/listeners-register";
 import robot from "@/shared/robot";
 import { clipboard } from "electron";
-import { createMainWindow } from "./windows/main-window";
+
+import {
+  createAgentPopoverWindow,
+  getAgentPopoverWindow,
+  preCreateAgentPopoverWindow,
+} from "./windows/agent-popover-window";
+import { createChatWindow } from "./windows/chat-window";
+import {
+  createHistoryWindow,
+  getHistoryWindow,
+  preCreateHistoryWindow,
+} from "./windows/history-window";
+import { createMainWindow, preCreateMainWindow } from "./windows/main-window";
+import {
+  createModelSelectorWindow,
+  getModelSelectorWindow,
+  preCreateModelSelectorWindow,
+} from "./windows/model-selector-window";
+import {
+  createSettingsWindow,
+  getSettingsWindow,
+  preCreateSettingsWindow,
+} from "./windows/settings-window";
 import { isInExpandedViewMode } from "./windows/window-resize";
 
 const { activeWindowSync } =
@@ -37,16 +59,10 @@ const { activeWindowSync } =
 
 // Determine if the app is running from source or packaged
 const inDevelopment = !app.isPackaged;
-let settingsWindow: BrowserWindow | null = null;
-let historyWindow: BrowserWindow | null = null;
 
 let trackingAppFocus = false;
 
-let agentPopoverWindow: BrowserWindow | null = null;
-
-let modelSelectorWindow: BrowserWindow | null = null;
-
-let mainWindow: BrowserWindow | null = null;
+let chatWindow: BrowserWindow | null = null;
 
 /**
  * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
@@ -83,258 +99,6 @@ function simulateClipboardCopy(): Promise<void> {
       setTimeout(resolve, 50);
     }
   });
-}
-// Pre-create agent popover window
-function preCreateAgentPopoverWindow() {
-  if (agentPopoverWindow) return agentPopoverWindow;
-
-  console.log("Pre-creating agent popover window");
-  const preload = path.join(__dirname, "preload.js");
-
-  // Get dimensions from presets
-  const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.AGENT_POPOVER,
-  );
-
-  agentPopoverWindow = new BrowserWindow({
-    width: dimensions.width,
-    height: dimensions.height,
-    x: 0,
-    y: 0,
-    webPreferences: {
-      devTools: inDevelopment,
-      contextIsolation: true,
-      nodeIntegration: true,
-      preload: preload,
-    },
-    modal: false,
-    frame: false,
-    transparent: true,
-    show: false,
-    resizable: false,
-    skipTaskbar: true,
-    roundedCorners: true,
-    thickFrame: false,
-    hasShadow: true,
-    alwaysOnTop: true,
-    type: "popover",
-    backgroundColor: "#00000000",
-  });
-
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    agentPopoverWindow.loadURL(
-      `${MAIN_WINDOW_VITE_DEV_SERVER_URL}?view=agent-popover`,
-    );
-  } else {
-    agentPopoverWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      { hash: "agent-popover" },
-    );
-  }
-
-  // Handle hash parameter
-  handleUrlHash(agentPopoverWindow);
-
-  // Click outside to close
-  agentPopoverWindow.on("blur", () => {
-    if (agentPopoverWindow) {
-      agentPopoverWindow.hide();
-    }
-  });
-
-  agentPopoverWindow.on("closed", () => {
-    agentPopoverWindow = null;
-  });
-
-  return agentPopoverWindow;
-}
-
-// Pre-create model selector window
-function preCreateModelSelectorWindow() {
-  if (modelSelectorWindow) return modelSelectorWindow;
-
-  console.log("Pre-creating model selector window");
-  const preload = path.join(__dirname, "preload.js");
-
-  // Get dimensions from presets
-  const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
-  );
-
-  modelSelectorWindow = new BrowserWindow({
-    width: dimensions.width,
-    height: dimensions.height,
-    webPreferences: {
-      devTools: inDevelopment,
-      contextIsolation: true,
-      nodeIntegration: true,
-      nodeIntegrationInSubFrames: false,
-      preload: preload,
-    },
-    transparent: true,
-    frame: false,
-    show: false,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    roundedCorners: true,
-    thickFrame: false,
-    hasShadow: true,
-    type: "popover",
-    backgroundColor: "#00000000",
-  });
-
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    modelSelectorWindow.loadURL(
-      `${MAIN_WINDOW_VITE_DEV_SERVER_URL}?view=model-selector`,
-    );
-  } else {
-    modelSelectorWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      { hash: "model-selector" },
-    );
-  }
-
-  // Handle hash parameter
-  handleModelSelectorUrlHash(modelSelectorWindow);
-
-  // Click outside to close
-  modelSelectorWindow.on("blur", () => {
-    if (modelSelectorWindow) {
-      modelSelectorWindow.hide();
-    }
-  });
-
-  modelSelectorWindow.on("closed", () => {
-    modelSelectorWindow = null;
-  });
-
-  return modelSelectorWindow;
-}
-
-// Pre-create history window
-function preCreateHistoryWindow() {
-  if (historyWindow) return historyWindow;
-
-  console.log("Pre-creating history window");
-  const preload = path.join(__dirname, "preload.js");
-
-  // Calculate window dimensions using the utility
-  const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.SETTINGS, // Reuse settings size for now
-    undefined,
-    true,
-    true,
-  );
-
-  historyWindow = new BrowserWindow({
-    width: dimensions.width,
-    height: dimensions.height,
-    x: dimensions.x,
-    y: dimensions.y,
-    webPreferences: {
-      devTools: inDevelopment,
-      contextIsolation: true,
-      nodeIntegration: true,
-      nodeIntegrationInSubFrames: false,
-      preload: preload,
-    },
-    parent: mainWindow || undefined,
-    modal: false,
-    show: false,
-    titleBarStyle: "hiddenInset",
-    transparent: true,
-    frame: false,
-    visualEffectState: "active",
-    thickFrame: false,
-    autoHideMenuBar: true,
-    hasShadow: true,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    roundedCorners: true,
-    vibrancy: "fullscreen-ui",
-  });
-
-  // For macOS, explicitly hide the traffic light buttons
-  if (historyWindow && process.platform === "darwin") {
-    historyWindow.setWindowButtonVisibility(false);
-  }
-
-  // Enforce fixed dimensions
-  historyWindow.on("will-resize", (event) => {
-    // Prevent resizing by canceling the event
-    event.preventDefault();
-  });
-
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    console.log(
-      "Loading main URL in history window:",
-      MAIN_WINDOW_VITE_DEV_SERVER_URL,
-    );
-    historyWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    const mainPath = path.join(
-      __dirname,
-      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-    );
-    console.log("Loading main path in history window:", mainPath);
-    historyWindow.loadFile(mainPath);
-  }
-
-  historyWindow.webContents.on("did-finish-load", () => {
-    console.log(
-      "Main page loaded in history window, redirecting to history...",
-    );
-
-    historyWindow?.webContents
-      .executeJavaScript(
-        `
-      console.log("Redirecting to history page...");
-      
-      if (window.router) {
-        console.log("Using router API");
-        window.router.navigate({ to: "/history" });
-      } else {
-        console.log("Using location.hash");
-        window.location.hash = "/history";
-      }
-    `,
-      )
-      .catch((err) => {
-        console.error("Failed to execute navigation script:", err);
-      });
-  });
-
-  historyWindow.webContents.on(
-    "did-fail-load",
-    (event, errorCode, errorDescription) => {
-      console.error(
-        "History window failed to load:",
-        errorCode,
-        errorDescription,
-      );
-    },
-  );
-
-  historyWindow.once("ready-to-show", () => {
-    if (historyWindow) {
-      console.log("History window ready, but kept hidden");
-
-      if (inDevelopment) {
-        historyWindow.webContents.openDevTools({ mode: "detach" });
-      }
-    }
-  });
-
-  historyWindow.on("closed", () => {
-    console.log("History window closed");
-    historyWindow = null;
-  });
-
-  return historyWindow;
 }
 
 // Start background app tracking on macOS and Windows
@@ -431,10 +195,10 @@ function registerGlobalShortcuts() {
 
       clipboard.writeText("");
 
-      if (mainWindow) {
-        toggleMainWindowVisibility(mainWindow);
+      if (chatWindow) {
+        toggleMainWindowVisibility(chatWindow);
         setTimeout(() => {
-          setInputText(mainWindow, selectedText);
+          setInputText(chatWindow, selectedText);
         }, 100);
       }
     });
@@ -456,135 +220,6 @@ function registerGlobalShortcuts() {
   }
 }
 
-function preCreateSettingsWindow() {
-  if (settingsWindow) return settingsWindow;
-  console.log("Pre-creating settings window");
-  const preload = path.join(__dirname, "preload.js");
-
-  const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.SETTINGS,
-    undefined,
-    true,
-    true,
-  );
-
-  settingsWindow = new BrowserWindow({
-    width: dimensions.width,
-    height: dimensions.height,
-    x: dimensions.x,
-    y: dimensions.y,
-    webPreferences: {
-      devTools: inDevelopment,
-      contextIsolation: true,
-      nodeIntegration: true,
-      nodeIntegrationInSubFrames: false,
-      preload: preload,
-    },
-    parent: mainWindow || undefined,
-    modal: false,
-    show: false,
-    titleBarStyle: "hiddenInset",
-    transparent: true,
-    frame: false,
-    visualEffectState: "active",
-    thickFrame: false,
-    autoHideMenuBar: true,
-    hasShadow: true,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    roundedCorners: true,
-    vibrancy: "fullscreen-ui",
-  });
-
-  if (settingsWindow && process.platform === "darwin") {
-    settingsWindow.setWindowButtonVisibility(false);
-  }
-
-  settingsWindow.on("will-resize", (event) => {
-    event.preventDefault();
-  });
-
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    console.log(
-      "Loading main URL in settings window:",
-      MAIN_WINDOW_VITE_DEV_SERVER_URL,
-    );
-    settingsWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    const mainPath = path.join(
-      __dirname,
-      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-    );
-    console.log("Loading main path in settings window:", mainPath);
-    settingsWindow.loadFile(mainPath);
-  }
-
-  settingsWindow.webContents.on("did-finish-load", () => {
-    console.log(
-      "Main page loaded in settings window, redirecting to settings...",
-    );
-
-    settingsWindow?.webContents
-      .executeJavaScript(
-        `
-      console.log("Redirecting to settings page...");
-      
-      if (window.router) {
-        console.log("Using router API");
-        window.router.navigate({ to: "/settings" });
-      } else {
-        console.log("Using location.hash");
-        window.location.hash = "/settings";
-      }
-    `,
-      )
-      .catch((err) => {
-        console.error("Failed to execute navigation script:", err);
-      });
-
-    if (inDevelopment && settingsWindow) {
-      console.log("Opening DevTools for settings window");
-      settingsWindow.webContents.openDevTools({ mode: "detach" });
-    }
-  });
-
-  settingsWindow.webContents.on(
-    "did-fail-load",
-    (event, errorCode, errorDescription) => {
-      console.error(
-        "Settings window failed to load:",
-        errorCode,
-        errorDescription,
-      );
-    },
-  );
-
-  settingsWindow.once("ready-to-show", () => {
-    if (settingsWindow) {
-      console.log("Settings window ready, but kept hidden");
-    }
-  });
-
-  settingsWindow.on("closed", () => {
-    console.log("Settings window closed, setting reference to null");
-    settingsWindow = null;
-  });
-
-  return settingsWindow;
-}
-
-function createSettingsWindow() {
-  if (!settingsWindow) {
-    preCreateSettingsWindow();
-  }
-
-  if (settingsWindow) {
-    settingsWindow.show();
-    settingsWindow.focus();
-  }
-}
-
 async function installExtensions() {
   try {
     const result = await installExtension(REACT_DEVELOPER_TOOLS);
@@ -601,13 +236,14 @@ function setupScreenResizeHandlers() {
     if (display.id === screen.getPrimaryDisplay().id) {
       console.log("Primary display metrics changed:", changedMetrics);
 
-      // Update main window if it exists
-      if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
+      // Update chat window if it exists
+      if (chatWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
         const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
-        mainWindow.setBounds(dimensions);
+        chatWindow.setBounds(dimensions);
       }
 
       // Update settings window if visible
+      const settingsWindow = getSettingsWindow();
       if (settingsWindow && settingsWindow.isVisible()) {
         const dimensions = calculateWindowDimensions(
           WINDOW_SIZE_PRESETS.SETTINGS,
@@ -637,27 +273,32 @@ app.whenReady().then(async () => {
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
-    mainWindow = createMainWindow();
+    chatWindow = createChatWindow();
+    preCreateMainWindow(chatWindow || undefined); // Pre-create main window
+
     const mainProcessOptions: ListenerOptions = {
       createSettingsWindow,
-      settingsWindow,
+      settingsWindow: getSettingsWindow(),
       registerGlobalShortcuts,
       createAgentPopoverWindow,
-      agentPopoverWindow,
+      agentPopoverWindow: getAgentPopoverWindow(),
       createModelSelectorWindow,
-      modelSelectorWindow,
+      modelSelectorWindow: getModelSelectorWindow(),
       createHistoryWindow,
-      historyWindow,
+      historyWindow: getHistoryWindow(),
     };
 
-    // Register IPC listeners if main window exists
-    if (mainWindow) {
-      registerListeners(mainWindow, mainProcessOptions);
+    // Set up main window creator (note: this is the new main window, formerly hello world)
+    setMainWindowCreator(createMainWindow);
+
+    // Register IPC listeners if chat window exists
+    if (chatWindow) {
+      registerListeners(chatWindow, mainProcessOptions);
     }
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0)
-        mainWindow = createMainWindow();
+        chatWindow = createChatWindow();
     });
   } catch (error) {
     console.error("Error during app initialization", error);
@@ -670,108 +311,8 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  // Only quit the app if mainWindow is closed and we're not on macOS
-  if (process.platform !== "darwin" && mainWindow === null) {
+  // Only quit the app if chatWindow is closed and we're not on macOS
+  if (process.platform !== "darwin" && chatWindow === null) {
     app.quit();
   }
 });
-
-// Create agent popover window at a specific position or show existing one
-function createAgentPopoverWindow(x: number, y: number, width = 0, height = 0) {
-  console.log("Showing agent popover window");
-  if (!agentPopoverWindow) {
-    // Create if it doesn't exist
-    preCreateAgentPopoverWindow();
-  }
-
-  if (agentPopoverWindow) {
-    // Get dimensions from presets if not provided
-    if (width === 0 || height === 0) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
-      );
-      width = dimensions.width;
-      height = dimensions.height;
-    }
-
-    // Reposition and show
-    console.log(
-      `Repositioning agent popover to: x=${x}, y=${y}, width=${width}, height=${height}`,
-    );
-    agentPopoverWindow.setBounds({ x, y, width, height });
-    agentPopoverWindow.show();
-    agentPopoverWindow.focus();
-  }
-
-  return agentPopoverWindow;
-}
-
-// Handle url hash to render different views
-function handleUrlHash(window: BrowserWindow) {
-  window.webContents.on("did-finish-load", () => {
-    // Check for specific view hash
-    const url = new URL(window.webContents.getURL());
-    if (url.hash === "#agent-popover") {
-      console.log("Rendering agent popover view");
-      // Inject any specific styles or scripts if needed
-    }
-  });
-}
-
-// Create model selector window at a specific position or show existing one
-function createModelSelectorWindow(
-  x: number,
-  y: number,
-  width = 0,
-  height = 0,
-) {
-  console.log("Showing model selector window");
-  if (!modelSelectorWindow) {
-    // Create if it doesn't exist
-    preCreateModelSelectorWindow();
-  }
-
-  if (modelSelectorWindow) {
-    // Get dimensions from presets if not provided
-    if (width === 0 || height === 0) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
-      );
-      width = dimensions.width;
-      height = dimensions.height;
-    }
-
-    // Reposition and show
-    console.log(
-      `Repositioning model selector to: x=${x}, y=${y}, width=${width}, height=${height}`,
-    );
-    modelSelectorWindow.setBounds({ x, y, width, height });
-    modelSelectorWindow.show();
-    modelSelectorWindow.focus();
-  }
-
-  return modelSelectorWindow;
-}
-
-// Handle url hash for model selector
-function handleModelSelectorUrlHash(window: BrowserWindow) {
-  window.webContents.on("did-finish-load", () => {
-    // Check for specific view hash
-    const url = new URL(window.webContents.getURL());
-    if (url.hash === "#model-selector") {
-      console.log("Rendering model selector view");
-      // Inject any specific styles or scripts if needed
-    }
-  });
-}
-
-function createHistoryWindow() {
-  if (!historyWindow) {
-    preCreateHistoryWindow();
-  }
-
-  if (historyWindow) {
-    historyWindow.show();
-    historyWindow.focus();
-  }
-}

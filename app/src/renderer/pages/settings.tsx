@@ -3,19 +3,19 @@
 import { getCurrentTheme, toggleTheme } from "@/renderer/libs/helper/theme_helpers";
 import { ErrorCode } from "@/renderer/libs/utils/error-handler";
 import {
-  getSettings,
-  resetShortcutsToDefault,
-  updateOpenAISettings,
-  updateShortcut,
+    getSettings,
+    resetShortcutsToDefault,
+    updateOpenAISettings,
+    updateShortcut,
 } from "@/renderer/libs/utils/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
-  AppSettings,
-  McpMarketplaceItem,
-  MCPServer,
+    AppSettings,
+    McpMarketplaceItem,
+    MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
-import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Code, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Import our component tabs
@@ -70,6 +70,7 @@ export default function SettingsPage() {
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(false);
 
   // Add effect to listen for model selection changes
   useEffect(() => {
@@ -1013,7 +1014,8 @@ export default function SettingsPage() {
   const navigationItems = [
     { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
     { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
-    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
+    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> },
+    { id: "developer", label: "Developer", icon: <Code className="h-5 w-5" /> }
   ];
 
   return (
@@ -1140,6 +1142,106 @@ export default function SettingsPage() {
         {/* Agents Tab Content */}
         {activeTab === "agents" && (
           <AgentsTab onNavigateToMcp={() => setActiveTab("mcp")} />
+        )}
+
+        {/* Developer Tab Content */}
+        {activeTab === "developer" && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-foreground text-xl font-semibold mb-4">Developer Mode</h2>
+              <div className="bg-card/50 rounded-lg p-6 border border-border/40 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-foreground font-medium">Enable Developer Mode</h3>
+                    <p className="text-foreground/60 text-sm">
+                      Show developer tools and window controls for debugging
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDevModeEnabled(!devModeEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      devModeEnabled ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        devModeEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {devModeEnabled && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="text-foreground font-medium">Window Controls</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">Settings Window</h5>
+                        <p className="text-foreground/60 text-sm mb-3">Main settings configuration window</p>
+                        <button
+                          onClick={() => window.electronAPI?.toggleSettingsWindow()}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Settings
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">History Window</h5>
+                        <p className="text-foreground/60 text-sm mb-3">Chat history browser window</p>
+                        <button
+                          onClick={() => window.electronAPI?.toggleHistoryWindow()}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle History
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">Main Window</h5>
+                        <p className="text-foreground/60 text-sm mb-3">Main application interface window</p>
+                        <button
+                          onClick={() => window.electronAPI?.toggleMainWindow()}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Main Window
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">Agent Popover</h5>
+                        <p className="text-foreground/60 text-sm mb-3">Agent selection popover window</p>
+                        <button
+                          onClick={() => window.electronAPI?.toggleAgentPopover(100, 100)}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Agent Popover
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">Model Selector</h5>
+                        <p className="text-foreground/60 text-sm mb-3">Model selection popover window</p>
+                        <button
+                          onClick={() => window.electronAPI?.toggleModelSelector(200, 200)}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Model Selector
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 p-4 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                      <h5 className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">⚠️ Developer Tools</h5>
+                      <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                        These controls are for development and debugging purposes. Use with caution as they may affect the application state.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
