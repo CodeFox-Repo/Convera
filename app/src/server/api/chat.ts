@@ -26,11 +26,8 @@ const authenticateRequest = async (c: any, next: () => Promise<void>) => {
   await next();
 };
 
-// Apply authentication to routes that need it
-router.use("/api/chat", authenticateRequest);
-
-// Chat endpoint
-router.post("/api/chat", async (c) => {
+// Chat endpoint - only this route requires authentication
+router.post("/api/chat", authenticateRequest, async (c) => {
   const { messages, config, agentId, modelId, id } = await c.req.json();
   const apiKey = (c as any).apiToken;
 
@@ -73,6 +70,7 @@ router.post("/api/chat", async (c) => {
   return new Response(response.body, { headers });
 });
 
+// These routes don't require authentication
 router.get("/api/chat", async (c) => {
   const chats = await getChats();
   const chatList = chats.map((chat) => ({
