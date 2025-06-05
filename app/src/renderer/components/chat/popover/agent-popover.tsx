@@ -82,7 +82,7 @@ export default function AgentPopover() {
     if (window.electronAPI) {
       try {
         // Hide Agent popover window
-        window.electronAPI.toggleAgentPopover();
+        window.electronAPI.toggleWindow("agent-popover");
       } catch (error) {
         console.error("Error when selecting agent:", error);
       }

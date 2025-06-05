@@ -1,8 +1,9 @@
 import {
-  GenericError,
-  parseApiError,
+    GenericError,
+    parseApiError,
 } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
+import { AppSettings } from "@/shared/types/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -50,12 +51,29 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [copiedContent, setCopiedContent] = useState<string | null>(null);
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const settings = getSettings();
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
   const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
+  
+  // Load settings asynchronously
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsData = await getSettings();
+        setSettings(settingsData);
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+    
+    loadSettings();
+  }, []);
   
   useEffect(() => {
     currentAgentIdRef.current = selectedAgent?.id;
@@ -70,12 +88,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     api: "http://localhost:38000/api/chat",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${settings.openai.apiKey}`,
+      Authorization: `Bearer ${settings?.openai?.apiKey || ''}`,
     },
     body: {
       config: settings,
       agentId: currentAgentIdRef.current,
-      modelId: currentModelIdRef.current || settings.openai.modelId,
+      modelId: currentModelIdRef.current || settings?.openai?.modelId,
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
@@ -235,8 +253,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const openSettings = useCallback(() => {
-    window.electronAPI.toggleSettingsWindow().catch((error) => {
-      console.error("Error opening settings window:", error);
+    window.electronAPI.toggleWindow("settings").catch((error) => {
+      console.error("Failed to toggle settings window:", error);
     });
   }, []);
 
@@ -268,6 +286,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     openHistoryWindow,
     isVoiceInputActive,
   };
+
+  // Show loading state if settings are not loaded yet
+  if (!settingsLoaded) {
+    return <div>Loading chat...</div>;
+  }
 
   return (
     <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>

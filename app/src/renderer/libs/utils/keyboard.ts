@@ -6,7 +6,7 @@ import { getSettings } from "./settings";
 export function useGlobalShortcuts() {
   useEffect(() => {
     // Handle keyboard shortcuts
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
       console.log(`Key pressed: ${event.key}, metaKey: ${event.metaKey}`);
       console.log(`Key pressed: ${event.key}, ctrlKey: ${event.ctrlKey}`);
 
@@ -25,7 +25,7 @@ export function useGlobalShortcuts() {
         try {
           // window.ipcRenderer.invoke("app:toggle-settings");
           if (window.electronAPI) {
-            window.electronAPI.toggleSettingsWindow();
+            window.electronAPI.toggleWindow("settings");
           } else {
             console.error("electronAPI is not available!");
           }
@@ -36,7 +36,7 @@ export function useGlobalShortcuts() {
       }
 
       // Handle custom shortcuts from settings
-      const settings = getSettings();
+      const settings = await getSettings();
       const enabledShortcuts = settings.shortcuts.filter((s) => s.enabled);
 
       for (const shortcut of enabledShortcuts) {
@@ -47,7 +47,7 @@ export function useGlobalShortcuts() {
           if (shortcut.id === "open_settings") {
             // window.ipcRenderer.invoke("app:toggle-settings");
             if (window.electronAPI) {
-              window.electronAPI.toggleSettingsWindow();
+              window.electronAPI.toggleWindow("settings");
             } else {
               console.error("electronAPI is not available!");
             }

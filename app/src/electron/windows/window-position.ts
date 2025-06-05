@@ -219,7 +219,7 @@ export function setupWindowPositionTracking(window: BrowserWindow) {
   });
 }
 
-export function toggleMainWindowVisibility(mainWindow: BrowserWindow) {
+export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
   if (!mainWindow) return;
 
   // Check actual window state instead of relying only on isHiddenOffscreen

@@ -3,7 +3,7 @@ import { app, BrowserWindow, globalShortcut, screen } from "electron";
 import { initializeChatServer } from "@/electron/chat-server";
 import {
   isHiddenOffscreen,
-  toggleMainWindowVisibility,
+  toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
@@ -20,32 +20,20 @@ import {
   setInputText,
   setPreviousApp,
 } from "@/electro-bridge/ipc/ipc-handlers";
-import registerListeners, {
-  ListenerOptions,
-  setMainWindowCreator,
-} from "@/electro-bridge/ipc/listeners-register";
+
 import robot from "@/shared/robot";
 import { clipboard } from "electron";
 
 import {
-  createAgentPopoverWindow,
-  getAgentPopoverWindow,
-  preCreateAgentPopoverWindow,
-} from "./windows/agent-popover-window";
+  ListenerOptions,
+  registerListeners,
+} from "@/electro-bridge/ipc/listeners-register";
+import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { createChatWindow } from "./windows/chat-window";
+import { preCreateHistoryWindow } from "./windows/history-window";
+import { preCreateMainWindow } from "./windows/main-window";
+import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
 import {
-  createHistoryWindow,
-  getHistoryWindow,
-  preCreateHistoryWindow,
-} from "./windows/history-window";
-import { createMainWindow, preCreateMainWindow } from "./windows/main-window";
-import {
-  createModelSelectorWindow,
-  getModelSelectorWindow,
-  preCreateModelSelectorWindow,
-} from "./windows/model-selector-window";
-import {
-  createSettingsWindow,
   getSettingsWindow,
   preCreateSettingsWindow,
 } from "./windows/settings-window";
@@ -68,24 +56,25 @@ let chatWindow: BrowserWindow | null = null;
  * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
  * @returns Promise that resolves when the copy operation is complete
  */
+
 function simulateClipboardCopy(): Promise<void> {
   return new Promise((resolve) => {
     try {
       console.log("Using RobotJS to simulate copy command");
 
       // Release modifier keys first to prevent conflicts
-      robot.keyToggle("shift", "up");
-      robot.keyToggle("control", "up");
-      robot.keyToggle("alt", "up");
+      (robot as any).keyToggle("shift", "up");
+      (robot as any).keyToggle("control", "up");
+      (robot as any).keyToggle("alt", "up");
 
       // Small delay to ensure modifiers are released
       setTimeout(() => {
         if (process.platform === "darwin") {
           // For macOS, use Command+C
-          robot.keyTap("c", "command");
+          (robot as any).keyTap("c", "command");
         } else {
           // For Windows/Linux, use Control+C
-          robot.keyTap("c", "control");
+          (robot as any).keyTap("c", "control");
         }
 
         // Add a delay to ensure clipboard has been updated
@@ -196,7 +185,7 @@ function registerGlobalShortcuts() {
       clipboard.writeText("");
 
       if (chatWindow) {
-        toggleMainWindowVisibility(chatWindow);
+        toggleChatWindowVisibility(chatWindow);
         setTimeout(() => {
           setInputText(chatWindow, selectedText);
         }, 100);
@@ -244,6 +233,7 @@ function setupScreenResizeHandlers() {
 
       // Update settings window if visible
       const settingsWindow = getSettingsWindow();
+
       if (settingsWindow && settingsWindow.isVisible()) {
         const dimensions = calculateWindowDimensions(
           WINDOW_SIZE_PRESETS.SETTINGS,
@@ -276,25 +266,14 @@ app.whenReady().then(async () => {
     chatWindow = createChatWindow();
     preCreateMainWindow(chatWindow || undefined); // Pre-create main window
 
-    const mainProcessOptions: ListenerOptions = {
-      createSettingsWindow,
-      settingsWindow: getSettingsWindow(),
+    // Set up options for the new unified listener system
+    const listenerOptions: ListenerOptions = {
+      chatWindow: () => chatWindow,
       registerGlobalShortcuts,
-      createAgentPopoverWindow,
-      agentPopoverWindow: getAgentPopoverWindow(),
-      createModelSelectorWindow,
-      modelSelectorWindow: getModelSelectorWindow(),
-      createHistoryWindow,
-      historyWindow: getHistoryWindow(),
     };
 
-    // Set up main window creator (note: this is the new main window, formerly hello world)
-    setMainWindowCreator(createMainWindow);
-
-    // Register IPC listeners if chat window exists
-    if (chatWindow) {
-      registerListeners(chatWindow, mainProcessOptions);
-    }
+    // Register IPC listeners with the new unified system
+    registerListeners(listenerOptions);
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0)
