@@ -47,12 +47,10 @@ export const WINDOW_SIZE_PRESETS = {
     minHeight: 600,
   },
   AGENT_POPOVER: {
-    widthProportion: 0.1,
-    heightProportion: 0.1,
+    widthProportion: 0.3,
+    heightProportion: 0.4,
     minWidth: 320,
     minHeight: 350,
-    maxWidth: 320,
-    maxHeight: 350,
   },
   MODEL_SELECTOR: {
     widthProportion: 0.15,
