@@ -21,6 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
@@ -43,14 +44,12 @@ interface AgentsTabProps {
 }
 
 export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
   >({});
   const [mcpServerTools, setMcpServerTools] = useState<
     Record<string, ToolDefinition[]>
   >({});
-  const [loadingAgents, setLoadingAgents] = useState(false);
   const [loadingMcpConfigs, setLoadingMcpConfigs] = useState(false);
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
@@ -71,11 +70,14 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   }>({});
   const [activeTab, setActiveTab] = useState("manage");
 
+  // Get agent store methods and state
+  const { availableAgents, fetchAgents } = useAgentStore();
+
   // Load agents and MCP configs
   useEffect(() => {
     fetchAgents();
     fetchMcpConfigs();
-  }, []);
+  }, [fetchAgents]);
 
   // Reset editing state when dialog closes
   useEffect(() => {
@@ -116,22 +118,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         });
     }
   }, [activeTab, mcpServerConfigs]);
-
-  const fetchAgents = async () => {
-    setLoadingAgents(true);
-    try {
-      const res = await fetch("http://localhost:38000/api/agents");
-      if (!res.ok) throw new Error("Failed to fetch agents");
-      const data = await res.json();
-      console.log("Fetched agents data:", data.agents);
-      setAgents(data.agents || []);
-    } catch (err) {
-      console.error("Error fetching agents:", err);
-      toast.error("Failed to load agents");
-    } finally {
-      setLoadingAgents(false);
-    }
-  };
 
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
@@ -375,22 +361,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       // Switch to the manage tab
       setActiveTab("manage");
-
-      // Dispatch an event to notify other components (like AgentPopover)
-      // that the agent list has been updated
-      try {
-        // For the main window
-        window.dispatchEvent(new CustomEvent("agent-list-updated"));
-
-        // For other windows (like the agent popover) - we'll dispatch using a custom event
-        // that the preload script will convert to an IPC message
-        window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
-
-        // Log the event dispatch
-        console.log("Dispatched agent-list-updated event");
-      } catch (error) {
-        console.error("Error dispatching agent list update event:", error);
-      }
     } catch (err) {
       console.error("Save agent error", err);
       toast.error(
@@ -453,9 +423,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       setIsEditDialogOpen(false);
       fetchAgents();
-
-      window.dispatchEvent(new CustomEvent("agent-list-updated"));
-      window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
     } catch (err) {
       console.error("Update agent error:", err);
       toast.error(
@@ -490,15 +457,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       // Refresh the agent list
       fetchAgents();
-
-      // Dispatch event to notify other components
-      try {
-        window.dispatchEvent(new CustomEvent("agent-list-updated"));
-        window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
-        console.log("Dispatched agent-list-updated event after deletion");
-      } catch (error) {
-        console.error("Error dispatching agent list update event:", error);
-      }
     } catch (err) {
       console.error("Delete agent error:", err);
       toast.error(
@@ -865,15 +823,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         </TabsContent>
 
         <TabsContent value="manage">
-          {loadingAgents ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-            </div>
-          ) : agents.length === 0 ? (
+          {availableAgents.length === 0 ? (
             <p className="text-muted-foreground">No agents created yet.</p>
           ) : (
             <div className="space-y-4">
-              {agents.map((agent) => {
+              {availableAgents.map((agent) => {
                 // Get unique MCP server names only
                 const mcpServers = new Set<string>();
                 

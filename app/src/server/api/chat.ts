@@ -41,61 +41,64 @@ const authenticateRequest = async (c: any, next: () => Promise<void>) => {
   await next();
 };
 
-router.use("/api/chat", authenticateRequest);
-
 // Chat endpoint
-router.post("/api/chat", zValidator("json", ChatRequestSchema), async (c) => {
-  const {
-    messages: createMessages,
-    config,
-    agentId,
-    modelId,
-    id,
-  } = c.req.valid("json");
-  const apiKey = (c as any).apiToken;
+router.post(
+  "/api/chat",
+  authenticateRequest,
+  zValidator("json", ChatRequestSchema),
+  async (c) => {
+    const {
+      messages: createMessages,
+      config,
+      agentId,
+      modelId,
+      id,
+    } = c.req.valid("json");
+    const apiKey = (c as any).apiToken;
 
-  if (!apiKey) {
-    return c.json(standardErrors.authFailed, 401);
-  }
+    if (!apiKey) {
+      return c.json(standardErrors.authFailed, 401);
+    }
 
-  // Transform CreateMessages to Messages with IDs
-  const messages = transformToMessages(createMessages);
+    // Transform CreateMessages to Messages with IDs
+    const messages = transformToMessages(createMessages);
 
-  // Safely access config properties
-  const configOpenAI = config?.openai as
-    | { modelId?: string; endpoint?: string }
-    | undefined;
+    // Safely access config properties
+    const configOpenAI = config?.openai as
+      | { modelId?: string; endpoint?: string }
+      | undefined;
 
-  const headers = {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  };
+    const headers = {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    };
 
-  const response = agentId
-    ? await processAgentChat(
-        messages,
-        apiKey,
-        { agentId, modelId: modelId || configOpenAI?.modelId },
-        configOpenAI?.endpoint,
-        id,
-      )
-    : await processChatRequest(messages, apiKey, {
-        modelId: modelId || configOpenAI?.modelId,
-        endpoint: configOpenAI?.endpoint,
-        config: config as any, // Type assertion for backward compatibility
-        id,
-      });
+    const response = agentId
+      ? await processAgentChat(
+          messages,
+          apiKey,
+          { agentId, modelId: modelId || configOpenAI?.modelId },
+          configOpenAI?.endpoint,
+          id,
+        )
+      : await processChatRequest(messages, apiKey, {
+          modelId: modelId || configOpenAI?.modelId,
+          endpoint: configOpenAI?.endpoint,
+          config: config as any, // Type assertion for backward compatibility
+          id,
+        });
 
-  if (!response.body) {
-    return new Response(
-      `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
-      { headers },
-    );
-  }
+    if (!response.body) {
+      return new Response(
+        `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
+        { headers },
+      );
+    }
 
-  return new Response(response.body, { headers });
-});
+    return new Response(response.body, { headers });
+  },
+);
 
 // These routes don't require authentication
 router.get("/api/chat", async (c) => {

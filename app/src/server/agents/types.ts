@@ -16,6 +16,7 @@ export interface AgentDefinition {
   category?: string;
   avatar?: string;
   type?: string;
+  predefined?: boolean; // Flag to indicate if this is a built-in agent
 }
 
 export interface AgentListItem {
@@ -53,8 +54,17 @@ export const CreateAgentSchema = z.object({
   type: z.string().optional(),
 });
 
-export const UpdateAgentSchema = CreateAgentSchema.extend({
+export const UpdateAgentSchema = z.object({
   id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  systemPrompt: z.string().optional(),
+  toolReferences: z.array(ToolReferenceSchema).optional(),
+  modelId: z.string().optional(),
+  iconUrl: z.string().optional(),
+  avatar: z.string().optional(),
+  category: z.string().optional(),
+  type: z.string().optional(),
 });
 
 export type CreateAgentRequest = z.infer<typeof CreateAgentSchema>;

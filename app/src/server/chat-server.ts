@@ -1,9 +1,9 @@
 /**
  * Hono server for handling chat API requests with OpenAI
  */
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { serve } from "@hono/node-server";
 import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
 import chatRouter from "./api/chat";
