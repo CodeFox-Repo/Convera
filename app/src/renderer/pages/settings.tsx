@@ -1,211 +1,90 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import {
-    getCurrentTheme,
-    toggleTheme,
-} from "@/renderer/libs/helper/theme_helpers";
-import { ErrorCode } from "@/renderer/libs/utils/error-handler";
-import {
-    getSettings,
-    resetShortcutsToDefault,
-    updateOpenAISettings,
-    updateShortcut,
-} from "@/renderer/libs/utils/settings";
-import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
-import {
-    AppSettings,
-    McpMarketplaceItem,
-    MCPServer,
-} from "@/shared/types/settings";
-import { ToolSet } from "ai";
-import {
-    ChevronLeft,
-    ChevronRight,
-    Code,
-    LayoutGrid,
-    Moon,
-    Server,
-    Settings as SettingsIcon,
-    Sun,
-    X,
+  ChevronLeft,
+  ChevronRight,
+  Code,
+  LayoutGrid,
+  Moon,
+  Server,
+  Settings as SettingsIcon,
+  Sun,
+  X,
 } from "lucide-react";
-import { toast } from "sonner";
 
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
+import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-
-export interface AgentDefinition {
-  id: string;
-  name: string;
-  description: string;
-  systemPrompt: (tools: string[]) => string;
-  tools: ToolSet;
-  modelId?: string;
-  iconUrl?: string;
-  category?: string;
-  avatar?: string;
-  type?: string;
-}
 
 /**
  * Settings page component that allows the user to configure OpenAI settings
  * and keyboard shortcuts.
  */
 export default function SettingsPage() {
-  // State declarations
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [recordingShortcut, setRecordingShortcut] = useState<string>("");
-  const [mcpMarketItems, setMcpMarketItems] = useState<McpMarketplaceItem[]>(
-    [],
-  );
-  const [loadingMarketplace, setLoadingMarketplace] = useState<boolean>(true);
-  const [activeShortcut, setActiveShortcut] = useState<string | null>(null);
-  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
-  const [loadingMcpServers, setLoadingMcpServers] = useState<boolean>(true);
-  const [installingTools, setInstallingTools] = useState<
-    Record<string, boolean>
-  >({});
-  const [mcpServerConfigs, setMcpServerConfigs] = useState<
-    Record<string, MCPServerConfig>
-  >({});
-  const [loadingMcpConfigs, setLoadingMcpConfigs] = useState<boolean>(true);
-  const [currentTheme, setCurrentTheme] = useState<string>("light");
-  const [mcpServerTools, setMcpServerTools] = useState<
-    Record<string, ToolDefinition[]>
-  >({});
-  const [loadingMcpTools, setLoadingMcpTools] = useState<
-    Record<string, boolean>
-  >({});
+  // UI state only
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(false);
-  const [settingsLoading, setSettingsLoading] = useState<boolean>(true);
 
-  // Ref declarations
+  // Refs for shortcut recording
   const shortcutInputRef = useRef<HTMLButtonElement>(null);
   const recordingStateRef = useRef<string>("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch functions
-  const fetchMcpMarketplace = async () => {
-    setLoadingMarketplace(true);
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/marketplace",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch marketplace data");
-      }
-      const data = await response.json();
-      setMcpMarketItems(data.catalog?.items || []);
-    } catch (error) {
-      console.error("Error fetching MCP marketplace:", error);
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        toast.error("Cannot connect to backend server. Please check if the server is running.");
-      } else {
-        toast.error("Failed to load MCP marketplace data");
-      }
-    } finally {
-      setLoadingMarketplace(false);
-    }
-  };
+  // MCP Store
+  const {
+    mcpMarketItems,
+    loadingMarketplace,
+    loadingMcpServers,
+    mcpServers,
+    installingTools,
+    handleInstallPredefinedServer,
+    handleInstallMcpTool,
+    handleManualInstallMcp,
+    handleUninstallPredefinedServer,
+    refreshAll: refreshMcpData,
+  } = useMcpStore();
 
-  const fetchMcpConfigurations = async () => {
-    setLoadingMcpConfigs(true);
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/configurations",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch MCP configurations");
-      }
-      const data = await response.json();
-      if (data.status === "success") {
-        setMcpServerConfigs(data.configurations || {});
-      } else {
-        throw new Error(data.message || "Failed to fetch MCP configurations");
-      }
-    } catch (error) {
-      console.error("Error fetching MCP configurations:", error);
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        toast.error("Cannot connect to backend server. Please check if the server is running.");
-      } else {
-        toast.error("Failed to load MCP configurations");
-      }
-      setMcpServerConfigs({});
-    } finally {
-      setLoadingMcpConfigs(false);
-    }
-  };
+  // Settings Store
+  const {
+    settings,
+    settingsLoading,
+    currentTheme,
+    activeShortcut,
+    recordingShortcut,
+    devModeEnabled,
+    initializeSettings,
+    handleOpenAIChange,
+    handleAddSupportedModel,
+    handleRemoveSupportedModel,
+    handleResetShortcuts,
+    handleToggleTheme,
+    setActiveShortcut,
+    setRecordingShortcut,
+    saveRecordedShortcut,
+    setDevModeEnabled,
+    subscribeToSettingsChanges,
+  } = useSettingsStore();
 
-  const fetchAllMcpServers = async () => {
-    setLoadingMcpServers(true);
-    try {
-      const [predefinedResponse, installedResponse] = await Promise.all([
-        fetch("http://localhost:38000/api/mcp/predefined-servers"),
-        fetch("http://localhost:38000/api/mcp/installed-servers"),
-      ]);
+  // Initialize stores on component mount
+  useEffect(() => {
+    initializeSettings();
+    
+    // Initialize MCP store (it will load its own data)
+    const mcpStore = useMcpStore.getState();
+    mcpStore.refreshAll();
 
-      if (!predefinedResponse.ok || !installedResponse.ok) {
-        throw new Error("Failed to fetch MCP servers");
-      }
+    // Subscribe to settings changes
+    const unsubscribe = subscribeToSettingsChanges();
+    return unsubscribe;
+  }, []);
 
-      const predefinedData = await predefinedResponse.json();
-      const installedData = await installedResponse.json();
-
-      if (
-        predefinedData.status === "success" &&
-        installedData.status === "success"
-      ) {
-        const predefinedServers = predefinedData.servers || [];
-        const installedServers = installedData.servers || [];
-        const mergedServers: MCPServer[] = [];
-
-        mergedServers.push(...installedServers);
-        predefinedServers.forEach((server: MCPServer) => {
-          if (!server.isInstalled) {
-            mergedServers.push(server);
-          }
-        });
-
-        setMcpServers(mergedServers);
-      } else {
-        throw new Error("Failed to fetch MCP servers data");
-      }
-    } catch (error) {
-      console.error("Error fetching MCP servers:", error);
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        toast.error("Cannot connect to backend server. Please check if the server is running.");
-      } else {
-        toast.error("Failed to load MCP server data");
-      }
-      setMcpServers([]);
-    } finally {
-      setLoadingMcpServers(false);
-    }
-  };
-
-  // Callback functions
-  const saveRecordedShortcut = useCallback(
+  // Callback functions for shortcut recording
+  const saveRecordedShortcutCallback = useCallback(
     async (shortcutToSave: string) => {
-      if (!activeShortcut || !shortcutToSave || !settings) return;
-
-      const shortcut = settings.shortcuts.find((s) => s.id === activeShortcut);
-      if (shortcut) {
-        const updated = await updateShortcut({
-          ...shortcut,
-          shortcut: shortcutToSave,
-        });
-        setSettings(updated);
-        toast.success("Shortcut updated");
-      }
-
-      setActiveShortcut(null);
-      setRecordingShortcut("");
+      await saveRecordedShortcut(shortcutToSave);
       recordingStateRef.current = "";
 
       if (saveTimeoutRef.current) {
@@ -213,7 +92,7 @@ export default function SettingsPage() {
         saveTimeoutRef.current = null;
       }
     },
-    [activeShortcut, settings],
+    [saveRecordedShortcut],
   );
 
   const formatShortcut = (event: KeyboardEvent): string => {
@@ -266,7 +145,6 @@ export default function SettingsPage() {
 
       if (event.key === "Escape") {
         setActiveShortcut(null);
-        setRecordingShortcut("");
         recordingStateRef.current = "";
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
@@ -297,7 +175,7 @@ export default function SettingsPage() {
           }
 
           saveTimeoutRef.current = setTimeout(() => {
-            saveRecordedShortcut(shortcutKeys);
+            saveRecordedShortcutCallback(shortcutKeys);
           }, 1000);
         }
       } else if (event.type === "keyup") {
@@ -306,94 +184,35 @@ export default function SettingsPage() {
         );
 
         if (isNonModifierKey && recordingStateRef.current) {
-          saveRecordedShortcut(recordingStateRef.current);
+          saveRecordedShortcutCallback(recordingStateRef.current);
         }
       }
     },
-    [activeShortcut, saveRecordedShortcut],
+    [activeShortcut, saveRecordedShortcutCallback, setRecordingShortcut, setActiveShortcut],
   );
 
-  // Initialize settings asynchronously
-  useEffect(() => {
-    const initializeSettings = async () => {
-      setSettingsLoading(true);
-      try {
-        const initialSettings = await getSettings();
-        setSettings(initialSettings);
-      } catch (error) {
-        console.error("Failed to load settings:", error);
-      } finally {
-        setSettingsLoading(false);
+  // Shortcut Recording Logic
+  const startRecording = (id: string) => {
+    setActiveShortcut(id);
+  };
+
+  const handleCloseSettings = () => {
+    try {
+      if (window.electronAPI) {
+        window.electronAPI.toggleWindow("settings").catch((error: unknown) => {
+          console.error("Error toggling settings window:", error);
+        });
       }
-    };
+    } catch (error: unknown) {
+      console.error("Error toggling settings window:", error);
+    }
+  };
 
-    initializeSettings();
-  }, []);
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
 
-  // Add effect to listen for model selection changes
-  useEffect(() => {
-    if (!settings) return;
-
-    const handleModelSelected = async (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.modelId) {
-        const newModelId = customEvent.detail.modelId;
-        const updatedOpenAI = {
-          ...settings.openai,
-          modelId: newModelId,
-        };
-        const updated = await updateOpenAISettings(updatedOpenAI);
-        setSettings(updated);
-      }
-    };
-
-    const handleStorageChange = async (event: StorageEvent) => {
-      if (event.key === "selectedModelId" && event.newValue) {
-        const updatedOpenAI = {
-          ...settings.openai,
-          modelId: event.newValue,
-        };
-        const updated = await updateOpenAISettings(updatedOpenAI);
-        setSettings(updated);
-      }
-    };
-
-    window.addEventListener("model-selected", handleModelSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("model-selected", handleModelSelected);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [settings]);
-
-  useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        const settingsData = await getSettings();
-        setSettings(settingsData);
-      } catch (error) {
-        console.error("Failed to reload settings:", error);
-      }
-    };
-
-    loadAllData();
-    fetchMcpMarketplace();
-    fetchMcpConfigurations();
-    fetchAllMcpServers();
-
-    const fetchTheme = async () => {
-      try {
-        const { system } = await getCurrentTheme();
-        setCurrentTheme(system);
-      } catch (error) {
-        console.error("Error fetching current theme:", error);
-      }
-    };
-
-    fetchTheme();
-  }, []);
-
+  // Effect for keyboard event handling during shortcut recording
   useEffect(() => {
     if (activeShortcut) {
       window.addEventListener("keydown", handleRecordingKeyEvent, true);
@@ -422,6 +241,7 @@ export default function SettingsPage() {
     };
   }, [activeShortcut, handleRecordingKeyEvent]);
 
+  // Effect for click outside handling during shortcut recording
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -430,7 +250,6 @@ export default function SettingsPage() {
         !shortcutInputRef.current.contains(event.target as Node)
       ) {
         setActiveShortcut(null);
-        setRecordingShortcut("");
         recordingStateRef.current = "";
 
         if (saveTimeoutRef.current) {
@@ -451,7 +270,7 @@ export default function SettingsPage() {
         saveTimeoutRef.current = null;
       }
     };
-  }, [activeShortcut]);
+  }, [activeShortcut, setActiveShortcut]);
 
   // Early return if settings are still loading
   if (settingsLoading || !settings) {
@@ -465,566 +284,6 @@ export default function SettingsPage() {
     );
   }
 
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
-
-  const handleInstallPredefinedServer = async (serverId: string) => {
-    setInstallingTools((prev) => ({ ...prev, [serverId]: true }));
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers/install",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: serverId }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to install server" }));
-        throw new Error(errorData.message || "Failed to install server");
-      }
-
-      toast.success(`Server ${serverId} installed successfully`);
-      fetchAllMcpServers(); // 刷新服务器列表
-      fetchMcpConfigurations(); // 刷新配置
-    } catch (error) {
-      console.error(`Error installing server ${serverId}:`, error);
-      toast.error(
-        `Failed to install server: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setInstallingTools((prev) => ({ ...prev, [serverId]: false }));
-    }
-  };
-
-  const handleUninstallPredefinedServer = async (
-    serverId: string,
-  ): Promise<void> => {
-    try {
-      // Call the new API endpoint to uninstall the server
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/predefined-servers/uninstall",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: serverId }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to uninstall server" }));
-        throw new Error(errorData.message || "Failed to uninstall server");
-      }
-
-      toast.success(`Server ${serverId} uninstalled successfully`);
-
-      // 刷新数据
-      fetchAllMcpServers();
-      fetchMcpConfigurations();
-    } catch (error) {
-      console.error(`Error uninstalling server ${serverId}:`, error);
-      toast.error(
-        `Failed to uninstall server: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      throw error; // Re-throw to let the UI handle the error state
-    }
-  };
-
-  const handleOpenAIChange = async (field: string, value: string) => {
-    if (!settings) return;
-
-    const updatedOpenAI = {
-      ...settings.openai,
-      [field]: value,
-    };
-
-    // Validate API key format if that's the field being changed
-    if (field === "apiKey" && value.trim()) {
-      // Make sure it doesn't already have a Bearer prefix
-      if (value.startsWith("Bearer ")) {
-        toast.warning('Please enter the API key without "Bearer" prefix', {
-          id: ErrorCode.AUTH_INVALID_KEY,
-        });
-        return;
-      }
-
-      // For OpenRouter API keys, they typically have a specific format
-      // This is just a simple check, you might want to add more specific validation
-      if (
-        updatedOpenAI.endpoint.includes("openrouter.ai") &&
-        !value.match(/^[a-zA-Z0-9_-]{10,}/)
-      ) {
-        toast.warning("This doesn't appear to be a valid API key format", {
-          id: ErrorCode.AUTH_INVALID_KEY,
-        });
-        // Continue anyway, as it might be a valid format we don't recognize
-      }
-    }
-
-    const updated = await updateOpenAISettings(updatedOpenAI);
-    setSettings(updated);
-
-    // Event handling for different fields
-    if (field === "modelId") {
-      // Dispatch model-selected event
-      window.dispatchEvent(
-        new CustomEvent("model-selected", {
-          detail: { modelId: value },
-        }),
-      );
-      // Update localStorage
-      localStorage.setItem("selectedModelId", value);
-      toast.success("Model updated. Settings saved.", {
-        id: "settings-saved",
-      });
-    } else if (field === "apiKey") {
-      toast.success("API key saved. This will be used for authentication.", {
-        id: "api-key-updated",
-      });
-    } else {
-      toast.success("Settings saved", {
-        id: "settings-saved",
-      });
-    }
-
-    // Dispatch an event so other components know the settings changed
-    window.dispatchEvent(
-      new CustomEvent("settings-updated", {
-        detail: { field, value },
-      }),
-    );
-  };
-
-  const handleAddSupportedModel = async (model: string) => {
-    if (!settings || !model.trim()) return;
-
-    if (settings.openai.supportedModels.includes(model)) {
-      toast.error("Model already in the list");
-      return;
-    }
-
-    const updatedSupportedModels = [...settings.openai.supportedModels, model];
-    const updatedOpenAI = {
-      ...settings.openai,
-      supportedModels: updatedSupportedModels,
-    };
-
-    const updated = await updateOpenAISettings(updatedOpenAI);
-    setSettings(updated);
-    toast.success("Model added to supported list");
-  };
-
-  const handleRemoveSupportedModel = async (model: string) => {
-    if (!settings || !settings.openai || !settings.openai.supportedModels) return;
-
-    const updatedSupportedModels = settings.openai.supportedModels.filter(
-      (m) => m !== model,
-    );
-
-    const updatedOpenAI = {
-      ...settings.openai,
-      supportedModels: updatedSupportedModels,
-    };
-
-    const updated = await updateOpenAISettings(updatedOpenAI);
-    setSettings(updated);
-    toast.success("Model removed from supported list");
-  };
-
-  const handleResetShortcuts = async () => {
-    const updated = await resetShortcutsToDefault();
-    if (!updated || !updated.shortcuts) {
-      toast.error("Failed to reset shortcuts");
-      return;
-    }
-    
-    setSettings(updated);
-
-    // Update the main process with the new activate shortcut
-    const activateShortcut = updated.shortcuts.find(
-      (s: { id: string; enabled: boolean; shortcut: string }) =>
-        s.id === "activate",
-    );
-    if (activateShortcut && activateShortcut.enabled) {
-      window.electronAPI
-        .updateGlobalShortcut(activateShortcut.shortcut)
-        .catch((error: Error) => {
-          console.error("Error updating global shortcut after reset:", error);
-          toast.warning(
-            "Shortcuts reset to default, but global shortcut update failed",
-          );
-        });
-    } else {
-      toast.success("Shortcuts reset to default");
-    }
-  };
-
-  // --- Shortcut Recording Logic ---
-  const startRecording = (id: string) => {
-    setActiveShortcut(id);
-    setRecordingShortcut("Press keys...");
-  };
-
-  const handleCloseSettings = () => {
-    try {
-      if (window.electronAPI) {
-        window.electronAPI
-          .toggleWindow("settings")
-          .then(() => {
-            // Settings window toggled successfully
-          })
-          .catch((error: unknown) => {
-            console.error("Error toggling settings window:", error);
-            toast.error("Failed to toggle settings window");
-          });
-      } else {
-        console.error("electronAPI is not available!");
-        toast.error("Failed to toggle settings window: API not available");
-      }
-    } catch (error: unknown) {
-      console.error("Error toggling settings window:", error);
-      toast.error("Failed to toggle settings window");
-    }
-  };
-
-  const handleInstallMcpTool = async (tool: McpMarketplaceItem) => {
-    if (installingTools[tool.mcpId]) return;
-
-    setInstallingTools((prev) => ({ ...prev, [tool.mcpId]: true }));
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      toast.success(`Installed ${tool.name} successfully`);
-    } catch (error) {
-      console.error(`Error installing ${tool.name}:`, error);
-      toast.error(`Failed to install ${tool.name}`);
-    } finally {
-      setInstallingTools((prev) => ({ ...prev, [tool.mcpId]: false }));
-    }
-  };
-
-  const handleManualInstallMcp = async (configJson: string) => {
-    try {
-      let config;
-      try {
-        config = JSON.parse(configJson);
-      } catch (e) {
-        toast.error("Invalid JSON format");
-        throw new Error("Invalid JSON format");
-      }
-
-      if (!config.mcpServers || typeof config.mcpServers !== "object") {
-        toast.error("Invalid configuration: missing 'mcpServers' object");
-        throw new Error("Invalid configuration structure");
-      }
-
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/configurations/manual",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Failed to install MCP configuration",
-        );
-      }
-
-      toast.success("MCP configuration installed successfully");
-      fetchAllMcpServers();
-      fetchMcpConfigurations();
-    } catch (error) {
-      console.error("Error installing manual MCP configuration:", error);
-      toast.error(
-        `Failed to install configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      throw error;
-    }
-  };
-
-  // Fetch tools for a specific MCP server
-  const fetchMcpServerTools = async (
-    serverId: string,
-  ): Promise<ToolDefinition[]> => {
-    setLoadingMcpTools((prev) => ({ ...prev, [serverId]: true }));
-    try {
-      const response = await fetch(
-        `http://localhost:38000/api/mcp/servers/${serverId}/tools`,
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to fetch server tools" }));
-        throw new Error(errorData.message || "Failed to fetch server tools");
-      }
-
-      const data = await response.json();
-      if (data.status === "success") {
-        const tools = data.tools || [];
-        setMcpServerTools((prev) => ({
-          ...prev,
-          [serverId]: tools,
-        }));
-        return tools;
-      } else {
-        throw new Error(data.message || "Failed to fetch server tools");
-      }
-    } catch (error) {
-      console.error(`Error fetching tools for MCP server ${serverId}:`, error);
-      // Don't show a toast here as it might be annoying if server is starting up
-      return [];
-    } finally {
-      setLoadingMcpTools((prev) => ({ ...prev, [serverId]: false }));
-    }
-  };
-
-  // Handle changes in MCP server config fields
-  const handleMcpConfigChange = async (
-    id: string,
-    field: keyof MCPServerConfig,
-    value:
-      | string
-      | number
-      | boolean
-      | string[]
-      | Record<string, string>
-      | undefined,
-  ) => {
-    // Update state with the new value
-    setMcpServerConfigs((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]: value,
-      },
-    }));
-
-    // Automatically save when enabling/disabling a server
-    if (field === "enabled") {
-      try {
-        // Get the current config including any env variables
-        const currentConfig = {
-          ...mcpServerConfigs[id],
-          [field]: value,
-          env: mcpServerConfigs[id].env || {}, // Ensure env is included
-        };
-
-        const response = await fetch(
-          `http://localhost:38000/api/mcp/configurations/${id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(currentConfig),
-          },
-        );
-
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "Failed to save MCP configuration" }));
-          throw new Error(
-            errorData.message || "Failed to save MCP configuration",
-          );
-        }
-
-        // If enabling the server, start it
-        if (value === true) {
-          toast.info(
-            `Starting MCP server ${mcpServerConfigs[id].name || id}...`,
-          );
-
-          const startResponse = await fetch(
-            `http://localhost:38000/api/mcp/servers/${id}/start`,
-            {
-              method: "POST",
-            },
-          );
-
-          if (!startResponse.ok) {
-            const errorData = await startResponse
-              .json()
-              .catch(() => ({ message: "Failed to start MCP server" }));
-            throw new Error(errorData.message || "Failed to start MCP server");
-          }
-
-          // After starting the server, fetch its tools with increased delay for MCP startup
-          toast.success(
-            `Server ${mcpServerConfigs[id].name || id} started successfully`,
-          );
-          toast.info(
-            `Fetching tools for ${mcpServerConfigs[id].name || id}...`,
-          );
-
-          // Try fetching tools multiple times with increasing delays
-          const retryFetchTools = async (retries = 3, delay = 2000) => {
-            try {
-              const tools = await fetchMcpServerTools(id);
-              if (tools && tools.length > 0) {
-                toast.success(
-                  `Found ${tools.length} tools in ${mcpServerConfigs[id].name || id}`,
-                );
-                return;
-              }
-
-              if (retries > 0) {
-                toast.info(
-                  `Waiting for tools from ${mcpServerConfigs[id].name || id}...`,
-                  {
-                    id: `retry-fetch-${id}`,
-                  },
-                );
-                setTimeout(
-                  () => retryFetchTools(retries - 1, delay * 1.5),
-                  delay,
-                );
-              } else {
-                toast.info(
-                  `Server started but no tools found. You may need to refresh.`,
-                  {
-                    id: `retry-fetch-${id}`,
-                    duration: 5000,
-                  },
-                );
-              }
-            } catch (err) {
-              console.error(`Error in retry fetch for ${id}:`, err);
-              if (retries > 0) {
-                setTimeout(
-                  () => retryFetchTools(retries - 1, delay * 1.5),
-                  delay,
-                );
-              } else {
-                toast.error(`Could not fetch tools. Try clicking refresh.`);
-              }
-            }
-          };
-
-          setTimeout(() => retryFetchTools(), 3000);
-        } else {
-          // If disabling the server, stop it
-          toast.info(
-            `Stopping MCP server ${mcpServerConfigs[id].name || id}...`,
-          );
-
-          try {
-            const stopResponse = await fetch(
-              `http://localhost:38000/api/mcp/servers/${id}/stop`,
-              {
-                method: "POST",
-              },
-            );
-
-            if (!stopResponse.ok) {
-              const errorData = await stopResponse
-                .json()
-                .catch(() => ({ message: "Failed to stop MCP server" }));
-              console.warn(
-                `Warning when stopping server: ${errorData.message}`,
-              );
-              // Don't throw, as the config is already updated to disabled
-            } else {
-              toast.success(
-                `Server ${mcpServerConfigs[id].name || id} stopped and disabled`,
-              );
-            }
-          } catch (err) {
-            console.error(`Error stopping server ${id}:`, err);
-            // Continue anyway as the disabled state is saved
-          }
-
-          // Remove tools from the UI display for this server
-          setMcpServerTools((prev) => {
-            const updated = { ...prev };
-            delete updated[id];
-            return updated;
-          });
-        }
-      } catch (error) {
-        console.error(`Error managing MCP server ${id}:`, error);
-        toast.error(
-          `Failed to ${value ? "enable" : "disable"} server: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-        // Revert the change in UI if save failed
-        setMcpServerConfigs((prev) => ({
-          ...prev,
-          [id]: {
-            ...prev[id],
-            [field]: !value,
-          },
-        }));
-      }
-    }
-  };
-
-  // Save updated MCP configuration
-  const handleSaveMcpConfig = async (id: string) => {
-    const configToSave = mcpServerConfigs[id];
-    if (!configToSave) return;
-
-    try {
-      // Explicitly ensure env is included in the payload if it exists
-      const payload = {
-        ...configToSave,
-        env: configToSave.env || {},
-      };
-
-      console.log(`Saving config for ${id}:`, payload);
-
-      const response = await fetch(
-        `http://localhost:38000/api/mcp/configurations/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to save MCP configuration" }));
-        throw new Error(
-          errorData.message || "Failed to save MCP configuration",
-        );
-      }
-
-      toast.success(`Configuration for ${configToSave.name || id} saved.`);
-    } catch (error) {
-      console.error(`Error saving MCP configuration for ${id}:`, error);
-      toast.error(
-        `Failed to save configuration for ${configToSave.name || id}: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  };
-
-  // Handle theme toggle
-  const handleToggleTheme = async () => {
-    try {
-      await toggleTheme();
-      const { system } = await getCurrentTheme();
-      setCurrentTheme(system);
-      toast.success(`Theme switched to ${system} mode`);
-    } catch (error) {
-      console.error("Error toggling theme:", error);
-      toast.error("Failed to toggle theme");
-    }
-  };
-
   const marketplaceProps = {
     loadingMarketplace,
     loadingMcpServers,
@@ -1035,7 +294,7 @@ export default function SettingsPage() {
     onInstallMcpTool: handleInstallMcpTool,
     onManualInstallMcp: handleManualInstallMcp,
     onUninstallPredefinedServer: handleUninstallPredefinedServer,
-    onRefreshServers: fetchAllMcpServers,
+    onRefreshServers: refreshMcpData,
   };
 
   // Navigation items for sidebar
@@ -1284,7 +543,7 @@ export default function SettingsPage() {
                             // Get button position for realistic positioning
                             const button = e.currentTarget;
                             const rect = button.getBoundingClientRect();
-                            const x = rect.right + 10; // Position to the right of the button
+                            const x = rect.right + 10;
                             const y = rect.top;
                             
                             window.electronAPI?.toggleAgentPopover(
@@ -1312,7 +571,7 @@ export default function SettingsPage() {
                             // Get button position for realistic positioning
                             const button = e.currentTarget;
                             const rect = button.getBoundingClientRect();
-                            const x = rect.right + 10; // Position to the right of the button
+                            const x = rect.right + 10;
                             const y = rect.top;
                             
                             window.electronAPI?.toggleModelSelector(
