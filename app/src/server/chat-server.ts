@@ -12,6 +12,7 @@ import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
 
 const app = new Hono();
+export type AppType = typeof app;
 app.use("*", cors());
 
 app.get("/api/health", (c) =>
@@ -54,3 +55,4 @@ function startChatServer() {
 }
 
 export default startChatServer;
+export { app };
