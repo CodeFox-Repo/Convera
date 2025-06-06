@@ -57,7 +57,9 @@ export const WINDOW_SIZE_PRESETS = {
   MODEL_SELECTOR: {
     widthProportion: 0.15,
     heightProportion: 0.25,
-    minWidth: 200,
-    minHeight: 250,
+    minWidth: 280,
+    minHeight: 240,
+    maxWidth: 280,
+    maxHeight: 240,
   },
 };

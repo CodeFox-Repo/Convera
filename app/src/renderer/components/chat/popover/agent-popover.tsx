@@ -13,7 +13,7 @@ interface Tool {
 }
 
 const mockBasicToolsData: Tool[] = [
-  { id: "websearch", name: "Web Search", enabled: true, description: "Enable web searching capabilities." },
+  { id: "websearch", name: "Web Search", enabled: false, description: "Enable web searching capabilities." },
   { id: "thinking", name: "Thinking Indicator", enabled: false, description: "Show thinking animations." },
 ];
 
@@ -77,16 +77,26 @@ useThemeSync();
       const data = await response.json();
       if (data.status === "success" && Array.isArray(data.tools)) {
         console.log(`Loaded ${data.tools.length} tools for server ${id}:`, data.tools);
-        setMcpServerTools(prev => ({ ...prev, [id]: data.tools }));
-        
-        const enabledStatus: Record<string, boolean> = {};
-        data.tools.forEach((tool: ToolDefinition) => {
-          const isEnabled = selectedAgent?.toolReferences?.some(ref => 
-            ref.mcpName === id && ref.toolName === tool.name
-          ) ?? false;
-          enabledStatus[tool.name] = isEnabled;
+        setMcpServerTools(prev => {
+          const newServerTools = { ...prev, [id]: data.tools };
+          
+          // Immediately recalculate enabled state for current agent when tools are loaded
+          if (selectedAgent) {
+            const enabledStatus: Record<string, boolean> = {};
+            data.tools.forEach((tool: ToolDefinition) => {
+              const isEnabled = selectedAgent.toolReferences?.some(ref => 
+                ref.mcpName === id && ref.toolName === tool.name
+              ) ?? false;
+              enabledStatus[tool.name] = isEnabled;
+            });
+            setMcpToolsEnabled(prevEnabled => ({ 
+              ...prevEnabled, 
+              [id]: enabledStatus 
+            }));
+          }
+          
+          return newServerTools;
         });
-        setMcpToolsEnabled(prev => ({ ...prev, [id]: enabledStatus }));
       } else {
         console.warn(`Invalid tools response format for server ${id}:`, data);
       }
@@ -124,6 +134,8 @@ useThemeSync();
   useEffect(() => {
     if (selectedAgent && Object.keys(mcpServerTools).length > 0) {
       console.log("Recalculating MCP tools enabled state for agent:", selectedAgent.name);
+      console.log("Agent tool references:", selectedAgent.toolReferences);
+      
       const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
       
       Object.entries(mcpServerTools).forEach(([serverId, tools]) => {
@@ -133,28 +145,124 @@ useThemeSync();
             ref.mcpName === serverId && ref.toolName === tool.name
           ) ?? false;
           enabledStatus[tool.name] = isEnabled;
+          console.log(`Tool ${serverId}:${tool.name} enabled: ${isEnabled}`);
         });
         newMcpToolsEnabled[serverId] = enabledStatus;
       });
       
       setMcpToolsEnabled(newMcpToolsEnabled);
+      console.log("Updated MCP tools enabled state:", newMcpToolsEnabled);
+    } else if (!selectedAgent) {
+      // Clear all tool states if no agent is selected
+      setMcpToolsEnabled({});
+      console.log("Cleared MCP tools state - no agent selected");
     }
   }, [selectedAgent, mcpServerTools]);
+
+  // Update built-in tools state based on selected agent
+  useEffect(() => {
+    if (selectedAgent) {
+      console.log("Updating built-in tools state for agent:", selectedAgent.name);
+      setBasicTools(prev => prev.map(tool => ({
+        ...tool,
+        enabled: selectedAgent.toolNames?.includes(tool.id) ?? false
+      })));
+    } else {
+      // Reset to default state if no agent selected
+      setBasicTools(mockBasicToolsData);
+    }
+  }, [selectedAgent]);
 
   // Handle agent selection
   const handleAgentSelect = (agent: Agent) => {
     console.log(`Agent selected: ${agent.name}`);
+    console.log("Agent tool references:", agent.toolReferences);
+    console.log("Agent tool names:", agent.toolNames);
+    
     setSelectedAgent(agent);
-
-    if (window.electronAPI) {
-      localStorage.setItem("selectedAgent", JSON.stringify(agent));
-      window.electronAPI.toggleAgentPopover();
+    localStorage.setItem("selectedAgent", JSON.stringify(agent));
+    
+    // Force immediate recalculation of built-in tools state for the new agent
+    setBasicTools(prev => prev.map(tool => ({
+      ...tool,
+      enabled: agent.toolNames?.includes(tool.id) ?? false
+    })));
+    
+    // Force immediate recalculation of MCP tool states for the new agent
+    if (Object.keys(mcpServerTools).length > 0) {
+      console.log("Immediately recalculating MCP tools for new agent:", agent.name);
+      const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
+      
+      Object.entries(mcpServerTools).forEach(([serverId, tools]) => {
+        const enabledStatus: Record<string, boolean> = {};
+        tools.forEach((tool: ToolDefinition) => {
+          const isEnabled = agent.toolReferences?.some(ref => 
+            ref.mcpName === serverId && ref.toolName === tool.name
+          ) ?? false;
+          enabledStatus[tool.name] = isEnabled;
+        });
+        newMcpToolsEnabled[serverId] = enabledStatus;
+      });
+      
+      setMcpToolsEnabled(newMcpToolsEnabled);
+      console.log("Immediately updated MCP tools state:", newMcpToolsEnabled);
     }
+    
+    window.electronAPI.toggleAgentPopover();
   };
 
-  const handleBasicToolToggle = (toolId: string) => {
-    setBasicTools(prev => prev.map(t => t.id === toolId ? { ...t, enabled: !t.enabled } : t));
-    console.log(`Toggled basic tool ${toolId}`);
+  const handleBasicToolToggle = async (toolId: string) => {
+    const currentAgent = useAgentStore.getState().selectedAgent;
+    if (!currentAgent) {
+      console.error("No agent selected for basic tool toggle");
+      return;
+    }
+
+    const currentToolNames = currentAgent.toolNames || [];
+    const isCurrentlyEnabled = currentToolNames.includes(toolId);
+    const newEnabled = !isCurrentlyEnabled;
+    
+    console.log(`Toggling basic tool ${toolId} to ${newEnabled ? 'enabled' : 'disabled'}`);
+    
+    let updatedToolNames: string[];
+    if (newEnabled) {
+      updatedToolNames = [...currentToolNames, toolId];
+    } else {
+      updatedToolNames = currentToolNames.filter(name => name !== toolId);
+    }
+
+    const agentData = {
+      id: currentAgent.id,
+      name: currentAgent.name,
+      description: currentAgent.description,
+      toolNames: updatedToolNames,
+      toolReferences: currentAgent.toolReferences || [],
+    };
+
+    const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(agentData),
+    });
+    
+    if (response.ok) {
+      const updatedAgent = { ...currentAgent, toolNames: updatedToolNames };
+      
+      // Use store methods to update agent
+      useAgentStore.getState().updateSelectedAgent(updatedAgent);
+      useAgentStore.getState().updateAvailableAgent(updatedAgent);
+      
+      // Update local state immediately
+      setBasicTools(prev => prev.map(t => 
+        t.id === toolId ? { ...t, enabled: newEnabled } : t
+      ));
+      
+      console.log(`Successfully toggled basic tool ${toolId} to ${newEnabled ? 'enabled' : 'disabled'}`);
+    } else {
+      console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
+    }
   };
 
   const handleMcpToolToggle = async (serverId: string, toolName: string) => {
@@ -382,17 +490,13 @@ useThemeSync();
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        if (window.electronAPI) {
-          window.electronAPI.toggleAgentPopover();
-        }
+        window.electronAPI.toggleAgentPopover();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (window.electronAPI) {
-          window.electronAPI.toggleAgentPopover();
-        }
+        window.electronAPI.toggleAgentPopover();
       }
     };
 
@@ -413,20 +517,6 @@ useThemeSync();
 
   return (
     <div className="relative" ref={popoverRef}>
-      {/* Arrow pointing to the trigger button */}
-      <div
-        className="absolute -top-2 left-5 h-2 w-4 overflow-hidden"
-        style={{ clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" }}
-      >
-        <div className="bg-border absolute inset-0"></div>
-      </div>
-      <div
-        className="absolute -top-[7px] left-[22px] h-2 w-3 overflow-hidden"
-        style={{ clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" }}
-      >
-        <div className="bg-background absolute inset-0"></div>
-      </div>
-
       <div 
         className="bg-background border-border w-80 h-[350px] rounded-xl border shadow-lg flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -444,7 +534,7 @@ useThemeSync();
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           {/* Current Agent Section */}
-          <div className="p-4">
+          <div className="p-4 border-b border-border/30">
             <div 
               className="flex items-center justify-between cursor-pointer group hover:bg-muted/30 rounded-lg p-2 -m-2 transition-all duration-200"
             >
@@ -462,7 +552,7 @@ useThemeSync();
             </div>
 
             {/* Agent List */}
-            <div className="mt-3 space-y-1 max-h-52">
+            <div className="mt-3 space-y-1">
               {availableAgents.map((agent) => (
                 <div
                   key={agent.id}
@@ -494,7 +584,7 @@ useThemeSync();
           </div>
 
           {/* Built-in Tools Section */}
-          <div className="px-4 pb-4">
+          <div className="px-4 py-3 border-b border-border/30">
             <div 
               className="flex items-center justify-between cursor-pointer group hover:bg-muted/30 rounded-lg p-2 -m-2 transition-all duration-200"
               onClick={() => toggleSection('builtin')}
@@ -571,7 +661,7 @@ useThemeSync();
           </div>
 
           {/* MCP Servers Section */}
-          <div className="px-4 pb-4">
+          <div className="px-4 py-3">
             <div 
               className="flex items-center justify-between cursor-pointer group hover:bg-muted/30 rounded-lg p-2 -m-2 transition-all duration-200"
               onClick={() => toggleSection('mcp')}

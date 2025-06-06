@@ -152,9 +152,9 @@ export const useAgentStore = create<AgentState>()(
               await window.electronAPI.getCurrentWindowPosition();
 
             // Calculate absolute position relative to the window
-            // Position the popover to the left of the button, aligned to the top
-            const absX = Math.round(winX + rect.left - 320 - 8); // 8px gap to the left of button, 320 is the popover width
-            const absY = Math.round(winY + rect.top);
+            // Position the popover above the button, aligned to the left
+            const absX = Math.round(winX + rect.left);
+            const absY = Math.round(winY + rect.top - 350 - 8); // 8px gap above button, 350px is the popover height
 
             console.log(
               `Positioning agent popover at: x=${absX}, y=${absY} (button rect: ${rect.left}, ${rect.top}, window: ${winX}, ${winY})`,

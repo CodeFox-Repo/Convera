@@ -121,14 +121,12 @@ export function createModelSelectorWindow(
   }
 
   if (modelSelectorWindow) {
-    // Get dimensions from presets if not provided
-    if (width === 0 || height === 0) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
-      );
-      width = dimensions.width;
-      height = dimensions.height;
-    }
+    // Get dimensions from presets - directly override like agent popover
+    const presetDimensions = calculateWindowDimensions(
+      WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
+    );
+    width = presetDimensions.width;
+    height = presetDimensions.height;
 
     // Reposition and show
     console.log(

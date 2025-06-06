@@ -81,6 +81,12 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   window.on("closed", () => {
     agentPopoverWindow = null;
   });
+
+  // Open dev tools in development
+  if (inDevelopment) {
+    console.log("Opening DevTools for agent popover window");
+    window.webContents.openDevTools({ mode: "detach" });
+  }
 }
 
 // Pre-create agent popover window

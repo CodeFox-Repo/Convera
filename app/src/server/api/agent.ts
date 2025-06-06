@@ -149,6 +149,27 @@ router.put(
       (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
     );
 
+    // Handle systemPrompt update
+    let updatedSystemPrompt: string;
+    if (typeof systemPrompt === "string") {
+      // If systemPrompt is explicitly provided, use it and append tools
+      updatedSystemPrompt =
+        formattedToolNames.length > 0
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : systemPrompt;
+    } else {
+      // If systemPrompt is not provided, update the existing one with new tools
+      const existingPrompt = existingAgent.systemPrompt || "";
+      // Remove existing "Available tools:" section if it exists
+      const basePrompt = existingPrompt
+        .replace(/\n\nAvailable tools:.*$/, "")
+        .trim();
+      updatedSystemPrompt =
+        formattedToolNames.length > 0
+          ? `${basePrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : basePrompt;
+    }
+
     const updatedAgent: AgentDefinition = {
       ...existingAgent,
       id: agentId,
@@ -160,10 +181,7 @@ router.put(
       avatar: avatar || existingAgent.avatar,
       category: category || existingAgent.category,
       type: type || existingAgent.type,
-      systemPrompt:
-        typeof systemPrompt === "string"
-          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-          : existingAgent.systemPrompt,
+      systemPrompt: updatedSystemPrompt,
     };
 
     const deleteSuccess = await deleteCustomAgent(agentId);
