@@ -163,10 +163,13 @@ useThemeSync();
   useEffect(() => {
     if (selectedAgent) {
       console.log("Updating built-in tools state for agent:", selectedAgent.name);
-      setBasicTools(prev => prev.map(tool => ({
-        ...tool,
-        enabled: selectedAgent.toolNames?.includes(tool.id) ?? false
-      })));
+      // Use toolReferences instead of toolNames
+      setBasicTools(prev => prev.map(tool => {
+        const isEnabled = selectedAgent.toolReferences?.some(ref => 
+          ref.toolName === tool.id && ref.mcpName === "built-in"
+        ) ?? false;
+        return { ...tool, enabled: isEnabled };
+      }));
     } else {
       // Reset to default state if no agent selected
       setBasicTools(mockBasicToolsData);
@@ -177,16 +180,17 @@ useThemeSync();
   const handleAgentSelect = (agent: Agent) => {
     console.log(`Agent selected: ${agent.name}`);
     console.log("Agent tool references:", agent.toolReferences);
-    console.log("Agent tool names:", agent.toolNames);
     
     setSelectedAgent(agent);
     localStorage.setItem("selectedAgent", JSON.stringify(agent));
     
     // Force immediate recalculation of built-in tools state for the new agent
-    setBasicTools(prev => prev.map(tool => ({
-      ...tool,
-      enabled: agent.toolNames?.includes(tool.id) ?? false
-    })));
+    setBasicTools(prev => prev.map(tool => {
+      const isEnabled = agent.toolReferences?.some(ref => 
+        ref.toolName === tool.id && ref.mcpName === "built-in"
+      ) ?? false;
+      return { ...tool, enabled: isEnabled };
+    }));
     
     // Force immediate recalculation of MCP tool states for the new agent
     if (Object.keys(mcpServerTools).length > 0) {
@@ -213,30 +217,41 @@ useThemeSync();
 
   const handleBasicToolToggle = async (toolId: string) => {
     const currentAgent = useAgentStore.getState().selectedAgent;
+    
     if (!currentAgent) {
       console.error("No agent selected for basic tool toggle");
       return;
     }
 
-    const currentToolNames = currentAgent.toolNames || [];
-    const isCurrentlyEnabled = currentToolNames.includes(toolId);
+    const currentToolReferences = currentAgent.toolReferences || [];
+    const isCurrentlyEnabled = currentToolReferences.some(ref => 
+      ref.toolName === toolId && ref.mcpName === "built-in"
+    );
     const newEnabled = !isCurrentlyEnabled;
     
-    console.log(`Toggling basic tool ${toolId} to ${newEnabled ? 'enabled' : 'disabled'}`);
+    console.log(`Toggling basic tool ${toolId} from ${isCurrentlyEnabled} to ${newEnabled}`);
     
-    let updatedToolNames: string[];
+    let updatedToolReferences: ToolReference[];
     if (newEnabled) {
-      updatedToolNames = [...currentToolNames, toolId];
+      // Add the basic tool reference with special built-in identifier
+      const newToolRef: ToolReference = {
+        mcpName: "built-in",
+        toolName: toolId,
+        isBuiltIn: true,
+      };
+      updatedToolReferences = [...currentToolReferences, newToolRef];
     } else {
-      updatedToolNames = currentToolNames.filter(name => name !== toolId);
+      // Remove the basic tool reference
+      updatedToolReferences = currentToolReferences.filter(ref => 
+        !(ref.toolName === toolId && ref.mcpName === "built-in")
+      );
     }
 
     const agentData = {
       id: currentAgent.id,
       name: currentAgent.name,
       description: currentAgent.description,
-      toolNames: updatedToolNames,
-      toolReferences: currentAgent.toolReferences || [],
+      toolReferences: updatedToolReferences,
     };
 
     const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
@@ -248,7 +263,7 @@ useThemeSync();
     });
     
     if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolNames: updatedToolNames };
+      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
       
       // Use store methods to update agent
       useAgentStore.getState().updateSelectedAgent(updatedAgent);
@@ -262,6 +277,8 @@ useThemeSync();
       console.log(`Successfully toggled basic tool ${toolId} to ${newEnabled ? 'enabled' : 'disabled'}`);
     } else {
       console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
     }
   };
 
@@ -279,10 +296,8 @@ useThemeSync();
     console.log(`Toggling tool ${toolName} for server ${serverId} to ${newEnabled ? 'enabled' : 'disabled'}`);
     
     const currentToolReferences = currentAgent.toolReferences || [];
-    const currentToolNames = currentAgent.toolNames || [];
     
     let updatedToolReferences: ToolReference[];
-    let updatedToolNames: string[];
     
     if (newEnabled) {
       const newToolRef: ToolReference = {
@@ -291,13 +306,9 @@ useThemeSync();
         isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
       };
       updatedToolReferences = [...currentToolReferences, newToolRef];
-      updatedToolNames = [...currentToolNames, `${serverId}:${toolName}`];
     } else {
       updatedToolReferences = currentToolReferences.filter(ref => 
         !(ref.mcpName === serverId && ref.toolName === toolName)
-      );
-      updatedToolNames = currentToolNames.filter(name => 
-        name !== `${serverId}:${toolName}`
       );
     }
 
@@ -305,7 +316,6 @@ useThemeSync();
       id: currentAgent.id,
       name: currentAgent.name,
       description: currentAgent.description,
-      toolNames: updatedToolNames,
       toolReferences: updatedToolReferences,
     };
 
@@ -318,7 +328,7 @@ useThemeSync();
     });
     
     if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
+      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
       
       // Use store methods instead of manual updates
       useAgentStore.getState().updateSelectedAgent(updatedAgent);
@@ -353,17 +363,14 @@ useThemeSync();
     console.log(`Disabling all tools for server ${serverId}`);
     
     const currentToolReferences = currentAgent.toolReferences || [];
-    const currentToolNames = currentAgent.toolNames || [];
     
     // Remove all tools from this server
     const updatedToolReferences = currentToolReferences.filter(ref => ref.mcpName !== serverId);
-    const updatedToolNames = currentToolNames.filter(name => !name.startsWith(`${serverId}:`));
 
     const agentData = {
       id: currentAgent.id,
       name: currentAgent.name,
       description: currentAgent.description,
-      toolNames: updatedToolNames,
       toolReferences: updatedToolReferences,
     };
 
@@ -376,7 +383,7 @@ useThemeSync();
     });
     
     if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
+      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
       
       // Use store methods instead of manual updates
       useAgentStore.getState().updateSelectedAgent(updatedAgent);
@@ -414,7 +421,6 @@ useThemeSync();
     console.log(`Enabling all tools for server ${serverId}`);
     
     const currentToolReferences = currentAgent.toolReferences || [];
-    const currentToolNames = currentAgent.toolNames || [];
     
     // Add all tools from this server that aren't already added
     const existingServerTools = currentToolReferences
@@ -429,18 +435,12 @@ useThemeSync();
         isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
       }));
     
-    const newToolNames = serverTools
-      .filter(tool => !existingServerTools.includes(tool.name))
-      .map(tool => `${serverId}:${tool.name}`);
-    
     const updatedToolReferences = [...currentToolReferences, ...newToolRefs];
-    const updatedToolNames = [...currentToolNames, ...newToolNames];
 
     const agentData = {
       id: currentAgent.id,
       name: currentAgent.name,
       description: currentAgent.description,
-      toolNames: updatedToolNames,
       toolReferences: updatedToolReferences,
     };
 
@@ -453,7 +453,7 @@ useThemeSync();
     });
     
     if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolNames: updatedToolNames, toolReferences: updatedToolReferences };
+      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
       
       // Use store methods instead of manual updates
       useAgentStore.getState().updateSelectedAgent(updatedAgent);

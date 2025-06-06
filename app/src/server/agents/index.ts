@@ -27,7 +27,11 @@ const builtInAgents: AgentDefinition[] = [
     iconUrl: "/assets/images/agents/coder.png",
     avatar: "🦊",
     systemPrompt: getDefaultSystemPrompt(),
-    toolReferences: [],
+    toolReferences: [
+      { mcpName: "built-in", toolName: "websearch", isBuiltIn: true },
+      { mcpName: "built-in", toolName: "thinking", isBuiltIn: true },
+    ],
+    predefined: true,
   },
   {
     id: "coder",
@@ -146,7 +150,11 @@ const builtInAgents: AgentDefinition[] = [
         toolName: "addDependencyTool",
         isBuiltIn: true,
       },
+      { mcpName: "github", toolName: "create_repository", isBuiltIn: false },
+      { mcpName: "github", toolName: "create_issue", isBuiltIn: false },
+      { mcpName: "github", toolName: "create_pull_request", isBuiltIn: false },
     ],
+    predefined: true,
   },
 ];
 

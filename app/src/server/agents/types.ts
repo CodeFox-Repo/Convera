@@ -52,6 +52,7 @@ export const CreateAgentSchema = z.object({
   avatar: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
+  predefined: z.boolean().optional(),
 });
 
 export const UpdateAgentSchema = z.object({
@@ -65,6 +66,7 @@ export const UpdateAgentSchema = z.object({
   avatar: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
+  predefined: z.boolean().optional(),
 });
 
 export type CreateAgentRequest = z.infer<typeof CreateAgentSchema>;

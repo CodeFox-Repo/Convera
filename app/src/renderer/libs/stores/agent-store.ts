@@ -9,8 +9,8 @@ export interface Agent {
   description: string;
   category: string;
   iconUrl?: string;
-  toolNames?: string[];
   toolReferences?: ToolReference[];
+  predefined?: boolean;
 }
 
 interface AgentState {
