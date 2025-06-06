@@ -5,9 +5,9 @@
  * Handles communication with MCP servers
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { ToolDefinition } from "./types";
 
 /**
@@ -73,7 +73,7 @@ export class MCPClient {
         const options: any = {
           command: this.serverCommand,
           args: this.serverArgs || [],
-          env: { ...process.env }, // Always include system environment variables
+          env: { ...process.env }, // Always include system environment variables,
         };
 
         // Create a merged environment that includes system environment variables
@@ -109,7 +109,6 @@ export class MCPClient {
             console.error(
               `Could not find the command '${this.serverCommand}'. Make sure it's installed and in your PATH.`,
             );
-            console.error(`Current PATH: ${process.env.PATH}`);
             // Suggest some common locations to check
             console.error("Common locations to check:");
             console.error("- Global npm: ~/.npm-global/bin or /usr/local/bin");

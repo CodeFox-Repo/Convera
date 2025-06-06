@@ -123,7 +123,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   return (
     <div className="ml-2 drag-region flex min-h-[30px] items-center justify-between">
       {/* Left icons and elements */}
-      <div className="flex flex-1 items-center space-x-4">
+      <div className="flex flex-1 items-center space-x-2">
         {leftActionButtons.map((config) => {
           const isVisible = typeof config.show === 'function' 
             ? config.show(props, hookData) 
@@ -158,7 +158,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       </div>
 
       {/* Right side - Mic and Send buttons */}
-      <div className="flex shrink-0 items-center  mr-2">
+      <div className="flex shrink-0 items-center mr-2">
         <button
           onClick={props.onVoiceInput}
           className="no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5"

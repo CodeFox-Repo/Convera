@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, memo } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Clipboard } from "lucide-react";
+import React, { memo, useEffect, useRef, useState } from "react";
 
 /**
- * Component to show copied content with distinct styling
+ * Component to show copied content with subtle styling matching attachment pattern
  */
 const CopiedContentBlock = memo(({ children }: { children: React.ReactNode }) => {
   const [expanded, setExpanded] = useState(false);
@@ -23,15 +23,16 @@ const CopiedContentBlock = memo(({ children }: { children: React.ReactNode }) =>
   };
 
   return (
-    <div 
-      className="no-drag-region border-l-4 border-primary/50 bg-primary/5 my-2 p-3 rounded-md"
-    >
+    <div className="no-drag-region my-2 rounded-md border border-border bg-background/50 p-3">
       <div 
-        className="text-primary/70 text-xs mb-1 font-medium flex items-center justify-between cursor-pointer"
+        className="mb-1 flex cursor-pointer items-center justify-between text-xs font-medium text-muted-foreground"
         onClick={toggleExpanded}
       >
-        <span>📋 Copied Content</span>
-        <span className="text-foreground/50 text-xs flex items-center hover:text-primary transition-colors">
+        <div className="flex items-center gap-2">
+          <Clipboard size={12} />
+          <span>Copied Content</span>
+        </div>
+        <span className="flex items-center text-xs transition-colors hover:text-foreground">
           {expanded ? (
             <>
               <span className="mr-1">Collapse</span>
@@ -47,12 +48,12 @@ const CopiedContentBlock = memo(({ children }: { children: React.ReactNode }) =>
       </div>
       <div 
         ref={contentRef}
-        className="text-foreground/90 overflow-hidden relative transition-all duration-300"
-        style={{ maxHeight: expanded ? `${contentHeight}px` : '80px' }}
+        className="text-foreground/90 relative overflow-hidden transition-all duration-300"
+        style={{ maxHeight: expanded ? `${contentHeight}px` : '120px' }}
       >
         {children}
         {!expanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
+          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-background/50 to-transparent" />
         )}
       </div>
     </div>

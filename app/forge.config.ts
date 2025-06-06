@@ -1,44 +1,23 @@
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
-import { MakerZIP } from "@electron-forge/maker-zip";
+import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import fs from "fs";
-import path from "path";
 import pkg from "./package.json";
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
-    asar: {
-      unpack: "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
-    },
+    asar: true,
     icon: "./images/icon",
-  },
-  hooks: {
-    postPackage: async (_config, options) => {
-      const src = path.resolve(
-        __dirname,
-        "..",
-        "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
-      );
-      const dest = path.join(
-        options.outputPaths[0],
-        "FoxyChat.app/Contents/Resources/app.asar.unpacked",
-        "node_modules/@hurdlegroup/robotjs/build/Release/robotjs.node",
-      );
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(src, dest);
-    },
   },
 
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
-    new MakerZIP({}, ["darwin"]),
     new MakerRpm({}),
     new MakerDeb({
       options: {
@@ -55,6 +34,7 @@ const config: ForgeConfig = {
     },
   ],
   plugins: [
+    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.

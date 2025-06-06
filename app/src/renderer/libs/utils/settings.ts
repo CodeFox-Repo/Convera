@@ -1,12 +1,41 @@
 import {
   AppSettings,
+  McpServerSettings,
+  McpSettings,
   OpenAISettings,
   ShortcutSettings,
-  McpSettings,
-  McpServerSettings,
 } from "@/shared/types/settings";
 
 const SETTINGS_KEY = "foxchat_settings";
+
+// Detect platform using electronAPI or fallback to navigator.platform
+async function getPlatform(): Promise<string> {
+  try {
+    if (typeof window !== "undefined" && window.electronAPI) {
+      return await window.electronAPI.getPlatform();
+    }
+  } catch (error) {
+    console.warn(
+      "Failed to detect platform via electronAPI, using fallback:",
+      error,
+    );
+  }
+
+  // Fallback to navigator.platform
+  if (typeof window !== "undefined") {
+    return navigator.platform.toLowerCase().includes("mac")
+      ? "darwin"
+      : "other";
+  }
+
+  return "other";
+}
+
+// Check if current platform is macOS
+async function isMacOS(): Promise<boolean> {
+  const platform = await getPlatform();
+  return platform === "darwin";
+}
 
 const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
   endpoint: "https://openrouter.ai/api/v1",
@@ -21,20 +50,25 @@ const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
   ],
 };
 
-const DEFAULT_SHORTCUTS: ShortcutSettings[] = [
-  {
-    id: "activate",
-    name: "Activate App",
-    shortcut: "Control+Shift+Space",
-    enabled: true,
-  },
-  {
-    id: "open_settings",
-    name: "Open Settings",
-    shortcut: typeof window !== 'undefined' && window.electronAPI?.getPlatform?.() === "darwin" ? "Command+E" : "Control+E",
-    enabled: true,
-  },
-];
+// Get default shortcuts based on platform
+async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
+  const isApple = await isMacOS();
+
+  return [
+    {
+      id: "activate",
+      name: "Activate App",
+      shortcut: isApple ? "Alt+Space" : "Control+Shift+Space",
+      enabled: true,
+    },
+    {
+      id: "open_settings",
+      name: "Open Settings",
+      shortcut: isApple ? "Command+," : "Control+E",
+      enabled: true,
+    },
+  ];
+}
 
 const DEFAULT_MCP_SERVER_SETTINGS: McpServerSettings = {
   serverUrl: "http://localhost:3000",
@@ -46,16 +80,19 @@ const DEFAULT_MCP_SETTINGS: McpSettings = {
   server: DEFAULT_MCP_SERVER_SETTINGS,
 };
 
-const DEFAULT_SETTINGS: AppSettings = {
-  openai: DEFAULT_OPENAI_SETTINGS,
-  shortcuts: DEFAULT_SHORTCUTS,
-  mcp: DEFAULT_MCP_SETTINGS,
-};
+// Get default settings based on platform
+async function getDefaultSettings(): Promise<AppSettings> {
+  return {
+    openai: DEFAULT_OPENAI_SETTINGS,
+    shortcuts: await getDefaultShortcuts(),
+    mcp: DEFAULT_MCP_SETTINGS,
+  };
+}
 
 /**
  * Merges default settings with user settings from localStorage.
  */
-export function getMergedConfig(): AppSettings {
+export async function getMergedConfig(): Promise<AppSettings> {
   let userSettings: Partial<AppSettings> = {};
   try {
     const settingsJson = localStorage.getItem(SETTINGS_KEY);
@@ -77,7 +114,7 @@ export function getMergedConfig(): AppSettings {
   const mergedShortcuts: ShortcutSettings[] =
     userSettings.shortcuts && userSettings.shortcuts.length > 0
       ? userSettings.shortcuts
-      : DEFAULT_SHORTCUTS;
+      : await getDefaultShortcuts();
 
   // Merge MCP settings
   const mergedMcpSettings: McpSettings = {
@@ -98,50 +135,35 @@ export function getMergedConfig(): AppSettings {
 /**
  * Get all application settings
  */
-export function getSettings(): AppSettings {
-  return getMergedConfig();
+export async function getSettings(): Promise<AppSettings> {
+  return await getMergedConfig();
 }
 
 /**
  * Initialize the global shortcut based on user settings
  */
-export function initGlobalShortcut(): void {
-  if (typeof window !== "undefined" && window.require) {
-    try {
-      const settings = getSettings();
-      // Find the activate shortcut
-      const activateShortcut = settings.shortcuts.find(
-        (s) => s.id === "activate",
-      );
-      if (activateShortcut && activateShortcut.enabled) {
-        const { ipcRenderer } = window.require("electron");
-        ipcRenderer
-          .invoke("init-global-shortcut", activateShortcut.shortcut)
-          .then((success: boolean) => {
-            console.log(
-              `Global shortcut initialization ${success ? "succeeded" : "already set"}`,
-            );
-          })
-          .catch((error: Error) => {
-            console.error("Error initializing global shortcut:", error);
-          });
-      }
-    } catch (error: unknown) {
-      console.error("Failed to initialize global shortcut:", error);
-    }
+export async function initGlobalShortcut(): Promise<void> {
+  const settings = await getSettings();
+  // Find the activate shortcut
+  const activateShortcut = settings.shortcuts.find((s) => s.id === "activate");
+  if (activateShortcut && window.electronAPI) {
+    window.electronAPI.initGlobalShortcut(activateShortcut.shortcut);
+  } else {
+    console.log("No activate shortcut found or electronAPI not available");
   }
 }
 
 /**
  * Save all application settings to localStorage
  */
-export function saveSettings(settings: AppSettings): void {
+export async function saveSettings(settings: AppSettings): Promise<void> {
   try {
+    const defaultSettings = await getDefaultSettings();
+
     // Only save the parts that differ from default or are necessary
     const settingsToSave: Partial<AppSettings> = {};
     if (
-      JSON.stringify(settings.openai) !==
-      JSON.stringify(DEFAULT_SETTINGS.openai)
+      JSON.stringify(settings.openai) !== JSON.stringify(defaultSettings.openai)
     ) {
       settingsToSave.openai = settings.openai;
     }
@@ -162,24 +184,26 @@ export function saveSettings(settings: AppSettings): void {
 /**
  * Update OpenAI settings
  */
-export function updateOpenAISettings(
+export async function updateOpenAISettings(
   openaiPartial: Partial<OpenAISettings>,
-): AppSettings {
-  const currentSettings = getMergedConfig();
+): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
   const updatedOpenAI = { ...currentSettings.openai, ...openaiPartial };
   const updatedSettings = {
     ...currentSettings,
     openai: updatedOpenAI,
   };
-  saveSettings(updatedSettings);
+  await saveSettings(updatedSettings);
   return updatedSettings;
 }
 
 /**
  * Add or update a shortcut
  */
-export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
-  const currentSettings = getMergedConfig();
+export async function updateShortcut(
+  shortcut: ShortcutSettings,
+): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
   const shortcuts = [...currentSettings.shortcuts]; // Create a copy
   const existingIndex = shortcuts.findIndex((s) => s.id === shortcut.id);
 
@@ -190,18 +214,17 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
   }
 
   const updatedSettings = { ...currentSettings, shortcuts };
-  saveSettings(updatedSettings);
+  await saveSettings(updatedSettings);
 
   // If this is the activate app shortcut, update the main process via IPC
   if (
     shortcut.id === "activate" &&
     typeof window !== "undefined" &&
-    window.require
+    window.electronAPI
   ) {
     try {
-      const { ipcRenderer } = window.require("electron");
-      ipcRenderer
-        .invoke("update-global-shortcut", shortcut.shortcut)
+      window.electronAPI
+        .updateGlobalShortcut(shortcut.shortcut)
         .then((success: boolean) => {
           console.log(
             `Global shortcut update ${success ? "succeeded" : "failed"}`,
@@ -211,7 +234,7 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
           console.error("Error updating global shortcut:", error);
         });
     } catch (error: unknown) {
-      console.error("Failed to update global shortcut via IPC:", error);
+      console.error("Failed to update global shortcut via electronAPI:", error);
     }
   }
 
@@ -221,36 +244,37 @@ export function updateShortcut(shortcut: ShortcutSettings): AppSettings {
 /**
  * Remove a shortcut by ID
  */
-export function removeShortcut(id: string): AppSettings {
-  const currentSettings = getMergedConfig();
+export async function removeShortcut(id: string): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
   const shortcuts = currentSettings.shortcuts.filter((s) => s.id !== id);
   const updatedSettings = { ...currentSettings, shortcuts };
-  saveSettings(updatedSettings);
+  await saveSettings(updatedSettings);
   return updatedSettings;
 }
 
 /**
  * Resets the shortcuts to their default values in localStorage.
  */
-export function resetShortcutsToDefault(): AppSettings {
-  const currentSettings = getMergedConfig();
+export async function resetShortcutsToDefault(): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
+  const defaultShortcuts = await getDefaultShortcuts();
   const settingsToSave = {
     ...currentSettings, // Keep other settings like OpenAI
-    shortcuts: DEFAULT_SHORTCUTS, // Set shortcuts back to default
+    shortcuts: defaultShortcuts, // Set shortcuts back to default
   };
-  saveSettings(settingsToSave);
-  console.log("Shortcuts reset to default:", DEFAULT_SHORTCUTS);
+  await saveSettings(settingsToSave);
+  console.log("Shortcuts reset to default:", defaultShortcuts);
   return settingsToSave;
 }
 
 /**
  * Update MCP tool settings
  */
-export function updateMcpToolSettings(
+export async function updateMcpToolSettings(
   toolId: string,
   toolSettings: Record<string, string | number | boolean | string[] | null>,
-): AppSettings {
-  const currentSettings = getMergedConfig();
+): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
   const mcp = currentSettings.mcp || DEFAULT_MCP_SETTINGS;
 
   const updatedMcp = {
@@ -269,17 +293,17 @@ export function updateMcpToolSettings(
     mcp: updatedMcp,
   };
 
-  saveSettings(updatedSettings);
+  await saveSettings(updatedSettings);
   return updatedSettings;
 }
 
 /**
  * Update MCP server settings
  */
-export function updateMcpServerSettings(
+export async function updateMcpServerSettings(
   serverSettings: Partial<McpServerSettings>,
-): AppSettings {
-  const currentSettings = getMergedConfig();
+): Promise<AppSettings> {
+  const currentSettings = await getMergedConfig();
   const mcp = currentSettings.mcp || DEFAULT_MCP_SETTINGS;
 
   const updatedMcp = {
@@ -295,6 +319,6 @@ export function updateMcpServerSettings(
     mcp: updatedMcp,
   };
 
-  saveSettings(updatedSettings);
+  await saveSettings(updatedSettings);
   return updatedSettings;
 }

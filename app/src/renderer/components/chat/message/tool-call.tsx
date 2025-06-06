@@ -1,5 +1,5 @@
+import { ChevronDown, ChevronUp, Code, Loader } from "lucide-react";
 import React, { useState } from "react";
-import { ChevronUp, ChevronDown, Code, Loader } from "lucide-react";
 
 interface ToolCallProps {
   tool: string;
@@ -21,16 +21,16 @@ const ToolCall = ({
   const [isExpanded, setIsExpanded] = useState(!isCompleted);
 
   return (
-    <div className="border-foreground/10 bg-foreground/5 no-drag-region my-3 rounded-md border p-2">
+    <div className="no-drag-region my-3 rounded-md border border-border bg-background/50 p-3">
       <div
         className="flex cursor-pointer items-center justify-between"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center">
-          <Code className="text-foreground/80 mr-2 h-4 w-4" />
-          <span className="text-sm font-medium">{tool}</span>
+          <Code className="mr-2 h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">{tool}</span>
         </div>
-        <span className="bg-foreground/10 text-foreground/70 flex items-center gap-1 rounded px-2 py-0.5 text-xs">
+        <span className="flex items-center gap-1 rounded px-2 py-1 text-xs bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
           {isExpanded ? (
             <>
               <ChevronUp size={12} /> Hide Details
@@ -44,19 +44,21 @@ const ToolCall = ({
       </div>
 
       {isExpanded && (
-        <div className="mt-2 text-xs">
-          <div className="mb-2">
-            <div className="text-foreground/60 mb-1 font-medium">
+        <div className="mt-3 text-xs space-y-3">
+          <div>
+            <div className="mb-2 font-medium text-muted-foreground">
               Arguments:
             </div>
-            <pre className="bg-foreground/10 max-h-40 overflow-auto rounded p-2">
+            <pre className="max-h-40 overflow-auto rounded border border-border bg-muted/30 p-2 text-foreground">
               {JSON.stringify(args, null, 2)}
             </pre>
           </div>
 
           <div>
-            <div className="text-foreground/60 mb-1 font-medium">Result:</div>
-            <div className="bg-foreground/10 max-h-60 overflow-auto rounded p-2 whitespace-pre-wrap">
+            <div className="mb-2 font-medium text-muted-foreground">
+              Result:
+            </div>
+            <div className="max-h-60 overflow-auto rounded border border-border bg-muted/30 p-2 whitespace-pre-wrap text-foreground">
               {!isCompleted ? (
                 <div className="flex items-center text-amber-500">
                   <Loader className="mr-2 h-3 w-3 animate-spin" />

@@ -41,7 +41,7 @@ export const initProjectTool = tool({
       const templateName = "new-template";
 
       // Resolve the source template path
-      const appRoot = process.env.APP_ROOT || process.cwd();
+      const appRoot = process.cwd();
       const templatePath = path.join(appRoot, "template", templateName);
 
       // Check if template exists

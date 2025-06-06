@@ -32,3 +32,31 @@ export interface AgentChatOptions {
   agentId?: string;
   modelId?: string;
 }
+
+// Zod schemas for validating agent-related requests
+import { z } from "zod";
+
+export const ToolReferenceSchema = z.object({
+  mcpName: z.string(),
+  toolName: z.string(),
+  isBuiltIn: z.boolean().optional(),
+});
+
+export const CreateAgentSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  systemPrompt: z.string(),
+  toolReferences: z.array(ToolReferenceSchema),
+  modelId: z.string().optional(),
+  iconUrl: z.string().optional(),
+  avatar: z.string().optional(),
+  category: z.string().optional(),
+  type: z.string().optional(),
+});
+
+export const UpdateAgentSchema = CreateAgentSchema.extend({
+  id: z.string(),
+});
+
+export type CreateAgentRequest = z.infer<typeof CreateAgentSchema>;
+export type UpdateAgentRequest = z.infer<typeof UpdateAgentSchema>;

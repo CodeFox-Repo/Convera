@@ -1,18 +1,47 @@
-import { BrowserWindow, clipboard, nativeTheme } from "electron";
+import { BrowserWindow, clipboard, nativeTheme, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   resizeWindowAndMaintainPosition,
-  toggleMainWindowVisibility,
+  toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
+import {
+  ThemeMode,
+  WindowControlOptions,
+  WindowType,
+} from "@/shared/types/electron";
 import { exec } from "child_process";
+import os from "os";
+import path from "path";
 import { CHANNELS } from "./channels";
 
-let currentActivateShortcut =
-  process.platform === "darwin" ? "Alt+Space" : "Control+Space";
+// Import window getters and creators
+import {
+  createAgentPopoverWindow,
+  getAgentPopoverWindow,
+} from "@/electron/windows/agent-popover-window";
+import {
+  createHistoryWindow,
+  getHistoryWindow,
+} from "@/electron/windows/history-window";
+import {
+  createMainWindow,
+  getMainWindow,
+} from "@/electron/windows/main-window";
+import {
+  createModelSelectorWindow,
+  getModelSelectorWindow,
+} from "@/electron/windows/model-selector-window";
+import {
+  createSettingsWindow,
+  getSettingsWindow,
+} from "@/electron/windows/settings-window";
+
+// Simple in-memory storage for current shortcut
+let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
 
@@ -24,6 +53,10 @@ export function getPreviousApp(): string {
 
 export function getPreviousAppID(): number {
   return previousAppId;
+}
+
+export function getPlatform(): string {
+  return process.platform;
 }
 
 export function setPreviousApp(appName: string, appId?: number): void {
@@ -45,16 +78,40 @@ export function setPreviousApp(appName: string, appId?: number): void {
   }
 }
 
-// ========== WINDOW COMMON HANDLERS ==========
+// ========== UNIFIED WINDOW CONTROL ==========
 
 export function toggleWindow(
-  window: BrowserWindow | null,
-  createWindowFn?: () => void,
+  type: WindowType,
+  options?: WindowControlOptions,
 ): void {
+  console.log(`Toggling window type: ${type}`, options);
+
+  switch (type) {
+    case "settings":
+      toggleGenericWindow(getSettingsWindow, createSettingsWindow);
+      break;
+
+    case "history":
+      toggleGenericWindow(getHistoryWindow, createHistoryWindow);
+      break;
+
+    case "main":
+      toggleGenericWindow(getMainWindow, createMainWindow);
+      break;
+
+    default:
+      console.warn(`Unknown window type: ${type}`);
+  }
+}
+
+function toggleGenericWindow(
+  getWindow: () => BrowserWindow | null,
+  createWindow: () => void,
+): void {
+  const window = getWindow();
+
   if (!window) {
-    if (createWindowFn) {
-      createWindowFn();
-    }
+    createWindow();
     return;
   }
 
@@ -66,39 +123,92 @@ export function toggleWindow(
   }
 }
 
-// ========== SETTINGS HANDLERS ==========
+// ========== UNIFIED THEME CONTROL ==========
 
-export function toggleSettingsWindow(
-  settingsWindow: BrowserWindow | null,
-  createSettingsWindow: () => void,
-): void {
-  console.log("Toggling settings window");
-  toggleWindow(settingsWindow, createSettingsWindow);
+// Helper function to broadcast theme change to all windows
+function broadcastThemeChange(theme: string) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(CHANNELS.THEME.CHANGED, theme);
+    }
+  });
 }
 
-export function closeSettingsWindow(
-  settingsWindow: BrowserWindow | null,
-): void {
+export function setTheme(mode: ThemeMode): string {
+  let resultTheme: string;
+
+  switch (mode) {
+    case "dark":
+      nativeTheme.themeSource = "dark";
+      resultTheme = "dark";
+      break;
+    case "light":
+      nativeTheme.themeSource = "light";
+      resultTheme = "light";
+      break;
+    case "system":
+      nativeTheme.themeSource = "system";
+      resultTheme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
+      break;
+    default:
+      console.warn(`Unknown theme mode: ${mode}`);
+      resultTheme = getCurrentTheme();
+  }
+
+  // Broadcast the theme change to all windows
+  broadcastThemeChange(resultTheme);
+
+  return resultTheme;
+}
+
+export function getCurrentTheme(): string {
+  return nativeTheme.themeSource === "system"
+    ? nativeTheme.shouldUseDarkColors
+      ? "dark"
+      : "light"
+    : nativeTheme.themeSource;
+}
+
+// ========== LEGACY METHODS (for backwards compatibility) ==========
+
+export function toggleTheme(): string {
+  const newTheme = nativeTheme.shouldUseDarkColors ? "light" : "dark";
+  return setTheme(newTheme as ThemeMode);
+}
+
+export function setDarkTheme(): string {
+  return setTheme("dark");
+}
+
+export function setLightTheme(): string {
+  return setTheme("light");
+}
+
+export function setSystemTheme(): string {
+  return setTheme("system");
+}
+
+export function toggleSettingsWindow(): void {
+  console.log("Legacy toggleSettingsWindow called");
+  toggleWindow("settings");
+}
+
+export function closeSettingsWindow(): void {
+  console.log("Legacy closeSettingsWindow called");
+  const settingsWindow = getSettingsWindow();
   if (settingsWindow) {
-    // Make sure to just hide the window, not close it
-    // This prevents triggering the 'closed' event
     settingsWindow.hide();
-
-    // Ensure the window remains valid but not visible
-    if (process.platform === "darwin") {
-      // On macOS, we might need to also blur the window
-      settingsWindow.blur();
-    }
-
-    console.log("Settings window hidden");
   }
 }
+
+// ========== GLOBAL SHORTCUTS ==========
 
 export function updateGlobalShortcut(
   shortcut: string,
   registerGlobalShortcuts: () => void,
 ): boolean {
   if (shortcut && shortcut !== currentActivateShortcut) {
+    console.log(`Updating global shortcut to: ${shortcut}`);
     currentActivateShortcut = shortcut;
     registerGlobalShortcuts();
     return true;
@@ -110,7 +220,8 @@ export function initGlobalShortcut(
   shortcut: string,
   registerGlobalShortcuts: () => void,
 ): boolean {
-  if (shortcut && shortcut !== currentActivateShortcut) {
+  if (shortcut) {
+    console.log(`Initializing global shortcut to: ${shortcut}`);
     currentActivateShortcut = shortcut;
     registerGlobalShortcuts();
     return true;
@@ -122,7 +233,7 @@ export function getCurrentShortcut(): string {
   return currentActivateShortcut;
 }
 
-// ========== WINDOW HANDLERS ==========
+// ========== UNIFIED WINDOW MANAGEMENT ==========
 
 export function minimizeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
@@ -142,18 +253,7 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
-    toggleMainWindowVisibility(mainWindow);
-  }
-}
-
-export function resizeMessageContent(
-  mainWindow: BrowserWindow | null,
-  width: number,
-  height: number,
-  preserveX: boolean = false, // Default to false for backward compatibility
-): void {
-  if (mainWindow) {
-    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+    toggleChatWindowVisibility(mainWindow);
   }
 }
 
@@ -161,9 +261,11 @@ export function resizeWindow(
   mainWindow: BrowserWindow | null,
   width: number,
   height: number,
+  preserveX: boolean = false,
 ): void {
   if (mainWindow) {
-    mainWindow.setSize(width, height);
+    // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
+    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
   }
 }
 
@@ -178,79 +280,63 @@ export function getCurrentWindowPosition(mainWindow: BrowserWindow | null): {
   return { x: 0, y: 0 };
 }
 
-// ========== THEME HANDLERS ==========
+// ========== LEGACY METHODS (for backwards compatibility) ==========
 
-export function getCurrentTheme(): string {
-  return nativeTheme.themeSource === "system"
-    ? nativeTheme.shouldUseDarkColors
-      ? "dark"
-      : "light"
-    : nativeTheme.themeSource;
-}
-
-export function toggleTheme(): string {
-  nativeTheme.themeSource = nativeTheme.shouldUseDarkColors ? "light" : "dark";
-  return nativeTheme.themeSource;
-}
-
-export function setDarkTheme(): string {
-  nativeTheme.themeSource = "dark";
-  return "dark";
-}
-
-export function setLightTheme(): string {
-  nativeTheme.themeSource = "light";
-  return "light";
-}
-
-export function setSystemTheme(): string {
-  nativeTheme.themeSource = "system";
-  return nativeTheme.shouldUseDarkColors ? "dark" : "light";
+export function resizeMessageContent(
+  mainWindow: BrowserWindow | null,
+  width: number,
+  height: number,
+  preserveX: boolean = false,
+): void {
+  console.log("Legacy resizeMessageContent called, using resizeWindow");
+  resizeWindow(mainWindow, width, height, preserveX);
 }
 
 // ========== AGENT POPOVER HANDLERS ==========
 
-export function toggleAgentPopover(
-  agentPopoverWindow: BrowserWindow | null,
-  mainWindow: BrowserWindow | null,
-  createAgentPopoverFn: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined,
+export function toggleAgentPopoverWindow(
   x?: number,
   y?: number,
   width?: number,
   height?: number,
 ): void {
-  if (agentPopoverWindow && agentPopoverWindow.isVisible()) {
-    agentPopoverWindow.hide();
-  } else if (mainWindow && x !== undefined && y !== undefined) {
-    createAgentPopoverFn(x, y, width, height);
+  const agentWindow = getAgentPopoverWindow();
+
+  if (agentWindow && agentWindow.isVisible()) {
+    agentWindow.hide();
+  } else if (x !== undefined && y !== undefined) {
+    createAgentPopoverWindow(x, y, width, height);
+  }
+}
+
+export function hideAgentPopoverWindow(): void {
+  const agentWindow = getAgentPopoverWindow();
+  if (agentWindow && agentWindow.isVisible()) {
+    agentWindow.hide();
   }
 }
 
 // ========== MODEL SELECTOR HANDLERS ==========
 
-export function toggleModelSelector(
-  modelSelectorWindow: BrowserWindow | null,
-  mainWindow: BrowserWindow | null,
-  createModelSelectorFn: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined,
+export function toggleModelSelectorWindow(
   x?: number,
   y?: number,
   width?: number,
   height?: number,
 ): void {
-  if (modelSelectorWindow && modelSelectorWindow.isVisible()) {
-    modelSelectorWindow.hide();
-  } else if (mainWindow && x !== undefined && y !== undefined) {
-    createModelSelectorFn(x, y, width, height);
+  const modelWindow = getModelSelectorWindow();
+
+  if (modelWindow && modelWindow.isVisible()) {
+    modelWindow.hide();
+  } else if (x !== undefined && y !== undefined) {
+    createModelSelectorWindow(x, y, width, height);
+  }
+}
+
+export function hideModelSelectorWindow(): void {
+  const modelWindow = getModelSelectorWindow();
+  if (modelWindow && modelWindow.isVisible()) {
+    modelWindow.hide();
   }
 }
 
@@ -445,4 +531,21 @@ export function pasteModifiedContent(content: string): void {
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }
+}
+
+/**
+ * Open file or directory path in system default application
+ */
+export function openPath(targetPath: string): void {
+  // Handle tilde expansion for home directory
+  let resolvedPath = targetPath;
+  if (targetPath.startsWith("~/")) {
+    resolvedPath = path.join(os.homedir(), targetPath.slice(2));
+  } else if (targetPath === "~") {
+    resolvedPath = os.homedir();
+  }
+
+  shell.openPath(resolvedPath).catch((error) => {
+    console.error(`Error opening path ${resolvedPath}:`, error);
+  });
 }

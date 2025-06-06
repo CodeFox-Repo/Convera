@@ -1,128 +1,142 @@
 import { ChatData } from "@/server/service/chat";
 import { Message } from "ai";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+// Interface for chat data
+interface ChatHistoryData {
+  id: string;
+  title: string;
+  createdAt: string;
+  lastUpdated: string;
+  messageCount: number;
+  messages?: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp: string;
+  }[];
+}
 
 /**
  * Hook to handle chat history functionality
  */
 export function useChatHistory(setMessages: (messages: Message[]) => void) {
+  const [chatHistory, setChatHistory] = useState<ChatHistoryData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /**
+   * Function to fetch chat history
+   */
+  const fetchChatHistory = useCallback(async () => {
+    setRefreshing(true);
+    const response = await fetch("http://localhost:38000/api/chat");
+    const data = await response.json();
+
+    if (data.status === "success") {
+      setChatHistory(data.chats);
+      setError(null);
+    } else {
+      setError("Failed to load chat history");
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  /**
+   * Function to select a chat and dispatch events
+   */
+  const selectChat = useCallback(async (chatId: string) => {
+    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`);
+    const data = await response.json();
+
+    if (data.status === "success") {
+      const chatSelectedEvent = new CustomEvent("chat-history-selected", {
+        detail: { chat: data.chat },
+      });
+      window.dispatchEvent(chatSelectedEvent);
+
+      const chatData = JSON.stringify({
+        eventType: "chat-history-selected",
+        timestamp: new Date().toISOString(),
+        chat: data.chat,
+      });
+      localStorage.setItem("selectedChatHistory", chatData);
+
+      if (window.electronAPI) {
+        window.electronAPI.toggleWindow("history");
+      }
+    } else {
+      setError("Failed to load chat");
+    }
+  }, []);
+
+  /**
+   * Function to delete a chat
+   */
+  const deleteChat = useCallback(async (chatId: string) => {
+    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`, {
+      method: "DELETE",
+    });
+    const data = await response.json();
+
+    if (data.status === "success") {
+      // Remove chat from the local state
+      setChatHistory((prevChats) =>
+        prevChats.filter((chat) => chat.id !== chatId),
+      );
+    } else {
+      setError("Failed to delete chat");
+    }
+  }, []);
+
   /**
    * Function to open chat history window
    */
-  const triggerHistoryWindow = async () => {
-    try {
-      if (window.electronAPI) {
-        await window.electronAPI
-          .toggleHistoryWindow()
-          .then(() => {
-            console.log("Chat history window toggled successfully");
-          })
-          .catch((error: Error) => {
-            console.error("Error toggling chat history window:", error);
-          });
-      } else {
-        console.error("electronAPI is not available");
-      }
-    } catch (error: unknown) {
+  const triggerHistoryWindow = useCallback(async () => {
+    await window.electronAPI.toggleWindow("history").catch((error: Error) => {
       console.error("Error toggling chat history window:", error);
-    }
-  };
+    });
+  }, []);
 
-  // Listen for chat history selection from the history window
+  /**
+   * Function to close chat history window
+   */
+  const closeHistoryWindow = useCallback(() => {
+    console.log("Closing history window...");
+    window.electronAPI.toggleWindow("history").catch((error: Error) => {
+      console.error("Error toggling history window:", error);
+    });
+  }, []);
+
   useEffect(() => {
-    // Create a handler for history selection events
     const handleChatHistorySelected = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail && customEvent.detail.chat) {
         const chatHistory = customEvent.detail.chat as ChatData;
-        console.log("Chat history selected in hook:", chatHistory);
-
         if (
           chatHistory &&
           chatHistory.messages &&
           chatHistory.messages.length > 0
         ) {
-          // Reset state first to ensure clean loading
-          setMessages([]);
-
-          // Add a small delay before setting new messages
-          setTimeout(() => {
-            // Simple direct update approach with fallback IDs
-            const formattedMessages = chatHistory.messages.map((msg) => ({
-              id:
-                msg.id ||
-                `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-              content: msg.content,
-              role: msg.role,
-            })) as Message[];
-
-            console.log("Setting messages from hook:", formattedMessages);
-            setMessages(formattedMessages);
-
-            // TODO: Consider if window resizing logic is still needed here or should be handled elsewhere
-            // Forcing a resize after a short delay
-            // setTimeout(() => {
-            //   if (window.electronAPI) {
-            //     console.log("Forcing window resize for chat history from hook");
-            //     window.electronAPI
-            //       .getCurrentWindowSize(WINDOW_SIZE_PRESETS.EXPANDED_CHAT) // Ensure WINDOW_SIZE_PRESETS is available or remove
-            //       .then((res) => {
-            //         window.electronAPI.resizeMessageContent(
-            //           res.width,
-            //           res.height,
-            //           true,
-            //         );
-            //       })
-            //       .catch((error) => {
-            //         console.error("Error resizing window from hook:", error);
-            //       });
-            //   }
-            // }, 500);
-          }, 50);
+          setMessages(chatHistory.messages);
         }
       }
     };
-
-    // Add event listener
-    window.addEventListener("chat-history-selected", handleChatHistorySelected);
-
-    // Listen for storage events to catch changes from other windows
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "selectedChatHistory" && event.newValue) {
         console.log("Detected chat history change in localStorage (hook)");
-        try {
-          const chatData = JSON.parse(event.newValue);
-          if (chatData && chatData.chat) {
-            const chatHistory = chatData.chat as ChatData;
-            console.log(
-              "Loading new chat history from storage event (hook):",
-              chatHistory.id,
-            );
-            // Reset state first
-            setMessages([]);
-            // Add a small delay before setting new messages
-            setTimeout(() => {
-              const formattedMessages = chatHistory.messages.map((msg) => ({
-                id:
-                  msg.id ||
-                  `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                content: msg.content,
-                role: msg.role,
-              })) as Message[];
-              setMessages(formattedMessages);
-            }, 50);
-          }
-        } catch (error) {
-          console.error(
-            "Error parsing chat history from storage event (hook):",
-            error,
-          );
-        }
+        const message = parseStoreMessage(event.newValue);
+        setMessages(message);
       }
     };
+
+    window.addEventListener("chat-history-selected", handleChatHistorySelected);
     window.addEventListener("storage", handleStorageChange);
 
-    // Clean up on unmount
+    // Cleanup event listeners
     return () => {
       window.removeEventListener(
         "chat-history-selected",
@@ -133,6 +147,29 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
   }, [setMessages]);
 
   return {
+    // State
+    chatHistory,
+    loading,
+    error,
+    refreshing,
+    // Actions
+    fetchChatHistory,
+    selectChat,
+    deleteChat,
     triggerHistoryWindow,
+    closeHistoryWindow,
   };
 }
+
+const parseStoreMessage = (json: string) => {
+  try {
+    const chatData = JSON.parse(json) as { chat: ChatData };
+    if (chatData && chatData.chat) {
+      const chatHistory = chatData.chat;
+      return chatHistory.messages;
+    }
+  } catch (_error) {
+    console.warn("parsing chat history from storage event (hook):", _error);
+  }
+  return [];
+};

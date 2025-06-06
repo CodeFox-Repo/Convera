@@ -166,6 +166,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const handleSubmit = () => {
       if (!isLoading && (editorContent.trim() || attachments.length > 0)) {
         sendMessage();
+        
+        // Clear the input after sending
+        if (editorRef.current) {
+          editorRef.current.clearContent();
+        }
+        setInput("");
+        setEditorContent("");
       }
     };
 
@@ -179,7 +186,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       >
         <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
           <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-[var(--app-border-radius)] border-1 transition-all duration-200 ${
+            className={`flex-1 flex h-full overflow-auto flex-col rounded-2xl border-1 transition-all duration-200 ${
               hasMessages ? "bg-background/80" : "bg-background/30"
             } ${isDragging 
               ? "border-primary/70 border-2 shadow-lg ring-2 ring-primary/20" 
@@ -193,7 +200,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             />
 
             {isDragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-[var(--app-border-radius)] z-10 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10 pointer-events-none">
                 <div className="flex flex-col items-center gap-2 animate-pulse">
                   <File size={32} className="text-primary" />
                   <p className="text-foreground/70 font-medium">Drop files here</p>

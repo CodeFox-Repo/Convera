@@ -1,3 +1,4 @@
+import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
@@ -44,7 +45,7 @@ export default function AgentPopover() {
     fetchAgents,
     subscribeToAgentChanges
   } = useAgentStore();
-
+useThemeSync();
   // Fetch agents from server
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
@@ -427,7 +428,7 @@ export default function AgentPopover() {
       </div>
 
       <div 
-        className="bg-background border-border w-80 h-[350px] rounded-xl border shadow-lg flex flex-col"
+        className="bg-background border-border w-full h-full rounded-xl border shadow-lg flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

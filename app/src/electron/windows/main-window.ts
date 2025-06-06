@@ -1,192 +1,179 @@
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
-  positionWindowAtCenterBottom,
-  setWindowHidden,
-} from "@/electron/windows/window-position";
-import { setMainWindowResizable } from "@/electron/windows/window-resize";
-import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
-import { injectWindowStyles } from "@/electron/windows/window-styles";
+  WINDOW_SIZE_PRESETS,
+  WindowDimensions,
+} from "@/electron/windows/window-size";
 import { inDevelopment } from "@/shared/constants/dev";
-import { BrowserWindow, screen } from "electron";
+import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
 
-export function createMainWindow() {
-  const preload = path.join(__dirname, "preload.js");
+// Global reference to the main window
+let mainWindow: BrowserWindow | null = null;
 
-  // Initial dimensions that we'll also use as desired bounds
-  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
-
-  // Store desired bounds for restoration
-  let desiredBounds = {
+// Create platform-specific configuration for main window
+function createPlatformSpecificConfig(
+  dimensions: WindowDimensions,
+): BrowserWindowConstructorOptions {
+  const baseConfig: BrowserWindowConstructorOptions = {
     width: dimensions.width,
     height: dimensions.height,
     x: dimensions.x,
     y: dimensions.y,
+    webPreferences: {
+      devTools: inDevelopment,
+      contextIsolation: true,
+      nodeIntegration: true,
+      nodeIntegrationInSubFrames: false,
+      preload: path.join(__dirname, "preload.js"),
+    },
+    modal: false,
+    show: false,
+    titleBarStyle: "hiddenInset",
+    transparent: true,
+    frame: false,
+    visualEffectState: "active",
+    thickFrame: false,
+    autoHideMenuBar: true,
+    hasShadow: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    roundedCorners: true,
+    vibrancy: "fullscreen-ui",
   };
-  let restoreTimeout: NodeJS.Timeout | null = null;
 
-  console.log(
-    `Creating main window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
-  );
+  return baseConfig;
+}
 
-  let mainWindow: BrowserWindow | null = null;
+// Configure platform-specific appearance
+function configurePlatformAppearance(window: BrowserWindow) {
   if (process.platform === "darwin") {
-    mainWindow = new BrowserWindow({
-      width: dimensions.width,
-      height: dimensions.height,
-      x: dimensions.x,
-      y: dimensions.y,
-      webPreferences: {
-        devTools: inDevelopment,
-        contextIsolation: true,
-        nodeIntegration: true,
-        nodeIntegrationInSubFrames: false,
-        preload: preload,
-      },
-      vibrancy: "fullscreen-ui",
-      titleBarStyle: "hiddenInset",
-      transparent: true,
-      frame: false,
-      visualEffectState: "active",
-      thickFrame: false,
-      autoHideMenuBar: true,
-      hasShadow: true,
-      resizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      roundedCorners: true,
-      show: false,
-      alwaysOnTop: true,
-    });
+    window.setWindowButtonVisibility(false);
+  }
+}
+
+// Configure window properties
+function configureWindowProperties(window: BrowserWindow) {
+  window.on("will-resize", (event) => {
+    event.preventDefault();
+  });
+}
+
+// Load window content
+function loadWindowContent(window: BrowserWindow) {
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    console.log(
+      "Loading main URL in main window:",
+      MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    );
+    window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow = new BrowserWindow({
-      width: dimensions.width,
-      height: dimensions.height,
-      x: dimensions.x,
-      y: dimensions.y,
-      webPreferences: {
-        devTools: inDevelopment,
-        contextIsolation: true,
-        nodeIntegration: true,
-        nodeIntegrationInSubFrames: false,
-        preload: preload,
-      },
-      vibrancy: "fullscreen-ui",
-      titleBarStyle: "hiddenInset",
-      frame: false,
-      visualEffectState: "active",
-      autoHideMenuBar: true,
-      hasShadow: true,
-      resizable: false,
-      maximizable: false,
-      fullscreenable: false,
-      roundedCorners: true,
-      show: false,
-      alwaysOnTop: true,
-      transparent: true,
-    });
+    const mainPath = path.join(
+      __dirname,
+      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+    );
+    console.log("Loading main path in main window:", mainPath);
+    window.loadFile(mainPath);
   }
+}
 
-  if (mainWindow && process.platform === "darwin") {
-    mainWindow.setWindowButtonVisibility(false);
-    mainWindow.setBackgroundColor("#00000000");
-  } else if (process.platform === "win32") {
-    mainWindow.setBackgroundColor("#00000000");
-  } else {
-    mainWindow.setBackgroundColor("#00000000");
-  }
+// Setup window event handlers
+function setupWindowEventHandlers(window: BrowserWindow) {
+  window.webContents.on("did-finish-load", () => {
+    console.log("Main page loaded in main window, redirecting to main...");
 
-  setMainWindowResizable(false, mainWindow!);
-  injectWindowStyles(mainWindow);
+    window.webContents
+      .executeJavaScript(
+        `
+      console.log("Redirecting to main page...");
+      
+      if (window.router) {
+        console.log("Using router API");
+        window.router.navigate({ to: "/" });
+      } else {
+        console.log("Using location.hash");
+        window.location.hash = "/";
+      }
+    `,
+      )
+      .catch((err) => {
+        console.error("Failed to execute navigation script:", err);
+      });
 
-  if (mainWindow) {
-    mainWindow.setMenuBarVisibility(false);
-    mainWindow.setMenu(null);
-
-    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-      mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    } else {
-      mainWindow.loadFile(
-        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      );
+    if (inDevelopment && window) {
+      console.log("Opening DevTools for main window");
+      window.webContents.openDevTools({ mode: "detach" });
     }
-
-    mainWindow.once("ready-to-show", () => {
-      if (mainWindow) {
-        positionWindowAtCenterBottom(
-          mainWindow,
-          undefined,
-          WINDOW_SIZE_PRESETS.MAIN,
-        );
-
-        console.log("Main window ready, position set, keeping hidden.");
-
-        setWindowHidden(mainWindow);
-      }
-    });
-  }
-
-  if (inDevelopment && mainWindow) {
-    mainWindow.webContents.openDevTools({ mode: "detach" });
-  }
-
-  // Add event handlers for window state
-  if (mainWindow) {
-    // Update desired bounds when window is manually moved/resized while focused
-    const recordBounds = () => {
-      if (mainWindow?.isFocused()) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    };
-    mainWindow.on("resize", recordBounds);
-    mainWindow.on("move", recordBounds);
-
-    // Handle blur with checks for minimize/maximize
-    mainWindow.on("blur", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      restoreTimeout = setTimeout(() => {
-        // Only restore if window isn't focused and isn't minimized/maximized
-        if (
-          mainWindow &&
-          !mainWindow.isFocused() &&
-          !mainWindow.isMinimized() &&
-          !mainWindow.isMaximized()
-        ) {
-          mainWindow.setBounds(desiredBounds, false);
-        }
-        restoreTimeout = null;
-      }, 100);
-    });
-
-    // Update desired bounds when window is manually restored
-    mainWindow.on("unmaximize", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      if (mainWindow) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    });
-
-    mainWindow.on("restore", () => {
-      if (restoreTimeout) clearTimeout(restoreTimeout);
-      if (mainWindow) {
-        desiredBounds = mainWindow.getBounds();
-      }
-    });
-
-    // Handle display changes
-    screen.on("display-metrics-changed", () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setBounds(desiredBounds, false);
-      }
-    });
-  }
-
-  mainWindow?.on("closed", () => {
-    if (restoreTimeout) {
-      clearTimeout(restoreTimeout);
-    }
-    mainWindow = null;
   });
 
+  window.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription) => {
+      console.error("Main window failed to load:", errorCode, errorDescription);
+    },
+  );
+
+  window.once("ready-to-show", () => {
+    console.log("Main window ready, but kept hidden");
+  });
+
+  window.on("closed", () => {
+    console.log("Main window closed, setting reference to null");
+    mainWindow = null;
+  });
+}
+
+// Pre-create main window
+export function preCreateMainWindow(
+  chatWindow?: BrowserWindow,
+): BrowserWindow | null {
+  if (mainWindow) return mainWindow;
+
+  console.log("Pre-creating main window");
+
+  const dimensions = calculateWindowDimensions(
+    WINDOW_SIZE_PRESETS.SETTINGS,
+    undefined,
+    true,
+    true,
+  );
+
+  // Create window with platform-specific configuration
+  const config = createPlatformSpecificConfig(dimensions);
+
+  // Add parent window if provided
+  if (chatWindow) {
+    config.parent = chatWindow;
+  }
+
+  mainWindow = new BrowserWindow(config);
+
+  // Configure appearance and properties
+  configurePlatformAppearance(mainWindow);
+  configureWindowProperties(mainWindow);
+
+  // Load content
+  loadWindowContent(mainWindow);
+
+  // Setup event handlers
+  setupWindowEventHandlers(mainWindow);
+
+  return mainWindow;
+}
+
+// Create and show main window
+export function createMainWindow(): void {
+  if (!mainWindow) {
+    preCreateMainWindow();
+  }
+
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+// Get main window reference
+export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
