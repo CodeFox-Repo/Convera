@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
   deleteCustomAgent,
@@ -5,73 +6,62 @@ import {
   getAgentList,
   saveCustomAgent,
 } from "../agents";
-import { AgentDefinition, ToolReference } from "../agents/types";
+import {
+  AgentDefinition,
+  CreateAgentSchema,
+  ToolReference,
+  UpdateAgentSchema,
+} from "../agents/types";
 import { createCustomAgent } from "../service/agent";
 
 const router = new Hono();
 
-router.post("/api/agents/create", async (c) => {
-  const {
-    name,
-    description,
-    systemPrompt,
-    toolReferences,
-    modelId,
-    iconUrl,
-    avatar,
-    category,
-    type,
-  } = await c.req.json();
+// Create agent endpoint
+router.post(
+  "/api/agents/create",
+  zValidator("json", CreateAgentSchema),
+  async (c) => {
+    const {
+      name,
+      description,
+      systemPrompt,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = c.req.valid("json");
 
-  if (!name || !description || !systemPrompt) {
-    return c.json(
-      {
-        status: "error",
-        message:
-          "Missing required fields: name, description, and systemPrompt are required",
-      },
-      400,
+    const formattedToolNames = toolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
     );
-  }
 
-  if (!toolReferences || !Array.isArray(toolReferences)) {
-    return c.json(
-      {
-        status: "error",
-        message: "toolReferences must be provided as an array",
-      },
-      400,
-    );
-  }
+    const agentData: Omit<AgentDefinition, "id"> = {
+      name,
+      description,
+      toolReferences: toolReferences as ToolReference[],
+      modelId,
+      iconUrl,
+      avatar,
+      category: category || "Custom",
+      type,
+      systemPrompt:
+        formattedToolNames.length > 0
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : systemPrompt,
+    };
 
-  const formattedToolNames = toolReferences.map(
-    (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
-  );
+    const agent = await createCustomAgent(agentData);
+    await saveCustomAgent(agent);
 
-  const agentData: Omit<AgentDefinition, "id"> = {
-    name,
-    description,
-    toolReferences,
-    modelId,
-    iconUrl,
-    avatar,
-    category: category || "Custom",
-    type,
-    systemPrompt:
-      formattedToolNames.length > 0
-        ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-        : systemPrompt,
-  };
-
-  const agent = await createCustomAgent(agentData);
-  await saveCustomAgent(agent);
-
-  return c.json({
-    status: "success",
-    message: `Agent '${agent.name}' created successfully`,
-    agent,
-  });
-});
+    return c.json({
+      status: "success",
+      message: `Agent '${agent.name}' created successfully`,
+      agent,
+    });
+  },
+);
 
 // Add endpoint for agent list
 router.get("/api/agents", async (c) => {
@@ -115,73 +105,81 @@ router.delete("/api/agents/:agentId", async (c) => {
   });
 });
 
-// Add endpoint for updating an agent
-router.put("/api/agents/:agentId", async (c) => {
-  const agentId = c.req.param("agentId");
-  const {
-    id,
-    name,
-    description,
-    systemPrompt,
-    toolReferences,
-    modelId,
-    iconUrl,
-    avatar,
-    category,
-    type,
-  } = await c.req.json();
+// Update agent endpoint
+router.put(
+  "/api/agents/:agentId",
+  zValidator("json", UpdateAgentSchema),
+  async (c) => {
+    const agentId = c.req.param("agentId");
 
-  if (id !== agentId) {
-    return c.json(
-      { status: "error", message: "Agent ID mismatch between URL and request body" },
-      400,
+    const {
+      id,
+      name,
+      description,
+      systemPrompt,
+      toolReferences,
+      modelId,
+      iconUrl,
+      avatar,
+      category,
+      type,
+    } = c.req.valid("json");
+
+    if (id !== agentId) {
+      return c.json(
+        {
+          status: "error",
+          message: "Agent ID mismatch between URL and request body",
+        },
+        400,
+      );
+    }
+
+    const existingAgent = await getAgentById(agentId);
+    if (!existingAgent) {
+      return c.json(
+        { status: "error", message: `Agent with ID '${agentId}' not found` },
+        404,
+      );
+    }
+
+    const finalToolReferences =
+      toolReferences || existingAgent.toolReferences || [];
+    const formattedToolNames = finalToolReferences.map(
+      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
     );
-  }
 
-  const existingAgent = await getAgentById(agentId);
-  if (!existingAgent) {
-    return c.json(
-      { status: "error", message: `Agent with ID '${agentId}' not found` },
-      404,
-    );
-  }
+    const updatedAgent: AgentDefinition = {
+      ...existingAgent,
+      id: agentId,
+      name: name || existingAgent.name,
+      description: description || existingAgent.description,
+      toolReferences: finalToolReferences as ToolReference[],
+      modelId: modelId || existingAgent.modelId,
+      iconUrl: iconUrl || existingAgent.iconUrl,
+      avatar: avatar || existingAgent.avatar,
+      category: category || existingAgent.category,
+      type: type || existingAgent.type,
+      systemPrompt:
+        typeof systemPrompt === "string"
+          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
+          : existingAgent.systemPrompt,
+    };
 
-  const finalToolReferences =
-    toolReferences || existingAgent.toolReferences || [];
-  const formattedToolNames = finalToolReferences.map(
-    (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
-  );
+    const deleteSuccess = await deleteCustomAgent(agentId);
+    if (!deleteSuccess) {
+      return c.json(
+        {
+          status: "error",
+          message: "Failed to update agent: could not remove old version",
+        },
+        500,
+      );
+    }
 
-  const updatedAgent: AgentDefinition = {
-    ...existingAgent,
-    id: agentId,
-    name: name || existingAgent.name,
-    description: description || existingAgent.description,
-    toolReferences: finalToolReferences,
-    modelId: modelId || existingAgent.modelId,
-    iconUrl: iconUrl || existingAgent.iconUrl,
-    avatar: avatar || existingAgent.avatar,
-    category: category || existingAgent.category,
-    type: type || existingAgent.type,
-    systemPrompt:
-      typeof systemPrompt === "string"
-        ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-        : existingAgent.systemPrompt,
-  };
-
-  const deleteSuccess = await deleteCustomAgent(agentId);
-  if (!deleteSuccess) {
-    return c.json(
-      {
-        status: "error",
-        message: "Failed to update agent: could not remove old version",
-      },
-      500,
-    );
-  }
-
-  await saveCustomAgent(updatedAgent);
-  return c.json({ status: "success", agent: updatedAgent });
-});
+    await saveCustomAgent(updatedAgent);
+    return c.json({ status: "success", agent: updatedAgent });
+  },
+);
 
 export default router;
