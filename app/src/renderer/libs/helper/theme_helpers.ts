@@ -44,26 +44,15 @@ export async function setTheme(newTheme: ThemeMode) {
   }
 
   try {
-    switch (newTheme) {
-      case "dark":
-        await window.electronAPI.setThemeDark();
-        updateDocumentTheme(true);
-        break;
-      case "light":
-        await window.electronAPI.setThemeLight();
-        updateDocumentTheme(false);
-        break;
-      case "system": {
-        // The system theme function now returns the resulting theme after setting
-        const resultTheme = await window.electronAPI.setThemeSystem();
-        // Check for string since we don't know exact return type
-        const isDarkMode =
-          typeof resultTheme === "string" ? resultTheme === "dark" : false;
-        updateDocumentTheme(isDarkMode);
-        break;
-      }
-    }
+    // Use the unified setTheme API
+    const resultTheme = await window.electronAPI.setTheme(newTheme);
 
+    // Update document theme based on result
+    const isDarkMode =
+      typeof resultTheme === "string" ? resultTheme === "dark" : false;
+    updateDocumentTheme(isDarkMode);
+
+    // Save the preference to localStorage
     localStorage.setItem(THEME_KEY, newTheme);
   } catch (error) {
     console.error(`Error setting theme to ${newTheme}:`, error);
@@ -77,14 +66,20 @@ export async function toggleTheme() {
   }
 
   try {
-    // The toggle function returns the new theme state
-    const newTheme = await window.electronAPI.toggleTheme();
-    // Check for string since we don't know exact return type
-    if (typeof newTheme === "string") {
-      const isDarkMode = newTheme === "dark";
-      updateDocumentTheme(isDarkMode);
-      localStorage.setItem(THEME_KEY, newTheme as ThemeMode);
-    }
+    // Get current theme to determine toggle direction
+    const currentTheme = await window.electronAPI.getCurrentTheme();
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+
+    // Use the unified setTheme API
+    const resultTheme = await window.electronAPI.setTheme(newTheme);
+
+    // Update document theme based on result
+    const isDarkMode =
+      typeof resultTheme === "string" ? resultTheme === "dark" : false;
+    updateDocumentTheme(isDarkMode);
+
+    // Save the preference to localStorage
+    localStorage.setItem(THEME_KEY, newTheme);
   } catch (error) {
     console.error("Error toggling theme:", error);
   }

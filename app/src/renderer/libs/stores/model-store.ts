@@ -1,5 +1,4 @@
 // app/src/renderer/stores/model-store.ts
-import { getSettings } from "@/renderer/libs/utils/settings";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -14,23 +13,33 @@ interface ModelState {
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => {
-      const settings = getSettings();
       const savedModel = localStorage.getItem("selectedModelId");
       const savedSupportedModels = localStorage.getItem("supportedModels");
+
+      // Use fallback defaults since getSettings() is async and store creation can't be async
       const defaultModelIds: string[] = savedSupportedModels
         ? JSON.parse(savedSupportedModels)
-        : settings.openai.supportedModels || [];
+        : [
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo",
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+          ];
 
       return {
-        selectedModelId: savedModel || settings.openai.modelId,
+        selectedModelId: savedModel || "gpt-4",
         supportedModelIds: defaultModelIds,
 
         setSelectedModelId: (modelId) => {
           set({ selectedModelId: modelId });
           console.log("triggering model-selected event modelId:", modelId);
           localStorage.setItem("selectedModelId", modelId);
-          window.electronAPI.toggleModelSelector();
+
+          window.electronAPI.hideModelSelector();
           window.electronAPI.modelSelected(modelId);
+
           window.dispatchEvent(
             new CustomEvent("model-selected", {
               detail: { modelId },

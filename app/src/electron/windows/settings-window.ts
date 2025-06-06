@@ -7,12 +7,13 @@ import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
 
-// Global reference to the main window
-let mainWindow: BrowserWindow | null = null;
+// Global reference to the settings window
+let settingsWindow: BrowserWindow | null = null;
 
-// Create platform-specific configuration for main window
+// Create platform-specific configuration for settings window
 function createPlatformSpecificConfig(
   dimensions: WindowDimensions,
+  mainWindow?: BrowserWindow,
 ): BrowserWindowConstructorOptions {
   const baseConfig: BrowserWindowConstructorOptions = {
     width: dimensions.width,
@@ -26,6 +27,7 @@ function createPlatformSpecificConfig(
       nodeIntegrationInSubFrames: false,
       preload: path.join(__dirname, "preload.js"),
     },
+    parent: mainWindow || undefined,
     modal: false,
     show: false,
     titleBarStyle: "hiddenInset",
@@ -63,7 +65,7 @@ function configureWindowProperties(window: BrowserWindow) {
 function loadWindowContent(window: BrowserWindow) {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     console.log(
-      "Loading main URL in main window:",
+      "Loading main URL in settings window:",
       MAIN_WINDOW_VITE_DEV_SERVER_URL,
     );
     window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -72,7 +74,7 @@ function loadWindowContent(window: BrowserWindow) {
       __dirname,
       `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
     );
-    console.log("Loading main path in main window:", mainPath);
+    console.log("Loading main path in settings window:", mainPath);
     window.loadFile(mainPath);
   }
 }
@@ -80,19 +82,21 @@ function loadWindowContent(window: BrowserWindow) {
 // Setup window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on("did-finish-load", () => {
-    console.log("Main page loaded in main window, redirecting to main...");
+    console.log(
+      "Main page loaded in settings window, redirecting to settings...",
+    );
 
     window.webContents
       .executeJavaScript(
         `
-      console.log("Redirecting to main page...");
+      console.log("Redirecting to settings page...");
       
       if (window.router) {
         console.log("Using router API");
-        window.router.navigate({ to: "/" });
+        window.router.navigate({ to: "/settings" });
       } else {
         console.log("Using location.hash");
-        window.location.hash = "/";
+        window.location.hash = "/settings";
       }
     `,
       )
@@ -101,7 +105,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
 
     if (inDevelopment && window) {
-      console.log("Opening DevTools for main window");
+      console.log("Opening DevTools for settings window");
       window.webContents.openDevTools({ mode: "detach" });
     }
   });
@@ -109,27 +113,31 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on(
     "did-fail-load",
     (event, errorCode, errorDescription) => {
-      console.error("Main window failed to load:", errorCode, errorDescription);
+      console.error(
+        "Settings window failed to load:",
+        errorCode,
+        errorDescription,
+      );
     },
   );
 
   window.once("ready-to-show", () => {
-    console.log("Main window ready, but kept hidden");
+    console.log("Settings window ready, but kept hidden");
   });
 
   window.on("closed", () => {
-    console.log("Main window closed, setting reference to null");
-    mainWindow = null;
+    console.log("Settings window closed, setting reference to null");
+    settingsWindow = null;
   });
 }
 
-// Pre-create main window
-export function preCreateMainWindow(
-  chatWindow?: BrowserWindow,
+// Pre-create settings window
+export function preCreateSettingsWindow(
+  mainWindow?: BrowserWindow,
 ): BrowserWindow | null {
-  if (mainWindow) return mainWindow;
+  if (settingsWindow) return settingsWindow;
 
-  console.log("Pre-creating main window");
+  console.log("Pre-creating settings window");
 
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.SETTINGS,
@@ -139,41 +147,52 @@ export function preCreateMainWindow(
   );
 
   // Create window with platform-specific configuration
-  const config = createPlatformSpecificConfig(dimensions);
-
-  // Add parent window if provided
-  if (chatWindow) {
-    config.parent = chatWindow;
-  }
-
-  mainWindow = new BrowserWindow(config);
+  const config = createPlatformSpecificConfig(dimensions, mainWindow);
+  settingsWindow = new BrowserWindow(config);
 
   // Configure appearance and properties
-  configurePlatformAppearance(mainWindow);
-  configureWindowProperties(mainWindow);
+  configurePlatformAppearance(settingsWindow);
+  configureWindowProperties(settingsWindow);
 
   // Load content
-  loadWindowContent(mainWindow);
+  loadWindowContent(settingsWindow);
 
   // Setup event handlers
-  setupWindowEventHandlers(mainWindow);
+  setupWindowEventHandlers(settingsWindow);
 
-  return mainWindow;
+  return settingsWindow;
 }
 
-// Create and show main window
-export function createMainWindow(): void {
-  if (!mainWindow) {
-    preCreateMainWindow();
+// Create and show settings window
+export function createSettingsWindow(): void {
+  if (!settingsWindow) {
+    preCreateSettingsWindow();
   }
 
-  if (mainWindow) {
-    mainWindow.show();
-    mainWindow.focus();
+  if (settingsWindow) {
+    settingsWindow.show();
+    settingsWindow.focus();
   }
 }
 
-// Get main window reference
-export function getMainWindow(): BrowserWindow | null {
-  return mainWindow;
+// Close settings window
+export function closeSettingsWindow(): void {
+  if (settingsWindow) {
+    // Make sure to just hide the window, not close it
+    // This prevents triggering the 'closed' event
+    settingsWindow.hide();
+
+    // Ensure the window remains valid but not visible
+    if (process.platform === "darwin") {
+      // On macOS, we might need to also blur the window
+      settingsWindow.blur();
+    }
+
+    console.log("Settings window hidden");
+  }
+}
+
+// Get settings window reference
+export function getSettingsWindow(): BrowserWindow | null {
+  return settingsWindow;
 }

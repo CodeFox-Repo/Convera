@@ -1,72 +1,82 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import {
+  ThemeMode,
+  WindowControlOptions,
+  WindowType,
+} from "@/shared/types/electron";
 
 export interface IPCServer {
-  toggleSettingsWindow(): void;
-  closeSettingsWindow(): void;
+  // Unified Window Control
+  toggleWindow(type: WindowType, options?: WindowControlOptions): void;
+  closeWindow(): void;
+
+  // Global shortcuts
   updateGlobalShortcut(shortcut: string): boolean;
   initGlobalShortcut(shortcut: string): boolean;
-  toggleHistoryWindow(): void;
 
+  // App functionality
   getPreviousApp(): string;
   getPreviousAppID(): number;
   getClipboardText(): string;
   setInputText(text: string): void;
   pasteModifiedContent(content: string): void;
 
-  getCurrentTheme(): string;
-  toggleTheme(): string;
-  setThemeDark(): string;
-  setThemeLight(): string;
-  setThemeSystem(): string;
+  // Platform detection
+  getPlatform(): string;
 
+  // Unified Theme Control
+  setTheme(mode: ThemeMode): string;
+  getCurrentTheme(): string;
+
+  // Unified Window Management
   minimizeWindow(): void;
   maximizeWindow(): void;
-  closeWindow(): void;
-  resizeWindow(width: number, height: number): void;
-  resizeMessageContent(
-    width: number,
-    height: number,
-    preserveX?: boolean,
-  ): void;
+  resizeWindow(width: number, height: number, preserveX?: boolean): void;
   getCurrentWindowPosition(): { x: number; y: number };
+  getCurrentWindowSize(window: WindowSizeConfig): {
+    width: number;
+    height: number;
+  };
 
   // View Mode
   toggleViewMode(expanded: boolean): boolean;
 
-  // Agent Popover
-  toggleAgentPopover(
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-  ): void;
-
-  // Model Selector
+  // Model functionality
+  modelSelected(modelId: string): boolean;
   toggleModelSelector(
     x?: number,
     y?: number,
     width?: number,
     height?: number,
   ): void;
-  modelSelected(modelId: string): boolean;
-  getCurrentWindowSize(window: WindowSizeConfig): {
-    width: number;
-    height: number;
-  };
+  hideModelSelector(): void;
 
+  // Agent functionality
+  toggleAgentPopover(
+    x?: number,
+    y?: number,
+    width?: number,
+    height?: number,
+  ): void;
+  hideAgentPopover(): void;
+
+  // File operations
   openPath(path: string): void;
 }
 
 export const CHANNELS = {
-  SETTINGS: {
-    TOGGLE: "settings:toggle",
-    CLOSE: "settings:close",
-    UPDATE_SHORTCUT: "settings:update-shortcut",
-    INIT_SHORTCUT: "settings:init-shortcut",
+  WINDOW: {
+    TOGGLE: "window:toggle",
+    CLOSE: "window:close",
+    MINIMIZE: "window:minimize",
+    MAXIMIZE: "window:maximize",
+    RESIZE: "window:resize",
+    GET_POSITION: "window:get-position",
+    GET_CURRENT_SIZE: "window:get-current-size",
   },
-  HISTORY: {
-    OPEN: "history:open",
-    CLOSE: "history:close",
+  SHORTCUTS: {
+    UPDATE: "shortcuts:update",
+    INIT: "shortcuts:init",
   },
   APP: {
     GET_PREVIOUS: "app:get-previous",
@@ -80,72 +90,75 @@ export const CHANNELS = {
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
   },
+  PLATFORM: {
+    GET: "platform:get",
+  },
   THEME: {
+    SET: "theme:set",
     GET_CURRENT: "theme:get-current",
-    TOGGLE: "theme:toggle",
-    SET_DARK: "theme:set-dark",
-    SET_LIGHT: "theme:set-light",
-    SET_SYSTEM: "theme:set-system",
     CHANGED: "theme:changed",
   },
-  WINDOW: {
-    MINIMIZE: "window:minimize",
-    MAXIMIZE: "window:maximize",
-    CLOSE: "window:close",
-    RESIZE: "window:resize",
-    RESIZE_MESSAGE_CONTENT: "window:resize-message-content",
-    GET_POSITION: "window:get-position",
-    GET_CURRENT_SIZE: "window:get-current-size",
-  },
   AGENT: {
-    TOGGLE_POPOVER: "agent:toggle-popover",
     LIST_UPDATED: "agent:list-updated",
+    TOGGLE_POPOVER: "agent:toggle-popover",
+    HIDE_POPOVER: "agent:hide-popover",
   },
   MODEL: {
-    TOGGLE_SELECTOR: "model:toggle-selector",
     MODEL_SELECTED: "model:selected",
+    TOGGLE_SELECTOR: "model:toggle-selector",
+    HIDE_SELECTOR: "model:hide-selector",
   },
   FILE: {
     OPEN_PATH: "file:open-path",
   },
+  // Legacy channels for backwards compatibility during transition
+  SETTINGS: {
+    TOGGLE: "settings:toggle",
+  },
 } as const;
 
 export const methodChannelMap: { [K in keyof IPCServer]: string } = {
-  // Settings
-  toggleSettingsWindow: CHANNELS.SETTINGS.TOGGLE,
-  closeSettingsWindow: CHANNELS.SETTINGS.CLOSE,
-  updateGlobalShortcut: CHANNELS.SETTINGS.UPDATE_SHORTCUT,
-  initGlobalShortcut: CHANNELS.SETTINGS.INIT_SHORTCUT,
-  // History
-  toggleHistoryWindow: CHANNELS.HISTORY.OPEN,
-  // App
+  // Unified Window Control
+  toggleWindow: CHANNELS.WINDOW.TOGGLE,
+  closeWindow: CHANNELS.WINDOW.CLOSE,
+
+  // Global shortcuts
+  updateGlobalShortcut: CHANNELS.SHORTCUTS.UPDATE,
+  initGlobalShortcut: CHANNELS.SHORTCUTS.INIT,
+
+  // App functionality
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputText: CHANNELS.APP.SET_INPUT_TEXT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
-  // Theme
+
+  // Platform detection
+  getPlatform: CHANNELS.PLATFORM.GET,
+
+  // Unified Theme Control
+  setTheme: CHANNELS.THEME.SET,
   getCurrentTheme: CHANNELS.THEME.GET_CURRENT,
-  toggleTheme: CHANNELS.THEME.TOGGLE,
-  setThemeDark: CHANNELS.THEME.SET_DARK,
-  setThemeLight: CHANNELS.THEME.SET_LIGHT,
-  setThemeSystem: CHANNELS.THEME.SET_SYSTEM,
-  // Window
+
+  // Unified Window Management
   minimizeWindow: CHANNELS.WINDOW.MINIMIZE,
   maximizeWindow: CHANNELS.WINDOW.MAXIMIZE,
-  closeWindow: CHANNELS.WINDOW.CLOSE,
   resizeWindow: CHANNELS.WINDOW.RESIZE,
-  resizeMessageContent: CHANNELS.WINDOW.RESIZE_MESSAGE_CONTENT,
   getCurrentWindowPosition: CHANNELS.WINDOW.GET_POSITION,
+  getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
+
   // View Mode
   toggleViewMode: CHANNELS.APP.TOGGLE_VIEW_MODE,
-  // Agent
-  toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
-  // Model Selector
-  toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
-  // Model
+
+  // Model functionality
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
-  getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
-  // File
+  toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
+  hideModelSelector: CHANNELS.MODEL.HIDE_SELECTOR,
+
+  // Agent functionality
+  toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
+  hideAgentPopover: CHANNELS.AGENT.HIDE_POPOVER,
+
+  // File operations
   openPath: CHANNELS.FILE.OPEN_PATH,
 };

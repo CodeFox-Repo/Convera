@@ -41,7 +41,6 @@ const authenticateRequest = async (c: any, next: () => Promise<void>) => {
   await next();
 };
 
-// Apply authentication to routes that need it
 router.use("/api/chat", authenticateRequest);
 
 // Chat endpoint
@@ -98,6 +97,7 @@ router.post("/api/chat", zValidator("json", ChatRequestSchema), async (c) => {
   return new Response(response.body, { headers });
 });
 
+// These routes don't require authentication
 router.get("/api/chat", async (c) => {
   const chats = await getChats();
   const chatList = chats.map((chat) => ({

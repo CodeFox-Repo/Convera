@@ -1,8 +1,7 @@
 import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
-import CopiedContentBlock from "../clipboard/copied-content-block";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
@@ -157,96 +156,69 @@ export default function ChatContent({
     console.log(`Accepted modification for message ${messageId}`);
   }, []);
 
+  // Extract copied content from message content
+  const extractCopiedContent = useCallback((content: string) => {
+    if (!content) return { copiedContent: null, cleanContent: content };
+    
+    const copiedContentPattern = /<copied>\n([\s\S]*?)\n<\/copied>/;
+    const copiedContentMatch = content.match(copiedContentPattern);
+    
+    if (copiedContentMatch) {
+      const copiedContent = copiedContentMatch[1];
+      const cleanContent = content.replace(copiedContentPattern, "").trim();
+      return { copiedContent, cleanContent };
+    }
+    
+    return { copiedContent: null, cleanContent: content };
+  }, []);
+
   // Renders text content using Markdown
   const renderMessageContent = useCallback(
     (content: string, messageId: string) => {
       if (!content) return null;
 
-      // Check for copied content tags
-      const copiedContentMatch = content.match(
-        /<copied>\n([\s\S]*?)\n<\/copied>/,
-      );
+      // Define regex patterns for special content blocks (excluding copied content)
+      const modifiedContentPattern = /<modified>\n([\s\S]*?)\n<\/modified>/;
 
-      // Check for modified content tags
-      const modifiedContentMatch = content.match(
-        /<modified>\n([\s\S]*?)\n<\/modified>/,
-      );
-
+      // Extract special content
+      const modifiedContentMatch = content.match(modifiedContentPattern);
+      
       // Check if this message's modified content has already been responded to
       const modificationResponse = modifiedResponses[messageId];
 
-      if (copiedContentMatch && modifiedContentMatch) {
-        // Both copied and modified content exist
-        const copiedContent = copiedContentMatch[1];
-        const modifiedContent = modifiedContentMatch[1];
+      // Clean the content by removing special blocks
+      let cleanContent = content;
+      if (modifiedContentMatch) {
+        cleanContent = cleanContent.replace(modifiedContentPattern, "");
+      }
+      cleanContent = cleanContent.trim();
 
-        // Remove both blocks from the original content
-        const otherContent = content
-          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
-          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
-          .trim();
+      // Render content sections in order
+      const contentSections: React.ReactNode[] = [];
 
-        // Return a fragment with all three sections
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <CopiedContentBlock>
-              <Markdown>{copiedContent}</Markdown>
-            </CopiedContentBlock>
-            {modificationResponse !== "rejected" && (
-              <ModifiedContentBlock
-                modifiedContent={modifiedContent}
-                onAccept={() => handleAcceptModification(messageId)}
-                // onReject={() => handleRejectModification(messageId)} (TODO ALLEN: Implement this)
-              >
-                <Markdown>{modifiedContent}</Markdown>
-              </ModifiedContentBlock>
-            )}
-          </>
-        );
-      } else if (copiedContentMatch) {
-        // Only copied content exists
-        const copiedContent = copiedContentMatch[1];
-
-        // Remove the copied block from the original content
-        const otherContent = content
-          .replace(/<copied>\n[\s\S]*?\n<\/copied>/, "")
-          .trim();
-
-        // Return a fragment with copied content block and regular markdown
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <CopiedContentBlock>
-              <Markdown>{copiedContent}</Markdown>
-            </CopiedContentBlock>
-          </>
-        );
-      } else if (modifiedContentMatch && modificationResponse !== "rejected") {
-        // Only modified content exists and hasn't been rejected
-        const modifiedContent = modifiedContentMatch[1];
-
-        // Remove the modified block from the original content
-        const otherContent = content
-          .replace(/<modified>\n[\s\S]*?\n<\/modified>/, "")
-          .trim();
-
-        // Return a fragment with modified content block and regular markdown
-        return (
-          <>
-            {otherContent && <Markdown>{otherContent}</Markdown>}
-            <ModifiedContentBlock
-              modifiedContent={modifiedContent}
-              onAccept={() => handleAcceptModification(messageId)}
-            >
-              <Markdown>{modifiedContent}</Markdown>
-            </ModifiedContentBlock>
-          </>
+      // Add main content if it exists
+      if (cleanContent) {
+        contentSections.push(
+          <Markdown key="main-content">{cleanContent}</Markdown>
         );
       }
 
-      // If no special content, just render as normal markdown
-      return <Markdown>{content}</Markdown>;
+      // Add modified content block if it exists and hasn't been rejected
+      if (modifiedContentMatch && modificationResponse !== "rejected") {
+        const modifiedContent = modifiedContentMatch[1];
+        contentSections.push(
+          <ModifiedContentBlock
+            key="modified-content"
+            modifiedContent={modifiedContent}
+            onAccept={() => handleAcceptModification(messageId)}
+          >
+            <Markdown>{modifiedContent}</Markdown>
+          </ModifiedContentBlock>
+        );
+      }
+
+      // Return all sections or fallback to original content
+      return contentSections.length > 0 ? <>{contentSections}</> : <Markdown>{content}</Markdown>;
     },
     [modifiedResponses, handleAcceptModification],
   );
@@ -321,12 +293,56 @@ export default function ChatContent({
 
   // Renders regenerating indicator
   function renderLoadingIndicator() {
+    const avatar = "../../images/icon.png";
+    
     return (
-      <div className="border-foreground/10 bg-foreground/5 no-drag-region flex items-center gap-2 rounded-md border px-3 py-1.5">
-        <Loader2 className="text-foreground h-3 w-3 animate-spin" />
-        <span className="text-foreground">
-          {hasReceivedFirstToken ? "Generating response..." : "Loading..."}
-        </span>
+      <div className="w-full py-2">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex gap-3">
+            {/* Avatar section */}
+            <div className="flex-shrink-0">
+              <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
+                <img
+                  src={avatar}
+                  alt="Agent"
+                  className="size-6 object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement!;
+                    parent.innerHTML = "";
+                    const botIcon = document.createElement("div");
+                    botIcon.innerHTML =
+                      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                    botIcon.className = "text-muted-foreground";
+                    parent.appendChild(botIcon);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Content section */}
+            <div className="flex-1 min-w-0 space-y-3">
+              {/* Header with role and timestamp - inline with avatar */}
+              <div className="flex items-center gap-3 -mt-0.5">
+                <span className="text-sm font-semibold text-foreground">
+                  FoxyChat
+                </span>
+                <span className="text-xs text-muted-foreground/80">Now</span>
+              </div>
+
+              {/* Loading content */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>
+                  {hasReceivedFirstToken
+                    ? "Generating response..."
+                    : "Loading..."}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -355,6 +371,8 @@ export default function ChatContent({
   }, [messages.length]);
 
   if (messages.length === 0) {
+    const avatar = "../../images/icon.png";
+    
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
         <motion.div
@@ -364,7 +382,22 @@ export default function ChatContent({
           className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <Bot className="h-8 w-8 text-zinc-500" />
+            <img
+              src={avatar}
+              alt="FoxyChat"
+              className="h-10 w-10 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement!;
+                parent.innerHTML = "";
+                const botIcon = document.createElement("div");
+                botIcon.innerHTML =
+                  '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                botIcon.className = "text-zinc-500";
+                parent.appendChild(botIcon);
+              }}
+            />
           </div>
           <h3 className="mb-2 text-xl font-semibold">Welcome to FoxChat</h3>
           <p className="text-zinc-500 dark:text-zinc-400">
@@ -386,13 +419,23 @@ export default function ChatContent({
       const isEditing = editingMessageId === message.id;
       const isCopied = copiedMessageId === message.id ? true : false;
 
+      // Extract copied content for user messages
+      let copiedContent: string | null = null;
+      let contentToRender = message.content;
+
+      if (message.role === "user" && message.content) {
+        const { copiedContent: extracted, cleanContent } = extractCopiedContent(message.content);
+        copiedContent = extracted;
+        contentToRender = cleanContent;
+      }
+
       // Prepare the correct content based on message type
       let content: React.ReactNode;
       if (message.role === "assistant") {
         content = renderToolCalls(message);
       } else {
-        content = message.content
-          ? renderMessageContent(message.content, message.id)
+        content = contentToRender
+          ? renderMessageContent(contentToRender, message.id)
           : null;
       }
 
@@ -405,6 +448,7 @@ export default function ChatContent({
           isEditing={isEditing}
           editedContent={editedContent}
           isCopied={isCopied}
+          copiedContent={copiedContent}
           onEditStart={() => handleEditStart(message)}
           onEditSave={() => handleEditSave(message)}
           onEditCancel={handleEditCancel}
@@ -421,6 +465,7 @@ export default function ChatContent({
     editingMessageId,
     editedContent,
     copiedMessageId,
+    extractCopiedContent,
     handleEditStart,
     handleEditSave,
     handleEditCancel,
@@ -431,34 +476,26 @@ export default function ChatContent({
   ]);
 
   return (
-    <div className="drag-region h-full flex-1 overflow-y-auto p-4 pt-10">
+    <div className="drag-region h-full flex-1 overflow-y-auto">
       <div className="no-drag-region flex h-full flex-col">
         {renderMessages()}
 
-        {/* Show waiting for first token animation */}
+        {/* Show waiting for first token animation - only if last message is not from assistant */}
         <AnimatePresence mode="wait">
-          {isLoading && messages.length > 0 && (
+          {isLoading && messages.length > 0 && !(messages[messages.length - 1]?.role === "assistant") && (
             <motion.div
               key="waiting-first-token"
-              className="no-drag-region flex w-full"
+              className="no-drag-region w-full"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="mx-auto w-full max-w-3xl">
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] overflow-hidden text-sm">
-                    <div className="rounded-[var(--app-border-radius)] bg-transparent">
-                      {renderLoadingIndicator()}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {renderLoadingIndicator()}
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div ref={messagesEndRef} className="h-4" />
+        <div ref={messagesEndRef} className="h-8" />
       </div>
     </div>
   );

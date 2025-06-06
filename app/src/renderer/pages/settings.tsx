@@ -1,21 +1,34 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { getCurrentTheme, toggleTheme } from "@/renderer/libs/helper/theme_helpers";
+import {
+    getCurrentTheme,
+    toggleTheme,
+} from "@/renderer/libs/helper/theme_helpers";
 import { ErrorCode } from "@/renderer/libs/utils/error-handler";
 import {
-  getSettings,
-  resetShortcutsToDefault,
-  updateOpenAISettings,
-  updateShortcut,
+    getSettings,
+    resetShortcutsToDefault,
+    updateOpenAISettings,
+    updateShortcut,
 } from "@/renderer/libs/utils/settings";
 import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import {
-  AppSettings,
-  McpMarketplaceItem,
-  MCPServer,
+    AppSettings,
+    McpMarketplaceItem,
+    MCPServer,
 } from "@/shared/types/settings";
 import { ToolSet } from "ai";
-import { ChevronLeft, ChevronRight, LayoutGrid, Moon, Server, Settings as SettingsIcon, Sun, X } from "lucide-react";
+import {
+    ChevronLeft,
+    ChevronRight,
+    Code,
+    LayoutGrid,
+    Moon,
+    Server,
+    Settings as SettingsIcon,
+    Sun,
+    X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 // Import our component tabs
@@ -43,9 +56,9 @@ export interface AgentDefinition {
  * and keyboard shortcuts.
  */
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings>(getSettings());
+  // State declarations
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [recordingShortcut, setRecordingShortcut] = useState<string>("");
-  const shortcutInputRef = useRef<HTMLButtonElement>(null);
   const [mcpMarketItems, setMcpMarketItems] = useState<McpMarketplaceItem[]>(
     [],
   );
@@ -59,7 +72,6 @@ export default function SettingsPage() {
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
   >({});
-  // TODO(Sma1lboy): remove this config
   const [loadingMcpConfigs, setLoadingMcpConfigs] = useState<boolean>(true);
   const [currentTheme, setCurrentTheme] = useState<string>("light");
   const [mcpServerTools, setMcpServerTools] = useState<
@@ -70,62 +82,64 @@ export default function SettingsPage() {
   >({});
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [devModeEnabled, setDevModeEnabled] = useState<boolean>(false);
+  const [settingsLoading, setSettingsLoading] = useState<boolean>(true);
 
-  // Add effect to listen for model selection changes
-  useEffect(() => {
-    const handleModelSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.modelId) {
-        const newModelId = customEvent.detail.modelId;
-        const updatedOpenAI = {
-          ...settings.openai,
-          modelId: newModelId,
-        };
-        const updated = updateOpenAISettings(updatedOpenAI);
-        setSettings(updated);
+  // Ref declarations
+  const shortcutInputRef = useRef<HTMLButtonElement>(null);
+  const recordingStateRef = useRef<string>("");
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch functions
+  const fetchMcpMarketplace = async () => {
+    setLoadingMarketplace(true);
+    try {
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/marketplace",
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch marketplace data");
       }
-    };
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedModelId" && event.newValue) {
-        const updatedOpenAI = {
-          ...settings.openai,
-          modelId: event.newValue,
-        };
-        const updated = updateOpenAISettings(updatedOpenAI);
-        setSettings(updated);
+      const data = await response.json();
+      setMcpMarketItems(data.catalog?.items || []);
+    } catch (error) {
+      console.error("Error fetching MCP marketplace:", error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error("Cannot connect to backend server. Please check if the server is running.");
+      } else {
+        toast.error("Failed to load MCP marketplace data");
       }
-    };
+    } finally {
+      setLoadingMarketplace(false);
+    }
+  };
 
-    window.addEventListener("model-selected", handleModelSelected);
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("model-selected", handleModelSelected);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [settings.openai]);
-
-  useEffect(() => {
-    setSettings(getSettings());
-    fetchMcpMarketplace();
-    fetchMcpConfigurations();
-    fetchAllMcpServers();
-
-    const fetchTheme = async () => {
-      try {
-        const { system } = await getCurrentTheme();
-        setCurrentTheme(system);
-      } catch (error) {
-        console.error("Error fetching current theme:", error);
+  const fetchMcpConfigurations = async () => {
+    setLoadingMcpConfigs(true);
+    try {
+      const response = await fetch(
+        "http://localhost:38000/api/mcp/configurations",
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch MCP configurations");
       }
-    };
-
-    fetchTheme();
-  }, []);
-
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
+      const data = await response.json();
+      if (data.status === "success") {
+        setMcpServerConfigs(data.configurations || {});
+      } else {
+        throw new Error(data.message || "Failed to fetch MCP configurations");
+      }
+    } catch (error) {
+      console.error("Error fetching MCP configurations:", error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error("Cannot connect to backend server. Please check if the server is running.");
+      } else {
+        toast.error("Failed to load MCP configurations");
+      }
+      setMcpServerConfigs({});
+    } finally {
+      setLoadingMcpConfigs(false);
+    }
   };
 
   const fetchAllMcpServers = async () => {
@@ -149,11 +163,9 @@ export default function SettingsPage() {
       ) {
         const predefinedServers = predefinedData.servers || [];
         const installedServers = installedData.servers || [];
-
         const mergedServers: MCPServer[] = [];
 
         mergedServers.push(...installedServers);
-
         predefinedServers.forEach((server: MCPServer) => {
           if (!server.isInstalled) {
             mergedServers.push(server);
@@ -166,54 +178,295 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("Error fetching MCP servers:", error);
-      toast.error("Failed to load MCP server data");
-      setMcpServers([]); // Reset on error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error("Cannot connect to backend server. Please check if the server is running.");
+      } else {
+        toast.error("Failed to load MCP server data");
+      }
+      setMcpServers([]);
     } finally {
       setLoadingMcpServers(false);
     }
   };
 
-  const fetchMcpMarketplace = async () => {
-    setLoadingMarketplace(true);
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/marketplace",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch marketplace data");
+  // Callback functions
+  const saveRecordedShortcut = useCallback(
+    async (shortcutToSave: string) => {
+      if (!activeShortcut || !shortcutToSave || !settings) return;
+
+      const shortcut = settings.shortcuts.find((s) => s.id === activeShortcut);
+      if (shortcut) {
+        const updated = await updateShortcut({
+          ...shortcut,
+          shortcut: shortcutToSave,
+        });
+        setSettings(updated);
+        toast.success("Shortcut updated");
       }
-      const data = await response.json();
-      setMcpMarketItems(data.catalog?.items || []);
-    } catch (error) {
-      console.error("Error fetching MCP marketplace:", error);
-      toast.error("Failed to load MCP marketplace data");
-    } finally {
-      setLoadingMarketplace(false);
+
+      setActiveShortcut(null);
+      setRecordingShortcut("");
+      recordingStateRef.current = "";
+
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    },
+    [activeShortcut, settings],
+  );
+
+  const formatShortcut = (event: KeyboardEvent): string => {
+    const parts: string[] = [];
+    if (event.metaKey) parts.push("Command");
+    if (event.ctrlKey) parts.push("Control");
+    if (event.altKey) parts.push("Alt");
+    if (event.shiftKey) parts.push("Shift");
+
+    let key = "";
+
+    if (event.key === " " || event.code === "Space") {
+      key = "Space";
+    } else if (event.code.startsWith("Key")) {
+      key = event.code.replace("Key", "");
+    } else if (event.key === "Dead") {
+      key = "";
+    } else if (event.code.startsWith("Digit")) {
+      key = event.code.replace("Digit", "");
+    } else if (event.code.startsWith("Numpad")) {
+      key = event.code;
+    } else if (event.code.startsWith("F") && /^F\d+$/.test(event.code)) {
+      key = event.code;
+    } else if (event.code.startsWith("Arrow")) {
+      key = event.code.replace("Arrow", "") + "Arrow";
+    } else if (
+      !["Control", "Alt", "Shift", "Meta", "Command"].includes(event.key)
+    ) {
+      key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
     }
+
+    if (
+      key &&
+      !["CONTROL", "ALT", "SHIFT", "META", "COMMAND"].includes(
+        key.toUpperCase(),
+      )
+    ) {
+      parts.push(key);
+    }
+
+    return parts.join("+");
   };
 
-  const fetchMcpConfigurations = async () => {
-    setLoadingMcpConfigs(true);
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/mcp/configurations",
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch MCP configurations");
+  const handleRecordingKeyEvent = useCallback(
+    (event: KeyboardEvent) => {
+      if (!activeShortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape") {
+        setActiveShortcut(null);
+        setRecordingShortcut("");
+        recordingStateRef.current = "";
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        return;
       }
-      const data = await response.json();
-      if (data.status === "success") {
-        setMcpServerConfigs(data.configurations || {});
-      } else {
-        throw new Error(data.message || "Failed to fetch MCP configurations");
+
+      if (event.type === "keydown") {
+        const shortcutKeys = formatShortcut(event);
+        setRecordingShortcut(shortcutKeys);
+
+        const hasNonModifierKey =
+          shortcutKeys &&
+          !["Command", "Control", "Alt", "Shift"].includes(shortcutKeys) &&
+          shortcutKeys
+            .split("+")
+            .some(
+              (part) => !["Command", "Control", "Alt", "Shift"].includes(part),
+            );
+
+        if (hasNonModifierKey) {
+          recordingStateRef.current = shortcutKeys;
+          setRecordingShortcut(`${shortcutKeys} (release to save)`);
+
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+
+          saveTimeoutRef.current = setTimeout(() => {
+            saveRecordedShortcut(shortcutKeys);
+          }, 1000);
+        }
+      } else if (event.type === "keyup") {
+        const isNonModifierKey = !["Meta", "Control", "Alt", "Shift"].includes(
+          event.key,
+        );
+
+        if (isNonModifierKey && recordingStateRef.current) {
+          saveRecordedShortcut(recordingStateRef.current);
+        }
       }
-    } catch (error) {
-      console.error("Error fetching MCP configurations:", error);
-      toast.error("Failed to load MCP configurations");
-      setMcpServerConfigs({}); // Reset on error
-    } finally {
-      setLoadingMcpConfigs(false);
+    },
+    [activeShortcut, saveRecordedShortcut],
+  );
+
+  // Initialize settings asynchronously
+  useEffect(() => {
+    const initializeSettings = async () => {
+      setSettingsLoading(true);
+      try {
+        const initialSettings = await getSettings();
+        setSettings(initialSettings);
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    initializeSettings();
+  }, []);
+
+  // Add effect to listen for model selection changes
+  useEffect(() => {
+    if (!settings) return;
+
+    const handleModelSelected = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.modelId) {
+        const newModelId = customEvent.detail.modelId;
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: newModelId,
+        };
+        const updated = await updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    const handleStorageChange = async (event: StorageEvent) => {
+      if (event.key === "selectedModelId" && event.newValue) {
+        const updatedOpenAI = {
+          ...settings.openai,
+          modelId: event.newValue,
+        };
+        const updated = await updateOpenAISettings(updatedOpenAI);
+        setSettings(updated);
+      }
+    };
+
+    window.addEventListener("model-selected", handleModelSelected);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("model-selected", handleModelSelected);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [settings]);
+
+  useEffect(() => {
+    const loadAllData = async () => {
+      try {
+        const settingsData = await getSettings();
+        setSettings(settingsData);
+      } catch (error) {
+        console.error("Failed to reload settings:", error);
+      }
+    };
+
+    loadAllData();
+    fetchMcpMarketplace();
+    fetchMcpConfigurations();
+    fetchAllMcpServers();
+
+    const fetchTheme = async () => {
+      try {
+        const { system } = await getCurrentTheme();
+        setCurrentTheme(system);
+      } catch (error) {
+        console.error("Error fetching current theme:", error);
+      }
+    };
+
+    fetchTheme();
+  }, []);
+
+  useEffect(() => {
+    if (activeShortcut) {
+      window.addEventListener("keydown", handleRecordingKeyEvent, true);
+      window.addEventListener("keyup", handleRecordingKeyEvent, true);
+
+      setTimeout(() => {
+        shortcutInputRef.current?.focus();
+      }, 0);
+    } else {
+      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
+      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
     }
+
+    return () => {
+      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
+      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [activeShortcut, handleRecordingKeyEvent]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        activeShortcut &&
+        shortcutInputRef.current &&
+        !shortcutInputRef.current.contains(event.target as Node)
+      ) {
+        setActiveShortcut(null);
+        setRecordingShortcut("");
+        recordingStateRef.current = "";
+
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+      }
+    };
+
+    if (activeShortcut) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [activeShortcut]);
+
+  // Early return if settings are still loading
+  if (settingsLoading || !settings) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
   const handleInstallPredefinedServer = async (serverId: string) => {
@@ -283,33 +536,38 @@ export default function SettingsPage() {
     }
   };
 
-  const handleOpenAIChange = (field: string, value: string) => {
+  const handleOpenAIChange = async (field: string, value: string) => {
+    if (!settings) return;
+
     const updatedOpenAI = {
       ...settings.openai,
       [field]: value,
     };
-    
+
     // Validate API key format if that's the field being changed
-    if (field === 'apiKey' && value.trim()) {
+    if (field === "apiKey" && value.trim()) {
       // Make sure it doesn't already have a Bearer prefix
-      if (value.startsWith('Bearer ')) {
+      if (value.startsWith("Bearer ")) {
         toast.warning('Please enter the API key without "Bearer" prefix', {
-          id: ErrorCode.AUTH_INVALID_KEY
+          id: ErrorCode.AUTH_INVALID_KEY,
         });
         return;
       }
-      
+
       // For OpenRouter API keys, they typically have a specific format
       // This is just a simple check, you might want to add more specific validation
-      if (updatedOpenAI.endpoint.includes('openrouter.ai') && !value.match(/^[a-zA-Z0-9_-]{10,}/)) {
-        toast.warning('This doesn\'t appear to be a valid API key format', {
-          id: ErrorCode.AUTH_INVALID_KEY
+      if (
+        updatedOpenAI.endpoint.includes("openrouter.ai") &&
+        !value.match(/^[a-zA-Z0-9_-]{10,}/)
+      ) {
+        toast.warning("This doesn't appear to be a valid API key format", {
+          id: ErrorCode.AUTH_INVALID_KEY,
         });
         // Continue anyway, as it might be a valid format we don't recognize
       }
     }
-    
-    const updated = updateOpenAISettings(updatedOpenAI);
+
+    const updated = await updateOpenAISettings(updatedOpenAI);
     setSettings(updated);
 
     // Event handling for different fields
@@ -318,31 +576,33 @@ export default function SettingsPage() {
       window.dispatchEvent(
         new CustomEvent("model-selected", {
           detail: { modelId: value },
-        })
+        }),
       );
       // Update localStorage
       localStorage.setItem("selectedModelId", value);
       toast.success("Model updated. Settings saved.", {
-        id: 'settings-saved'
+        id: "settings-saved",
       });
-    } else if (field === 'apiKey') {
+    } else if (field === "apiKey") {
       toast.success("API key saved. This will be used for authentication.", {
-        id: 'api-key-updated'
+        id: "api-key-updated",
       });
     } else {
       toast.success("Settings saved", {
-        id: 'settings-saved'
+        id: "settings-saved",
       });
     }
-    
+
     // Dispatch an event so other components know the settings changed
-    window.dispatchEvent(new CustomEvent('settings-updated', { 
-      detail: { field, value } 
-    }));
+    window.dispatchEvent(
+      new CustomEvent("settings-updated", {
+        detail: { field, value },
+      }),
+    );
   };
 
-  const handleAddSupportedModel = (model: string) => {
-    if (!model.trim()) return;
+  const handleAddSupportedModel = async (model: string) => {
+    if (!settings || !model.trim()) return;
 
     if (settings.openai.supportedModels.includes(model)) {
       toast.error("Model already in the list");
@@ -355,12 +615,14 @@ export default function SettingsPage() {
       supportedModels: updatedSupportedModels,
     };
 
-    const updated = updateOpenAISettings(updatedOpenAI);
+    const updated = await updateOpenAISettings(updatedOpenAI);
     setSettings(updated);
     toast.success("Model added to supported list");
   };
 
-  const handleRemoveSupportedModel = (model: string) => {
+  const handleRemoveSupportedModel = async (model: string) => {
+    if (!settings || !settings.openai || !settings.openai.supportedModels) return;
+
     const updatedSupportedModels = settings.openai.supportedModels.filter(
       (m) => m !== model,
     );
@@ -370,23 +632,33 @@ export default function SettingsPage() {
       supportedModels: updatedSupportedModels,
     };
 
-    const updated = updateOpenAISettings(updatedOpenAI);
+    const updated = await updateOpenAISettings(updatedOpenAI);
     setSettings(updated);
     toast.success("Model removed from supported list");
   };
 
-  const handleResetShortcuts = () => {
-    const updated = resetShortcutsToDefault();
-    setSettings(updated);
+  const handleResetShortcuts = async () => {
+    const updated = await resetShortcutsToDefault();
+    if (!updated || !updated.shortcuts) {
+      toast.error("Failed to reset shortcuts");
+      return;
+    }
     
+    setSettings(updated);
+
     // Update the main process with the new activate shortcut
-    const activateShortcut = updated.shortcuts.find(s => s.id === "activate");
+    const activateShortcut = updated.shortcuts.find(
+      (s: { id: string; enabled: boolean; shortcut: string }) =>
+        s.id === "activate",
+    );
     if (activateShortcut && activateShortcut.enabled) {
       window.electronAPI
         .updateGlobalShortcut(activateShortcut.shortcut)
         .catch((error: Error) => {
           console.error("Error updating global shortcut after reset:", error);
-          toast.warning("Shortcuts reset to default, but global shortcut update failed");
+          toast.warning(
+            "Shortcuts reset to default, but global shortcut update failed",
+          );
         });
     } else {
       toast.success("Shortcuts reset to default");
@@ -394,279 +666,40 @@ export default function SettingsPage() {
   };
 
   // --- Shortcut Recording Logic ---
-  const formatShortcut = (event: KeyboardEvent): string => {
-    const parts: string[] = [];
-    if (event.metaKey) parts.push("Command");
-    if (event.ctrlKey) parts.push("Control");
-    if (event.altKey) parts.push("Alt");
-    if (event.shiftKey) parts.push("Shift");
-
-    console.log(`Key detection - key: "${event.key}", code: "${event.code}", keyCode: ${event.keyCode}`);
-
-    // Use event.code for more reliable key detection, especially with Alt combinations
-    let key = "";
-    
-    // Handle special cases first
-    if (event.key === " " || event.code === "Space") {
-      key = "Space";
-    } else if (event.code.startsWith("Key")) {
-      // Handle letter keys using event.code (works for both normal and dead keys)
-      key = event.code.replace("Key", "");
-      console.log(`Using code for letter: ${key}`);
-    } else if (event.key === "Dead") {
-      // Handle dead keys that don't have a proper code
-      console.log(`Dead key detected without proper code, skipping`);
-      key = ""; // Skip dead keys without proper code
-    } else if (event.code.startsWith("Digit")) {
-      // Handle number keys (e.g., "Digit1" -> "1")
-      key = event.code.replace("Digit", "");
-    } else if (event.code.startsWith("Numpad")) {
-      // Handle numpad keys (e.g., "Numpad1" -> "Numpad1")
-      key = event.code;
-    } else if (event.code.startsWith("F") && /^F\d+$/.test(event.code)) {
-      // Handle function keys (F1, F2, etc.)
-      key = event.code;
-    } else if (event.code.startsWith("Arrow")) {
-      // Handle arrow keys
-      key = event.code.replace("Arrow", "") + "Arrow"; // "ArrowUp" -> "UpArrow"
-    } else if (!["Control", "Alt", "Shift", "Meta", "Command"].includes(event.key)) {
-      // For other keys, use the key value but filter out modifier keys
-      key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
-    }
-
-    console.log(`Final key determined: "${key}"`);
-
-    // Only add the key if it's not empty and not a modifier key
-    if (key && !["CONTROL", "ALT", "SHIFT", "META", "COMMAND"].includes(key.toUpperCase())) {
-      parts.push(key);
-    }
-
-    const result = parts.join("+");
-    console.log(`Formatted shortcut result: "${result}"`);
-    return result;
-  };
-
-  // Use ref to track recording state without causing re-renders
-  const recordingStateRef = useRef<string>("");
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Function to save the recorded shortcut
-  const saveRecordedShortcut = useCallback((shortcutToSave: string) => {
-    if (!activeShortcut || !shortcutToSave) return;
-
-    console.log(`Saving recorded shortcut: ${shortcutToSave}`);
-    
-    // Get current settings at the time of saving
-    const currentSettings = getSettings();
-    const shortcut = currentSettings.shortcuts.find(
-      (s) => s.id === activeShortcut,
-    );
-    if (shortcut) {
-      const updated = updateShortcut({
-        ...shortcut,
-        shortcut: shortcutToSave,
-      });
-      setSettings(updated);
-      toast.success("Shortcut updated");
-    }
-    
-    // Reset recording state
-    setActiveShortcut(null);
-    setRecordingShortcut("");
-    recordingStateRef.current = "";
-    
-    // Clear any pending timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-  }, [activeShortcut]);
-
-  // Single event handler for both keydown and keyup
-  const handleRecordingKeyEvent = useCallback(
-    (event: KeyboardEvent) => {
-      if (!activeShortcut) {
-        console.log("Event received but no active shortcut");
-        return; // Safety check
-      }
-
-      console.log(`Recording event: ${event.type}, key: ${event.key}, activeShortcut: ${activeShortcut}`);
-      
-      event.preventDefault();
-      event.stopPropagation();
-
-      // Handle escape key to cancel
-      if (event.key === "Escape") {
-        console.log("Escape pressed, cancelling recording");
-        setActiveShortcut(null);
-        setRecordingShortcut("");
-        recordingStateRef.current = "";
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
-        return;
-      }
-
-      if (event.type === "keydown") {
-        // Capture the complete shortcut on keydown (when all keys are pressed)
-        const shortcutKeys = formatShortcut(event);
-        console.log(`Keydown - formatted shortcut: ${shortcutKeys}`);
-        
-        // Show live feedback
-        setRecordingShortcut(shortcutKeys);
-        
-        // Check if this is a complete shortcut (has non-modifier keys)
-        const hasNonModifierKey = shortcutKeys && 
-          !["Command", "Control", "Alt", "Shift"].includes(shortcutKeys) &&
-          shortcutKeys.split("+").some(part => 
-            !["Command", "Control", "Alt", "Shift"].includes(part)
-          );
-
-        console.log(`Keydown - has non-modifier key: ${hasNonModifierKey}`);
-
-        // Store the complete shortcut and set up auto-save
-        if (hasNonModifierKey) {
-          recordingStateRef.current = shortcutKeys;
-          setRecordingShortcut(`${shortcutKeys} (release to save)`);
-          
-          // Clear any existing timeout
-          if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-          }
-          
-          // Set a timeout to save the shortcut automatically after 1 second
-          // This ensures it saves even if keyup events don't work as expected
-          saveTimeoutRef.current = setTimeout(() => {
-            console.log("Auto-saving shortcut after timeout");
-            saveRecordedShortcut(shortcutKeys);
-          }, 1000);
-        }
-      } else if (event.type === "keyup") {
-        // On keyup, check if we're releasing a non-modifier key and have a recorded shortcut
-        const isNonModifierKey = !["Meta", "Control", "Alt", "Shift"].includes(event.key);
-        
-        console.log(`Keyup - key: ${event.key}, isNonModifierKey: ${isNonModifierKey}`);
-        
-        // Save immediately on keyup of non-modifier key if we have a recorded shortcut
-        if (isNonModifierKey && recordingStateRef.current) {
-          console.log("Saving on keyup");
-          saveRecordedShortcut(recordingStateRef.current);
-        }
-      }
-    },
-    [activeShortcut, saveRecordedShortcut],
-  );
-
-  // Effect to manage event listeners based on recording state
-  useEffect(() => {
-    if (activeShortcut) {
-      console.log("Adding recording event listeners");
-      window.addEventListener("keydown", handleRecordingKeyEvent, true);
-      window.addEventListener("keyup", handleRecordingKeyEvent, true);
-      
-      // Focus the button to ensure we capture events
-      setTimeout(() => {
-        shortcutInputRef.current?.focus();
-      }, 0);
-    } else {
-      console.log("Removing recording event listeners");
-      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
-      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
-      
-      // Clear any pending timeout when stopping recording
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-    }
-
-    return () => {
-      window.removeEventListener("keydown", handleRecordingKeyEvent, true);
-      window.removeEventListener("keyup", handleRecordingKeyEvent, true);
-      // Clean up timeout on effect cleanup
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-    };
-  }, [activeShortcut, handleRecordingKeyEvent]);
-
   const startRecording = (id: string) => {
-    console.log(`Starting recording for shortcut: ${id}`);
     setActiveShortcut(id);
     setRecordingShortcut("Press keys...");
   };
 
-  // Handle click outside to cancel recording
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        activeShortcut &&
-        shortcutInputRef.current &&
-        !shortcutInputRef.current.contains(event.target as Node)
-      ) {
-        console.log("Clicked outside, cancelling recording");
-        setActiveShortcut(null);
-        setRecordingShortcut("");
-        recordingStateRef.current = "";
-        
-        // Clear any pending timeout
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
-      }
-    };
-
-    if (activeShortcut) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      // Clean up timeout on unmount
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-    };
-  }, [activeShortcut]);
-  // --- End Shortcut Recording Logic ---
-
   const handleCloseSettings = () => {
     try {
       if (window.electronAPI) {
-        console.log("Hiding settings window...");
         window.electronAPI
-          .closeSettingsWindow()
+          .toggleWindow("settings")
           .then(() => {
-            console.log("Settings window hidden successfully");
+            // Settings window toggled successfully
           })
-          .catch((error) => {
-            console.error("Error hiding settings window:", error);
-            toast.error("Failed to hide settings window");
+          .catch((error: unknown) => {
+            console.error("Error toggling settings window:", error);
+            toast.error("Failed to toggle settings window");
           });
       } else {
         console.error("electronAPI is not available!");
-        toast.error("Failed to hide settings window: API not available");
+        toast.error("Failed to toggle settings window: API not available");
       }
-    } catch (error) {
-      console.error("Error hiding settings window:", error);
-      toast.error("Failed to hide settings window");
+    } catch (error: unknown) {
+      console.error("Error toggling settings window:", error);
+      toast.error("Failed to toggle settings window");
     }
   };
 
   const handleInstallMcpTool = async (tool: McpMarketplaceItem) => {
-    if (installingTools[tool.mcpId]) return; // Already installing
+    if (installingTools[tool.mcpId]) return;
 
     setInstallingTools((prev) => ({ ...prev, [tool.mcpId]: true }));
 
     try {
-      // This is a placeholder. In a real implementation, you would call an API endpoint
-      // to install the MCP tool on the backend
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate installation delay
-
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       toast.success(`Installed ${tool.name} successfully`);
     } catch (error) {
       console.error(`Error installing ${tool.name}:`, error);
@@ -676,10 +709,8 @@ export default function SettingsPage() {
     }
   };
 
-  // Handle manual installation of MCP config
   const handleManualInstallMcp = async (configJson: string) => {
     try {
-      // Parse and validate the config JSON
       let config;
       try {
         config = JSON.parse(configJson);
@@ -688,13 +719,11 @@ export default function SettingsPage() {
         throw new Error("Invalid JSON format");
       }
 
-      // Check if the config has the expected structure
       if (!config.mcpServers || typeof config.mcpServers !== "object") {
         toast.error("Invalid configuration: missing 'mcpServers' object");
         throw new Error("Invalid configuration structure");
       }
 
-      // Submit the config to the backend
       const response = await fetch(
         "http://localhost:38000/api/mcp/configurations/manual",
         {
@@ -712,8 +741,8 @@ export default function SettingsPage() {
       }
 
       toast.success("MCP configuration installed successfully");
-      fetchAllMcpServers(); // Immediately refresh installed servers
-      fetchMcpConfigurations(); // Refresh configurations
+      fetchAllMcpServers();
+      fetchMcpConfigurations();
     } catch (error) {
       console.error("Error installing manual MCP configuration:", error);
       toast.error(
@@ -1011,19 +1040,28 @@ export default function SettingsPage() {
 
   // Navigation items for sidebar
   const navigationItems = [
-    { id: "general", label: "General", icon: <SettingsIcon className="h-5 w-5" /> },
+    {
+      id: "general",
+      label: "General",
+      icon: <SettingsIcon className="h-5 w-5" />,
+    },
     { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
-    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> }
+    { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> },
+    { id: "developer", label: "Developer", icon: <Code className="h-5 w-5" /> },
   ];
 
   return (
     <div className="bg-background/20 relative h-full w-full flex overflow-hidden">
       {/* Sidebar */}
-      <div className={`bg-card/90 h-full overflow-y-auto border-r border-border/40 flex flex-col transition-all duration-300 ${
-        isSidebarCollapsed ? "w-16" : "w-64"
-      }`}>
+      <div
+        className={`bg-card/90 h-full overflow-y-auto border-r border-border/40 flex flex-col transition-all duration-300 ${
+          isSidebarCollapsed ? "w-16" : "w-64"
+        }`}
+      >
         <div className="p-4 border-b border-border/40 flex items-center justify-between">
-          {!isSidebarCollapsed && <h1 className="text-foreground text-lg font-bold">Settings</h1>}
+          {!isSidebarCollapsed && (
+            <h1 className="text-foreground text-lg font-bold">Settings</h1>
+          )}
           <div className="flex items-center">
             {!isSidebarCollapsed && (
               <div
@@ -1042,7 +1080,9 @@ export default function SettingsPage() {
             <button
               onClick={toggleSidebar}
               className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors"
-              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={
+                isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
             >
               {isSidebarCollapsed ? (
                 <ChevronRight className="h-5 w-5 text-foreground/80" />
@@ -1052,7 +1092,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-        
+
         <nav className="flex-1 py-4">
           <ul className="space-y-1 px-2">
             {navigationItems.map((item) => (
@@ -1060,29 +1100,31 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setActiveTab(item.id)}
                   className={`flex items-center w-full px-3 py-2 rounded-md transition-colors ${
-                    activeTab === item.id 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'hover:bg-foreground/5 text-foreground/80'
-                  } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                    activeTab === item.id
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover:bg-foreground/5 text-foreground/80"
+                  } ${isSidebarCollapsed ? "justify-center" : ""}`}
                   title={isSidebarCollapsed ? item.label : undefined}
                 >
-                  <span className={isSidebarCollapsed ? '' : 'mr-2'}>{item.icon}</span>
+                  <span className={isSidebarCollapsed ? "" : "mr-2"}>
+                    {item.icon}
+                  </span>
                   {!isSidebarCollapsed && <span>{item.label}</span>}
                 </button>
               </li>
             ))}
           </ul>
         </nav>
-        
+
         <div className="border-t border-border/40 p-4">
-          <button 
+          <button
             onClick={handleCloseSettings}
             className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
-              isSidebarCollapsed ? 'justify-center' : ''
+              isSidebarCollapsed ? "justify-center" : ""
             }`}
             title={isSidebarCollapsed ? "Close Settings" : undefined}
           >
-            <X className={`h-5 w-5 ${isSidebarCollapsed ? '' : 'mr-2'}`} />
+            <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
             {!isSidebarCollapsed && <span>Close Settings</span>}
           </button>
         </div>
@@ -1133,13 +1175,175 @@ export default function SettingsPage() {
         )}
 
         {/* MCP Market Tab Content */}
-        {activeTab === "mcp" && (
-          <MarketplaceSection {...marketplaceProps} />
-        )}
+        {activeTab === "mcp" && <MarketplaceSection {...marketplaceProps} />}
 
         {/* Agents Tab Content */}
         {activeTab === "agents" && (
           <AgentsTab onNavigateToMcp={() => setActiveTab("mcp")} />
+        )}
+
+        {/* Developer Tab Content */}
+        {activeTab === "developer" && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-foreground text-xl font-semibold mb-4">
+                Developer Mode
+              </h2>
+              <div className="bg-card/50 rounded-lg p-6 border border-border/40 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-foreground font-medium">
+                      Enable Developer Mode
+                    </h3>
+                    <p className="text-foreground/60 text-sm">
+                      Show developer tools and window controls for debugging
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDevModeEnabled(!devModeEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      devModeEnabled
+                        ? "bg-primary"
+                        : "bg-gray-200 dark:bg-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        devModeEnabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {devModeEnabled && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="text-foreground font-medium">
+                      Window Controls
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">
+                          Settings Window
+                        </h5>
+                        <p className="text-foreground/60 text-sm mb-3">
+                          Main settings configuration window
+                        </p>
+                        <button
+                          onClick={() =>
+                            window.electronAPI?.toggleWindow("settings")
+                          }
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Settings
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">
+                          History Window
+                        </h5>
+                        <p className="text-foreground/60 text-sm mb-3">
+                          Chat history browser window
+                        </p>
+                        <button
+                          onClick={() =>
+                            window.electronAPI?.toggleWindow("history")
+                          }
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle History
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">
+                          Main Window
+                        </h5>
+                        <p className="text-foreground/60 text-sm mb-3">
+                          Main application interface window
+                        </p>
+                        <button
+                          onClick={() =>
+                            window.electronAPI?.toggleWindow("main")
+                          }
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Main Window
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">
+                          Agent Popover
+                        </h5>
+                        <p className="text-foreground/60 text-sm mb-3">
+                          Agent selection popover window (test position)
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            // Get button position for realistic positioning
+                            const button = e.currentTarget;
+                            const rect = button.getBoundingClientRect();
+                            const x = rect.right + 10; // Position to the right of the button
+                            const y = rect.top;
+                            
+                            window.electronAPI?.toggleAgentPopover(
+                              Math.round(x),
+                              Math.round(y),
+                              280,
+                              200,
+                            );
+                          }}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Agent Popover
+                        </button>
+                      </div>
+
+                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
+                        <h5 className="text-foreground font-medium mb-2">
+                          Model Selector
+                        </h5>
+                        <p className="text-foreground/60 text-sm mb-3">
+                          Model selection popover window (test position)
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            // Get button position for realistic positioning
+                            const button = e.currentTarget;
+                            const rect = button.getBoundingClientRect();
+                            const x = rect.right + 10; // Position to the right of the button
+                            const y = rect.top;
+                            
+                            window.electronAPI?.toggleModelSelector(
+                              Math.round(x),
+                              Math.round(y),
+                              280,
+                              200,
+                            );
+                          }}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Toggle Model Selector
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 p-4 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                      <h5 className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
+                        ⚠️ Developer Tools
+                      </h5>
+                      <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                        These controls are for development and debugging
+                        purposes. Use with caution as they may affect the
+                        application state.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

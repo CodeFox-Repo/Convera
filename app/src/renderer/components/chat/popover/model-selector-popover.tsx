@@ -13,13 +13,6 @@ export default function ModelSelector() {
   } = useModelStore();
 
   console.log("selectedModelId", selectedModelId);
-  const ITEM_HEIGHT = 32;
-  const POPUP_PADDING = 8;
-  const MAX_HEIGHT = 220;
-  const computedHeight = Math.min(
-    supportedModelIds.length * ITEM_HEIGHT + POPUP_PADDING,
-    MAX_HEIGHT,
-  );
 
   // Listen for theme changes from settings
   useThemeSync();
@@ -104,24 +97,24 @@ export default function ModelSelector() {
           const button = e.currentTarget;
           const rect = button.getBoundingClientRect();
 
-          const dpr = window.devicePixelRatio || 1;
-          const contentRight = rect.right * dpr;
-          const contentTop = rect.top * dpr;
-
           window.electronAPI
             .getCurrentWindowPosition()
             .then(({ x: winX, y: winY }) => {
-              const px = winX + contentRight;
-              const py = winY + contentTop;
+              const popoverWidth = 280;
+              const popoverHeight = 200;
+              
+              const screenX = winX + rect.left;
+              const screenY = winY + rect.top;
+              
+              const absX = Math.round(screenX);
+              const absY = Math.round(screenY - popoverHeight - 2); // 2px gap above button
 
-              const absX = Math.round(px);
-              const absY = Math.round(py - computedHeight);
 
               window.electronAPI.toggleModelSelector(
                 absX,
                 absY,
-                200,
-                computedHeight,
+                popoverWidth,
+                popoverHeight,
               );
             })
             .catch((err: Error) => {

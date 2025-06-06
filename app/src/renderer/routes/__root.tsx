@@ -14,7 +14,9 @@ function Root() {
 
   // Initialize global shortcut from user settings when app loads
   useEffect(() => {
-    initGlobalShortcut();
+    initGlobalShortcut().catch((error) => {
+      console.error("Failed to initialize global shortcut:", error);
+    });
   }, []);
 
   return (

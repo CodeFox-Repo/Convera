@@ -48,7 +48,6 @@ export const useAgentStore = create<AgentState>()(
             "selectedAgent",
             agent ? JSON.stringify(agent) : "null",
           );
-          window.electronAPI.toggleAgentPopover();
 
           if (agent) {
             console.log("triggering agent-selected event agentId:", agent.id);
@@ -90,15 +89,18 @@ export const useAgentStore = create<AgentState>()(
             const { x: winX, y: winY } =
               await window.electronAPI.getCurrentWindowPosition();
 
-            const dpr = window.devicePixelRatio || 1;
-            const contentRight = rect.right * dpr;
-            const contentTop = rect.top * dpr;
-
+            // Calculate absolute position relative to the window
+            // No need to multiply by devicePixelRatio since getBoundingClientRect already accounts for it
             const width = 240;
             const height = 300;
 
-            const absX = Math.round(winX + contentRight - width);
-            const absY = Math.round(winY + contentTop);
+            // Position the popover to the left of the button, aligned to the top
+            const absX = Math.round(winX + rect.left - width - 8); // 8px gap to the left of button
+            const absY = Math.round(winY + rect.top);
+
+            console.log(
+              `Positioning agent popover at: x=${absX}, y=${absY} (button rect: ${rect.left}, ${rect.top}, window: ${winX}, ${winY})`,
+            );
 
             window.electronAPI.toggleAgentPopover(absX, absY, width, height);
           } catch (err) {

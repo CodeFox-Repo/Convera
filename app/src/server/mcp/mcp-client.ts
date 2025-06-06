@@ -5,9 +5,9 @@
  * Handles communication with MCP servers
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { ToolDefinition } from "./types";
 
 /**
@@ -73,14 +73,15 @@ export class MCPClient {
         const options: any = {
           command: this.serverCommand,
           args: this.serverArgs || [],
-          env: {},
+          env: { ...process.env }, // Always include system environment variables,
         };
 
         // Create a merged environment that includes system environment variables
         // This ensures PATH and other critical variables are available
         if (this.serverEnv && Object.keys(this.serverEnv).length > 0) {
           options.env = {
-            ...this.serverEnv,
+            ...process.env, // Inherit system environment variables (if remove this then we get error, need to check if it is nessysary)
+            ...this.serverEnv, // Override with custom environment variables
           };
           console.log(
             `Using environment variables for MCP server: ${Object.keys(this.serverEnv).join(", ")}`,

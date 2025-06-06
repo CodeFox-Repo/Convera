@@ -1,5 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
 import AgentPopover from "../components/chat/popover/agent-popover";
+import ChatPage from "../pages/chat";
 import ChatHistoryPage from "../pages/chat-history";
 import HomePage from "../pages/home";
 import SettingsPage from "../pages/settings";
@@ -30,6 +31,12 @@ export const HomeRoute = createRoute({
   component: HomePage,
 });
 
+export const ChatRoute = createRoute({
+  getParentRoute: () => RootRoute,
+  path: "/chat",
+  component: ChatPage,
+});
+
 export const SettingsRoute = createRoute({
   getParentRoute: () => RootRoute,
   path: "/settings",
@@ -50,6 +57,7 @@ export const ChatHistoryRoute = createRoute({
 
 export const rootTree = RootRoute.addChildren([
   HomeRoute,
+  ChatRoute,
   SettingsRoute,
   AgentPopoverRoute,
   ChatHistoryRoute,

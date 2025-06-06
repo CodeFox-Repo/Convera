@@ -7,12 +7,13 @@ import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
 
-// Global reference to the main window
-let mainWindow: BrowserWindow | null = null;
+// Global reference to the history window
+let historyWindow: BrowserWindow | null = null;
 
-// Create platform-specific configuration for main window
+// Create platform-specific configuration for history window
 function createPlatformSpecificConfig(
   dimensions: WindowDimensions,
+  mainWindow?: BrowserWindow,
 ): BrowserWindowConstructorOptions {
   const baseConfig: BrowserWindowConstructorOptions = {
     width: dimensions.width,
@@ -26,6 +27,7 @@ function createPlatformSpecificConfig(
       nodeIntegrationInSubFrames: false,
       preload: path.join(__dirname, "preload.js"),
     },
+    parent: mainWindow || undefined,
     modal: false,
     show: false,
     titleBarStyle: "hiddenInset",
@@ -54,7 +56,9 @@ function configurePlatformAppearance(window: BrowserWindow) {
 
 // Configure window properties
 function configureWindowProperties(window: BrowserWindow) {
+  // Enforce fixed dimensions
   window.on("will-resize", (event) => {
+    // Prevent resizing by canceling the event
     event.preventDefault();
   });
 }
@@ -63,7 +67,7 @@ function configureWindowProperties(window: BrowserWindow) {
 function loadWindowContent(window: BrowserWindow) {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     console.log(
-      "Loading main URL in main window:",
+      "Loading main URL in history window:",
       MAIN_WINDOW_VITE_DEV_SERVER_URL,
     );
     window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -72,7 +76,7 @@ function loadWindowContent(window: BrowserWindow) {
       __dirname,
       `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
     );
-    console.log("Loading main path in main window:", mainPath);
+    console.log("Loading main path in history window:", mainPath);
     window.loadFile(mainPath);
   }
 }
@@ -80,100 +84,100 @@ function loadWindowContent(window: BrowserWindow) {
 // Setup window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on("did-finish-load", () => {
-    console.log("Main page loaded in main window, redirecting to main...");
+    console.log(
+      "Main page loaded in history window, redirecting to history...",
+    );
 
     window.webContents
       .executeJavaScript(
         `
-      console.log("Redirecting to main page...");
+      console.log("Redirecting to history page...");
       
       if (window.router) {
         console.log("Using router API");
-        window.router.navigate({ to: "/" });
+        window.router.navigate({ to: "/history" });
       } else {
         console.log("Using location.hash");
-        window.location.hash = "/";
+        window.location.hash = "/history";
       }
     `,
       )
       .catch((err) => {
         console.error("Failed to execute navigation script:", err);
       });
-
-    if (inDevelopment && window) {
-      console.log("Opening DevTools for main window");
-      window.webContents.openDevTools({ mode: "detach" });
-    }
   });
 
   window.webContents.on(
     "did-fail-load",
     (event, errorCode, errorDescription) => {
-      console.error("Main window failed to load:", errorCode, errorDescription);
+      console.error(
+        "History window failed to load:",
+        errorCode,
+        errorDescription,
+      );
     },
   );
 
   window.once("ready-to-show", () => {
-    console.log("Main window ready, but kept hidden");
+    console.log("History window ready, but kept hidden");
+
+    if (inDevelopment) {
+      window.webContents.openDevTools({ mode: "detach" });
+    }
   });
 
   window.on("closed", () => {
-    console.log("Main window closed, setting reference to null");
-    mainWindow = null;
+    console.log("History window closed");
+    historyWindow = null;
   });
 }
 
-// Pre-create main window
-export function preCreateMainWindow(
-  chatWindow?: BrowserWindow,
+// Pre-create history window
+export function preCreateHistoryWindow(
+  mainWindow?: BrowserWindow,
 ): BrowserWindow | null {
-  if (mainWindow) return mainWindow;
+  if (historyWindow) return historyWindow;
 
-  console.log("Pre-creating main window");
+  console.log("Pre-creating history window");
 
+  // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.SETTINGS,
+    WINDOW_SIZE_PRESETS.SETTINGS, // Reuse settings size for now
     undefined,
     true,
     true,
   );
 
   // Create window with platform-specific configuration
-  const config = createPlatformSpecificConfig(dimensions);
-
-  // Add parent window if provided
-  if (chatWindow) {
-    config.parent = chatWindow;
-  }
-
-  mainWindow = new BrowserWindow(config);
+  const config = createPlatformSpecificConfig(dimensions, mainWindow);
+  historyWindow = new BrowserWindow(config);
 
   // Configure appearance and properties
-  configurePlatformAppearance(mainWindow);
-  configureWindowProperties(mainWindow);
+  configurePlatformAppearance(historyWindow);
+  configureWindowProperties(historyWindow);
 
   // Load content
-  loadWindowContent(mainWindow);
+  loadWindowContent(historyWindow);
 
   // Setup event handlers
-  setupWindowEventHandlers(mainWindow);
+  setupWindowEventHandlers(historyWindow);
 
-  return mainWindow;
+  return historyWindow;
 }
 
-// Create and show main window
-export function createMainWindow(): void {
-  if (!mainWindow) {
-    preCreateMainWindow();
+// Create and show history window
+export function createHistoryWindow(): void {
+  if (!historyWindow) {
+    preCreateHistoryWindow();
   }
 
-  if (mainWindow) {
-    mainWindow.show();
-    mainWindow.focus();
+  if (historyWindow) {
+    historyWindow.show();
+    historyWindow.focus();
   }
 }
 
-// Get main window reference
-export function getMainWindow(): BrowserWindow | null {
-  return mainWindow;
+// Get history window reference
+export function getHistoryWindow(): BrowserWindow | null {
+  return historyWindow;
 }

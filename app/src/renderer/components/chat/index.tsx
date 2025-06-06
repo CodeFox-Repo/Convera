@@ -30,7 +30,7 @@ export default function Chat() {
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
             .then((res) => {
               requestAnimationFrame(() => {
-                window.electronAPI.resizeMessageContent(res.width, res.height);
+                window.electronAPI.resizeWindow(res.width, res.height, true);
               });
             });
         } catch (error) {

@@ -66,7 +66,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
       localStorage.setItem("selectedChatHistory", chatData);
 
       if (window.electronAPI) {
-        window.electronAPI.toggleHistoryWindow();
+        window.electronAPI.toggleWindow("history");
       }
     } else {
       setError("Failed to load chat");
@@ -96,7 +96,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
    * Function to open chat history window
    */
   const triggerHistoryWindow = useCallback(async () => {
-    await window.electronAPI.toggleHistoryWindow().catch((error: Error) => {
+    await window.electronAPI.toggleWindow("history").catch((error: Error) => {
       console.error("Error toggling chat history window:", error);
     });
   }, []);
@@ -106,7 +106,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
    */
   const closeHistoryWindow = useCallback(() => {
     console.log("Closing history window...");
-    window.electronAPI.toggleHistoryWindow().catch((error: Error) => {
+    window.electronAPI.toggleWindow("history").catch((error: Error) => {
       console.error("Error toggling history window:", error);
     });
   }, []);

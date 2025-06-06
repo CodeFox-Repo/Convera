@@ -1,31 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import {
+  ThemeMode,
+  WindowControlOptions,
+  WindowType,
+} from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
-  closeSettingsWindow,
   closeWindow,
   getClipboardText,
   getCurrentTheme,
   getCurrentWindowPosition,
   getCurrentWindowSize,
+  getPlatform,
   getPreviousApp,
   getPreviousAppID,
+  hideAgentPopoverWindow,
+  hideModelSelectorWindow,
   initGlobalShortcut,
   maximizeWindow,
   minimizeWindow,
   modelSelected,
   openPath,
   pasteModifiedContent,
-  resizeMessageContent,
   resizeWindow,
-  setDarkTheme,
-  setLightTheme,
-  setSystemTheme,
-  toggleAgentPopover,
-  toggleModelSelector,
-  toggleSettingsWindow,
-  toggleTheme,
+  setTheme,
+  toggleAgentPopoverWindow,
+  toggleModelSelectorWindow,
   toggleViewMode,
   toggleWindow,
   updateGlobalShortcut,
@@ -54,6 +56,7 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
         ipcRenderer.invoke(channel, ...args);
     }
   }
+
   api.onFocusChatInput = (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on(CHANNELS.APP.FOCUS_CHAT_INPUT, handler);
@@ -106,235 +109,163 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
   return api;
 }
 
-export type ListenerOptions = {
-  createSettingsWindow: () => void;
-  settingsWindow: BrowserWindow | null;
-  createHistoryWindow: () => void;
-  historyWindow: BrowserWindow | null;
-  registerGlobalShortcuts: () => void;
-  createAgentPopoverWindow?: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined;
-  agentPopoverWindow?: BrowserWindow | null;
-  createModelSelectorWindow?: (
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-  ) => BrowserWindow | null | undefined;
-  modelSelectorWindow?: BrowserWindow | null;
-};
+// Listener options that define what handlers are available for registration
+export interface ListenerOptions {
+  chatWindow?: () => BrowserWindow | null;
+  registerGlobalShortcuts?: () => void;
+}
 
-export default function registerListeners(
-  mainWindow: BrowserWindow,
-  options: ListenerOptions,
-) {
-  console.log("Registering IPC listeners...");
+// Register all IPC listeners for main process
+export function registerListeners(options: ListenerOptions = {}) {
+  const { chatWindow, registerGlobalShortcuts } = options;
 
-  ipcMain.handle(CHANNELS.SETTINGS.TOGGLE, () => {
-    console.log("Handling SETTINGS.TOGGLE");
-    toggleSettingsWindow(options.settingsWindow, options.createSettingsWindow);
-  });
-
-  ipcMain.handle(CHANNELS.SETTINGS.CLOSE, () => {
-    console.log("Handling SETTINGS.CLOSE");
-    console.log("Settings window:", options.settingsWindow);
-    closeSettingsWindow(options.settingsWindow);
-  });
-
-  ipcMain.handle(CHANNELS.HISTORY.OPEN, () => {
-    console.log("Handling HISTORY.OPEN");
-    toggleWindow(options.historyWindow, options.createHistoryWindow);
-  });
-
-  ipcMain.handle(CHANNELS.HISTORY.CLOSE, () => {
-    console.log("Handling HISTORY.CLOSE");
-    toggleWindow(options.historyWindow);
-  });
-
+  // Unified Window Control
   ipcMain.handle(
-    CHANNELS.SETTINGS.UPDATE_SHORTCUT,
-    (event, shortcut: string) => {
-      console.log(`Handling SETTINGS.UPDATE_SHORTCUT with: ${shortcut}`);
-      return updateGlobalShortcut(shortcut, options.registerGlobalShortcuts);
+    CHANNELS.WINDOW.TOGGLE,
+    (_event, type: WindowType, windowOptions?: WindowControlOptions) => {
+      return toggleWindow(type, windowOptions);
     },
   );
 
-  ipcMain.handle(CHANNELS.SETTINGS.INIT_SHORTCUT, (event, shortcut: string) => {
-    console.log(`Handling SETTINGS.INIT_SHORTCUT with: ${shortcut}`);
-    return initGlobalShortcut(shortcut, options.registerGlobalShortcuts);
+  ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
+    const window = chatWindow?.() || null;
+    return closeWindow(window);
   });
 
+  // Global Shortcuts
+  ipcMain.handle(CHANNELS.SHORTCUTS.UPDATE, (_event, shortcut: string) => {
+    if (!registerGlobalShortcuts) {
+      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      return false;
+    }
+    return updateGlobalShortcut(shortcut, registerGlobalShortcuts);
+  });
+
+  ipcMain.handle(CHANNELS.SHORTCUTS.INIT, (_event, shortcut: string) => {
+    if (!registerGlobalShortcuts) {
+      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      return false;
+    }
+    return initGlobalShortcut(shortcut, registerGlobalShortcuts);
+  });
+
+  // App functionality
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, () => {
-    console.log("Handling APP.GET_PREVIOUS");
     return getPreviousApp();
   });
 
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, () => {
-    console.log("Handling APP.GET_PREVIOUS_ID");
     return getPreviousAppID();
   });
 
-  ipcMain.handle(CHANNELS.WINDOW.MINIMIZE, () => {
-    console.log("Handling WINDOW.MINIMIZE");
-    minimizeWindow(mainWindow);
-  });
-
-  ipcMain.handle(CHANNELS.WINDOW.MAXIMIZE, () => {
-    console.log("Handling WINDOW.MAXIMIZE");
-    maximizeWindow(mainWindow);
-  });
-
-  ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
-    console.log("Handling WINDOW.CLOSE");
-    closeWindow(mainWindow);
-  });
-
-  ipcMain.handle(
-    CHANNELS.WINDOW.RESIZE,
-    (event, width: number, height: number) => {
-      console.log(`Handling WINDOW.RESIZE to ${width}x${height}`);
-      resizeWindow(mainWindow, width, height);
-    },
-  );
-
-  ipcMain.handle(
-    CHANNELS.WINDOW.RESIZE_MESSAGE_CONTENT,
-    (event, width: number, height: number, preserveX: boolean = false) => {
-      console.log(
-        `Handling WINDOW.RESIZE_MESSAGE_CONTENT to ${width}x${height}, preserveX: ${preserveX}`,
-      );
-      resizeMessageContent(mainWindow, width, height, preserveX);
-    },
-  );
-
-  ipcMain.handle(CHANNELS.WINDOW.GET_POSITION, () => {
-    console.log("Handling WINDOW.GET_POSITION");
-    return getCurrentWindowPosition(mainWindow);
-  });
-
-  ipcMain.handle(CHANNELS.THEME.GET_CURRENT, () => {
-    console.log("Handling THEME.GET_CURRENT");
-    return getCurrentTheme();
-  });
-
-  ipcMain.handle(CHANNELS.THEME.TOGGLE, () => {
-    console.log("Handling THEME.TOGGLE");
-    return toggleTheme();
-  });
-
-  // Handle set dark theme request
-  ipcMain.handle(CHANNELS.THEME.SET_DARK, () => {
-    console.log("Handling THEME.SET_DARK");
-    return setDarkTheme();
-  });
-
-  // Handle set light theme request
-  ipcMain.handle(CHANNELS.THEME.SET_LIGHT, () => {
-    console.log("Handling THEME.SET_LIGHT");
-    return setLightTheme();
-  });
-
-  // Handle set system theme request
-  ipcMain.handle(CHANNELS.THEME.SET_SYSTEM, () => {
-    console.log("Handling THEME.SET_SYSTEM");
-    return setSystemTheme();
-  });
-
-  ipcMain.handle(
-    CHANNELS.WINDOW.GET_CURRENT_SIZE,
-    (event, window: WindowSizeConfig) => {
-      return getCurrentWindowSize(window);
-    },
-  );
-
-  // Agent popover handlers
-  ipcMain.handle(
-    CHANNELS.AGENT.TOGGLE_POPOVER,
-    (event, x?: number, y?: number, width?: number, height?: number) => {
-      if (options.createAgentPopoverWindow) {
-        toggleAgentPopover(
-          options.agentPopoverWindow ?? null,
-          mainWindow,
-          options.createAgentPopoverWindow,
-          x,
-          y,
-          width,
-          height,
-        );
-      }
-    },
-  );
-
-  // Handle agent list updated events - relay to agent popover window if it exists
-  ipcMain.on(CHANNELS.AGENT.LIST_UPDATED, () => {
-    console.log(
-      "Handling AGENT.LIST_UPDATED - relaying to agent popover window",
-    );
-    if (options.agentPopoverWindow && options.agentPopoverWindow.isVisible()) {
-      options.agentPopoverWindow.webContents.send(CHANNELS.AGENT.LIST_UPDATED);
-    }
-  });
-
-  // Model selector handlers
-  ipcMain.handle(
-    CHANNELS.MODEL.TOGGLE_SELECTOR,
-    (event, x?: number, y?: number, width?: number, height?: number) => {
-      console.log(
-        `Handling MODEL.TOGGLE_SELECTOR at ${x},${y} with size ${width}x${height}`,
-      );
-      if (options.createModelSelectorWindow) {
-        toggleModelSelector(
-          options.modelSelectorWindow ?? null,
-          mainWindow,
-          options.createModelSelectorWindow,
-          x,
-          y,
-          width,
-          height,
-        );
-      }
-    },
-  );
-
-  // Handle model selection from the model selector window
-  ipcMain.handle(CHANNELS.MODEL.MODEL_SELECTED, (event, modelId: string) => {
-    console.log(`Handling MODEL.MODEL_SELECTED: ${modelId}`);
-    // Forward the selected model to the main window
-    modelSelected(mainWindow, modelId);
-    return true;
-  });
-
-  // View mode toggle
-  ipcMain.handle(CHANNELS.APP.TOGGLE_VIEW_MODE, (_event, expanded: boolean) => {
-    console.log(
-      `Handling APP.TOGGLE_VIEW_MODE: ${expanded ? "expanded" : "compact"}`,
-    );
-    return toggleViewMode(expanded, mainWindow);
-  });
-
-  // Clipboard handlers
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
-    console.log("Handling CLIPBOARD.GET_TEXT");
     return getClipboardText();
+  });
+
+  ipcMain.handle(CHANNELS.APP.SET_INPUT_TEXT, (_event, text: string) => {
+    const window = chatWindow?.() || null;
+    return setInputText(window, text);
   });
 
   ipcMain.handle(
     CHANNELS.APP.PASTE_MODIFIED_CONTENT,
-    (event, content: string) => {
-      console.log("Handling APP.PASTE_MODIFIED_CONTENT");
-      pasteModifiedContent(content);
-      return true;
+    (_event, content: string) => {
+      return pasteModifiedContent(content);
     },
   );
 
-  ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (event, path: string) => {
-    console.log(`Handling FILE.OPEN_PATH: ${path}`);
-    openPath(path);
+  // Platform detection
+  ipcMain.handle(CHANNELS.PLATFORM.GET, () => {
+    return getPlatform();
   });
 
-  console.log("All IPC listeners registered successfully.");
+  // Unified Theme Control
+  ipcMain.handle(CHANNELS.THEME.SET, (_event, mode: ThemeMode) => {
+    return setTheme(mode);
+  });
+
+  ipcMain.handle(CHANNELS.THEME.GET_CURRENT, () => {
+    return getCurrentTheme();
+  });
+
+  // Unified Window Management
+  ipcMain.handle(CHANNELS.WINDOW.MINIMIZE, () => {
+    const window = chatWindow?.() || null;
+    return minimizeWindow(window);
+  });
+
+  ipcMain.handle(CHANNELS.WINDOW.MAXIMIZE, () => {
+    const window = chatWindow?.() || null;
+    return maximizeWindow(window);
+  });
+
+  ipcMain.handle(
+    CHANNELS.WINDOW.RESIZE,
+    (_event, width: number, height: number, preserveX?: boolean) => {
+      const window = chatWindow?.() || null;
+      return resizeWindow(window, width, height, preserveX);
+    },
+  );
+
+  ipcMain.handle(CHANNELS.WINDOW.GET_POSITION, () => {
+    const window = chatWindow?.() || null;
+    return getCurrentWindowPosition(window);
+  });
+
+  ipcMain.handle(
+    CHANNELS.WINDOW.GET_CURRENT_SIZE,
+    (_event, windowConfig: WindowSizeConfig) => {
+      return getCurrentWindowSize(windowConfig);
+    },
+  );
+
+  // View Mode
+  ipcMain.handle(CHANNELS.APP.TOGGLE_VIEW_MODE, (_event, expanded: boolean) => {
+    const window = chatWindow?.() || null;
+    if (!window) {
+      console.warn("No chat window available for view mode toggle");
+      return false;
+    }
+    return toggleViewMode(expanded, window);
+  });
+
+  // Model functionality
+  ipcMain.handle(CHANNELS.MODEL.MODEL_SELECTED, (_event, modelId: string) => {
+    const window = chatWindow?.() || null;
+    return modelSelected(window, modelId);
+  });
+
+  // File operations
+  ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (_event, path: string) => {
+    return openPath(path);
+  });
+
+  // Model selector functionality
+  ipcMain.handle(
+    CHANNELS.MODEL.TOGGLE_SELECTOR,
+    (_event, x?: number, y?: number, width?: number, height?: number) => {
+      return toggleModelSelectorWindow(x, y, width, height);
+    },
+  );
+
+  ipcMain.handle(CHANNELS.MODEL.HIDE_SELECTOR, () => {
+    return hideModelSelectorWindow();
+  });
+
+  // Agent popover functionality
+  ipcMain.handle(
+    CHANNELS.AGENT.TOGGLE_POPOVER,
+    (_event, x?: number, y?: number, width?: number, height?: number) => {
+      return toggleAgentPopoverWindow(x, y, width, height);
+    },
+  );
+
+  ipcMain.handle(CHANNELS.AGENT.HIDE_POPOVER, () => {
+    return hideAgentPopoverWindow();
+  });
+
+  console.log("All IPC listeners registered successfully");
 }
+
+// Legacy import for setInputText handler
+import { setInputText } from "./ipc-handlers";
