@@ -184,26 +184,8 @@ router.put(
       systemPrompt: updatedSystemPrompt,
     };
 
-    // For predefined agents, we don't need to delete first
     // saveCustomAgent handles updating existing agents automatically
-    if (existingAgent.predefined) {
-      // For predefined agents, just save the updated version
-      await saveCustomAgent(updatedAgent);
-    } else {
-      // For custom agents, use the delete-then-save approach
-      const deleteSuccess = await deleteCustomAgent(agentId);
-      if (!deleteSuccess) {
-        return c.json(
-          {
-            status: "error",
-            message: "Failed to update agent: could not remove old version",
-          },
-          500,
-        );
-      }
-      await saveCustomAgent(updatedAgent);
-    }
-
+    await saveCustomAgent(updatedAgent);
     return c.json({ status: "success", agent: updatedAgent });
   },
 );
