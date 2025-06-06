@@ -97,7 +97,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       render: () => (
         <button
           className={`no-drag-region flex items-center ${
-            selectedAgent
+            selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant"
               ? "bg-primary/20 text-primary hover:bg-primary/30 rounded px-2 py-0.5 text-xs font-medium"
               : "text-foreground/70 hover:text-foreground"
           }`}
@@ -105,11 +105,13 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             triggerAgentSelect(e, selectedAgent);
           }}
         >
+          {/* Always show Bot icon */}
           <Bot
-            size={selectedAgent ? 12 : 16}
-            className={selectedAgent ? "mr-1" : ""}
+            size={selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" ? 12 : 16}
+            className={selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" ? "mr-1" : ""}
           />
-          {selectedAgent && selectedAgent.name}
+          {/* Only show agent name if it's not Default Assistant */}
+          {selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" && selectedAgent.name}
         </button>
       ),
       show: true,
