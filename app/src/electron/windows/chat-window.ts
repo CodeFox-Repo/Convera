@@ -10,7 +10,6 @@ import {
   WINDOW_SIZE_PRESETS,
   WindowDimensions,
 } from "@/electron/windows/window-size";
-import { injectWindowStyles } from "@/electron/windows/window-styles";
 import { inDevelopment } from "@/shared/constants/dev";
 import {
   BrowserWindow,
@@ -78,7 +77,6 @@ function configurePlatformAppearance(window: BrowserWindow) {
 // Configure chat window properties
 function configureWindowProperties(window: BrowserWindow) {
   setMainWindowResizable(false, window);
-  injectWindowStyles(window);
   window.setMenuBarVisibility(false);
   window.setMenu(null);
 }
