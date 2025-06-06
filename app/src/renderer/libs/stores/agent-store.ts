@@ -153,7 +153,7 @@ export const useAgentStore = create<AgentState>()(
 
             // Calculate absolute position relative to the window
             // Position the popover to the left of the button, aligned to the top
-            const absX = Math.round(winX + rect.left - 360 - 8); // 8px gap to the left of button, 360 is the fixed popover width
+            const absX = Math.round(winX + rect.left - 320 - 8); // 8px gap to the left of button, 320 is the popover width
             const absY = Math.round(winY + rect.top);
 
             console.log(

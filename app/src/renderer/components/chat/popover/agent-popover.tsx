@@ -428,7 +428,7 @@ useThemeSync();
       </div>
 
       <div 
-        className="bg-background border-border w-full h-full rounded-xl border shadow-lg flex flex-col"
+        className="bg-background border-border w-80 h-[350px] rounded-xl border shadow-lg flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

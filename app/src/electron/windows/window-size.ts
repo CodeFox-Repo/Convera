@@ -49,9 +49,9 @@ export const WINDOW_SIZE_PRESETS = {
   AGENT_POPOVER: {
     widthProportion: 0.1,
     heightProportion: 0.1,
-    minWidth: 300,
+    minWidth: 320,
     minHeight: 350,
-    maxWidth: 300,
+    maxWidth: 320,
     maxHeight: 350,
   },
   MODEL_SELECTOR: {

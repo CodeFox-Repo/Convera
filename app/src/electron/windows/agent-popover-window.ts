@@ -121,14 +121,12 @@ export function createAgentPopoverWindow(
   }
 
   if (agentPopoverWindow) {
-    // Get dimensions from presets if not provided
-    if (width === 0 || height === 0) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.AGENT_POPOVER,
-      );
-      width = dimensions.width;
-      height = dimensions.height;
-    }
+    // Get dimensions from presets - directly override like working version
+    const presetDimensions = calculateWindowDimensions(
+      WINDOW_SIZE_PRESETS.AGENT_POPOVER,
+    );
+    width = presetDimensions.width;
+    height = presetDimensions.height;
 
     // Reposition and show
     console.log(
