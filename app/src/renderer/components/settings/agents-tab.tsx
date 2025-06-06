@@ -833,20 +833,13 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                 
                 if (agent.toolReferences && agent.toolReferences.length > 0) {
                   agent.toolReferences.forEach(toolRef => mcpServers.add(toolRef.mcpName));
-                } else if (agent.toolNames && agent.toolNames.length > 0) {
-                  agent.toolNames.forEach(toolId => {
-                    const parts = toolId.split(":");
-                    if (parts.length > 1) {
-                      mcpServers.add(parts[0]);
-                    }
-                  });
-                }
+                } 
                 
                 // Convert the Set to Array
                 const mcpServersList = Array.from(mcpServers);
 
                 return (
-                  <div key={agent.id} className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-sm border border-border/30">
+                  <div key={agent.id} className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-xs border border-border/30">
                     <div className="flex items-start gap-3">
                       <div className="text-primary bg-primary/10 rounded-full p-1.5">
                         <Bot size={18} />
@@ -860,7 +853,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                         {mcpServersList.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {mcpServersList.map((serverName) => (
-                              <div key={serverName} className="bg-primary/5 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs">
+                              <div key={serverName} className="bg-primary/80 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs">
                                 <Server size={10} className="mr-1" />
                                 {serverName}
                               </div>
