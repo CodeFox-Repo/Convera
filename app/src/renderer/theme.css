@@ -1,0 +1,87 @@
+@layer base {
+  :root {
+    /* Light mode - white background */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 30 100% 50%; /* Orange */
+    --primary-foreground: 0 0% 20%; /* 改为深色，更适合浅色主题 */
+    --secondary: 30 10% 96%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 30 100% 50%; /* Orange */
+    --accent-foreground: 0 0% 20%; /* 改为深色，更适合浅色主题 */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 30 80% 50%;
+    --radius: 0.5rem;
+
+    /* Global border radius control - this single variable will control all rounded corners */
+    --global-border-radius: 12px;
+
+    /* All component-specific border radius variables inherit from the global value */
+    --app-border-radius: var(--global-border-radius);
+    --chat-border-radius: var(--global-border-radius);
+    --message-border-radius: var(--global-border-radius);
+    --button-border-radius: var(--global-border-radius);
+
+    --chat-bg-color: rgba(255, 255, 255, 0.9);
+    --chat-input-bg-color: rgba(250, 250, 250, 0.9);
+    --user-message-bg-color: rgba(255, 240, 220, 0.8);
+    --assistant-message-bg-color: rgba(255, 220, 180, 0.8);
+  }
+  .dark {
+    /* Dark mode - black background */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 30 100% 50%; /* Orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 30 100% 50%; /* Orange */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 30 80% 50%;
+    --chat-bg-color: rgba(0, 0, 0, 0.7);
+    --chat-input-bg-color: rgba(20, 20, 20, 0.7);
+    --user-message-bg-color: rgba(40, 30, 10, 0.6);
+    --assistant-message-bg-color: rgba(60, 40, 20, 0.6);
+  }
+}
+
+:root {
+  --sidebar: rgba(250, 250, 250, 1);
+  --sidebar-foreground: rgba(65, 64, 73, 1);
+  --sidebar-primary: rgba(26, 25, 29, 1);
+  --sidebar-primary-foreground: rgba(250, 250, 250, 1);
+  --sidebar-accent: rgba(244, 244, 245, 1);
+  --sidebar-accent-foreground: rgba(26, 25, 29, 1);
+  --sidebar-border: rgba(230, 232, 235, 1);
+  --sidebar-ring: rgba(59, 130, 246, 1);
+}
+
+.dark {
+  --sidebar: rgba(26, 25, 29, 1);
+  --sidebar-foreground: rgba(244, 244, 245, 1);
+  --sidebar-primary: rgba(56, 95, 184, 1);
+  --sidebar-primary-foreground: rgba(255, 255, 255, 1);
+  --sidebar-accent: rgba(41, 40, 45, 1);
+  --sidebar-accent-foreground: rgba(244, 244, 245, 1);
+  --sidebar-border: rgba(41, 40, 45, 1);
+  --sidebar-ring: rgba(59, 130, 246, 1);
+}
