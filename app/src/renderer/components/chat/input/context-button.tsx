@@ -28,7 +28,7 @@ const FileBadge = ({ file, onRemove }: { file: File; onRemove: () => void }) => 
   }, [file, isImage]);
   
   return (
-    <div className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+    <div className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
         bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5">
       {isImage && preview ? (
         <div className="size-4 flex-shrink-0 mr-1 rounded overflow-hidden">
@@ -51,7 +51,7 @@ const FileBadge = ({ file, onRemove }: { file: File; onRemove: () => void }) => 
 
 const RemainingFilesBadge = ({ count }: { count: number }) => {
   return (
-    <div className="h-6 no-drag-region flex items-center justify-center rounded-[var(--app-border-radius)] border border-gray-500/45
+    <div className="h-6 no-drag-region flex items-center justify-center rounded-2xl border border-gray-500/45
         bg-background/30 px-3 py-1 text-xs font-medium text-foreground/80">
       +{count}
     </div>
@@ -76,7 +76,7 @@ export function ContextButtons({
       <div className="px-2 w-full overflow-x-auto overflow-y-hidden whitespace-nowrap hide-scrollbar">
         <div className="inline-flex items-center gap-1 h-7">
           <button
-            className={`h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+            className={`h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
                 bg-background/30 text-xs font-medium hover:bg-background/50 transition-colors
                 ${hasContexts ? 'px-2 py-1 aspect-square' : 'px-3 py-1 max-w-[36ch]'}`}
             onClick={onAddFile}
@@ -90,7 +90,7 @@ export function ContextButtons({
           
           {copiedContent && (
             <div
-              className="group relative h-6 no-drag-region flex items-center rounded-[var(--app-border-radius)] border border-gray-500/45
+              className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
                 bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />

@@ -1,6 +1,6 @@
 import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
@@ -293,25 +293,42 @@ export default function ChatContent({
 
   // Renders regenerating indicator
   function renderLoadingIndicator() {
+    const avatar = "../../images/icon.png";
+    
     return (
-      <div className="w-full py-4 border-b border-border/30">
+      <div className="w-full py-2">
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {/* Avatar section */}
-            <div className="flex-shrink-0 mt-1">
-              <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                <Bot className="size-4 text-muted-foreground" />
+            <div className="flex-shrink-0">
+              <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
+                <img
+                  src={avatar}
+                  alt="Agent"
+                  className="size-6 object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement!;
+                    parent.innerHTML = "";
+                    const botIcon = document.createElement("div");
+                    botIcon.innerHTML =
+                      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                    botIcon.className = "text-muted-foreground";
+                    parent.appendChild(botIcon);
+                  }}
+                />
               </div>
             </div>
 
             {/* Content section */}
-            <div className="flex-1 min-w-0">
-              {/* Header */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-foreground">
+            <div className="flex-1 min-w-0 space-y-3">
+              {/* Header with role and timestamp - inline with avatar */}
+              <div className="flex items-center gap-3 -mt-0.5">
+                <span className="text-sm font-semibold text-foreground">
                   FoxyChat
                 </span>
-                <span className="text-xs text-muted-foreground">Now</span>
+                <span className="text-xs text-muted-foreground/80">Now</span>
               </div>
 
               {/* Loading content */}
@@ -354,6 +371,8 @@ export default function ChatContent({
   }, [messages.length]);
 
   if (messages.length === 0) {
+    const avatar = "../../images/icon.png";
+    
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
         <motion.div
@@ -363,7 +382,22 @@ export default function ChatContent({
           className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <Bot className="h-8 w-8 text-zinc-500" />
+            <img
+              src={avatar}
+              alt="FoxyChat"
+              className="h-10 w-10 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement!;
+                parent.innerHTML = "";
+                const botIcon = document.createElement("div");
+                botIcon.innerHTML =
+                  '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                botIcon.className = "text-zinc-500";
+                parent.appendChild(botIcon);
+              }}
+            />
           </div>
           <h3 className="mb-2 text-xl font-semibold">Welcome to FoxChat</h3>
           <p className="text-zinc-500 dark:text-zinc-400">
@@ -446,9 +480,9 @@ export default function ChatContent({
       <div className="no-drag-region flex h-full flex-col">
         {renderMessages()}
 
-        {/* Show waiting for first token animation */}
+        {/* Show waiting for first token animation - only if last message is not from assistant */}
         <AnimatePresence mode="wait">
-          {isLoading && messages.length > 0 && (
+          {isLoading && messages.length > 0 && !(messages[messages.length - 1]?.role === "assistant") && (
             <motion.div
               key="waiting-first-token"
               className="no-drag-region w-full"

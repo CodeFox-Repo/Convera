@@ -291,16 +291,6 @@
   overflow: hidden;
 }
 
-.app-container {
-  border-radius: var(--app-border-radius);
-  overflow: hidden;
-}
-
-.chat-window {
-  border-radius: var(--app-border-radius);
-  overflow: hidden;
-}
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

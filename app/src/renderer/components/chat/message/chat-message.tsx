@@ -232,17 +232,17 @@ const ChatMessage = memo(
 
     return (
       <motion.div
-        className="group/message no-drag-region w-full py-4 border-b border-border/30 last:border-b-0"
+        className="group/message no-drag-region w-full py-2"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
         <div className="max-w-4xl mx-auto px-4">
           {/* Unified left-aligned layout for all messages */}
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {/* Avatar section */}
-            <div className="flex-shrink-0 mt-1">
-              <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+            <div className="flex-shrink-0">
+              <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
                 {isUser ? (
                   <User size={16} className="text-muted-foreground" />
                 ) : (
@@ -267,20 +267,20 @@ const ChatMessage = memo(
             </div>
 
             {/* Content section */}
-            <div className="flex-1 min-w-0">
-              {/* Header with role and timestamp */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-foreground">
+            <div className="flex-1 min-w-0 space-y-3">
+              {/* Header with role and timestamp - inline with avatar */}
+              <div className="flex items-center gap-3 -mt-0.5">
+                <span className="text-sm font-semibold text-foreground">
                   {isUser ? "You" : "FoxyChat"}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground/80">
                   {formatTimestamp(message.createdAt)}
                 </span>
               </div>
 
               {/* Attachments section - above content */}
               {hasAttachments && (
-                <div className="mb-3 space-y-2">
+                <div className="space-y-2">
                   {message.experimental_attachments?.map(
                     (attachment, index) => (
                       <AttachmentPreview key={index} attachment={attachment} />
@@ -291,8 +291,8 @@ const ChatMessage = memo(
 
               {/* Copied content section - below attachments, above message content */}
               {copiedContent && (
-                <div className="mb-3">
-                  <div className="group relative rounded-md border border-border bg-background/50 p-3">
+                <div>
+                  <div className="group relative rounded-lg border border-border bg-background/50 p-3">
                     <div 
                       className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                       onClick={toggleCopiedContent}
@@ -332,11 +332,11 @@ const ChatMessage = memo(
               )}
 
               {/* Message content */}
-              <div className="text-foreground text-sm leading-relaxed">
+              <div className="text-foreground leading-relaxed">
                 {isEditing ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pr-1">
                     <textarea
-                      className="w-full min-h-[100px] p-3 rounded-md border border-border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      className="w-full min-h-[100px] p-3 rounded-lg border border-border bg-background text-foreground resize-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 text-sm transition-all shadow-sm"
                       value={editedContent}
                       onChange={(e) => onEditContentChange(e.target.value)}
                       autoFocus
@@ -344,13 +344,13 @@ const ChatMessage = memo(
                     />
                     <div className="flex gap-2">
                       <button
-                        className="px-3 py-1.5 text-sm rounded-md bg-background border border-border text-muted-foreground hover:text-foreground transition-colors"
+                        className="px-3 py-1.5 text-sm rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground transition-colors"
                         onClick={onEditCancel}
                       >
                         Cancel
                       </button>
                       <button
-                        className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        className="px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                         onClick={onEditSave}
                       >
                         Save & Regenerate
@@ -358,7 +358,7 @@ const ChatMessage = memo(
                     </div>
                   </div>
                 ) : (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <div className="prose prose-sm max-w-none dark:prose-invert text-sm">
                     {message.content || message.parts ? (
                       renderContent
                     ) : (
@@ -373,7 +373,7 @@ const ChatMessage = memo(
               {/* Action buttons */}
               {(message.content || message.parts || hasAttachments) &&
                 !isEditing && (
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="flex items-center gap-1 -ml-1">
                     <div
                       className={`flex items-center gap-1 transition-opacity duration-200 ${
                         isLastMessage
@@ -382,7 +382,7 @@ const ChatMessage = memo(
                       }`}
                     >
                       <button
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                         onClick={onCopy}
                         title={isCopied ? "Copied!" : "Copy to clipboard"}
                       >
@@ -391,7 +391,7 @@ const ChatMessage = memo(
 
                       {isUser && isLastUserMessage && (
                         <button
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                           onClick={onEditStart}
                           title="Edit message"
                         >
@@ -401,7 +401,7 @@ const ChatMessage = memo(
 
                       {!isUser && isLastMessage && (
                         <button
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                           onClick={onRegenerate}
                           title="Regenerate response"
                         >
