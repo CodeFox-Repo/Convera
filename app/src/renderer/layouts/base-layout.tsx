@@ -10,7 +10,7 @@ export default function BaseLayout({
 }) {
   return (
     <>
-      <main className="bg-background/95 text-foreground h-screen w-screen">
+      <main className="bg-background/95 text-foreground h-full w-full">
         {children}
       </main>
     </>

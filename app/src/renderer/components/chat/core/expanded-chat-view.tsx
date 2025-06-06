@@ -68,80 +68,88 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
   };
   
   return (
-    <div
-      className="no-drag-region bg flex h-full w-full flex-col"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div className="drag-region pointer-events-auto relative z-[100] h-12 w-full">
-        <AnimatePresence>
-          {showControls && (
-            <motion.div
-              className="no-drag-region absolute inset-x-0 top-4 flex justify-between items-center px-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {/* Left side - branding */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
-                  <Sparkles size={16} className="text-orange-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">FoxyChat</span>
-                </div>
-              </div>
-
-              {/* Right side controls */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleNewHistory}
-                  className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
-                  aria-label="New chat"
+    <div className="h-full w-full flex items-center justify-center">
+      <div 
+        className="bg-background border-border rounded-xl border shadow-lg transition-all duration-300 ease-in-out"
+        style={{
+          width: '560px', // Adjusted for the larger window
+          height: '600px', // Increased expanded height
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div className="no-drag-region bg-transparent flex h-full w-full flex-col relative">
+          <div className="drag-region pointer-events-auto relative z-[100] h-12 w-full">
+            <AnimatePresence>
+              {showControls && (
+                <motion.div
+                  className="no-drag-region absolute inset-x-0 top-4 flex justify-between items-center px-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <Plus size={18} />
-                </button>
-                <button
-                  onClick={handleExit}
-                  className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
-                  aria-label="Exit"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      
-      <div className="drag-region flex flex-1 flex-col overflow-y-auto">
-        <div className="drag-region min-h-0 flex-1 overflow-y-auto p-4">
-          <ChatContent
-            messages={messages}
-            messagesEndRef={messagesEndRef}
-            isLoading={isLoading}
-            onEditMessage={editMessage}
-            onRegenerateMessage={regenerateMessage}
-            agentChanged={agentChanged}
-            onRegenerateWithNewAgent={() => handleAgentChange(true)}
-            onIgnoreAgentChange={() => handleAgentChange(false)}
-          />
-        </div>
+                  {/* Left side - branding */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
+                      <Sparkles size={16} className="text-orange-500" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">FoxyChat</span>
+                    </div>
+                  </div>
 
-        {error && (
-          <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
-            <p className="text-red-500 font-medium">
-              {error.message || "An error occurred. Please check your API key or try again later."}
-            </p>
+                  {/* Right side controls */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleNewHistory}
+                      className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                      aria-label="New chat"
+                    >
+                      <Plus size={18} />
+                    </button>
+                    <button
+                      onClick={handleExit}
+                      className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                      aria-label="Exit"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
+          
+          <div className="drag-region flex flex-1 flex-col overflow-hidden">
+            <div className="drag-region min-h-0 flex-1 overflow-y-auto p-4">
+              <ChatContent
+                messages={messages}
+                messagesEndRef={messagesEndRef}
+                isLoading={isLoading}
+                onEditMessage={editMessage}
+                onRegenerateMessage={regenerateMessage}
+                agentChanged={agentChanged}
+                onRegenerateWithNewAgent={() => handleAgentChange(true)}
+                onIgnoreAgentChange={() => handleAgentChange(false)}
+              />
+            </div>
 
-        <div className="drag-region flex flex-col p-1">
-          <div className="flex-1">
-            <ChatInput
-              ref={chatInputRef}
-              hasMessages={true}
-              placeholder="Message to FoxyChat..."
-            />
+            {error && (
+              <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
+                <p className="text-red-500 font-medium">
+                  {error.message || "An error occurred. Please check your API key or try again later."}
+                </p>
+              </div>
+            )}
+
+            <div className="drag-region flex flex-col p-4">
+              <div className="flex-1">
+                <ChatInput
+                  ref={chatInputRef}
+                  hasMessages={true}
+                  placeholder="Message to FoxyChat..."
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

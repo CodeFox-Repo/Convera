@@ -1,6 +1,6 @@
 import {
-    GenericError,
-    parseApiError,
+  GenericError,
+  parseApiError,
 } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
 import { AppSettings } from "@/shared/types/settings";
@@ -11,6 +11,8 @@ import { useChatHistory } from "../hooks/use-chat-history";
 import { useAgentStore } from "./agent-store";
 import { useModelStore } from "./model-store";
 
+export type ChatViewMode = "compact" | "expanded";
+
 interface ChatContextType {
   messages: UIMessage[];
   input: string;
@@ -18,6 +20,12 @@ interface ChatContextType {
   error: Error | undefined;
   copiedContent: string | null;
   attachments: File[];
+  
+  // View mode management
+  viewMode: ChatViewMode;
+  setViewMode: (mode: ChatViewMode) => void;
+  toggleViewMode: () => void;
+  
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
@@ -53,6 +61,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
   
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
@@ -101,8 +110,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
+  // Auto-expand when there are messages
+  useEffect(() => {
+    if (chatAPI.messages.length > 0 && viewMode === "compact") {
+      setViewMode("expanded");
+    }
+  }, [chatAPI.messages.length, viewMode]);
+
   // Integrate the useChatHistory hook
   const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => prev === "compact" ? "expanded" : "compact");
+  }, []);
 
   const addAttachments = useCallback((files: File | File[]) => {
     setAttachments((prev) => {
@@ -235,6 +255,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     chatAPI.setMessages([]);
     setCopiedContent(null);
     clearAttachments();
+    // Reset to compact mode when clearing chat
+    setViewMode("compact");
   }, [chatAPI, clearAttachments]);
 
   const rejectCopiedContent = useCallback(() => {
@@ -269,6 +291,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     error: chatAPI.error,
     copiedContent,
     attachments,
+    viewMode,
+    setViewMode,
+    toggleViewMode,
     setInput,
     sendMessage,
     stopGeneration,

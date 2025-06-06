@@ -6,7 +6,6 @@ import {
   LucideIcon,
   Mic,
   Monitor,
-  RotateCcw,
   Send,
   Settings,
   Square
@@ -50,7 +49,6 @@ interface ActionButtonConfig {
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
   const { 
-    onReset, 
     onOpenSettings, 
     triggerHistoryWindow,
   } = props;
@@ -68,14 +66,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   console.log("previousApp", previousApp);
 
   const leftActionButtons: ActionButtonConfig[] = [
-    {
-      id: "reset",
-      onClick: onReset,
-      title: "Reset chat",
-      Icon: RotateCcw,
-      show: !!onReset,
-      iconSize: 16,
-    },
     {
       id: "history",
       onClick: triggerHistoryWindow,

@@ -159,7 +159,7 @@ export default function Chat() {
   }, [messages.length]);
   
   return (
-    <div className="chat-window h-screen w-full overflow-hidden rounded-xl">
+    <div className="overflow-hidden h-full w-full">
       {initializing ? (
         <div className="flex h-full w-full items-center justify-center">
           <div className="animate-fade-in opacity-0 delay-100">
