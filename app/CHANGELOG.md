@@ -1,5 +1,16 @@
 # @foxychat/app
 
+## 0.0.11
+
+### Patch Changes
+
+- Fix CI robotjs packaging: Enhanced script robustness for CI environments
+
+  - Try multiple paths for robotjs in CI environments
+  - Better error handling and debugging information
+  - Don't fail CI build if robotjs not found, continue with warning
+  - Support different directory structures in CI vs local development
+
 ## 0.0.10
 
 ### Patch Changes
