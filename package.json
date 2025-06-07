@@ -1,7 +1,7 @@
 {
   "name": "foxfoxy-workspace",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.9",
   "description": "FoxyChat Workspace",
   "scripts": {
     "start": "cd app && pnpm start",
@@ -15,7 +15,10 @@
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:status": "changeset status",
-    "changeset:help": "./scripts/changeset-guide.sh"
+    "changeset:help": "./scripts/changeset-guide.sh",
+    "release": "./scripts/release.sh",
+    "release:dry": "pnpm changeset status --verbose",
+    "version:sync": "node -e \"const pkg = require('./package.json'); const appPkg = require('./app/package.json'); pkg.version = appPkg.version; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\\n');\""
   },
   "engines": {
     "node": ">=18.0.0",

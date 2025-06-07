@@ -1,15 +1,88 @@
+import type * as RobotJS from "@hurdlegroup/robotjs";
 import path from "path";
 
-let robotjs;
+/**
+ * Comprehensive RobotJS Loader
+ *
+ * Tries multiple strategies to load robotjs in packaged apps.
+ */
 
-try {
-  // Attempt to load from the normal package location first
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  robotjs = require("@hurdlegroup/robotjs");
-} catch {
-  // Fallback locations used when the app is packaged
+let robotjs: typeof RobotJS | undefined;
+
+// Helper function to try loading from a path
+function tryLoadRobotJS(robotPath: string): typeof RobotJS | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const loaded = require(robotPath);
+    console.log(`✅ Successfully loaded robotjs from: ${robotPath}`);
+    return loaded;
+  } catch (error) {
+    console.log(
+      `❌ Failed to load from ${robotPath}:`,
+      (error as Error).message,
+    );
+    return undefined;
+  }
+}
+
+// Strategy 1: Normal require (works in development)
+robotjs = tryLoadRobotJS("@hurdlegroup/robotjs");
+
+if (!robotjs) {
+  // Strategy 2: Try various packaged locations
   const possiblePaths = [
-    // Standard auto-unpack-natives location
+    // Unpacked asar locations
+    path.join(
+      process.resourcesPath,
+      "app.asar.unpacked",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+    ),
+    // Direct resource paths
+    path.join(process.resourcesPath, "robotjs"),
+    path.join(process.resourcesPath, "node_modules", "@hurdlegroup", "robotjs"),
+    // Relative to current file
+    path.join(__dirname, "..", "..", "node_modules", "@hurdlegroup", "robotjs"),
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+    ),
+    // Alternative app structure
+    path.join(
+      process.resourcesPath,
+      "app",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+    ),
+  ];
+
+  console.log(
+    `🔍 Trying ${possiblePaths.length} alternative paths for robotjs...`,
+  );
+  console.log(`📍 process.resourcesPath: ${process.resourcesPath}`);
+  console.log(`📍 __dirname: ${__dirname}`);
+
+  for (const robotPath of possiblePaths) {
+    const loaded = tryLoadRobotJS(robotPath);
+    if (loaded) {
+      robotjs = loaded;
+      break;
+    }
+  }
+}
+
+// Strategy 3: Try to find robotjs.node directly
+if (!robotjs) {
+  console.log("🔧 Trying to load robotjs.node directly...");
+
+  const nodePaths = [
     path.join(
       process.resourcesPath,
       "app.asar.unpacked",
@@ -20,57 +93,83 @@ try {
       "Release",
       "robotjs.node",
     ),
-    // Alternative location that might be used by auto-unpack-natives
     path.join(
       process.resourcesPath,
-      "app.asar.unpacked",
-      "node_modules",
-      "@hurdlegroup",
       "robotjs",
+      "build",
+      "Release",
+      "robotjs.node",
     ),
-    // Fallback to the main package
     path.join(
       process.resourcesPath,
-      "app.asar.unpacked",
       "node_modules",
       "@hurdlegroup",
       "robotjs",
-      "lib",
+      "build",
+      "Release",
       "robotjs.node",
     ),
   ];
 
-  let loaded = false;
-  for (const robotjsPath of possiblePaths) {
+  for (const nodePath of nodePaths) {
     try {
-      // Try loading the specific .node file first
-      if (robotjsPath.endsWith(".node")) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        robotjs = require(robotjsPath);
-      } else {
-        // Try loading the package
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        robotjs = require(robotjsPath);
-      }
-      loaded = true;
-      console.log(`Successfully loaded robotjs from: ${robotjsPath}`);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nativeModule = require(nodePath);
+      console.log(`✅ Successfully loaded robotjs.node from: ${nodePath}`);
+      robotjs = nativeModule;
       break;
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.warn(`Failed to load robotjs from ${robotjsPath}:`, errorMessage);
-      continue;
+    } catch (error) {
+      console.log(
+        `❌ Failed to load robotjs.node from ${nodePath}:`,
+        (error as Error).message,
+      );
     }
   }
+}
 
-  if (!loaded) {
-    console.error("Failed to load robotjs from any location");
-    // Provide a fallback that won't crash the app
-    robotjs = {
-      keyTap: () => console.warn("robotjs not available"),
-      keyToggle: () => console.warn("robotjs not available"),
-    };
+if (!robotjs) {
+  // List available directories for debugging
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs");
+    console.log("📁 Available directories for debugging:");
+
+    if (fs.existsSync(process.resourcesPath)) {
+      const resourcesContent = fs.readdirSync(process.resourcesPath);
+      console.log(
+        `  - Resources (${process.resourcesPath}):`,
+        resourcesContent,
+      );
+    }
+
+    const possibleNodeModulesPaths = [
+      path.join(process.resourcesPath, "app.asar.unpacked", "node_modules"),
+      path.join(process.resourcesPath, "node_modules"),
+      path.join(process.resourcesPath, "app", "node_modules"),
+    ];
+
+    for (const nmPath of possibleNodeModulesPaths) {
+      if (fs.existsSync(nmPath)) {
+        const nmContent = fs.readdirSync(nmPath);
+        console.log(`  - Node modules (${nmPath}):`, nmContent);
+
+        const hurdlegroupPath = path.join(nmPath, "@hurdlegroup");
+        if (fs.existsSync(hurdlegroupPath)) {
+          const hurdlegroupContent = fs.readdirSync(hurdlegroupPath);
+          console.log(
+            `  - @hurdlegroup (${hurdlegroupPath}):`,
+            hurdlegroupContent,
+          );
+        }
+      }
+    }
+  } catch (debugError) {
+    console.warn("❌ Debug directory listing failed:", debugError);
   }
+
+  throw new Error(
+    "🚫 RobotJS is required but could not be loaded from any location. Please check the console for debugging information.",
+  );
 }
 
 export default robotjs;

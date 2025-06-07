@@ -1,18 +1,21 @@
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
-import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import pkg from "./package.json";
+
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
-    asar: true,
     icon: "./images/icon",
+    // Force unpack robotjs using different syntax
+    asar: {
+      unpack: "**/@hurdlegroup/**",
+    },
   },
 
   rebuildConfig: {},
@@ -34,7 +37,6 @@ const config: ForgeConfig = {
     },
   ],
   plugins: [
-    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.
@@ -68,7 +70,7 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };
