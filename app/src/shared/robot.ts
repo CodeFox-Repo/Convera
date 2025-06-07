@@ -2,53 +2,174 @@ import type * as RobotJS from "@hurdlegroup/robotjs";
 import path from "path";
 
 /**
- * Optimized RobotJS Loader
+ * Comprehensive RobotJS Loader
  *
- * This module provides a robust way to load the @hurdlegroup/robotjs native module
- * with proper TypeScript support and simplified loading mechanisms.
- *
- * Key improvements:
- * - Uses TypeScript module declaration from robotjs.d.ts
- * - Simplified loading logic (only 2 paths instead of 3)
- * - Better error handling and logging
- * - Throws error when robotjs is unavailable (no fallback)
- *
- * Packaging is handled by:
- * - AutoUnpackNativesPlugin in forge.config.ts
- * - Explicit asar unpack configuration
- * - Proper electron-rebuild scripts in package.json
+ * Tries multiple strategies to load robotjs in packaged apps.
  */
 
-let robotjs: typeof RobotJS;
+let robotjs: typeof RobotJS | undefined;
 
-try {
-  // Try to load robotjs normally first (works in development and most packaging scenarios)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  robotjs = require("@hurdlegroup/robotjs");
-  console.log("Successfully loaded robotjs from normal location");
-} catch (error) {
-  console.warn("Failed to load robotjs from normal location:", error);
-
-  // Try the auto-unpack-natives standard location
+// Helper function to try loading from a path
+function tryLoadRobotJS(robotPath: string): typeof RobotJS | undefined {
   try {
-    const unpackedPath = path.join(
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const loaded = require(robotPath);
+    console.log(`✅ Successfully loaded robotjs from: ${robotPath}`);
+    return loaded;
+  } catch (error) {
+    console.log(
+      `❌ Failed to load from ${robotPath}:`,
+      (error as Error).message,
+    );
+    return undefined;
+  }
+}
+
+// Strategy 1: Normal require (works in development)
+robotjs = tryLoadRobotJS("@hurdlegroup/robotjs");
+
+if (!robotjs) {
+  // Strategy 2: Try various packaged locations
+  const possiblePaths = [
+    // Unpacked asar locations
+    path.join(
       process.resourcesPath,
       "app.asar.unpacked",
       "node_modules",
       "@hurdlegroup",
       "robotjs",
-    );
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    robotjs = require(unpackedPath);
-    console.log(
-      `Successfully loaded robotjs from unpacked location: ${unpackedPath}`,
-    );
-  } catch (unpackedError) {
-    console.error("Failed to load robotjs from all locations:", unpackedError);
-    throw new Error(
-      "RobotJS is required but could not be loaded. Please ensure @hurdlegroup/robotjs is properly installed and compiled.",
-    );
+    ),
+    // Direct resource paths
+    path.join(process.resourcesPath, "robotjs"),
+    path.join(process.resourcesPath, "node_modules", "@hurdlegroup", "robotjs"),
+    // Relative to current file
+    path.join(__dirname, "..", "..", "node_modules", "@hurdlegroup", "robotjs"),
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+    ),
+    // Alternative app structure
+    path.join(
+      process.resourcesPath,
+      "app",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+    ),
+  ];
+
+  console.log(
+    `🔍 Trying ${possiblePaths.length} alternative paths for robotjs...`,
+  );
+  console.log(`📍 process.resourcesPath: ${process.resourcesPath}`);
+  console.log(`📍 __dirname: ${__dirname}`);
+
+  for (const robotPath of possiblePaths) {
+    const loaded = tryLoadRobotJS(robotPath);
+    if (loaded) {
+      robotjs = loaded;
+      break;
+    }
   }
+}
+
+// Strategy 3: Try to find robotjs.node directly
+if (!robotjs) {
+  console.log("🔧 Trying to load robotjs.node directly...");
+
+  const nodePaths = [
+    path.join(
+      process.resourcesPath,
+      "app.asar.unpacked",
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+      "build",
+      "Release",
+      "robotjs.node",
+    ),
+    path.join(
+      process.resourcesPath,
+      "robotjs",
+      "build",
+      "Release",
+      "robotjs.node",
+    ),
+    path.join(
+      process.resourcesPath,
+      "node_modules",
+      "@hurdlegroup",
+      "robotjs",
+      "build",
+      "Release",
+      "robotjs.node",
+    ),
+  ];
+
+  for (const nodePath of nodePaths) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nativeModule = require(nodePath);
+      console.log(`✅ Successfully loaded robotjs.node from: ${nodePath}`);
+      robotjs = nativeModule;
+      break;
+    } catch (error) {
+      console.log(
+        `❌ Failed to load robotjs.node from ${nodePath}:`,
+        (error as Error).message,
+      );
+    }
+  }
+}
+
+if (!robotjs) {
+  // List available directories for debugging
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs");
+    console.log("📁 Available directories for debugging:");
+
+    if (fs.existsSync(process.resourcesPath)) {
+      const resourcesContent = fs.readdirSync(process.resourcesPath);
+      console.log(
+        `  - Resources (${process.resourcesPath}):`,
+        resourcesContent,
+      );
+    }
+
+    const possibleNodeModulesPaths = [
+      path.join(process.resourcesPath, "app.asar.unpacked", "node_modules"),
+      path.join(process.resourcesPath, "node_modules"),
+      path.join(process.resourcesPath, "app", "node_modules"),
+    ];
+
+    for (const nmPath of possibleNodeModulesPaths) {
+      if (fs.existsSync(nmPath)) {
+        const nmContent = fs.readdirSync(nmPath);
+        console.log(`  - Node modules (${nmPath}):`, nmContent);
+
+        const hurdlegroupPath = path.join(nmPath, "@hurdlegroup");
+        if (fs.existsSync(hurdlegroupPath)) {
+          const hurdlegroupContent = fs.readdirSync(hurdlegroupPath);
+          console.log(
+            `  - @hurdlegroup (${hurdlegroupPath}):`,
+            hurdlegroupContent,
+          );
+        }
+      }
+    }
+  } catch (debugError) {
+    console.warn("❌ Debug directory listing failed:", debugError);
+  }
+
+  throw new Error(
+    "🚫 RobotJS is required but could not be loaded from any location. Please check the console for debugging information.",
+  );
 }
 
 export default robotjs;

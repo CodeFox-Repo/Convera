@@ -1,7 +1,6 @@
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
-import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
@@ -13,9 +12,9 @@ const config: ForgeConfig = {
     executableName: pkg.name,
     name: pkg.productName,
     icon: "./images/icon",
-    // Ensure native modules are properly handled
+    // Force unpack robotjs using different syntax
     asar: {
-      unpack: "**/node_modules/@hurdlegroup/robotjs/**/*",
+      unpack: "**/@hurdlegroup/**",
     },
   },
 
@@ -38,16 +37,6 @@ const config: ForgeConfig = {
     },
   ],
   plugins: [
-    // Enhanced AutoUnpackNativesPlugin configuration for better native module handling
-    new AutoUnpackNativesPlugin({
-      // Explicitly specify robotjs for unpacking
-      packageConfig: {
-        "@hurdlegroup/robotjs": {
-          // Ensure the native binaries are properly unpacked
-          unpack: true,
-        },
-      },
-    }),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.
@@ -81,7 +70,7 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };

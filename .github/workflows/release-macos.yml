@@ -30,6 +30,10 @@ jobs:
         run: |
           # Ensure Xcode command line tools are available
           xcode-select --install 2>/dev/null || true
+          # Install Python for node-gyp (robotjs compilation)
+          brew install python@3.11
+          # Install additional build tools
+          npm install -g node-gyp
 
       # Cache dependencies
       - name: Cache pnpm store
@@ -44,11 +48,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Rebuild robotjs for release environment
-      - name: Rebuild robotjs for release
+      # Clean and rebuild robotjs for release environment
+      - name: Clean and rebuild robotjs for release
         working-directory: app
         run: |
+          # Set environment for native compilation
           export CI=false
+
+          # Clean any existing builds
+          rm -rf node_modules/@hurdlegroup/robotjs/build
+
+          # Force rebuild robotjs with proper electron ABI
           pnpm run rebuild:robotjs
 
       # Run tests
@@ -57,9 +67,9 @@ jobs:
         run: pnpm test
 
       # Make app distributable (this will also package)
-      - name: Make app distributable
+      - name: Make app distributable with robotjs
         working-directory: app
-        run: pnpm make
+        run: pnpm run make:robotjs
 
       # Get version from tag
       - name: Get version from tag
