@@ -1,7 +1,7 @@
 {
   "name": "@foxychat/app",
   "productName": "FoxyChat",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "FoxyChat - All in one Chat App",
   "main": ".vite/build/main.js",
   "private": true,

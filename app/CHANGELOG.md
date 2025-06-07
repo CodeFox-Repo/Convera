@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.10
+
+### Patch Changes
+
+- 8d902d7: fix rebotjs cannot correctly build
+
 ## 0.0.9
 
 ### Patch Changes
