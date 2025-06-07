@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "package:robotjs": "electron-forge package && ../scripts/post-package-robotjs.sh",
-    "make": "electron-forge make",
+    "make": "pnpm run make:robotjs",
     "make:robotjs": "pnpm run package:robotjs && electron-forge make --skip-package",
     "publish": "electron-forge publish",
     "postinstall": "test \"$CI\" = \"true\" || pnpm run rebuild:robotjs",
