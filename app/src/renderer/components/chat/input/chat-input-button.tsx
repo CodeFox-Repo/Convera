@@ -140,11 +140,13 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         })}
 
         <ModelSelector/>
-        {/* prevous app */}
-        <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium"> 
-          <Monitor size={12} className="mr-1" />
-          {formatAppName(previousApp!)}
-        </div>
+        {/* previous app - only show when there's a valid previous app */}
+        {previousApp && formatAppName(previousApp) && (
+          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium"> 
+            <Monitor size={12} className="mr-1" />
+            {formatAppName(previousApp)}
+          </div>
+        )}
       </div>
 
       {/* Right side - Mic and Send buttons */}
