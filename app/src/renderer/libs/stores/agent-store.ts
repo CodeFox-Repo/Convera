@@ -135,29 +135,24 @@ export const useAgentStore = create<AgentState>()(
         },
 
         saveAgent: async (agent: Agent) => {
-          try {
-            const response = await fetch(
-              `http://localhost:38000/api/agents/${agent.id}`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(agent),
-              },
+          const response = await fetch(
+            `http://localhost:38000/api/agents/${agent.id}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(agent),
+            },
+          );
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(
+              `Failed to update agent: ${response.status} ${text}`,
             );
-
-            if (!response.ok) {
-              const text = await response.text();
-              throw new Error(
-                `Failed to update agent: ${response.status} ${text}`,
-              );
-            }
-
-            get().updateSelectedAgent(agent);
-            get().updateAvailableAgent(agent);
-          } catch (err) {
-            console.error("Error saving agent:", err);
-            throw err;
           }
+
+          get().updateSelectedAgent(agent);
+          get().updateAvailableAgent(agent);
         },
 
         triggerAgentSelect: async (
