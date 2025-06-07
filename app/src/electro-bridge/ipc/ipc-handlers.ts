@@ -8,11 +8,7 @@ import {
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
-import {
-  ThemeMode,
-  WindowControlOptions,
-  WindowType,
-} from "@/shared/types/electron";
+import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { exec } from "child_process";
 import os from "os";
 import path from "path";
@@ -80,12 +76,7 @@ export function setPreviousApp(appName: string, appId?: number): void {
 
 // ========== UNIFIED WINDOW CONTROL ==========
 
-export function toggleWindow(
-  type: WindowType,
-  options?: WindowControlOptions,
-): void {
-  console.log(`Toggling window type: ${type}`, options);
-
+export function toggleWindow(type: WindowType): void {
   switch (type) {
     case "settings":
       toggleGenericWindow(getSettingsWindow, createSettingsWindow);
@@ -433,10 +424,10 @@ export function simulateClipboardPaste(): void {
     // Write to clipboard first
     if (process.platform === "darwin") {
       // For macOS, use Command+V
-      robot.keyTap("v", "command");
+      robot?.keyTap("v", "command");
     } else {
       // For Windows/Linux, use Control+V
-      robot.keyTap("v", "control");
+      robot?.keyTap("v", "control");
     }
 
     console.log("Paste operation simulated successfully");
