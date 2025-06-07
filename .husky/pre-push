@@ -1,4 +1,4 @@
 #!/bin/sh
 # Print a colored, bold message for pre-push
-printf '\033[1;36m[foxychat] Running package & make for app...\033[0m\n'
-cd app && pnpm lint && pnpm lint-staged && pnpm package && pnpm make
+printf '\033[1;36m[foxychat] Running checks before push...\033[0m\n'
+cd app && pnpm lint && pnpm test
