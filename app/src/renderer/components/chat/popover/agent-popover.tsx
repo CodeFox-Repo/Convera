@@ -1,5 +1,6 @@
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import React, { useEffect, useRef, useState } from "react";
@@ -39,72 +40,60 @@ export default function AgentPopover() {
   // Add state for individual MCP server expansions
   const [expandedMcpServers, setExpandedMcpServers] = useState<Record<string, boolean>>({});
 
-  const { 
-    selectedAgent, 
-    setSelectedAgent, 
+  const {
+    selectedAgent,
+    setSelectedAgent,
     availableAgents,
     fetchAgents,
-    subscribeToAgentChanges
+    subscribeToAgentChanges,
+    saveAgent
   } = useAgentStore();
+  const { fetchMcpConfigurations, getMcpServerTools } = useMcpStore();
 useThemeSync();
   // Fetch agents from server
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
-    console.log("Fetching MCP configurations...");
-    const response = await fetch("http://localhost:38000/api/mcp/configurations");
-    if (response.ok) {
-      const data = await response.json();
-      const configs = (data.configurations || {}) as Record<string, MCPServerConfig>;
-      console.log("Loaded MCP configurations:", configs);
-      setMcpServerConfigs(configs);
-
-      Object.entries(configs)
-        .filter(([, config]) => config.enabled)
-        .forEach(([id]) => {
-          fetchMcpServerTools(id);
-        });
-    } else {
-      console.error("Failed to fetch MCP configurations:", response.status);
-    }
+    await fetchMcpConfigurations();
+    const configs = useMcpStore.getState().mcpServerConfigs;
+    setMcpServerConfigs(configs);
+    Object.entries(configs)
+      .filter(([, config]) => config.enabled)
+      .forEach(([id]) => {
+        fetchMcpServerTools(id);
+      });
     setLoadingMcpConfigs(false);
   };
 
   // Fetch tools for specific MCP server
   const fetchMcpServerTools = async (id: string) => {
     setLoadingMcpTools(prev => ({ ...prev, [id]: true }));
-    console.log(`Fetching tools for MCP server: ${id}`);
-    const response = await fetch(`http://localhost:38000/api/mcp/servers/${id}/tools`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === "success" && Array.isArray(data.tools)) {
-        console.log(`Loaded ${data.tools.length} tools for server ${id}:`, data.tools);
+    getMcpServerTools(id)
+      .then((tools) => {
         setMcpServerTools(prev => {
-          const newServerTools = { ...prev, [id]: data.tools };
-          
-          // Immediately recalculate enabled state for current agent when tools are loaded
+          const newServerTools = { ...prev, [id]: tools };
           if (selectedAgent) {
             const enabledStatus: Record<string, boolean> = {};
-            data.tools.forEach((tool: ToolDefinition) => {
-              const isEnabled = selectedAgent.toolReferences?.some(ref => 
-                ref.mcpName === id && ref.toolName === tool.name
-              ) ?? false;
+            tools.forEach((tool: ToolDefinition) => {
+              const isEnabled =
+                selectedAgent.toolReferences?.some(
+                  ref => ref.mcpName === id && ref.toolName === tool.name,
+                ) ?? false;
               enabledStatus[tool.name] = isEnabled;
             });
-            setMcpToolsEnabled(prevEnabled => ({ 
-              ...prevEnabled, 
-              [id]: enabledStatus 
+            setMcpToolsEnabled(prevEnabled => ({
+              ...prevEnabled,
+              [id]: enabledStatus,
             }));
           }
-          
           return newServerTools;
         });
-      } else {
-        console.warn(`Invalid tools response format for server ${id}:`, data);
-      }
-    } else {
-      console.error(`Failed to fetch tools for server ${id}: ${response.status}`);
-    }
-    setLoadingMcpTools(prev => ({ ...prev, [id]: false }));
+      })
+      .catch(err => {
+        console.error(`Failed to fetch tools for server ${id}:`, err);
+      })
+      .finally(() => {
+        setLoadingMcpTools(prev => ({ ...prev, [id]: false }));
+      });
   };
 
   // Initialize component
@@ -255,32 +244,19 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(agentData),
-    });
-    
-    if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Use store methods to update agent
-      useAgentStore.getState().updateSelectedAgent(updatedAgent);
-      useAgentStore.getState().updateAvailableAgent(updatedAgent);
-      
-      // Update local state immediately
-      setBasicTools(prev => prev.map(t => 
-        t.id === toolId ? { ...t, enabled: newEnabled } : t
-      ));
-      
-      console.log(`Successfully toggled basic tool ${toolId} to ${newEnabled ? 'enabled' : 'disabled'}`);
-    } else {
-      console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
-      const errorText = await response.text();
-      console.error("Error response:", errorText);
-    }
+    saveAgent(agentData)
+      .then(() => {
+        // Update local state immediately
+        setBasicTools(prev =>
+          prev.map(t => (t.id === toolId ? { ...t, enabled: newEnabled } : t)),
+        );
+        console.log(
+          `Successfully toggled basic tool ${toolId} to ${newEnabled ? "enabled" : "disabled"}`,
+        );
+      })
+      .catch(err => {
+        console.error("Failed to update agent:", err);
+      });
   };
 
   const handleMcpToolToggle = async (serverId: string, toolName: string) => {
@@ -320,33 +296,20 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(agentData),
-    });
-    
-    if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Use store methods instead of manual updates
-      useAgentStore.getState().updateSelectedAgent(updatedAgent);
-      useAgentStore.getState().updateAvailableAgent(updatedAgent);
-      
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: {
-          ...prev[serverId],
-          [toolName]: newEnabled
-        }
-      }));
-      
-      console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
-    } else {
-      console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
-    }
+    saveAgent(agentData)
+      .then(() => {
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: {
+            ...prev[serverId],
+            [toolName]: newEnabled,
+          },
+        }));
+        console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
+      });
   };
 
   // Handle disable all tools for a server
@@ -375,36 +338,21 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(agentData),
-    });
-    
-    if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Use store methods instead of manual updates
-      useAgentStore.getState().updateSelectedAgent(updatedAgent);
-      useAgentStore.getState().updateAvailableAgent(updatedAgent);
-      
-      // Update all tools for this server to disabled
-      const newEnabledState: Record<string, boolean> = {};
-      serverTools.forEach(tool => {
-        newEnabledState[tool.name] = false;
+    saveAgent(agentData)
+      .then(() => {
+        const newEnabledState: Record<string, boolean> = {};
+        serverTools.forEach(tool => {
+          newEnabledState[tool.name] = false;
+        });
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: newEnabledState,
+        }));
+        console.log(`Successfully disabled all tools for server ${serverId}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
       });
-      
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: newEnabledState
-      }));
-      
-      console.log(`Successfully disabled all tools for server ${serverId}`);
-    } else {
-      console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
-    }
   };
 
   // Handle enable all tools for a server
@@ -445,36 +393,21 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    const response = await fetch(`http://localhost:38000/api/agents/${currentAgent.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(agentData),
-    });
-    
-    if (response.ok) {
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Use store methods instead of manual updates
-      useAgentStore.getState().updateSelectedAgent(updatedAgent);
-      useAgentStore.getState().updateAvailableAgent(updatedAgent);
-      
-      // Update all tools for this server to enabled
-      const newEnabledState: Record<string, boolean> = {};
-      serverTools.forEach(tool => {
-        newEnabledState[tool.name] = true;
+    saveAgent(agentData)
+      .then(() => {
+        const newEnabledState: Record<string, boolean> = {};
+        serverTools.forEach(tool => {
+          newEnabledState[tool.name] = true;
+        });
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: newEnabledState,
+        }));
+        console.log(`Successfully enabled all tools for server ${serverId}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
       });
-      
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: newEnabledState
-      }));
-      
-      console.log(`Successfully enabled all tools for server ${serverId}`);
-    } else {
-      console.error(`Failed to update agent: ${response.status} ${response.statusText}`);
-    }
   };
 
   // Toggle section expansion

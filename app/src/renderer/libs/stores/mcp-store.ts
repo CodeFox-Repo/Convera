@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from "@/server/mcp/types";
+import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -22,6 +22,7 @@ interface McpState {
   fetchMcpMarketplace: () => Promise<void>;
   fetchMcpConfigurations: () => Promise<void>;
   fetchAllMcpServers: () => Promise<void>;
+  getMcpServerTools: (id: string) => Promise<ToolDefinition[]>;
 
   handleInstallPredefinedServer: (serverId: string) => Promise<void>;
   handleUninstallPredefinedServer: (serverId: string) => Promise<void>;
@@ -200,6 +201,19 @@ export const useMcpStore = create<McpState>()(
         } finally {
           set({ loadingMcpServers: false });
         }
+      },
+
+      getMcpServerTools: async (id: string) => {
+        const response = await fetchWithRetry(
+          `http://localhost:38000/api/mcp/servers/${id}/tools`,
+        );
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch tools for MCP server ${id}: ${response.status}`,
+          );
+        }
+        const data = await response.json();
+        return Array.isArray(data.tools) ? data.tools : [];
       },
 
       // Install predefined server
