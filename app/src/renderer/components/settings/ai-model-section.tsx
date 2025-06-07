@@ -58,13 +58,15 @@ export function AIModelSection({
    * Falls back to static model list if the fetch fails.
    */
   useEffect(() => {
-    fetchOpenRouterModels()
-      .then((models) => {
+    const fetchModels = async () => {
+      try {
+        const models = await fetchOpenRouterModels();
         setOfficialModels([...models].sort());
-      })
-      .catch(() => {
+      } catch {
         setOfficialModels([...OFFICIAL_MODELS].sort());
-      });
+      }
+    };
+    fetchModels();
   }, []);
 
   // Get list of models that aren't already added

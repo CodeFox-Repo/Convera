@@ -30,13 +30,17 @@ export default function Chat() {
       
       if (window.electronAPI && messages.length === 0) {
         try {
-          window.electronAPI
-            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
-            .then((res) => {
+          const fetchWindowSizeAsync = async () => {
+            try {
+              const res = await window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN);
               requestAnimationFrame(() => {
                 window.electronAPI.resizeWindow(res.width, res.height, true);
               });
-            });
+            } catch (error) {
+              console.error("Chat: Error setting initial window size:", error);
+            }
+          };
+          fetchWindowSizeAsync();
         } catch (error) {
           console.error("Chat: Error setting initial window size:", error);
         }
@@ -127,14 +131,15 @@ export default function Chat() {
   
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
-      window.electronAPI
-        .getCurrentTheme()
-        .then((theme) => {
+      const fetchThemeAsync = async () => {
+        try {
+          const theme = await window.electronAPI.getCurrentTheme();
           document.documentElement.dataset.theme = theme;
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error("Failed to get theme:", err);
-        });
+        }
+      };
+      fetchThemeAsync();
     }
   }, []);
   

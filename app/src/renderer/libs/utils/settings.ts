@@ -223,16 +223,17 @@ export async function updateShortcut(
     window.electronAPI
   ) {
     try {
-      window.electronAPI
-        .updateGlobalShortcut(shortcut.shortcut)
-        .then((success: boolean) => {
+      const updateShortcutAsync = async () => {
+        try {
+          const success = await window.electronAPI.updateGlobalShortcut(shortcut.shortcut);
           console.log(
             `Global shortcut update ${success ? "succeeded" : "failed"}`,
           );
-        })
-        .catch((error: Error) => {
+        } catch (error: unknown) {
           console.error("Error updating global shortcut:", error);
-        });
+        }
+      };
+      updateShortcutAsync();
     } catch (error: unknown) {
       console.error("Failed to update global shortcut via electronAPI:", error);
     }

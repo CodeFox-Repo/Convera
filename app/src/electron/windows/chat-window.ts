@@ -103,9 +103,10 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on("did-finish-load", () => {
     console.log("Chat window loaded, redirecting to chat page...");
 
-    window.webContents
-      .executeJavaScript(
-        `
+    const executeNavigation = async () => {
+      try {
+        await window.webContents.executeJavaScript(
+          `
       console.log("Redirecting to chat page...");
       
       if (window.router) {
@@ -116,10 +117,12 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         window.location.hash = "/chat";
       }
     `,
-      )
-      .catch((err) => {
+        );
+      } catch (err) {
         console.error("Failed to execute navigation script:", err);
-      });
+      }
+    };
+    executeNavigation();
   });
 
   // Handle display changes - just reposition, no resizing needed

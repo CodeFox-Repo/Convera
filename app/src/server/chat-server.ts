@@ -28,23 +28,29 @@ function startChatServer() {
   app.route("/", mcpRouter);
   app.route("/", toolsRouter);
 
-  initializeAgents()
-    .then(() => console.log("Agent system initialized successfully"))
-    .catch((error) =>
-      console.error("Failed to initialize agent system:", error),
-    );
+  const initAgentsAsync = async () => {
+    try {
+      await initializeAgents();
+      console.log("Agent system initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize agent system:", error);
+    }
+  };
+  initAgentsAsync();
 
   initializeMCP();
 
-  startMCPServers()
-    .then((results) => {
+  const startMCPServersAsync = async () => {
+    try {
+      const results = await startMCPServers();
       const startedCount = Array.from(results.values()).filter(Boolean).length;
       const totalCount = results.size;
       console.log(`Started ${startedCount}/${totalCount} enabled MCP servers`);
-    })
-    .catch((error) =>
-      console.error("Error starting enabled MCP servers:", error),
-    );
+    } catch (error) {
+      console.error("Error starting enabled MCP servers:", error);
+    }
+  };
+  startMCPServersAsync();
 
   const server = serve({ fetch: app.fetch, port: PORT });
   console.log(`Chat server running on port ${PORT}`);

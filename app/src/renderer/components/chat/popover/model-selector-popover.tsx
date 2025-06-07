@@ -156,22 +156,20 @@ export default function ModelSelector() {
   return selectedModelId.length > 0 ? (
     <div className="model-selector-container relative">
       <button
-        onClick={(e) => {
+        onClick={async (e) => {
           e.stopPropagation();
           const button = e.currentTarget;
           const rect = button.getBoundingClientRect();
 
-          window.electronAPI
-            .getCurrentWindowPosition()
-            .then(({ x: winX, y: winY }) => {
-              const absX = Math.round(winX + rect.left);
-              const absY = Math.round(winY + rect.top - getHeightPx() - 8); 
+          try {
+            const { x: winX, y: winY } = await window.electronAPI.getCurrentWindowPosition();
+            const absX = Math.round(winX + rect.left);
+            const absY = Math.round(winY + rect.top - getHeightPx() - 8); 
 
-              window.electronAPI.toggleModelSelector(absX, absY);
-            })
-            .catch((err: Error) => {
-              console.error("Failed to get window position:", err);
-            });
+            window.electronAPI.toggleModelSelector(absX, absY);
+          } catch (err: unknown) {
+            console.error("Failed to get window position:", err);
+          }
         }}
         className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium"
       >

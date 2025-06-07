@@ -233,9 +233,12 @@ export const useMcpStore = create<McpState>()(
           );
 
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Failed to install server" }));
+            let errorData;
+            try {
+              errorData = await response.json();
+            } catch {
+              errorData = { message: "Failed to install server" };
+            }
             throw new Error(errorData.message || "Failed to install server");
           }
 
@@ -268,9 +271,12 @@ export const useMcpStore = create<McpState>()(
           );
 
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Failed to uninstall server" }));
+            let errorData;
+            try {
+              errorData = await response.json();
+            } catch {
+              errorData = { message: "Failed to uninstall server" };
+            }
             throw new Error(errorData.message || "Failed to uninstall server");
           }
 
@@ -324,7 +330,12 @@ export const useMcpStore = create<McpState>()(
           );
 
           if (!response.ok) {
-            const errorData = await response.json();
+            let errorData;
+            try {
+              errorData = await response.json();
+            } catch {
+              errorData = { message: "Failed to install MCP configuration" };
+            }
             throw new Error(
               errorData.message || "Failed to install MCP configuration",
             );
@@ -386,9 +397,12 @@ export const useMcpStore = create<McpState>()(
             );
 
             if (!response.ok) {
-              const errorData = await response
-                .json()
-                .catch(() => ({ message: "Failed to save MCP configuration" }));
+              let errorData;
+              try {
+                errorData = await response.json();
+              } catch {
+                errorData = { message: "Failed to save MCP configuration" };
+              }
               throw new Error(
                 errorData.message || "Failed to save MCP configuration",
               );
@@ -405,9 +419,12 @@ export const useMcpStore = create<McpState>()(
               );
 
               if (!startResponse.ok) {
-                const errorData = await startResponse
-                  .json()
-                  .catch(() => ({ message: "Failed to start MCP server" }));
+                let errorData;
+                try {
+                  errorData = await startResponse.json();
+                } catch {
+                  errorData = { message: "Failed to start MCP server" };
+                }
                 throw new Error(
                   errorData.message || "Failed to start MCP server",
                 );
@@ -428,9 +445,12 @@ export const useMcpStore = create<McpState>()(
                 );
 
                 if (!stopResponse.ok) {
-                  const errorData = await stopResponse
-                    .json()
-                    .catch(() => ({ message: "Failed to stop MCP server" }));
+                  let errorData;
+                  try {
+                    errorData = await stopResponse.json();
+                  } catch {
+                    errorData = { message: "Failed to stop MCP server" };
+                  }
                   console.warn(
                     `Warning when stopping server: ${errorData.message}`,
                   );
@@ -486,9 +506,12 @@ export const useMcpStore = create<McpState>()(
           );
 
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Failed to save MCP configuration" }));
+            let errorData;
+            try {
+              errorData = await response.json();
+            } catch {
+              errorData = { message: "Failed to save MCP configuration" };
+            }
             throw new Error(
               errorData.message || "Failed to save MCP configuration",
             );

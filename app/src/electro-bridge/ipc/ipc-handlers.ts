@@ -536,7 +536,12 @@ export function openPath(targetPath: string): void {
     resolvedPath = os.homedir();
   }
 
-  shell.openPath(resolvedPath).catch((error) => {
-    console.error(`Error opening path ${resolvedPath}:`, error);
-  });
+  const openPathAsync = async () => {
+    try {
+      await shell.openPath(resolvedPath);
+    } catch (error) {
+      console.error(`Error opening path ${resolvedPath}:`, error);
+    }
+  };
+  openPathAsync();
 }

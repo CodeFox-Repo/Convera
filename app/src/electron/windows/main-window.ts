@@ -82,9 +82,10 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on("did-finish-load", () => {
     console.log("Main page loaded in main window, redirecting to main...");
 
-    window.webContents
-      .executeJavaScript(
-        `
+    const executeNavigation = async () => {
+      try {
+        await window.webContents.executeJavaScript(
+          `
       console.log("Redirecting to main page...");
       
       if (window.router) {
@@ -95,10 +96,12 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         window.location.hash = "/";
       }
     `,
-      )
-      .catch((err) => {
+        );
+      } catch (err) {
         console.error("Failed to execute navigation script:", err);
-      });
+      }
+    };
+    executeNavigation();
 
     if (inDevelopment && window) {
       console.log("Opening DevTools for main window");

@@ -408,9 +408,9 @@ export function installPredefinedMCPServer(
     manager.registerServer(id, config);
 
     // 启动服务器以便发现工具
-    manager
-      .startServer(id)
-      .then(async (success) => {
+    const startServerAsync = async () => {
+      try {
+        const success = await manager.startServer(id);
         if (success) {
           console.log(`Server ${id} started successfully`);
 
@@ -427,10 +427,11 @@ export function installPredefinedMCPServer(
             );
           }
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error(`Error starting server ${id}:`, error);
-      });
+      }
+    };
+    startServerAsync();
 
     return true;
   } catch (error) {
@@ -483,9 +484,10 @@ export function uninstallPredefinedMCPServer(id: string): boolean {
 export { MCPClient, MCPManager };
 
 // Re-export types
-export type {
-  MCPServerConfig,
-  PredefinedMCPServer,
-  ServerStatus,
-  ToolDefinition,
-} from "./types";
+  export type {
+    MCPServerConfig,
+    PredefinedMCPServer,
+    ServerStatus,
+    ToolDefinition
+  } from "./types";
+

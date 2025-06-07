@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-    ChevronLeft,
-    ChevronRight,
-    Code,
-    LayoutGrid,
-    Moon,
-    Server,
-    Settings as SettingsIcon,
-    Sun,
-    X,
+  ChevronLeft,
+  ChevronRight,
+  Code,
+  LayoutGrid,
+  Moon,
+  Server,
+  Settings as SettingsIcon,
+  Sun,
+  X,
 } from "lucide-react";
 
 // Import our component tabs
@@ -210,9 +210,14 @@ function SettingsPage() {
   const handleCloseSettings = () => {
     try {
       if (window.electronAPI) {
-        window.electronAPI.toggleWindow("settings").catch((error: unknown) => {
-          console.error("Error toggling settings window:", error);
-        });
+        const toggleWindowAsync = async () => {
+          try {
+            await window.electronAPI.toggleWindow("settings");
+          } catch (error: unknown) {
+            console.error("Error toggling settings window:", error);
+          }
+        };
+        toggleWindowAsync();
       }
     } catch (error: unknown) {
       console.error("Error toggling settings window:", error);

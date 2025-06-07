@@ -184,17 +184,18 @@ export const useSettingsStore = create<SettingsState>()(
             s.id === "activate",
         );
         if (activateShortcut && activateShortcut.enabled) {
-          window.electronAPI
-            .updateGlobalShortcut(activateShortcut.shortcut)
-            .catch((error: Error) => {
-              console.error(
-                "Error updating global shortcut after reset:",
-                error,
-              );
-              toast.warning(
-                "Shortcuts reset to default, but global shortcut update failed",
-              );
-            });
+          try {
+            await window.electronAPI.updateGlobalShortcut(activateShortcut.shortcut);
+            toast.success("Shortcuts reset to default");
+          } catch (error: unknown) {
+            console.error(
+              "Error updating global shortcut after reset:",
+              error,
+            );
+            toast.warning(
+              "Shortcuts reset to default, but global shortcut update failed",
+            );
+          }
         } else {
           toast.success("Shortcuts reset to default");
         }

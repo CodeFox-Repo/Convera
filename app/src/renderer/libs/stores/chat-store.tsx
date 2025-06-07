@@ -275,9 +275,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const openSettings = useCallback(() => {
-    window.electronAPI.toggleWindow("settings").catch((error) => {
-      console.error("Failed to toggle settings window:", error);
-    });
+    const toggleSettingsAsync = async () => {
+      try {
+        await window.electronAPI.toggleWindow("settings");
+      } catch (error) {
+        console.error("Failed to toggle settings window:", error);
+      }
+    };
+    toggleSettingsAsync();
   }, []);
 
   const openHistoryWindow = useCallback(() => {

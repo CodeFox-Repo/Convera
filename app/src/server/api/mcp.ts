@@ -1,3 +1,4 @@
+import { zValidator } from '@hono/zod-validator';
 import { Hono } from "hono";
 import {
   getAvailablePredefinedServers,
@@ -5,15 +6,11 @@ import {
   isPredefinedServerInstalled,
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
-import { MCPServerConfig } from "../mcp/types";
 import {
-  McpSettingsSchema,
-  UpdateMcpConfigSchema,
-  ManualMCPConfigSchema,
   DisabledToolsSchema,
-  IdSchema,
+  IdSchema, ManualMCPConfigSchema, MCPServerConfig, McpSettingsSchema,
+  UpdateMcpConfigSchema
 } from "../mcp/types";
-import { zValidator } from '@hono/zod-validator';
 
 const router = new Hono();
 
@@ -156,9 +153,14 @@ router.post(
         manager.registerServer(id, serverConfig);
       }
 
-      manager.startServer(id).catch((err) => {
-        console.error(`Error auto-starting MCP server ${id}:`, err);
-      });
+      const startServerAsync = async () => {
+        try {
+          await manager.startServer(id);
+        } catch (err) {
+          console.error(`Error auto-starting MCP server ${id}:`, err);
+        }
+      };
+      startServerAsync();
     }
 
     return c.json({
@@ -239,9 +241,14 @@ router.post(
   if (success) {
     const serverConfig = manager.getServerConfig(id);
     if (serverConfig?.enabled) {
-      manager.startServer(id).catch((err) => {
-        console.error(`Error auto-starting MCP server ${id}:`, err);
-      });
+      const startServerAsync = async () => {
+        try {
+          await manager.startServer(id);
+        } catch (err) {
+          console.error(`Error auto-starting MCP server ${id}:`, err);
+        }
+      };
+      startServerAsync();
     }
 
     return c.json({

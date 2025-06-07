@@ -157,9 +157,14 @@ export class MCPManager extends EventEmitter {
 
     // Stop server if running
     if (server.status.running) {
-      this.stopServer(id).catch((error) =>
-        console.error(`Error stopping server ${id}:`, error),
-      );
+      const stopServerAsync = async () => {
+        try {
+          await this.stopServer(id);
+        } catch (error) {
+          console.error(`Error stopping server ${id}:`, error);
+        }
+      };
+      stopServerAsync();
     }
 
     // Remove from registry
@@ -239,58 +244,45 @@ export class MCPManager extends EventEmitter {
    * @param id Server ID
    * @returns Whether startup was successful
    */
-  private startLocalServer(id: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const server = this.servers.get(id);
-      if (!server || !server.config.command || !server.config.args) {
-        resolve(false);
-        return;
+  private async startLocalServer(id: string): Promise<boolean> {
+    const server = this.servers.get(id);
+    if (!server || !server.config.command || !server.config.args) {
+      return false;
+    }
+
+    try {
+      console.log("start local server", id);
+      // Create a new MCP client with stdio transport
+      server.client = new MCPClient(
+        server.config.command,
+        server.config.args,
+        true, // Use stdio transport
+        server.config.env, // Pass environment variables
+      );
+
+      // Connect to the MCP server
+      const connected = await server.client.connect();
+      
+      if (!connected) {
+        throw new Error(`Failed to connect to MCP server ${id}`);
       }
 
-      try {
-        console.log("start local server", id);
-        // Create a new MCP client with stdio transport
-        server.client = new MCPClient(
-          server.config.command,
-          server.config.args,
-          true, // Use stdio transport
-          server.config.env, // Pass environment variables
-        );
+      server.status.running = true;
 
-        // Connect to the MCP server
-        server.client
-          .connect()
-          .then((connected) => {
-            if (!connected) {
-              throw new Error(`Failed to connect to MCP server ${id}`);
-            }
-
-            server.status.running = true;
-
-            if (server.config.url) {
-              server.serverUrl = server.config.url;
-              server.status.url = server.config.url;
-            }
-
-            resolve(true);
-          })
-          .catch((error) => {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            server.status.error = errorMessage;
-            server.status.running = false;
-            console.error(`Failed to start MCP server ${id}:`, errorMessage);
-            resolve(false);
-          });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        server.status.error = errorMessage;
-        server.status.running = false;
-        console.error(`Failed to start MCP server ${id}:`, errorMessage);
-        resolve(false);
+      if (server.config.url) {
+        server.serverUrl = server.config.url;
+        server.status.url = server.config.url;
       }
-    });
+
+      return true;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      server.status.error = errorMessage;
+      server.status.running = false;
+      console.error(`Failed to start MCP server ${id}:`, errorMessage);
+      return false;
+    }
   }
 
   /**
@@ -490,9 +482,14 @@ export class MCPManager extends EventEmitter {
       const config = JSON.parse(jsonConfig) as MCPConfig;
       if (config && config.mcpServers) {
         // Stop all running servers before replacing config
-        this.stopAll().catch((error) =>
-          console.error("Error stopping servers during import:", error),
-        );
+        const stopAllAsync = async () => {
+          try {
+            await this.stopAll();
+          } catch (error) {
+            console.error("Error stopping servers during import:", error);
+          }
+        };
+        stopAllAsync();
 
         this.config = config;
         this.saveConfig();
@@ -592,9 +589,14 @@ export class MCPManager extends EventEmitter {
     // Stop the server if it's running
     const server = this.servers.get(id);
     if (server && server.status.running) {
-      this.stopServer(id).catch((error) =>
-        console.error(`Error stopping server ${id} during uninstall:`, error),
-      );
+      const stopServerAsync = async () => {
+        try {
+          await this.stopServer(id);
+        } catch (error) {
+          console.error(`Error stopping server ${id} during uninstall:`, error);
+        }
+      };
+      stopServerAsync();
     }
 
     // Unregister the server

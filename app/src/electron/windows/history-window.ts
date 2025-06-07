@@ -88,9 +88,10 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       "Main page loaded in history window, redirecting to history...",
     );
 
-    window.webContents
-      .executeJavaScript(
-        `
+    const executeNavigation = async () => {
+      try {
+        await window.webContents.executeJavaScript(
+          `
       console.log("Redirecting to history page...");
       
       if (window.router) {
@@ -101,10 +102,12 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         window.location.hash = "/history";
       }
     `,
-      )
-      .catch((err) => {
+        );
+      } catch (err) {
         console.error("Failed to execute navigation script:", err);
-      });
+      }
+    };
+    executeNavigation();
   });
 
   window.webContents.on(

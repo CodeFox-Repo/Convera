@@ -8,7 +8,9 @@ export function loadFuzzyInstance() {
   const load = async (): Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }> => {
     if (loaded) return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
     if (loadingPromise) return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
-    loadingPromise = import('@leeoniya/ufuzzy').then((module) => {
+    
+    loadingPromise = (async () => {
+      const module = await import('@leeoniya/ufuzzy');
       const uFuzzy = module.default;
       fuzzy = new uFuzzy({
         intraMode: 1,
@@ -23,7 +25,8 @@ export function loadFuzzyInstance() {
       });
       loaded = true;
       return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
-    });
+    })();
+    
     return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
   };
   return { load };

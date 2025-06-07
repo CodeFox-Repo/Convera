@@ -86,9 +86,10 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       "Main page loaded in settings window, redirecting to settings...",
     );
 
-    window.webContents
-      .executeJavaScript(
-        `
+    const executeNavigation = async () => {
+      try {
+        await window.webContents.executeJavaScript(
+          `
       console.log("Redirecting to settings page...");
       
       if (window.router) {
@@ -99,10 +100,12 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         window.location.hash = "/settings";
       }
     `,
-      )
-      .catch((err) => {
+        );
+      } catch (err) {
         console.error("Failed to execute navigation script:", err);
-      });
+      }
+    };
+    executeNavigation();
 
     if (inDevelopment && window) {
       console.log("Opening DevTools for settings window");
