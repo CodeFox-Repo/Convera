@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
 import {
     ChevronLeft,
     ChevronRight,
@@ -20,11 +21,15 @@ import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+export const Route = createFileRoute("/settings")({
+  component: SettingsPage,
+});
+
 /**
  * Settings page component that allows the user to configure OpenAI settings
  * and keyboard shortcuts.
  */
-export default function SettingsPage() {
+function SettingsPage() {
   // UI state only
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -632,4 +637,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-}
+} 
