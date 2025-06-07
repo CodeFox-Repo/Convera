@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
@@ -5,7 +6,11 @@ import { useThemeSync } from "../libs/hooks/use-theme-sync";
 import { useWindowClose } from "../libs/hooks/use-window-close";
 import { cleanTitle } from "../libs/utils/tag";
 
-const ChatHistoryPage: React.FC = () => {
+export const Route = createFileRoute("/history")({
+  component: ChatHistoryPage,
+});
+
+function ChatHistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   
   // we don't need to set messages in this window
@@ -189,6 +194,4 @@ const ChatHistoryPage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default ChatHistoryPage; 
+} 

@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { Archive, MessageSquare, MoreHorizontal, Plus, Settings, Sparkles, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -8,7 +9,11 @@ import { useAgentStore } from "../libs/stores/agent-store";
 import { useChatContext } from "../libs/stores/chat-store";
 import { cleanTitle } from "../libs/utils/tag";
 
-export default function HomePage() {
+export const Route = createFileRoute("/")({
+  component: HomePage,
+});
+
+function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -348,4 +353,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
+} 
