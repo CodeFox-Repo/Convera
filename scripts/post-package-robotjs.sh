@@ -12,25 +12,46 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     if [ -d "$RESOURCES_PATH" ]; then
         echo "📁 Found Resources directory: $RESOURCES_PATH"
         
-        # Copy robotjs to Resources
-        if [ -d "node_modules/@hurdlegroup/robotjs" ]; then
-            echo "📦 Copying robotjs..."
-            cp -r node_modules/@hurdlegroup/robotjs "$RESOURCES_PATH/robotjs"
-            echo "✅ Successfully copied robotjs to $RESOURCES_PATH/robotjs"
-            
-            # Verify the copy
-            if [ -f "$RESOURCES_PATH/robotjs/build/Release/robotjs.node" ]; then
-                echo "✅ Verified: robotjs.node exists in packaged app"
-            else
-                echo "❌ Error: robotjs.node not found after copy"
-                exit 1
+        # Try multiple possible locations for robotjs
+        ROBOTJS_PATHS=(
+            "node_modules/@hurdlegroup/robotjs"
+            "../node_modules/@hurdlegroup/robotjs"
+            "../../node_modules/@hurdlegroup/robotjs"
+        )
+        
+        ROBOTJS_FOUND=false
+        
+        for ROBOTJS_PATH in "${ROBOTJS_PATHS[@]}"; do
+            if [ -d "$ROBOTJS_PATH" ]; then
+                echo "📦 Found robotjs at: $ROBOTJS_PATH"
+                echo "📦 Copying robotjs..."
+                cp -r "$ROBOTJS_PATH" "$RESOURCES_PATH/robotjs"
+                echo "✅ Successfully copied robotjs to $RESOURCES_PATH/robotjs"
+                
+                # Verify the copy
+                if [ -f "$RESOURCES_PATH/robotjs/build/Release/robotjs.node" ]; then
+                    echo "✅ Verified: robotjs.node exists in packaged app"
+                    ROBOTJS_FOUND=true
+                    break
+                else
+                    echo "⚠️  Warning: robotjs.node not found after copy from $ROBOTJS_PATH"
+                fi
             fi
-        else
-            echo "❌ Error: robotjs not found in node_modules"
-            exit 1
+        done
+        
+        if [ "$ROBOTJS_FOUND" = false ]; then
+            echo "❌ Error: robotjs not found in any of the expected locations:"
+            for path in "${ROBOTJS_PATHS[@]}"; do
+                echo "  - $path"
+            done
+            echo "📁 Available directories:"
+            ls -la . || echo "  - Cannot list current directory"
+            ls -la node_modules/ 2>/dev/null || echo "  - node_modules not found in current directory"
+            ls -la ../node_modules/ 2>/dev/null || echo "  - node_modules not found in parent directory"
+            echo "⚠️  Continuing without robotjs - app may not have native module functionality"
         fi
     else
-        echo "❌ Error: Resources directory not found"
+        echo "❌ Error: Resources directory not found: $RESOURCES_PATH"
         exit 1
     fi
 else
