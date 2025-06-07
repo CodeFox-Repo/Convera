@@ -2,8 +2,9 @@
 import { useAgentStore } from '@/renderer/libs/stores/agent-store';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
+import { useSettingsStore } from '@/renderer/libs/stores/settings-store';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Sparkles, X } from 'lucide-react';
+import { LayoutDashboard, Plus, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import ChatInput, { ChatInputRef } from '../input/chat-input';
 import ChatContent from '../message/chat-content';
@@ -25,6 +26,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
   
   const { showControls, setShowControls } = useChatUIStore();
   const { agentChanged, handleAgentChange } = useAgentStore();
+  
+  const enableMainWindow = useSettingsStore((state) => state.experimentalFeatures.enableMainWindow);
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,15 +69,15 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
   const handleNewHistory = () => {
     window.location.reload();
   };
+
+  const handleOpenMainWindow = () => {
+      window.electronAPI.toggleWindow("main");
+  };
   
   return (
     <div className="h-full w-full flex items-center justify-center">
       <div 
-        className="bg-background border-border rounded-xl border shadow-lg transition-all duration-300 ease-in-out"
-        style={{
-          width: '560px', // Adjusted for the larger window
-          height: '600px', // Increased expanded height
-        }}
+        className="bg-background border-border rounded-xl border shadow-lg transition-all duration-300 ease-in-out h-full w-full"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -99,6 +102,17 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
 
                   {/* Right side controls */}
                   <div className="flex items-center gap-3">
+                    {/* Main Window Button - Only show if experimental feature is enabled */}
+                    {enableMainWindow && (
+                      <button
+                        onClick={handleOpenMainWindow}
+                        className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                        aria-label="Open main window"
+                        title="Open Main Window"
+                      >
+                        <LayoutDashboard size={18} />
+                      </button>
+                    )}
                     <button
                       onClick={handleNewHistory}
                       className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"

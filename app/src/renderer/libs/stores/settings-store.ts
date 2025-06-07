@@ -26,6 +26,11 @@ interface SettingsState {
   // UI state
   devModeEnabled: boolean;
 
+  // Experimental features
+  experimentalFeatures: {
+    enableMainWindow: boolean;
+  };
+
   // Actions
   initializeSettings: () => Promise<void>;
   handleOpenAIChange: (field: string, value: string) => Promise<void>;
@@ -42,6 +47,9 @@ interface SettingsState {
   // UI state
   setDevModeEnabled: (enabled: boolean) => void;
 
+  // Experimental features
+  setExperimentalFeature: (feature: string, enabled: boolean) => void;
+
   // Event subscriptions
   subscribeToSettingsChanges: () => () => void;
 }
@@ -56,6 +64,9 @@ export const useSettingsStore = create<SettingsState>()(
       activeShortcut: null,
       recordingShortcut: "",
       devModeEnabled: false,
+      experimentalFeatures: {
+        enableMainWindow: false,
+      },
 
       // Initialize settings
       initializeSettings: async () => {
@@ -241,6 +252,16 @@ export const useSettingsStore = create<SettingsState>()(
         set({ devModeEnabled: enabled });
       },
 
+      // Experimental features actions
+      setExperimentalFeature: (feature: string, enabled: boolean) => {
+        set((state) => ({
+          experimentalFeatures: {
+            ...state.experimentalFeatures,
+            [feature]: enabled,
+          },
+        }));
+      },
+
       // Subscribe to settings changes
       subscribeToSettingsChanges: () => {
         const handleModelSelected = async (event: Event) => {
@@ -285,6 +306,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({
         currentTheme: state.currentTheme,
         devModeEnabled: state.devModeEnabled,
+        experimentalFeatures: state.experimentalFeatures,
       }),
     },
   ),
