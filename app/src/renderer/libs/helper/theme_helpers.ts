@@ -37,28 +37,6 @@ export async function getCurrentTheme(): Promise<ThemePreferences> {
   }
 }
 
-export async function setTheme(newTheme: ThemeMode) {
-  if (!window.electronAPI) {
-    console.error("electronAPI is not available for setting theme!");
-    return;
-  }
-
-  try {
-    // Use the unified setTheme API
-    const resultTheme = await window.electronAPI.setTheme(newTheme);
-
-    // Update document theme based on result
-    const isDarkMode =
-      typeof resultTheme === "string" ? resultTheme === "dark" : false;
-    updateDocumentTheme(isDarkMode);
-
-    // Save the preference to localStorage
-    localStorage.setItem(THEME_KEY, newTheme);
-  } catch (error) {
-    console.error(`Error setting theme to ${newTheme}:`, error);
-  }
-}
-
 export async function toggleTheme() {
   if (!window.electronAPI) {
     console.error("electronAPI is not available for toggling theme!");
@@ -83,16 +61,6 @@ export async function toggleTheme() {
   } catch (error) {
     console.error("Error toggling theme:", error);
   }
-}
-
-export async function syncThemeWithLocal() {
-  const { local } = await getCurrentTheme();
-  if (!local) {
-    setTheme("system");
-    return;
-  }
-
-  await setTheme(local);
 }
 
 function updateDocumentTheme(isDarkMode: boolean) {
