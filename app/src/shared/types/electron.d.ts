@@ -50,6 +50,7 @@ export interface IElectronAPI {
     width: number,
     height: number,
     preserveX?: boolean,
+    center?: boolean,
   ) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{

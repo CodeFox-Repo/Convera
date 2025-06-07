@@ -3,6 +3,7 @@ import { useAgentStore } from '@/renderer/libs/stores/agent-store';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import { useSettingsStore } from '@/renderer/libs/stores/settings-store';
+import { Link } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LayoutDashboard, Plus, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
@@ -70,10 +71,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
     window.location.reload();
   };
 
-  const handleOpenMainWindow = () => {
-      window.electronAPI.toggleWindow("main");
-  };
-  
+
   return (
     <div className="h-full w-full flex items-center justify-center">
       <div 
@@ -104,14 +102,15 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
                   <div className="flex items-center gap-3">
                     {/* Main Window Button - Only show if experimental feature is enabled */}
                     {enableMainWindow && (
-                      <button
-                        onClick={handleOpenMainWindow}
-                        className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
-                        aria-label="Open main window"
-                        title="Open Main Window"
-                      >
-                        <LayoutDashboard size={18} />
-                      </button>
+                      <Link to="/" >
+                      <button 
+                          className="p-2.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-200"
+                          aria-label="Open main window"
+                          title="Open Main Window"
+                        >
+                          <LayoutDashboard size={18} />
+                        </button>
+                      </Link>
                     )}
                     <button
                       onClick={handleNewHistory}

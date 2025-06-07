@@ -194,9 +194,15 @@ export function registerListeners(options: ListenerOptions = {}) {
 
   ipcMain.handle(
     CHANNELS.WINDOW.RESIZE,
-    (_event, width: number, height: number, preserveX?: boolean) => {
+    (
+      _event,
+      width: number,
+      height: number,
+      preserveX?: boolean,
+      center?: boolean,
+    ) => {
       const window = chatWindow?.() || null;
-      return resizeWindow(window, width, height, preserveX);
+      return resizeWindow(window, width, height, preserveX, center);
     },
   );
 

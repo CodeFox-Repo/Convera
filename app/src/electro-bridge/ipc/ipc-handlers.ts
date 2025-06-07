@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, nativeTheme, shell } from "electron";
+import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -253,10 +253,23 @@ export function resizeWindow(
   width: number,
   height: number,
   preserveX: boolean = false,
+  center: boolean = false,
 ): void {
   if (mainWindow) {
-    // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
-    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+    if (center) {
+      // Center the window on screen
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { width: screenWidth, height: screenHeight } =
+        primaryDisplay.workAreaSize;
+
+      const x = Math.round((screenWidth - width) / 2);
+      const y = Math.round((screenHeight - height) / 2);
+
+      mainWindow.setBounds({ x, y, width, height });
+    } else {
+      // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
+      resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+    }
   }
 }
 

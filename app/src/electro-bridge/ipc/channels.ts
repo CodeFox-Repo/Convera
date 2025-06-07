@@ -31,7 +31,12 @@ export interface IPCServer {
   // Unified Window Management
   minimizeWindow(): void;
   maximizeWindow(): void;
-  resizeWindow(width: number, height: number, preserveX?: boolean): void;
+  resizeWindow(
+    width: number,
+    height: number,
+    preserveX?: boolean,
+    center?: boolean,
+  ): void;
   getCurrentWindowPosition(): { x: number; y: number };
   getCurrentWindowSize(window: WindowSizeConfig): {
     width: number;
