@@ -24,7 +24,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           password,
           name: email.split("@")[0], // Use email prefix as default name
         });
-        
+
         if (result.error) {
           setError(result.error.message || "Sign up failed");
         } else {
@@ -36,7 +36,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           email,
           password,
         });
-        
+
         if (result.error) {
           setError(result.error.message || "Sign in failed");
         } else {
@@ -64,7 +64,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-foreground">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-foreground"
+          >
             Email
           </label>
           <input
@@ -79,7 +82,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-foreground">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-foreground"
+          >
             Password
           </label>
           <input
@@ -94,18 +100,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           />
         </div>
 
-        {error && (
-          <div className="text-destructive text-sm">
-            {error}
-          </div>
-        )}
+        {error && <div className="text-destructive text-sm">{error}</div>}
 
         <button
           type="submit"
           disabled={loading}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Loading..." : (isSignUp ? "Create Account" : "Sign In")}
+          {loading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
         </button>
 
         <div className="text-center">
@@ -114,10 +116,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-primary hover:text-primary/80 text-sm"
           >
-            {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+            {isSignUp
+              ? "Already have an account? Sign in"
+              : "Don't have an account? Sign up"}
           </button>
         </div>
       </form>
     </div>
   );
-} 
+}

@@ -2,6 +2,7 @@ import { useChatHistory } from "@/renderer/libs/hooks/use-chat-history";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
+import { UserButton } from "@daveyplate/better-auth-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
@@ -265,6 +266,7 @@ export function HomePage() {
                 <Settings size={16} />
                 <span className="text-sm">Settings</span>
               </button>
+              <UserButton size="full" />
             </div>
           ) : (
             <div className="space-y-2 flex flex-col items-center">

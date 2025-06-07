@@ -41,14 +41,10 @@ export function UserProfile({ user, onSignOut }: UserProfileProps) {
             </div>
           )}
         </div>
-        
-        <h2 className="text-xl font-semibold text-foreground">
-          {user.name}
-        </h2>
-        <p className="text-muted-foreground mb-6">
-          {user.email}
-        </p>
-        
+
+        <h2 className="text-xl font-semibold text-foreground">{user.name}</h2>
+        <p className="text-muted-foreground mb-6">{user.email}</p>
+
         <button
           onClick={handleSignOut}
           className="w-full py-2 px-4 border border-border rounded-md shadow-sm text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
@@ -58,4 +54,4 @@ export function UserProfile({ user, onSignOut }: UserProfileProps) {
       </div>
     </div>
   );
-} 
+}
