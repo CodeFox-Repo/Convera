@@ -47,10 +47,6 @@ const builtInAgents: AgentDefinition[] = [
 
   Before proceeding with any code edits, check whether the user's request has already been implemented. If it has, inform the user without making any changes.
 
-  You have access to the following tools you can use to manipulate files:
-  - writeFile: Create a new file or completely replace an existing file
-  - updateFile: Make modifications to an existing file
-  - addDependency: Add a new npm dependency to the project
 
   If the user's input is unclear, ambiguous, or purely informational:
 
@@ -237,23 +233,7 @@ export async function getAgentSystemPrompt(
   const agent = await getAgentById(agentId);
   if (!agent) return undefined;
 
-  let prompt = agent.systemPrompt;
-
-  // If the prompt doesn't already include tool information, append it
-  if (prompt && !prompt.includes("Available tools:")) {
-    const toolsList: string[] = [];
-
-    // Use toolReferences to build tools list
-    if (agent.toolReferences && agent.toolReferences.length > 0) {
-      agent.toolReferences.forEach((ref) => {
-        toolsList.push(`${ref.toolName} (${ref.mcpName})`);
-      });
-    }
-
-    if (toolsList.length > 0) {
-      prompt += `\n\nAvailable tools: ${toolsList.join(", ")}`;
-    }
-  }
+  const prompt = agent.systemPrompt;
 
   return prompt;
 }
@@ -271,7 +251,7 @@ export function getOpenRouterClient(apiKey: string, endpoint?: string) {
 /**
  * Default system prompt for non-agent chats
  */
-export function getDefaultSystemPrompt(mcpToolNames: string[] = []): string {
+export function getDefaultSystemPrompt(): string {
   return `You are Foxy, a friendly and intelligent assistant created to help users with various tasks efficiently.
 
 Your key capabilities include:
@@ -282,37 +262,26 @@ Your key capabilities include:
    - Present search results in a clear, organized way with proper source attribution
    - If results are not helpful, acknowledge this and suggest alternatives
 
-2. **MCP Tools**: You have access to various Model Context Protocol (MCP) tools
-   - You can use these tools to perform specialized tasks
-   - Available MCP tools: ${mcpToolNames.join(", ")}
-   - Use these tools when appropriate for the user's request
-
-3. **Terminal Commands and Running Programs**:
+2. **Terminal Commands and Running Programs**:
    - NEVER execute commands that start servers or long-running processes (like "npm run dev", "yarn start", "python manage.py runserver", etc.)
    - Instead, help users check if their programs or services are already running
    - You can suggest commands to check program status such as: "ps aux | grep <program>", "lsof -i :<port>", "netstat -tuln", etc.
    - For Node.js applications, you can check running processes with "ps aux | grep node"
    - Explain to users how to interpret the results of these status checks
 
-4. **Response Style**:
+3. **Response Style**:
    - Be concise and to the point in your answers
    - Use a friendly, helpful tone that feels personal but professional
    - Break down complex information into digestible parts
    - For technical questions, provide explanations suitable to the user's apparent knowledge level
 
-5. **Knowledge Boundaries**:
+4. **Knowledge Boundaries**:
    - If asked about topics beyond your knowledge or capabilities, clearly state your limitations
    - Avoid making up information or pretending to know things you don't
    - When uncertain, express your uncertainty rather than guessing
 
-6. **Tool Usage and Summaries**:
-   - After each tool call completes, ALWAYS provide a concise summary of the results
-   - For web searches, summarize the key findings from the search rather than just showing raw results
-   - Highlight the most relevant information from tool results and explain its significance
-   - Include a brief conclusion or recommendation based on the tool results
-   - Make sure your summaries are user-friendly and help users understand the value of the information
 
-7. **Copied Content from user**:
+5. **Copied Content from user**:
   - If user input have <copied> tags, you should read the content inside the tags and think about if user want to modify it or just provide content for you to use.
   - If user want to modify it(Example: translate, improve, eg), you should use the content as a base and modify it and must wrap the result in <modified> tags.
   - Users can iterate multiple times on improving the same content through successive modification requests.
@@ -362,7 +331,6 @@ export async function processChatRequest(
   // Determine the system prompt and filter tools based on agent
   let systemPrompt: string | undefined;
   let tools: ToolSet = {};
-  let toolsList: string[] = [];
 
   if (options.agentId) {
     const agent = await getAgentById(options.agentId);
@@ -374,11 +342,6 @@ export async function processChatRequest(
       if (agent.toolReferences && agent.toolReferences.length > 0) {
         // Use getToolsByNames to properly filter tools based on toolReferences
         tools = getToolsByNames(agent.toolReferences);
-
-        // Format tool references for display in system prompt
-        toolsList = agent.toolReferences.map(
-          (ref) => `${ref.toolName} (${ref.mcpName})`,
-        );
 
         console.log(
           `Agent [${agent.id}]: Filtered to ${Object.keys(tools).length} tools from ${agent.toolReferences.length} references`,
@@ -392,8 +355,7 @@ export async function processChatRequest(
   } else {
     // For non-agent chats, use all available MCP tools
     tools = { ...mcpTools };
-    toolsList = Object.keys(mcpTools);
-    systemPrompt = getDefaultSystemPrompt(toolsList);
+    systemPrompt = getDefaultSystemPrompt();
   }
 
   // Create the OpenRouter client
