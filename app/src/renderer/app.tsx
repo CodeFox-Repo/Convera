@@ -1,4 +1,8 @@
-import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRouter,
+} from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
@@ -28,10 +32,10 @@ const history = createMemoryHistory({
   initialEntries: ["/"],
 });
 
-const router = createRouter({ 
-  routeTree, 
+const router = createRouter({
+  routeTree,
   history,
-  defaultPreload: 'intent',
+  defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
 });
 

@@ -1,0 +1,131 @@
+/* Enhanced Markdown Styles for FoxChat */
+
+/* Code Blocks */
+.markdown pre {
+  @apply bg-muted/50 border border-border/20 rounded-lg p-4 my-4 overflow-x-auto;
+}
+
+.markdown pre code {
+  @apply bg-transparent p-0 text-sm font-mono;
+  color: inherit;
+}
+
+/* Inline Code */
+.markdown :not(pre) > code {
+  @apply bg-foreground/10 px-1.5 py-0.5 rounded text-xs font-mono;
+  color: inherit;
+}
+
+/* Tables */
+.markdown table {
+  @apply w-full border-collapse border border-border/20 rounded-lg overflow-hidden my-4;
+}
+
+.markdown th {
+  @apply bg-muted/30 px-3 py-2 text-left font-semibold border-b border-border/20;
+}
+
+.markdown td {
+  @apply px-3 py-2 border-b border-border/20;
+}
+
+.markdown tr:last-child td {
+  @apply border-b-0;
+}
+
+/* Blockquotes */
+.markdown blockquote {
+  @apply border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground bg-muted/20 py-2 rounded-r;
+}
+
+/* Lists */
+.markdown ul {
+  @apply list-disc list-inside my-2 space-y-1;
+}
+
+.markdown ol {
+  @apply list-decimal list-inside my-2 space-y-1;
+}
+
+.markdown li {
+  @apply text-foreground;
+}
+
+.markdown ul ul,
+.markdown ol ol,
+.markdown ul ol,
+.markdown ol ul {
+  @apply ml-4 mt-1;
+}
+
+/* Headings */
+.markdown h1 {
+  @apply text-2xl font-bold mt-6 mb-4 border-b border-border/20 pb-2;
+}
+
+.markdown h2 {
+  @apply text-xl font-semibold mt-5 mb-3 border-b border-border/20 pb-1;
+}
+
+.markdown h3 {
+  @apply text-lg font-medium mt-4 mb-2;
+}
+
+.markdown h4 {
+  @apply text-base font-medium mt-3 mb-2;
+}
+
+.markdown h5 {
+  @apply text-sm font-medium mt-2 mb-1;
+}
+
+.markdown h6 {
+  @apply text-xs font-medium mt-2 mb-1;
+}
+
+/* Links */
+.markdown a {
+  @apply text-primary hover:text-primary/80 underline underline-offset-2 transition-colors;
+}
+
+/* Horizontal Rules */
+.markdown hr {
+  @apply my-6 border-border/20;
+}
+
+/* Paragraphs */
+.markdown p {
+  @apply my-2 leading-relaxed;
+}
+
+/* Task Lists */
+.markdown .task-list-item {
+  @apply list-none;
+}
+
+.markdown .task-list-item input {
+  @apply mr-2;
+}
+
+/* Math (KaTeX) */
+.markdown .katex {
+  @apply text-foreground;
+}
+
+.markdown .katex-display {
+  @apply my-4;
+}
+
+/* Code Highlighting Enhancements */
+.markdown .hljs {
+  @apply bg-transparent;
+}
+
+/* Ensure proper spacing for nested elements */
+.markdown > *:first-child {
+  @apply mt-0;
+}
+
+.markdown > *:last-child {
+  @apply mb-0;
+}

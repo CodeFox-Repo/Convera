@@ -10,129 +10,129 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './__root'
-import { Route as SettingsImport } from './settings'
-import { Route as HistoryImport } from './history'
-import { Route as ChatImport } from './chat'
-import { Route as AgentPopoverImport } from './agent-popover'
-import { Route as IndexImport } from './index'
+import { Route as rootRoute } from "./__root";
+import { Route as SettingsImport } from "./settings";
+import { Route as HistoryImport } from "./history";
+import { Route as ChatImport } from "./chat";
+import { Route as AgentPopoverImport } from "./agent-popover";
+import { Route as IndexImport } from "./index";
 
 // Create/Update Routes
 
 const SettingsRoute = SettingsImport.update({
-  id: '/settings',
-  path: '/settings',
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const HistoryRoute = HistoryImport.update({
-  id: '/history',
-  path: '/history',
+  id: "/history",
+  path: "/history",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const ChatRoute = ChatImport.update({
-  id: '/chat',
-  path: '/chat',
+  id: "/chat",
+  path: "/chat",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const AgentPopoverRoute = AgentPopoverImport.update({
-  id: '/agent-popover',
-  path: '/agent-popover',
+  id: "/agent-popover",
+  path: "/agent-popover",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 // Populate the FileRoutesByPath interface
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/agent-popover': {
-      id: '/agent-popover'
-      path: '/agent-popover'
-      fullPath: '/agent-popover'
-      preLoaderRoute: typeof AgentPopoverImport
-      parentRoute: typeof rootRoute
-    }
-    '/chat': {
-      id: '/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof ChatImport
-      parentRoute: typeof rootRoute
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryImport
-      parentRoute: typeof rootRoute
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsImport
-      parentRoute: typeof rootRoute
-    }
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/agent-popover": {
+      id: "/agent-popover";
+      path: "/agent-popover";
+      fullPath: "/agent-popover";
+      preLoaderRoute: typeof AgentPopoverImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/chat": {
+      id: "/chat";
+      path: "/chat";
+      fullPath: "/chat";
+      preLoaderRoute: typeof ChatImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/history": {
+      id: "/history";
+      path: "/history";
+      fullPath: "/history";
+      preLoaderRoute: typeof HistoryImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/settings": {
+      id: "/settings";
+      path: "/settings";
+      fullPath: "/settings";
+      preLoaderRoute: typeof SettingsImport;
+      parentRoute: typeof rootRoute;
+    };
   }
 }
 
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
+  "/": typeof IndexRoute;
+  "/agent-popover": typeof AgentPopoverRoute;
+  "/chat": typeof ChatRoute;
+  "/history": typeof HistoryRoute;
+  "/settings": typeof SettingsRoute;
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
+  "/": typeof IndexRoute;
+  "/agent-popover": typeof AgentPopoverRoute;
+  "/chat": typeof ChatRoute;
+  "/history": typeof HistoryRoute;
+  "/settings": typeof SettingsRoute;
 }
 
 export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
+  __root__: typeof rootRoute;
+  "/": typeof IndexRoute;
+  "/agent-popover": typeof AgentPopoverRoute;
+  "/chat": typeof ChatRoute;
+  "/history": typeof HistoryRoute;
+  "/settings": typeof SettingsRoute;
 }
 
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/agent-popover' | '/chat' | '/history' | '/settings'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/agent-popover' | '/chat' | '/history' | '/settings'
-  id: '__root__' | '/' | '/agent-popover' | '/chat' | '/history' | '/settings'
-  fileRoutesById: FileRoutesById
+  fileRoutesByFullPath: FileRoutesByFullPath;
+  fullPaths: "/" | "/agent-popover" | "/chat" | "/history" | "/settings";
+  fileRoutesByTo: FileRoutesByTo;
+  to: "/" | "/agent-popover" | "/chat" | "/history" | "/settings";
+  id: "__root__" | "/" | "/agent-popover" | "/chat" | "/history" | "/settings";
+  fileRoutesById: FileRoutesById;
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AgentPopoverRoute: typeof AgentPopoverRoute
-  ChatRoute: typeof ChatRoute
-  HistoryRoute: typeof HistoryRoute
-  SettingsRoute: typeof SettingsRoute
+  IndexRoute: typeof IndexRoute;
+  AgentPopoverRoute: typeof AgentPopoverRoute;
+  ChatRoute: typeof ChatRoute;
+  HistoryRoute: typeof HistoryRoute;
+  SettingsRoute: typeof SettingsRoute;
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -141,11 +141,11 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
-}
+};
 
 export const routeTree = rootRoute
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
 /* ROUTE_MANIFEST_START
 {

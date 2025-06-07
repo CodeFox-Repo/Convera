@@ -5,10 +5,27 @@ export function loadFuzzyInstance() {
   let fuzzy: unknown = null;
   let loaded = false;
   let loadingPromise: Promise<unknown> | null = null;
-  const load = async (): Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }> => {
-    if (loaded) return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
-    if (loadingPromise) return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
-    loadingPromise = import('@leeoniya/ufuzzy').then((module) => {
+  const load = async (): Promise<{
+    search: (
+      haystack: string[],
+      needle: string,
+    ) => [number[], { idx: number[] }, number[]];
+  }> => {
+    if (loaded)
+      return fuzzy as {
+        search: (
+          haystack: string[],
+          needle: string,
+        ) => [number[], { idx: number[] }, number[]];
+      };
+    if (loadingPromise)
+      return loadingPromise as Promise<{
+        search: (
+          haystack: string[],
+          needle: string,
+        ) => [number[], { idx: number[] }, number[]];
+      }>;
+    loadingPromise = import("@leeoniya/ufuzzy").then((module) => {
       const uFuzzy = module.default;
       fuzzy = new uFuzzy({
         intraMode: 1,
@@ -22,9 +39,19 @@ export function loadFuzzyInstance() {
         interChars: "[s-_.//]",
       });
       loaded = true;
-      return fuzzy as { search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] };
+      return fuzzy as {
+        search: (
+          haystack: string[],
+          needle: string,
+        ) => [number[], { idx: number[] }, number[]];
+      };
     });
-    return loadingPromise as Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }>;
+    return loadingPromise as Promise<{
+      search: (
+        haystack: string[],
+        needle: string,
+      ) => [number[], { idx: number[] }, number[]];
+    }>;
   };
   return { load };
 }
@@ -36,7 +63,14 @@ export async function searchModels(
   input: string,
   items: string[],
   setResult: (models: string[]) => void,
-  fuzzyInstance: { load: () => Promise<{ search: (haystack: string[], needle: string) => [number[], { idx: number[] }, number[]] }> }
+  fuzzyInstance: {
+    load: () => Promise<{
+      search: (
+        haystack: string[],
+        needle: string,
+      ) => [number[], { idx: number[] }, number[]];
+    }>;
+  },
 ) {
   const normalizedInput = input.toLowerCase();
   if (!normalizedInput.trim()) {
@@ -45,7 +79,10 @@ export async function searchModels(
   }
   try {
     const fuzzy = await fuzzyInstance.load();
-    const result: [number[], { idx: number[] }, number[]] = fuzzy.search(items, normalizedInput);
+    const result: [number[], { idx: number[] }, number[]] = fuzzy.search(
+      items,
+      normalizedInput,
+    );
     if (result && result.length > 0) {
       const info = result[1];
       const order = result[2];
@@ -69,23 +106,27 @@ export async function searchModels(
 export function fallbackSearch(
   input: string,
   items: string[],
-  setResult: (models: string[]) => void
+  setResult: (models: string[]) => void,
 ) {
-  const prefixMatches = items.filter(item => {
+  const prefixMatches = items.filter((item) => {
     const words = item.toLowerCase().split(/[\s\-_./]+/);
-    return words.some(word => word.startsWith(input));
+    return words.some((word) => word.startsWith(input));
   });
   if (prefixMatches.length > 0) {
     setResult(prefixMatches);
     return;
   }
-  const substringMatches = items.filter(item => item.toLowerCase().includes(input));
+  const substringMatches = items.filter((item) =>
+    item.toLowerCase().includes(input),
+  );
   if (substringMatches.length > 0) {
     setResult(substringMatches);
     return;
   }
   const normalize = (str: string) => str.replace(/[\s\-_./]/g, "");
   const normalizedInputNoSep = normalize(input);
-  const noSepMatches = items.filter(item => normalize(item.toLowerCase()).includes(normalizedInputNoSep));
+  const noSepMatches = items.filter((item) =>
+    normalize(item.toLowerCase()).includes(normalizedInputNoSep),
+  );
   setResult(noSepMatches);
-} 
+}

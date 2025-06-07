@@ -2,33 +2,39 @@ import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+// Import highlight.js styles
+import "highlight.js/styles/github-dark.css";
+// Import KaTeX styles
+import "katex/dist/katex.min.css";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
 /**
- * Simple markdown renderer component
+ * Advanced markdown renderer component with syntax highlighting, math, and more
  */
 const Markdown = memo(({ children }: { children: string }) => {
-  // Simple markdown rendering
-  const formattedText = children
-    .replace(
-      /```([\s\S]*?)```/g,
-      "<pre class='bg-foreground/10 p-3 rounded-md my-2 overflow-x-auto'><code>$1</code></pre>",
-    )
-    .replace(
-      /`([^`]+)`/g,
-      "<code class='bg-foreground/10 px-1 py-0.5 rounded text-xs'>$1</code>",
-    )
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/\n/g, "<br />");
-
   return (
-    <div
-      className="markdown no-drag-region"
-      dangerouslySetInnerHTML={{ __html: formattedText }}
-    />
+    <div className="markdown no-drag-region max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
+        rehypePlugins={[
+          rehypeHighlight,
+          rehypeKatex,
+          [rehypeRaw, { passThrough: ["element"] }],
+        ]}
+        urlTransform={(value: string) => value}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 });
 
@@ -159,16 +165,16 @@ export default function ChatContent({
   // Extract copied content from message content
   const extractCopiedContent = useCallback((content: string) => {
     if (!content) return { copiedContent: null, cleanContent: content };
-    
+
     const copiedContentPattern = /<copied>\n([\s\S]*?)\n<\/copied>/;
     const copiedContentMatch = content.match(copiedContentPattern);
-    
+
     if (copiedContentMatch) {
       const copiedContent = copiedContentMatch[1];
       const cleanContent = content.replace(copiedContentPattern, "").trim();
       return { copiedContent, cleanContent };
     }
-    
+
     return { copiedContent: null, cleanContent: content };
   }, []);
 
@@ -182,7 +188,7 @@ export default function ChatContent({
 
       // Extract special content
       const modifiedContentMatch = content.match(modifiedContentPattern);
-      
+
       // Check if this message's modified content has already been responded to
       const modificationResponse = modifiedResponses[messageId];
 
@@ -199,7 +205,7 @@ export default function ChatContent({
       // Add main content if it exists
       if (cleanContent) {
         contentSections.push(
-          <Markdown key="main-content">{cleanContent}</Markdown>
+          <Markdown key="main-content">{cleanContent}</Markdown>,
         );
       }
 
@@ -213,12 +219,16 @@ export default function ChatContent({
             onAccept={() => handleAcceptModification(messageId)}
           >
             <Markdown>{modifiedContent}</Markdown>
-          </ModifiedContentBlock>
+          </ModifiedContentBlock>,
         );
       }
 
       // Return all sections or fallback to original content
-      return contentSections.length > 0 ? <>{contentSections}</> : <Markdown>{content}</Markdown>;
+      return contentSections.length > 0 ? (
+        <>{contentSections}</>
+      ) : (
+        <Markdown>{content}</Markdown>
+      );
     },
     [modifiedResponses, handleAcceptModification],
   );
@@ -294,7 +304,7 @@ export default function ChatContent({
   // Renders regenerating indicator
   function renderLoadingIndicator() {
     const avatar = "../../images/icon.png";
-    
+
     return (
       <div className="w-full py-2">
         <div className="max-w-4xl mx-auto px-4">
@@ -372,7 +382,7 @@ export default function ChatContent({
 
   if (messages.length === 0) {
     const avatar = "../../images/icon.png";
-    
+
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
         <motion.div
@@ -424,7 +434,9 @@ export default function ChatContent({
       let contentToRender = message.content;
 
       if (message.role === "user" && message.content) {
-        const { copiedContent: extracted, cleanContent } = extractCopiedContent(message.content);
+        const { copiedContent: extracted, cleanContent } = extractCopiedContent(
+          message.content,
+        );
         copiedContent = extracted;
         contentToRender = cleanContent;
       }
@@ -482,17 +494,19 @@ export default function ChatContent({
 
         {/* Show waiting for first token animation - only if last message is not from assistant */}
         <AnimatePresence mode="wait">
-          {isLoading && messages.length > 0 && !(messages[messages.length - 1]?.role === "assistant") && (
-            <motion.div
-              key="waiting-first-token"
-              className="no-drag-region w-full"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {renderLoadingIndicator()}
-            </motion.div>
-          )}
+          {isLoading &&
+            messages.length > 0 &&
+            !(messages[messages.length - 1]?.role === "assistant") && (
+              <motion.div
+                key="waiting-first-token"
+                className="no-drag-region w-full"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderLoadingIndicator()}
+              </motion.div>
+            )}
         </AnimatePresence>
 
         <div ref={messagesEndRef} className="h-8" />

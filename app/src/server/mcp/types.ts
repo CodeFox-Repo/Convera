@@ -89,7 +89,7 @@ export interface ServerInstance {
   updateTools(): Promise<void>;
 }
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export const McpServerConfigSchema = z.object({
   url: z.string().optional(),

@@ -1,5 +1,13 @@
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
-import { AlertCircle, ExternalLink, FileText, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ExternalLink,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import React, { useState } from "react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -33,8 +41,8 @@ type MarketplaceSectionProps = {
   onRefreshServers?: () => void;
 };
 
-const MCP_CONFIG_FOLDER_PATH = '~/.foxychat';
-const MCP_CONFIG_FILE_PATH = '~/.foxychat/mcp.json';
+const MCP_CONFIG_FOLDER_PATH = "~/.foxychat";
+const MCP_CONFIG_FILE_PATH = "~/.foxychat/mcp.json";
 
 export function MarketplaceSection({
   mcpMarketItems,
@@ -60,8 +68,12 @@ export function MarketplaceSection({
     Record<string, boolean>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [manualConfigError, setManualConfigError] = useState<string | null>(null);
-  const [communityConfigError, setCommunityConfigError] = useState<string | null>(null);
+  const [manualConfigError, setManualConfigError] = useState<string | null>(
+    null,
+  );
+  const [communityConfigError, setCommunityConfigError] = useState<
+    string | null
+  >(null);
 
   const handleTabChange = (value: string) => {
     if (value === "installed" && onRefreshServers) {
@@ -81,7 +93,8 @@ export function MarketplaceSection({
       setManualConfigError(null);
     } catch (error) {
       console.error("Error submitting manual config:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       setManualConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -105,7 +118,8 @@ export function MarketplaceSection({
       }
     } catch (error) {
       console.error("Error submitting community config:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       setCommunityConfigError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -175,7 +189,9 @@ export function MarketplaceSection({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-medium text-foreground">MCP Marketplace</h2>
+            <h2 className="text-2xl font-medium text-foreground">
+              MCP Marketplace
+            </h2>
             <p className="text-muted-foreground mt-1">
               Browse and install MCP tools and servers for enhanced
               functionality
@@ -193,7 +209,11 @@ export function MarketplaceSection({
         </div>
       </div>
 
-      <Tabs defaultValue="marketplace" className="w-full" onValueChange={handleTabChange}>
+      <Tabs
+        defaultValue="marketplace"
+        className="w-full"
+        onValueChange={handleTabChange}
+      >
         <TabsList className="dark:bg-background/60 mb-4">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="installed">Installed</TabsTrigger>
@@ -277,7 +297,7 @@ export function MarketplaceSection({
                                     alt={`${server.name} logo`}
                                     className="h-10 w-10 rounded-md object-contain"
                                     onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.style.display = "none";
                                     }}
                                   />
                                 </div>
@@ -322,7 +342,9 @@ export function MarketplaceSection({
                                   size="sm"
                                   variant="default"
                                   className="bg-primary hover:bg-primary/90 ml-4 text-white/90 dark:text-white/90 w-8 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                  onClick={() => onInstallPredefinedServer(server.id)}
+                                  onClick={() =>
+                                    onInstallPredefinedServer(server.id)
+                                  }
                                   disabled={installingTools[server.id]}
                                 >
                                   {installingTools[server.id] ? (
@@ -341,8 +363,7 @@ export function MarketplaceSection({
                     {filteredMarketItems.map((item) => {
                       const isInstalled = installedServers.some(
                         (server) =>
-                          server.name === item.name ||
-                          server.id === item.mcpId,
+                          server.name === item.name || server.id === item.mcpId,
                       );
 
                       return (
@@ -359,7 +380,7 @@ export function MarketplaceSection({
                                     alt={`${item.name} logo`}
                                     className="h-10 w-10 rounded-md object-contain"
                                     onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.style.display = "none";
                                     }}
                                   />
                                 </div>
@@ -428,15 +449,18 @@ export function MarketplaceSection({
                     Edit MCP Config
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg">
-                  <DropdownMenuItem 
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg"
+                >
+                  <DropdownMenuItem
                     onClick={handleOpenMCPConfigFolder}
                     className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
                   >
                     <FolderOpen className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
                     Open Config Folder
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={handleOpenMCPConfigFile}
                     className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer transition-colors duration-150"
                   >
@@ -471,7 +495,7 @@ export function MarketplaceSection({
                                 alt={`${server.name} logo`}
                                 className="h-10 w-10 rounded-md object-contain"
                                 onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.style.display = "none";
                                 }}
                               />
                             </div>
@@ -580,9 +604,7 @@ export function MarketplaceSection({
             {manualConfigError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {manualConfigError}
-                </AlertDescription>
+                <AlertDescription>{manualConfigError}</AlertDescription>
               </Alert>
             )}
           </div>
@@ -656,9 +678,11 @@ export function MarketplaceSection({
             {selectedCommunityItem?.githubUrl && (
               <div className="flex items-center justify-end">
                 <a
-                  href={selectedCommunityItem.githubUrl.startsWith("http")
-                    ? selectedCommunityItem.githubUrl
-                    : `https://${selectedCommunityItem.githubUrl}`}
+                  href={
+                    selectedCommunityItem.githubUrl.startsWith("http")
+                      ? selectedCommunityItem.githubUrl
+                      : `https://${selectedCommunityItem.githubUrl}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary flex items-center gap-1 text-sm hover:underline"
@@ -671,9 +695,7 @@ export function MarketplaceSection({
             {communityConfigError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {communityConfigError}
-                </AlertDescription>
+                <AlertDescription>{communityConfigError}</AlertDescription>
               </Alert>
             )}
           </div>

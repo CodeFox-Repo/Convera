@@ -1,3 +1,4 @@
+import typographyPlugin from "@tailwindcss/typography";
 import animatePlugin from "tailwindcss-animate";
 
 /** @type {import('tailwindcss').Config} */
@@ -119,7 +120,7 @@ const config = {
       },
     },
   },
-  plugins: [animatePlugin],
+  plugins: [animatePlugin, typographyPlugin],
 };
 
 export default config;

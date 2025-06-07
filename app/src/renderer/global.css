@@ -6,6 +6,7 @@
 
 @import "@fontsource/inter/index.css";
 @import "./theme.css";
+@import "./markdown.css";
 
 @utility container {
   margin-inline: auto;

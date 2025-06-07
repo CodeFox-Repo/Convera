@@ -8,7 +8,7 @@ import {
   Monitor,
   Send,
   Settings,
-  Square
+  Square,
 } from "lucide-react";
 import React, { useEffect } from "react";
 import ModelSelector from "../popover/model-selector-popover";
@@ -36,33 +36,35 @@ interface ActionButtonConfig {
   className?: string;
   render?: (
     props: ChatInputButtonsProps,
-    hookData: { 
-      previousApp: ReturnType<typeof usePreviousApp>['previousApp'], 
-      formatAppName: ReturnType<typeof usePreviousApp>['formatAppName'] 
-    }
+    hookData: {
+      previousApp: ReturnType<typeof usePreviousApp>["previousApp"];
+      formatAppName: ReturnType<typeof usePreviousApp>["formatAppName"];
+    },
   ) => React.ReactNode;
-  show: boolean | ((
-    props: ChatInputButtonsProps,
-    hookData: { previousApp: ReturnType<typeof usePreviousApp>['previousApp'] }
-  ) => boolean);
+  show:
+    | boolean
+    | ((
+        props: ChatInputButtonsProps,
+        hookData: {
+          previousApp: ReturnType<typeof usePreviousApp>["previousApp"];
+        },
+      ) => boolean);
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
-  const { 
-    onOpenSettings, 
-    triggerHistoryWindow,
-  } = props;
-  
+  const { onOpenSettings, triggerHistoryWindow } = props;
+
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
-  const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } = useAgentStore();
-  
+  const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
+    useAgentStore();
+
   useEffect(() => {
     const unsubscribe = subscribeToAgentChanges();
     return unsubscribe;
   }, []);
-  
-  console.log('selectedAgent from chat-input-button', selectedAgent);
+
+  console.log("selectedAgent from chat-input-button", selectedAgent);
   console.log("previousApp", previousApp);
 
   const leftActionButtons: ActionButtonConfig[] = [
@@ -87,7 +89,9 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       render: () => (
         <button
           className={`no-drag-region flex items-center ${
-            selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant"
+            selectedAgent &&
+            selectedAgent.id !== "DefaultAssistant" &&
+            selectedAgent.name !== "Default Assistant"
               ? "bg-primary/20 text-primary hover:bg-primary/30 rounded px-2 py-0.5 text-xs font-medium"
               : "text-foreground/70 hover:text-foreground"
           }`}
@@ -97,36 +101,57 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         >
           {/* Always show Bot icon */}
           <Bot
-            size={selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" ? 12 : 16}
-            className={selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" ? "mr-1" : ""}
+            size={
+              selectedAgent &&
+              selectedAgent.id !== "DefaultAssistant" &&
+              selectedAgent.name !== "Default Assistant"
+                ? 12
+                : 16
+            }
+            className={
+              selectedAgent &&
+              selectedAgent.id !== "DefaultAssistant" &&
+              selectedAgent.name !== "Default Assistant"
+                ? "mr-1"
+                : ""
+            }
           />
           {/* Only show agent name if it's not Default Assistant */}
-          {selectedAgent && selectedAgent.id !== "DefaultAssistant" && selectedAgent.name !== "Default Assistant" && selectedAgent.name}
+          {selectedAgent &&
+            selectedAgent.id !== "DefaultAssistant" &&
+            selectedAgent.name !== "Default Assistant" &&
+            selectedAgent.name}
         </button>
       ),
       show: true,
-    }
+    },
   ];
 
-  const defaultButtonClassName = "no-drag-region text-foreground/70 hover:text-foreground";
+  const defaultButtonClassName =
+    "no-drag-region text-foreground/70 hover:text-foreground";
 
   return (
     <div className="ml-2 drag-region flex min-h-[30px] items-center justify-between">
       {/* Left icons and elements */}
       <div className="flex flex-1 items-center space-x-2">
         {leftActionButtons.map((config) => {
-          const isVisible = typeof config.show === 'function' 
-            ? config.show(props, hookData) 
-            : config.show;
+          const isVisible =
+            typeof config.show === "function"
+              ? config.show(props, hookData)
+              : config.show;
 
           if (!isVisible) {
             return null;
           }
 
           if (config.render) {
-            return <React.Fragment key={config.id}>{config.render(props, hookData)}</React.Fragment>;
+            return (
+              <React.Fragment key={config.id}>
+                {config.render(props, hookData)}
+              </React.Fragment>
+            );
           }
-          
+
           return (
             <button
               key={config.id}
@@ -139,10 +164,10 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           );
         })}
 
-        <ModelSelector/>
+        <ModelSelector />
         {/* previous app - only show when there's a valid previous app */}
         {previousApp && formatAppName(previousApp) && (
-          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium"> 
+          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
             <Monitor size={12} className="mr-1" />
             {formatAppName(previousApp)}
           </div>
