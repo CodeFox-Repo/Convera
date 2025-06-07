@@ -121,7 +121,7 @@ export default function ModelSelector() {
               <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <h3 className="font-medium text-sm">Select Model</h3>
+              <h3 className="font-medium text-sm text-foreground">Select Model</h3>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export default function ModelSelector() {
                   }`}
                   onClick={() => handleModelSelect(model)}
                 >
-                  <span className="truncate">{model}</span>
+                  <span className="truncate text-foreground">{model}</span>
                   {model === selectedModelId && (
                     <svg className="w-4 h-4 text-primary flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
