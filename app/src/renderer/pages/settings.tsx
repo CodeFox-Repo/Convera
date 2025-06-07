@@ -55,6 +55,7 @@ export default function SettingsPage() {
     activeShortcut,
     recordingShortcut,
     devModeEnabled,
+    experimentalFeatures,
     initializeSettings,
     handleOpenAIChange,
     handleAddSupportedModel,
@@ -65,6 +66,7 @@ export default function SettingsPage() {
     setRecordingShortcut,
     saveRecordedShortcut,
     setDevModeEnabled,
+    setExperimentalFeature,
     subscribeToSettingsChanges,
   } = useSettingsStore();
 
@@ -443,163 +445,182 @@ export default function SettingsPage() {
 
         {/* Developer Tab Content */}
         {activeTab === "developer" && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-foreground text-xl font-semibold mb-4">
-                Developer Mode
-              </h2>
-              <div className="bg-card/50 rounded-lg p-6 border border-border/40 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-foreground font-medium">
-                      Enable Developer Mode
-                    </h3>
-                    <p className="text-foreground/60 text-sm">
-                      Show developer tools and window controls for debugging
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setDevModeEnabled(!devModeEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      devModeEnabled
-                        ? "bg-primary"
-                        : "bg-gray-200 dark:bg-gray-700"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        devModeEnabled ? "translate-x-6" : "translate-x-1"
+          <div className="space-y-6">
+            {/* Developer Mode Section */}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Developer Settings</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Development tools and debugging features
+                </p>
+              </div>
+              
+              <div className="border border-border rounded-lg">
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-foreground">Developer Mode</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Enable debugging tools and window controls
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setDevModeEnabled(!devModeEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        devModeEnabled
+                          ? "bg-primary"
+                          : "bg-muted"
                       }`}
-                    />
-                  </button>
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          devModeEnabled ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
 
                 {devModeEnabled && (
-                  <div className="mt-6 space-y-4">
-                    <h4 className="text-foreground font-medium">
-                      Window Controls
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
-                        <h5 className="text-foreground font-medium mb-2">
-                          Settings Window
-                        </h5>
-                        <p className="text-foreground/60 text-sm mb-3">
-                          Main settings configuration window
-                        </p>
-                        <button
-                          onClick={() =>
-                            window.electronAPI?.toggleWindow("settings")
-                          }
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                          Toggle Settings
-                        </button>
-                      </div>
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <h4 className="font-medium text-foreground mb-3">Window Controls</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">Settings Window</h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Configuration window
+                          </p>
+                          <button
+                            onClick={() => window.electronAPI?.toggleWindow("settings")}
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle Settings
+                          </button>
+                        </div>
 
-                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
-                        <h5 className="text-foreground font-medium mb-2">
-                          History Window
-                        </h5>
-                        <p className="text-foreground/60 text-sm mb-3">
-                          Chat history browser window
-                        </p>
-                        <button
-                          onClick={() =>
-                            window.electronAPI?.toggleWindow("history")
-                          }
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                          Toggle History
-                        </button>
-                      </div>
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">History Window</h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Chat history browser
+                          </p>
+                          <button
+                            onClick={() => window.electronAPI?.toggleWindow("history")}
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle History
+                          </button>
+                        </div>
 
-                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
-                        <h5 className="text-foreground font-medium mb-2">
-                          Main Window
-                        </h5>
-                        <p className="text-foreground/60 text-sm mb-3">
-                          Main application interface window
-                        </p>
-                        <button
-                          onClick={() =>
-                            window.electronAPI?.toggleWindow("main")
-                          }
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                          Toggle Main Window
-                        </button>
-                      </div>
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">Main Window</h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Main application interface
+                          </p>
+                          <button
+                            onClick={() => window.electronAPI?.toggleWindow("main")}
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle Main Window
+                          </button>
+                        </div>
 
-                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
-                        <h5 className="text-foreground font-medium mb-2">
-                          Agent Popover
-                        </h5>
-                        <p className="text-foreground/60 text-sm mb-3">
-                          Agent selection popover window (test position)
-                        </p>
-                        <button
-                          onClick={(e) => {
-                            // Get button position for realistic positioning
-                            const button = e.currentTarget;
-                            const rect = button.getBoundingClientRect();
-                            const x = rect.right + 10;
-                            const y = rect.top;
-                            
-                            window.electronAPI?.toggleAgentPopover(
-                              Math.round(x),
-                              Math.round(y),
-                              280,
-                              200,
-                            );
-                          }}
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                          Toggle Agent Popover
-                        </button>
-                      </div>
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">Agent Popover</h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Agent selection popover
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              const button = e.currentTarget;
+                              const rect = button.getBoundingClientRect();
+                              const x = rect.right + 10;
+                              const y = rect.top;
+                              
+                              window.electronAPI?.toggleAgentPopover(
+                                Math.round(x),
+                                Math.round(y),
+                                280,
+                                200,
+                              );
+                            }}
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle Agent Popover
+                          </button>
+                        </div>
 
-                      <div className="bg-background/40 rounded-lg p-4 border border-border/30">
-                        <h5 className="text-foreground font-medium mb-2">
-                          Model Selector
-                        </h5>
-                        <p className="text-foreground/60 text-sm mb-3">
-                          Model selection popover window (test position)
-                        </p>
-                        <button
-                          onClick={(e) => {
-                            // Get button position for realistic positioning
-                            const button = e.currentTarget;
-                            const rect = button.getBoundingClientRect();
-                            const x = rect.right + 10;
-                            const y = rect.top;
-                            
-                            window.electronAPI?.toggleModelSelector(
-                              Math.round(x),
-                              Math.round(y),
-                              280,
-                              200,
-                            );
-                          }}
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                          Toggle Model Selector
-                        </button>
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">Model Selector</h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Model selection popover
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              const button = e.currentTarget;
+                              const rect = button.getBoundingClientRect();
+                              const x = rect.right + 10;
+                              const y = rect.top;
+                              
+                              window.electronAPI?.toggleModelSelector(
+                                Math.round(x),
+                                Math.round(y),
+                                280,
+                                200,
+                              );
+                            }}
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle Model Selector
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 p-4 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-                      <h5 className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
-                        ⚠️ Developer Tools
-                      </h5>
-                      <p className="text-yellow-700 dark:text-yellow-300 text-sm">
-                        These controls are for development and debugging
-                        purposes. Use with caution as they may affect the
-                        application state.
+                    <div className="border-t border-border pt-3">
+                      <p className="text-xs text-muted-foreground">
+                        These controls are for development and debugging purposes.
                       </p>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Experimental Features Section */}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Experimental Features</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Features in development that may change or be removed
+                </p>
+              </div>
+              
+              <div className="border border-border rounded-lg">
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-foreground">Enable Main Window</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Show button in expanded view to open main window interface
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setExperimentalFeature("enableMainWindow", !experimentalFeatures.enableMainWindow)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        experimentalFeatures.enableMainWindow
+                          ? "bg-primary"
+                          : "bg-muted"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          experimentalFeatures.enableMainWindow ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
