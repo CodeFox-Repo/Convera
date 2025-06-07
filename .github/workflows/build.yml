@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]
 
     steps:
       - name: Checkout code
@@ -20,10 +20,45 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "yarn"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install macOS dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Ensure Xcode command line tools are available
+          xcode-select --install 2>/dev/null || true
+
+      # Cache dependencies
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: make
-        run: yarn make
+      # Set CI environment variable to skip robotjs rebuild during postinstall
+      - name: Rebuild robotjs for CI
+        working-directory: app
+        run: |
+          export CI=false
+          pnpm run rebuild:robotjs
+
+      - name: Run tests
+        working-directory: app
+        run: pnpm test
+
+      - name: Build and package app
+        working-directory: app
+        run: pnpm run package
+
+      - name: Make distribution files
+        working-directory: app
+        run: pnpm run make

@@ -19,25 +19,49 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
 
       # Install pnpm
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 8
+
+      # Install macOS dependencies for robotjs
+      - name: Install macOS dependencies
+        run: |
+          # Ensure Xcode command line tools are available
+          xcode-select --install 2>/dev/null || true
+
+      # Cache dependencies
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       # Install dependencies with pnpm from workspace root
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Rebuild robotjs for release environment
+      - name: Rebuild robotjs for release
+        working-directory: app
+        run: |
+          export CI=false
+          pnpm run rebuild:robotjs
+
       # Run tests
       - name: Run tests
-        run: cd app && pnpm test
+        working-directory: app
+        run: pnpm test
 
       # Make app distributable (this will also package)
       - name: Make app distributable
-        run: cd app && pnpm make
+        working-directory: app
+        run: pnpm make
 
       # Get version from tag
       - name: Get version from tag

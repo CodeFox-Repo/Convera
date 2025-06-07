@@ -7,12 +7,16 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import pkg from "./package.json";
+
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
-    asar: true,
     icon: "./images/icon",
+    // Ensure native modules are properly handled
+    asar: {
+      unpack: "**/node_modules/@hurdlegroup/robotjs/**/*",
+    },
   },
 
   rebuildConfig: {},
@@ -34,7 +38,16 @@ const config: ForgeConfig = {
     },
   ],
   plugins: [
-    new AutoUnpackNativesPlugin({}),
+    // Enhanced AutoUnpackNativesPlugin configuration for better native module handling
+    new AutoUnpackNativesPlugin({
+      // Explicitly specify robotjs for unpacking
+      packageConfig: {
+        "@hurdlegroup/robotjs": {
+          // Ensure the native binaries are properly unpacked
+          unpack: true,
+        },
+      },
+    }),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.
