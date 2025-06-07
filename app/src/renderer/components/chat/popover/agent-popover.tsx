@@ -53,50 +53,47 @@ useThemeSync();
   // Fetch agents from server
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
-    try {
-      await fetchMcpConfigurations();
-      const configs = useMcpStore.getState().mcpServerConfigs;
-      setMcpServerConfigs(configs);
-      Object.entries(configs)
-        .filter(([, config]) => config.enabled)
-        .forEach(([id]) => {
-          fetchMcpServerTools(id);
-        });
-    } catch (err) {
-      console.error("Failed to fetch MCP configurations:", err);
-    } finally {
-      setLoadingMcpConfigs(false);
-    }
+    await fetchMcpConfigurations();
+    const configs = useMcpStore.getState().mcpServerConfigs;
+    setMcpServerConfigs(configs);
+    Object.entries(configs)
+      .filter(([, config]) => config.enabled)
+      .forEach(([id]) => {
+        fetchMcpServerTools(id);
+      });
+    setLoadingMcpConfigs(false);
   };
 
   // Fetch tools for specific MCP server
   const fetchMcpServerTools = async (id: string) => {
     setLoadingMcpTools(prev => ({ ...prev, [id]: true }));
-    try {
-      const tools = await getMcpServerTools(id);
-      setMcpServerTools(prev => {
-        const newServerTools = { ...prev, [id]: tools };
-        if (selectedAgent) {
-          const enabledStatus: Record<string, boolean> = {};
-          tools.forEach((tool: ToolDefinition) => {
-            const isEnabled =
-              selectedAgent.toolReferences?.some(
-                ref => ref.mcpName === id && ref.toolName === tool.name,
-              ) ?? false;
-            enabledStatus[tool.name] = isEnabled;
-          });
-          setMcpToolsEnabled(prevEnabled => ({
-            ...prevEnabled,
-            [id]: enabledStatus,
-          }));
-        }
-        return newServerTools;
+    getMcpServerTools(id)
+      .then((tools) => {
+        setMcpServerTools(prev => {
+          const newServerTools = { ...prev, [id]: tools };
+          if (selectedAgent) {
+            const enabledStatus: Record<string, boolean> = {};
+            tools.forEach((tool: ToolDefinition) => {
+              const isEnabled =
+                selectedAgent.toolReferences?.some(
+                  ref => ref.mcpName === id && ref.toolName === tool.name,
+                ) ?? false;
+              enabledStatus[tool.name] = isEnabled;
+            });
+            setMcpToolsEnabled(prevEnabled => ({
+              ...prevEnabled,
+              [id]: enabledStatus,
+            }));
+          }
+          return newServerTools;
+        });
+      })
+      .catch(err => {
+        console.error(`Failed to fetch tools for server ${id}:`, err);
+      })
+      .finally(() => {
+        setLoadingMcpTools(prev => ({ ...prev, [id]: false }));
       });
-    } catch (err) {
-      console.error(`Failed to fetch tools for server ${id}:`, err);
-    } finally {
-      setLoadingMcpTools(prev => ({ ...prev, [id]: false }));
-    }
   };
 
   // Initialize component
@@ -247,21 +244,19 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    try {
-      await saveAgent(agentData);
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-
-      // Update local state immediately
-      setBasicTools(prev =>
-        prev.map(t => (t.id === toolId ? { ...t, enabled: newEnabled } : t)),
-      );
-
-      console.log(
-        `Successfully toggled basic tool ${toolId} to ${newEnabled ? "enabled" : "disabled"}`,
-      );
-    } catch (err) {
-      console.error("Failed to update agent:", err);
-    }
+    saveAgent(agentData)
+      .then(() => {
+        // Update local state immediately
+        setBasicTools(prev =>
+          prev.map(t => (t.id === toolId ? { ...t, enabled: newEnabled } : t)),
+        );
+        console.log(
+          `Successfully toggled basic tool ${toolId} to ${newEnabled ? "enabled" : "disabled"}`,
+        );
+      })
+      .catch(err => {
+        console.error("Failed to update agent:", err);
+      });
   };
 
   const handleMcpToolToggle = async (serverId: string, toolName: string) => {
@@ -301,22 +296,20 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    try {
-      await saveAgent(agentData);
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: {
-          ...prev[serverId],
-          [toolName]: newEnabled,
-        },
-      }));
-
-      console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
-    } catch (err) {
-      console.error('Failed to update agent:', err);
-    }
+    saveAgent(agentData)
+      .then(() => {
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: {
+            ...prev[serverId],
+            [toolName]: newEnabled,
+          },
+        }));
+        console.log(`Successfully toggled tool ${toolName} to ${newEnabled ? 'enabled' : 'disabled'}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
+      });
   };
 
   // Handle disable all tools for a server
@@ -345,25 +338,21 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    try {
-      await saveAgent(agentData);
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Update all tools for this server to disabled
-      const newEnabledState: Record<string, boolean> = {};
-      serverTools.forEach(tool => {
-        newEnabledState[tool.name] = false;
+    saveAgent(agentData)
+      .then(() => {
+        const newEnabledState: Record<string, boolean> = {};
+        serverTools.forEach(tool => {
+          newEnabledState[tool.name] = false;
+        });
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: newEnabledState,
+        }));
+        console.log(`Successfully disabled all tools for server ${serverId}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
       });
-      
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: newEnabledState
-      }));
-      
-      console.log(`Successfully disabled all tools for server ${serverId}`);
-    } catch (err) {
-      console.error('Failed to update agent:', err);
-    }
   };
 
   // Handle enable all tools for a server
@@ -404,25 +393,21 @@ useThemeSync();
       toolReferences: updatedToolReferences,
     };
 
-    try {
-      await saveAgent(agentData);
-      const updatedAgent = { ...currentAgent, toolReferences: updatedToolReferences };
-      
-      // Update all tools for this server to enabled
-      const newEnabledState: Record<string, boolean> = {};
-      serverTools.forEach(tool => {
-        newEnabledState[tool.name] = true;
+    saveAgent(agentData)
+      .then(() => {
+        const newEnabledState: Record<string, boolean> = {};
+        serverTools.forEach(tool => {
+          newEnabledState[tool.name] = true;
+        });
+        setMcpToolsEnabled(prev => ({
+          ...prev,
+          [serverId]: newEnabledState,
+        }));
+        console.log(`Successfully enabled all tools for server ${serverId}`);
+      })
+      .catch(err => {
+        console.error('Failed to update agent:', err);
       });
-      
-      setMcpToolsEnabled(prev => ({
-        ...prev,
-        [serverId]: newEnabledState
-      }));
-      
-      console.log(`Successfully enabled all tools for server ${serverId}`);
-    } catch (err) {
-      console.error('Failed to update agent:', err);
-    }
   };
 
   // Toggle section expansion
