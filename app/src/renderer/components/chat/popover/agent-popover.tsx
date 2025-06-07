@@ -248,7 +248,7 @@ export default function AgentPopover() {
   const updateAgentWithToolReferences = async (
     updatedToolReferences: ToolReference[],
     onSuccess?: () => void,
-    successMessage?: string
+    successMessage?: string,
   ) => {
     const currentAgent = useAgentStore.getState().selectedAgent;
     if (!currentAgent) {
@@ -273,7 +273,7 @@ export default function AgentPopover() {
       }
       return true;
     } catch (err) {
-      console.error('Failed to update agent:', err);
+      console.error("Failed to update agent:", err);
       return false;
     }
   };
@@ -322,7 +322,7 @@ export default function AgentPopover() {
           ),
         );
       },
-      `Successfully toggled basic tool ${toolId} to ${newEnabled ? "enabled" : "disabled"}`
+      `Successfully toggled basic tool ${toolId} to ${newEnabled ? "enabled" : "disabled"}`,
     );
 
     return success;
@@ -371,7 +371,7 @@ export default function AgentPopover() {
           },
         }));
       },
-      `Successfully toggled tool ${toolName} to ${newEnabled ? "enabled" : "disabled"}`
+      `Successfully toggled tool ${toolName} to ${newEnabled ? "enabled" : "disabled"}`,
     );
 
     return success;
@@ -410,7 +410,7 @@ export default function AgentPopover() {
           [serverId]: newEnabledState,
         }));
       },
-      `Successfully disabled all tools for server ${serverId}`
+      `Successfully disabled all tools for server ${serverId}`,
     );
 
     return success;
@@ -459,7 +459,7 @@ export default function AgentPopover() {
           [serverId]: newEnabledState,
         }));
       },
-      `Successfully enabled all tools for server ${serverId}`
+      `Successfully enabled all tools for server ${serverId}`,
     );
 
     return success;
