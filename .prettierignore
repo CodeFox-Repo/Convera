@@ -1,5 +1,9 @@
 /dist
 /coverage
 /.vite
+/out
+app/out
+node_modules
+.DS_Store
 README.md
 template/**
