@@ -7,7 +7,5 @@ export const Route = createFileRoute("/chat")({
 });
 
 function ChatPage() {
-  return (
-      <Chat />
-  );
-} 
+  return <Chat />;
+}

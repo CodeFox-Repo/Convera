@@ -12,9 +12,7 @@ export default function BaseLayout({
   return (
     <>
       <main className="bg-background/95 text-foreground h-full w-full">
-      <ChatProvider>
-        {children}
-        </ChatProvider>
+        <ChatProvider>{children}</ChatProvider>
       </main>
     </>
   );

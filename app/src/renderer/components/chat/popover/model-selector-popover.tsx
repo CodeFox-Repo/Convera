@@ -15,7 +15,7 @@ export default function ModelSelector() {
 
   // Listen for theme changes from settings
   useThemeSync();
-  
+
   useEffect(() => {
     const unsubscribe = subscribeToModelChanges();
     return unsubscribe;
@@ -32,22 +32,22 @@ export default function ModelSelector() {
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.bg-background')) {
+      if (!target.closest(".bg-background")) {
         window.electronAPI.toggleModelSelector();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         window.electronAPI.toggleModelSelector();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isPopover]);
 
@@ -80,7 +80,7 @@ export default function ModelSelector() {
   const getHeightClass = () => {
     const modelCount = supportedModelIds.length;
     if (modelCount <= 2) return "h-40"; // 160px
-    if (modelCount <= 4) return "h-52"; // 208px  
+    if (modelCount <= 4) return "h-52"; // 208px
     if (modelCount <= 6) return "h-64"; // 256px
     return "h-80"; // 320px
   };
@@ -102,7 +102,7 @@ export default function ModelSelector() {
   const handleModelSelect = (model: string) => {
     setSelectedModelId(model);
     setIsOpen(false);
-    
+
     // Close popover window if in popover mode
     if (isPopover) {
       window.electronAPI.toggleModelSelector();
@@ -112,16 +112,28 @@ export default function ModelSelector() {
   if (isPopover) {
     return (
       <div className="relative">
-        <div 
+        <div
           className={`bg-background border-border w-[280px] rounded-xl border shadow-lg flex flex-col ${getHeightClass()}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <svg
+                className="w-4 h-4 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
               </svg>
-              <h3 className="font-medium text-sm text-foreground">Select Model</h3>
+              <h3 className="font-medium text-sm text-foreground">
+                Select Model
+              </h3>
             </div>
           </div>
 
@@ -140,8 +152,16 @@ export default function ModelSelector() {
                 >
                   <span className="truncate text-foreground">{model}</span>
                   {model === selectedModelId && (
-                    <svg className="w-4 h-4 text-primary flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <svg
+                      className="w-4 h-4 text-primary flex-shrink-0 ml-2"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </button>
@@ -165,7 +185,7 @@ export default function ModelSelector() {
             .getCurrentWindowPosition()
             .then(({ x: winX, y: winY }) => {
               const absX = Math.round(winX + rect.left);
-              const absY = Math.round(winY + rect.top - getHeightPx() - 8); 
+              const absY = Math.round(winY + rect.top - getHeightPx() - 8);
 
               window.electronAPI.toggleModelSelector(absX, absY);
             })

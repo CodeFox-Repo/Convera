@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-    ChevronLeft,
-    ChevronRight,
-    Code,
-    LayoutGrid,
-    Moon,
-    Server,
-    Settings as SettingsIcon,
-    Sun,
-    X,
+  ChevronLeft,
+  ChevronRight,
+  Code,
+  LayoutGrid,
+  Moon,
+  Server,
+  Settings as SettingsIcon,
+  Sun,
+  X,
 } from "lucide-react";
 
 // Import our component tabs
@@ -79,7 +79,7 @@ function SettingsPage() {
   // Initialize stores on component mount
   useEffect(() => {
     initializeSettings();
-    
+
     // Initialize MCP store (it will load its own data)
     const mcpStore = useMcpStore.getState();
     mcpStore.refreshAll();
@@ -199,7 +199,12 @@ function SettingsPage() {
         }
       }
     },
-    [activeShortcut, saveRecordedShortcutCallback, setRecordingShortcut, setActiveShortcut],
+    [
+      activeShortcut,
+      saveRecordedShortcutCallback,
+      setRecordingShortcut,
+      setActiveShortcut,
+    ],
   );
 
   // Shortcut Recording Logic
@@ -458,17 +463,21 @@ function SettingsPage() {
             {/* Developer Mode Section */}
             <div className="space-y-4">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">Developer Settings</h2>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Developer Settings
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Development tools and debugging features
                 </p>
               </div>
-              
+
               <div className="border border-border rounded-lg">
                 <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium text-foreground">Developer Mode</h3>
+                      <h3 className="font-medium text-foreground">
+                        Developer Mode
+                      </h3>
                       <p className="text-sm text-muted-foreground">
                         Enable debugging tools and window controls
                       </p>
@@ -476,9 +485,7 @@ function SettingsPage() {
                     <button
                       onClick={() => setDevModeEnabled(!devModeEnabled)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        devModeEnabled
-                          ? "bg-primary"
-                          : "bg-muted"
+                        devModeEnabled ? "bg-primary" : "bg-muted"
                       }`}
                     >
                       <span
@@ -493,15 +500,21 @@ function SettingsPage() {
                 {devModeEnabled && (
                   <div className="p-4 space-y-4">
                     <div>
-                      <h4 className="font-medium text-foreground mb-3">Window Controls</h4>
+                      <h4 className="font-medium text-foreground mb-3">
+                        Window Controls
+                      </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">Settings Window</h5>
+                          <h5 className="font-medium text-sm mb-1">
+                            Settings Window
+                          </h5>
                           <p className="text-xs text-muted-foreground mb-2">
                             Configuration window
                           </p>
                           <button
-                            onClick={() => window.electronAPI?.toggleWindow("settings")}
+                            onClick={() =>
+                              window.electronAPI?.toggleWindow("settings")
+                            }
                             className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
                           >
                             Toggle Settings
@@ -509,12 +522,16 @@ function SettingsPage() {
                         </div>
 
                         <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">History Window</h5>
+                          <h5 className="font-medium text-sm mb-1">
+                            History Window
+                          </h5>
                           <p className="text-xs text-muted-foreground mb-2">
                             Chat history browser
                           </p>
                           <button
-                            onClick={() => window.electronAPI?.toggleWindow("history")}
+                            onClick={() =>
+                              window.electronAPI?.toggleWindow("history")
+                            }
                             className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
                           >
                             Toggle History
@@ -522,12 +539,16 @@ function SettingsPage() {
                         </div>
 
                         <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">Main Window</h5>
+                          <h5 className="font-medium text-sm mb-1">
+                            Main Window
+                          </h5>
                           <p className="text-xs text-muted-foreground mb-2">
                             Main application interface
                           </p>
                           <button
-                            onClick={() => window.electronAPI?.toggleWindow("main")}
+                            onClick={() =>
+                              window.electronAPI?.toggleWindow("main")
+                            }
                             className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
                           >
                             Toggle Main Window
@@ -535,7 +556,9 @@ function SettingsPage() {
                         </div>
 
                         <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">Agent Popover</h5>
+                          <h5 className="font-medium text-sm mb-1">
+                            Agent Popover
+                          </h5>
                           <p className="text-xs text-muted-foreground mb-2">
                             Agent selection popover
                           </p>
@@ -545,7 +568,7 @@ function SettingsPage() {
                               const rect = button.getBoundingClientRect();
                               const x = rect.right + 10;
                               const y = rect.top;
-                              
+
                               window.electronAPI?.toggleAgentPopover(
                                 Math.round(x),
                                 Math.round(y),
@@ -560,7 +583,9 @@ function SettingsPage() {
                         </div>
 
                         <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">Model Selector</h5>
+                          <h5 className="font-medium text-sm mb-1">
+                            Model Selector
+                          </h5>
                           <p className="text-xs text-muted-foreground mb-2">
                             Model selection popover
                           </p>
@@ -570,7 +595,7 @@ function SettingsPage() {
                               const rect = button.getBoundingClientRect();
                               const x = rect.right + 10;
                               const y = rect.top;
-                              
+
                               window.electronAPI?.toggleModelSelector(
                                 Math.round(x),
                                 Math.round(y),
@@ -588,7 +613,8 @@ function SettingsPage() {
 
                     <div className="border-t border-border pt-3">
                       <p className="text-xs text-muted-foreground">
-                        These controls are for development and debugging purposes.
+                        These controls are for development and debugging
+                        purposes.
                       </p>
                     </div>
                   </div>
@@ -599,23 +625,33 @@ function SettingsPage() {
             {/* Experimental Features Section */}
             <div className="space-y-4">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">Experimental Features</h2>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Experimental Features
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Features in development that may change or be removed
                 </p>
               </div>
-              
+
               <div className="border border-border rounded-lg">
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium text-foreground">Enable Main Window</h3>
+                      <h3 className="font-medium text-foreground">
+                        Enable Main Window
+                      </h3>
                       <p className="text-sm text-muted-foreground">
-                        Show button in expanded view to open main window interface
+                        Show button in expanded view to open main window
+                        interface
                       </p>
                     </div>
                     <button
-                      onClick={() => setExperimentalFeature("enableMainWindow", !experimentalFeatures.enableMainWindow)}
+                      onClick={() =>
+                        setExperimentalFeature(
+                          "enableMainWindow",
+                          !experimentalFeatures.enableMainWindow,
+                        )
+                      }
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         experimentalFeatures.enableMainWindow
                           ? "bg-primary"
@@ -624,7 +660,9 @@ function SettingsPage() {
                     >
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          experimentalFeatures.enableMainWindow ? "translate-x-6" : "translate-x-1"
+                          experimentalFeatures.enableMainWindow
+                            ? "translate-x-6"
+                            : "translate-x-1"
                         }`}
                       />
                     </button>
@@ -637,4 +675,4 @@ function SettingsPage() {
       </div>
     </div>
   );
-} 
+}

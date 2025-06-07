@@ -13,7 +13,7 @@ import {
   DisabledToolsSchema,
   IdSchema,
 } from "../mcp/types";
-import { zValidator } from '@hono/zod-validator';
+import { zValidator } from "@hono/zod-validator";
 
 const router = new Hono();
 
@@ -79,16 +79,17 @@ router.post(
   async (c) => {
     const { toolId, settings } = c.req.valid("json");
 
-  // Here you would save the settings for the specific MCP tool
-  // This is a placeholder for the actual implementation
-  console.log(`Saving settings for MCP tool: ${toolId}`, settings);
+    // Here you would save the settings for the specific MCP tool
+    // This is a placeholder for the actual implementation
+    console.log(`Saving settings for MCP tool: ${toolId}`, settings);
 
-  // Return success
-  return c.json({
-    success: true,
-    message: `Settings for ${toolId} saved successfully`,
-  });
-});
+    // Return success
+    return c.json({
+      success: true,
+      message: `Settings for ${toolId} saved successfully`,
+    });
+  },
+);
 
 // Get all MCP server configurations
 router.get("/api/mcp/configurations", async (c) => {
@@ -128,7 +129,8 @@ router.put(
       status: "success",
       message: `Configuration for ${id} updated.`,
     });
-});
+  },
+);
 
 // Manual MCP configuration installation endpoint
 router.post(
@@ -166,7 +168,8 @@ router.post(
       message: `Manually configured ${serverIds.length} MCP server(s)`,
       serverIds,
     });
-});
+  },
+);
 
 // MCP predefined servers endpoint
 router.get("/api/mcp/predefined-servers", (c) => {
@@ -233,28 +236,29 @@ router.post(
   async (c) => {
     const { id } = c.req.valid("json");
 
-  const manager = getMCPManager();
-  const success = manager.installPredefinedServer(id);
+    const manager = getMCPManager();
+    const success = manager.installPredefinedServer(id);
 
-  if (success) {
-    const serverConfig = manager.getServerConfig(id);
-    if (serverConfig?.enabled) {
-      manager.startServer(id).catch((err) => {
-        console.error(`Error auto-starting MCP server ${id}:`, err);
+    if (success) {
+      const serverConfig = manager.getServerConfig(id);
+      if (serverConfig?.enabled) {
+        manager.startServer(id).catch((err) => {
+          console.error(`Error auto-starting MCP server ${id}:`, err);
+        });
+      }
+
+      return c.json({
+        status: "success",
+        message: `Server ${id} installed successfully`,
       });
+    } else {
+      return c.json(
+        { status: "error", message: `Failed to install server ${id}` },
+        400,
+      );
     }
-
-    return c.json({
-      status: "success",
-      message: `Server ${id} installed successfully`,
-    });
-  } else {
-    return c.json(
-      { status: "error", message: `Failed to install server ${id}` },
-      400,
-    );
-  }
-});
+  },
+);
 
 // Uninstall predefined MCP server endpoint
 router.post(
@@ -263,21 +267,22 @@ router.post(
   async (c) => {
     const { id } = c.req.valid("json");
 
-  const manager = getMCPManager();
-  const serverStatus = manager.getServerStatus(id);
+    const manager = getMCPManager();
+    const serverStatus = manager.getServerStatus(id);
 
-  if (serverStatus?.running) {
-    await manager.stopServer(id);
-  }
+    if (serverStatus?.running) {
+      await manager.stopServer(id);
+    }
 
-  const success = manager.unregisterServer(id);
-  const status = success ? 200 : 400;
-  const message = success
-    ? `Server ${id} uninstalled successfully`
-    : `Failed to uninstall server ${id}`;
+    const success = manager.unregisterServer(id);
+    const status = success ? 200 : 400;
+    const message = success
+      ? `Server ${id} uninstalled successfully`
+      : `Failed to uninstall server ${id}`;
 
-  return c.json({ status: success ? "success" : "error", message }, status);
-});
+    return c.json({ status: success ? "success" : "error", message }, status);
+  },
+);
 
 // Get tools for a specific MCP server
 router.get("/api/mcp/servers/:id/tools", async (c) => {
@@ -321,10 +326,10 @@ router.get("/api/mcp/servers/:id/tools", async (c) => {
       enabled: !disabledTools.includes(name),
     }));
 
-      return c.json({
-        status: "success",
-        tools: allTools,
-        serverId: id,
+    return c.json({
+      status: "success",
+      tools: allTools,
+      serverId: id,
       disabledTools,
     });
     return;
@@ -382,6 +387,7 @@ router.post(
       message: `Disabled ${disabledCount} tools for server ${id}. ${totalTools - disabledCount} tools are now available.`,
       disabledTools,
     });
-});
+  },
+);
 
 export default router;

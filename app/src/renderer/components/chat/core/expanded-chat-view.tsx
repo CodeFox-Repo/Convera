@@ -1,57 +1,56 @@
 // app/src/renderer/components/chat/expanded-chat-view.tsx
-import { useAgentStore } from '@/renderer/libs/stores/agent-store';
-import { useChatContext } from '@/renderer/libs/stores/chat-store';
-import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
-import { useSettingsStore } from '@/renderer/libs/stores/settings-store';
-import { AnimatePresence, motion } from 'framer-motion';
-import { LayoutDashboard, Plus, Sparkles, X } from 'lucide-react';
-import React, { useEffect, useRef } from 'react';
-import ChatInput, { ChatInputRef } from '../input/chat-input';
-import ChatContent from '../message/chat-content';
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import { AnimatePresence, motion } from "framer-motion";
+import { LayoutDashboard, Plus, Sparkles, X } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import ChatInput, { ChatInputRef } from "../input/chat-input";
+import ChatContent from "../message/chat-content";
 
 interface ExpandedChatViewProps {
   chatInputRef: React.RefObject<ChatInputRef | null>;
 }
 
-const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => {
+const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
+  chatInputRef,
+}) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    messages, 
-    isLoading, 
-    editMessage,
-    regenerateMessage,
-    error
-  } = useChatContext();
-  
+
+  const { messages, isLoading, editMessage, regenerateMessage, error } =
+    useChatContext();
+
   const { showControls, setShowControls } = useChatUIStore();
   const { agentChanged, handleAgentChange } = useAgentStore();
-  
-  const enableMainWindow = useSettingsStore((state) => state.experimentalFeatures.enableMainWindow);
-  
+
+  const enableMainWindow = useSettingsStore(
+    (state) => state.experimentalFeatures.enableMainWindow,
+  );
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-  
+
   const controlsTimerRef = useRef<number | null>(null);
-  
+
   const handleMouseEnter = () => {
     if (controlsTimerRef.current) {
       window.clearTimeout(controlsTimerRef.current);
     }
     setShowControls(true);
   };
-  
+
   const handleMouseLeave = () => {
     if (controlsTimerRef.current) {
       window.clearTimeout(controlsTimerRef.current);
     }
-    
+
     controlsTimerRef.current = window.setTimeout(() => {
       setShowControls(false);
     }, 500);
   };
-  
+
   useEffect(() => {
     return () => {
       if (controlsTimerRef.current) {
@@ -59,24 +58,24 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
       }
     };
   }, []);
-  
+
   const handleExit = () => {
     if (window.electronAPI) {
       window.electronAPI.closeWindow();
     }
   };
-  
+
   const handleNewHistory = () => {
     window.location.reload();
   };
 
   const handleOpenMainWindow = () => {
-      window.electronAPI.toggleWindow("main");
+    window.electronAPI.toggleWindow("main");
   };
-  
+
   return (
     <div className="h-full w-full flex items-center justify-center">
-      <div 
+      <div
         className="bg-background border-border rounded-xl border shadow-lg transition-all duration-300 ease-in-out h-full w-full"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -96,7 +95,9 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
                       <Sparkles size={16} className="text-orange-500" />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">FoxyChat</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        FoxyChat
+                      </span>
                     </div>
                   </div>
 
@@ -132,7 +133,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
               )}
             </AnimatePresence>
           </div>
-          
+
           <div className="drag-region flex flex-1 flex-col overflow-hidden">
             <div className="drag-region min-h-0 flex-1 overflow-y-auto p-4">
               <ChatContent
@@ -150,7 +151,8 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({ chatInputRef }) => 
             {error && (
               <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
                 <p className="text-red-500 font-medium">
-                  {error.message || "An error occurred. Please check your API key or try again later."}
+                  {error.message ||
+                    "An error occurred. Please check your API key or try again later."}
                 </p>
               </div>
             )}

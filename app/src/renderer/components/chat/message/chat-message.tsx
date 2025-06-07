@@ -1,6 +1,16 @@
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, ChevronUp, Clipboard, Copy, Edit, File, RefreshCw, User } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clipboard,
+  Copy,
+  Edit,
+  File,
+  RefreshCw,
+  User,
+} from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
 
 /**
@@ -75,43 +85,43 @@ const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
   // Calculate preview position to avoid screen edges
   const getPreviewStyle = () => {
     if (!imageRect) return {};
-    
+
     const previewWidth = 320;
     const previewHeight = 280;
     const padding = 16;
-    
+
     let left = imageRect.left;
     let top = imageRect.bottom + 8;
-    
+
     // Adjust if preview goes beyond right edge
     if (left + previewWidth > window.innerWidth - padding) {
       left = window.innerWidth - previewWidth - padding;
     }
-    
+
     // Adjust if preview goes beyond bottom edge
     if (top + previewHeight > window.innerHeight - padding) {
       top = imageRect.top - previewHeight - 8;
     }
-    
+
     // Ensure preview doesn't go beyond left edge
     if (left < padding) {
       left = padding;
     }
-    
+
     return { left: `${left}px`, top: `${top}px` };
   };
 
   return (
     <div className="group relative flex items-center gap-2 p-2 rounded-md border border-border bg-background/50 text-sm">
       {isImage ? (
-        <div 
+        <div
           ref={imageRef}
           className="size-8 flex-shrink-0 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
           <img src={attachment.url} alt="" className="size-full object-cover" />
-          
+
           {/* Preview overlay with expanding animation */}
           <AnimatePresence>
             {showPreview && imageRect && (
@@ -140,15 +150,19 @@ const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
                   transformOrigin: "top left",
                 }}
               >
-                <img 
-                  src={attachment.url} 
-                  alt={attachment.name} 
+                <img
+                  src={attachment.url}
+                  alt={attachment.name}
                   className="w-full h-auto max-h-60 object-contain rounded"
                 />
                 <div className="mt-2 text-center">
-                  <span className="text-sm font-medium text-foreground">{attachment.name}</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {attachment.name}
+                  </span>
                   {attachment.contentType && (
-                    <div className="text-xs text-muted-foreground">{attachment.contentType}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {attachment.contentType}
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -215,7 +229,9 @@ const ChatMessage = memo(
     // State for copied content expansion
     const [copiedContentExpanded, setCopiedContentExpanded] = useState(false);
     const copiedContentRef = useRef<HTMLDivElement>(null);
-    const [copiedContentHeight, setCopiedContentHeight] = useState<number | undefined>(undefined);
+    const [copiedContentHeight, setCopiedContentHeight] = useState<
+      number | undefined
+    >(undefined);
 
     // Get the full height of the copied content when mounted or content changes
     useEffect(() => {
@@ -293,7 +309,7 @@ const ChatMessage = memo(
               {copiedContent && (
                 <div>
                   <div className="group relative rounded-lg border border-border bg-background/50 p-3">
-                    <div 
+                    <div
                       className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                       onClick={toggleCopiedContent}
                     >
@@ -315,11 +331,13 @@ const ChatMessage = memo(
                         )}
                       </span>
                     </div>
-                    <div 
+                    <div
                       ref={copiedContentRef}
                       className="text-foreground/90 text-sm whitespace-pre-wrap relative overflow-hidden transition-all duration-300"
-                      style={{ 
-                        maxHeight: copiedContentExpanded ? `${copiedContentHeight}px` : '60px' 
+                      style={{
+                        maxHeight: copiedContentExpanded
+                          ? `${copiedContentHeight}px`
+                          : "60px",
                       }}
                     >
                       {copiedContent}

@@ -1,4 +1,3 @@
-
 import React, { type ReactNode } from "react";
 
 interface DragWindowRegionProps {
@@ -28,8 +27,6 @@ export async function closeWindow() {
     console.error("electronAPI is not available for closing window!");
   }
 }
-
-
 
 /**
  * Window title bar with drag functionality and window control buttons

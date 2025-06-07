@@ -1,4 +1,7 @@
-import { WindowDimensions, WindowSizeConfig } from "@/electron/windows/window-size";
+import {
+  WindowDimensions,
+  WindowSizeConfig,
+} from "@/electron/windows/window-size";
 import { screen } from "electron";
 import { appConfig } from "@/electron/config";
 

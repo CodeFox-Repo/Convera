@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, MessageSquare, MoreHorizontal, Plus, Settings, Sparkles, Trash2 } from "lucide-react";
+import {
+  Archive,
+  MessageSquare,
+  MoreHorizontal,
+  Plus,
+  Settings,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import ChatInput, { ChatInputRef } from "../components/chat/input/chat-input";
 import ChatContent from "../components/chat/message/chat-content";
@@ -16,18 +24,18 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    messages, 
-    isLoading, 
+
+  const {
+    messages,
+    isLoading,
     editMessage,
     regenerateMessage,
     error,
-    resetChat
+    resetChat,
   } = useChatContext();
-  
+
   const { agentChanged, handleAgentChange } = useAgentStore();
-  
+
   // Use real chat history
   const {
     chatHistory,
@@ -38,10 +46,10 @@ function HomePage() {
     selectChat,
     deleteChat,
   } = useChatHistory(() => {});
-  
+
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  
+
   // Fetch chat history on component mount
   useEffect(() => {
     fetchChatHistory();
@@ -73,7 +81,7 @@ function HomePage() {
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - date.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 1) return "Today";
       if (diffDays === 2) return "Yesterday";
       if (diffDays <= 7) return `${diffDays - 1} days ago`;
@@ -86,7 +94,9 @@ function HomePage() {
   // Get current chat title for header
   const getCurrentChatTitle = () => {
     if (currentSessionId) {
-      const currentChat = chatHistory.find(chat => chat.id === currentSessionId);
+      const currentChat = chatHistory.find(
+        (chat) => chat.id === currentSessionId,
+      );
       return currentChat ? cleanTitle(currentChat.title) : "Chat";
     }
     return messages.length > 0 ? "New Chat" : "Chat";
@@ -95,9 +105,9 @@ function HomePage() {
   return (
     <div className="h-screen w-full flex bg-background">
       {/* Sidebar */}
-      <motion.div 
+      <motion.div
         className={`bg-card flex flex-col border-r border-border transition-all duration-300 ${
-          sidebarCollapsed ? 'w-16' : 'w-80'
+          sidebarCollapsed ? "w-16" : "w-80"
         }`}
         initial={false}
         animate={{ width: sidebarCollapsed ? 64 : 320 }}
@@ -108,7 +118,9 @@ function HomePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles size={20} className="text-orange-500" />
-                <h1 className="text-lg font-semibold text-foreground">FoxyChat</h1>
+                <h1 className="text-lg font-semibold text-foreground">
+                  FoxyChat
+                </h1>
               </div>
               <button
                 onClick={handleNewChat}
@@ -139,13 +151,17 @@ function HomePage() {
                 <div className="flex items-center justify-center p-8">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                    <p className="text-sm text-muted-foreground">Loading history...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading history...
+                    </p>
                   </div>
                 </div>
               ) : historyError ? (
                 <div className="p-4 text-center">
-                  <p className="text-sm text-destructive mb-2">{historyError}</p>
-                  <button 
+                  <p className="text-sm text-destructive mb-2">
+                    {historyError}
+                  </p>
+                  <button
                     onClick={fetchChatHistory}
                     className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded-md"
                   >
@@ -158,15 +174,18 @@ function HomePage() {
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
                     className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all ${
-                      currentSessionId === chat.id 
-                        ? "bg-accent text-accent-foreground" 
+                      currentSessionId === chat.id
+                        ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50"
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-start gap-3">
-                      <MessageSquare size={16} className="mt-0.5 flex-shrink-0" />
+                      <MessageSquare
+                        size={16}
+                        className="mt-0.5 flex-shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm truncate">
                           {cleanTitle(chat.title)}
@@ -181,9 +200,9 @@ function HomePage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all flex gap-1">
-                      <button 
+                      <button
                         onClick={(e) => handleDeleteChat(e, chat.id)}
                         className="p-1 rounded hover:bg-destructive/20 hover:text-destructive transition-all"
                         title="Delete chat"
@@ -198,12 +217,19 @@ function HomePage() {
                 ))
               ) : (
                 <div className="p-4 text-center">
-                  <MessageSquare className="mx-auto mb-2 text-muted-foreground" size={32} />
-                  <p className="text-sm text-muted-foreground">No conversations yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Start a new chat to begin</p>
+                  <MessageSquare
+                    className="mx-auto mb-2 text-muted-foreground"
+                    size={32}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    No conversations yet
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Start a new chat to begin
+                  </p>
                 </div>
               )}
-              
+
               {refreshing && chatHistory.length > 0 && (
                 <div className="flex items-center justify-center p-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
@@ -217,8 +243,8 @@ function HomePage() {
                   key={chat.id}
                   onClick={() => handleSelectChat(chat.id)}
                   className={`p-2 mb-1 rounded-lg cursor-pointer transition-all flex justify-center ${
-                    currentSessionId === chat.id 
-                      ? "bg-accent text-accent-foreground" 
+                    currentSessionId === chat.id
+                      ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent/50"
                   }`}
                   whileHover={{ scale: 1.05 }}
@@ -267,17 +293,24 @@ function HomePage() {
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="6" x2="21" y2="6"/>
-                <line x1="3" y1="12" x2="21" y2="12"/>
-                <line x1="3" y1="18" x2="21" y2="18"/>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
             <h2 className="text-lg font-semibold text-foreground">
               {getCurrentChatTitle()}
             </h2>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium">
               Online
@@ -312,10 +345,9 @@ function HomePage() {
                   Welcome to FoxyChat
                 </h3>
                 <p className="text-muted-foreground">
-                  {chatHistory.length > 0 
-                    ? "Select a conversation from the sidebar or start a new chat" 
-                    : "Start a conversation by typing a message below"
-                  }
+                  {chatHistory.length > 0
+                    ? "Select a conversation from the sidebar or start a new chat"
+                    : "Start a conversation by typing a message below"}
                 </p>
               </div>
             </div>
@@ -333,7 +365,8 @@ function HomePage() {
             >
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
                 <p className="text-destructive text-sm">
-                  {error.message || "An error occurred. Please check your API key or try again later."}
+                  {error.message ||
+                    "An error occurred. Please check your API key or try again later."}
                 </p>
               </div>
             </motion.div>
@@ -353,4 +386,4 @@ function HomePage() {
       </div>
     </div>
   );
-} 
+}

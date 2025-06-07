@@ -25,7 +25,9 @@ export function ShortcutsSection({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-medium text-foreground">Keyboard Shortcuts</h2>
+            <h2 className="text-2xl font-medium text-foreground">
+              Keyboard Shortcuts
+            </h2>
             <p className="text-muted-foreground mt-1">
               Manage application shortcuts
             </p>
@@ -48,16 +50,18 @@ export function ShortcutsSection({
           .map((shortcut) => (
             <div
               key={shortcut.id}
-              className={`border-l-4 ${activeShortcut === shortcut.id ? 'border-l-orange-500' : 'border-l-primary'} border-b border-border pb-4 last:border-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative`}
+              className={`border-l-4 ${activeShortcut === shortcut.id ? "border-l-orange-500" : "border-l-primary"} border-b border-border pb-4 last:border-0 hover:bg-secondary/10 transition-all duration-200 pl-3 group relative`}
             >
               <div className="flex items-center justify-between py-2">
-                <p className="text-foreground font-semibold">
-                  {shortcut.name}
-                </p>
+                <p className="text-foreground font-semibold">{shortcut.name}</p>
                 <button
-                  ref={activeShortcut === shortcut.id ? shortcutInputRef : undefined}
+                  ref={
+                    activeShortcut === shortcut.id
+                      ? shortcutInputRef
+                      : undefined
+                  }
                   onClick={() => onStartRecording(shortcut.id)}
-                  className={`${activeShortcut === shortcut.id ? 'bg-orange-500/20 text-foreground' : 'bg-secondary/40 text-muted-foreground hover:bg-secondary/60'} rounded px-3 py-1.5 text-sm font-medium focus:outline-none transition-all`}
+                  className={`${activeShortcut === shortcut.id ? "bg-orange-500/20 text-foreground" : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60"} rounded px-3 py-1.5 text-sm font-medium focus:outline-none transition-all`}
                   style={{ minWidth: "120px", textAlign: "center" }}
                 >
                   {activeShortcut === shortcut.id ? (
@@ -74,4 +78,4 @@ export function ShortcutsSection({
       </div>
     </div>
   );
-} 
+}
