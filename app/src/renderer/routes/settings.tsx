@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-    ChevronLeft,
-    ChevronRight,
-    Code,
-    LayoutGrid,
-    Moon,
-    Server,
-    Settings as SettingsIcon,
-    Sun,
-    X,
+  ChevronLeft,
+  ChevronRight,
+  Code,
+  LayoutGrid,
+  Moon,
+  Server,
+  Settings as SettingsIcon,
+  Sun,
+  X,
 } from "lucide-react";
 
 // Import our component tabs
