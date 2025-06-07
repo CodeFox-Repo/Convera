@@ -24,6 +24,7 @@ interface AgentState {
   fetchAgents: () => Promise<void>;
   updateSelectedAgent: (updatedAgent: Agent) => void;
   updateAvailableAgent: (updatedAgent: Agent) => void;
+  saveAgent: (agent: Agent) => Promise<void>;
   triggerAgentSelect: (
     e: React.MouseEvent<HTMLButtonElement>,
     selectedAgent: Agent | null | undefined,
@@ -131,6 +132,32 @@ export const useAgentStore = create<AgentState>()(
             JSON.stringify(updatedAgents),
           );
           console.log("Updated available agent:", updatedAgent.name);
+        },
+
+        saveAgent: async (agent: Agent) => {
+          try {
+            const response = await fetch(
+              `http://localhost:38000/api/agents/${agent.id}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(agent),
+              },
+            );
+
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(
+                `Failed to update agent: ${response.status} ${text}`,
+              );
+            }
+
+            get().updateSelectedAgent(agent);
+            get().updateAvailableAgent(agent);
+          } catch (err) {
+            console.error("Error saving agent:", err);
+            throw err;
+          }
         },
 
         triggerAgentSelect: async (
