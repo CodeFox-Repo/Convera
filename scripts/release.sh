@@ -21,7 +21,7 @@ if ! git diff --quiet; then
 fi
 
 # Check if there are any changesets to process
-if ! pnpm changeset status --verbose | grep -q "packages to release"; then
+if ! pnpm changeset status --verbose | grep -q "Packages to be bumped"; then
     echo "❌ No changesets found. Please create a changeset first with 'pnpm changeset'"
     exit 1
 fi
