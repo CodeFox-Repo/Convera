@@ -8,15 +8,17 @@ import ModelSelector from "./components/chat/popover/model-selector-popover";
 import { DragLayer } from "./components/ui/drag-layer";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
-import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
+import { useThemeSync } from "./libs/hooks/use-theme-sync";
 import { router } from "./routes/router";
 
 export default function App() {
   const { i18n } = useTranslation();
   const [view, setView] = useState<string | null>(null);
 
+  // Use proper theme synchronization hook instead of manual sync
+  useThemeSync();
+
   useEffect(() => {
-    syncThemeWithLocal();
     updateAppLanguage(i18n);
 
     // Check for hash in URL
