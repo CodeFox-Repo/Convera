@@ -372,8 +372,20 @@ export async function processChatRequest(
 
       // Filter tools based on agent's toolReferences
       if (agent.toolReferences && agent.toolReferences.length > 0) {
-        // Use getToolsByNames to properly filter tools based on toolReferences
-        tools = getToolsByNames(agent.toolReferences);
+        // Use getToolsByNames to filter tools based on toolReferences
+        const filteredTools = getToolsByNames(agent.toolReferences);
+
+        // Merge the filtered tools with actual MCP tools
+        tools = {};
+        Object.keys(filteredTools).forEach((toolName) => {
+          if (mcpTools[toolName]) {
+            // Use the real MCP tool implementation
+            tools[toolName] = mcpTools[toolName];
+          } else {
+            // Use the filtered tool (placeholder or built-in)
+            tools[toolName] = filteredTools[toolName];
+          }
+        });
 
         // Format tool references for display in system prompt
         toolsList = agent.toolReferences.map(
