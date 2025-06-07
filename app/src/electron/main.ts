@@ -28,6 +28,7 @@ import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
+import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { createChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
@@ -279,6 +280,8 @@ app.whenReady().then(async () => {
       if (BrowserWindow.getAllWindows().length === 0)
         chatWindow = createChatWindow();
     });
+
+    createSystemTray(chatWindow);
   } catch (error) {
     console.error("Error during app initialization", error);
   }
@@ -287,6 +290,7 @@ app.whenReady().then(async () => {
 app.on("will-quit", () => {
   console.log("Unregistering all global shortcuts.");
   globalShortcut.unregisterAll();
+  destroySystemTray();
 });
 
 app.on("window-all-closed", () => {
