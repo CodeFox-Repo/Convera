@@ -122,11 +122,6 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
   });
 
-  // Handle window closed event
-  window.on("closed", () => {
-    // Window cleanup will be handled automatically
-  });
-
   // Handle display changes - just reposition, no resizing needed
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {

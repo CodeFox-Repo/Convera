@@ -126,7 +126,6 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   });
 
   window.on("closed", () => {
-    console.log("Settings window closed, setting reference to null");
     settingsWindow = null;
   });
 }

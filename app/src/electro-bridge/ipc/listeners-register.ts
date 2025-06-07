@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { WindowSizeConfig } from "@/electron/windows/window-size";
-import {
-  ThemeMode,
-  WindowControlOptions,
-  WindowType,
-} from "@/shared/types/electron";
+import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
@@ -120,12 +116,9 @@ export function registerListeners(options: ListenerOptions = {}) {
   const { chatWindow, registerGlobalShortcuts } = options;
 
   // Unified Window Control
-  ipcMain.handle(
-    CHANNELS.WINDOW.TOGGLE,
-    (_event, type: WindowType, windowOptions?: WindowControlOptions) => {
-      return toggleWindow(type, windowOptions);
-    },
-  );
+  ipcMain.handle(CHANNELS.WINDOW.TOGGLE, (_event, type: WindowType) => {
+    return toggleWindow(type);
+  });
 
   ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
     const window = chatWindow?.() || null;

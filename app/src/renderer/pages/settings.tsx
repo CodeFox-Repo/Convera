@@ -1,13 +1,13 @@
 import {
-  ChevronLeft,
-  ChevronRight,
-  Code,
-  LayoutGrid,
-  Moon,
-  Server,
-  Settings as SettingsIcon,
-  Sun,
-  X,
+    ChevronLeft,
+    ChevronRight,
+    Code,
+    LayoutGrid,
+    Moon,
+    Server,
+    Settings as SettingsIcon,
+    Sun,
+    X,
 } from "lucide-react";
 
 // Import our component tabs
@@ -15,6 +15,7 @@ import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
+import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -80,6 +81,9 @@ export default function SettingsPage() {
     const unsubscribe = subscribeToSettingsChanges();
     return unsubscribe;
   }, []);
+
+  // Handle Command+W for settings window
+  useWindowClose({ type: "toggle", windowType: "settings" });
 
   // Callback functions for shortcut recording
   const saveRecordedShortcutCallback = useCallback(
