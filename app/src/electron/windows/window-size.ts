@@ -40,6 +40,7 @@ export const WINDOW_SIZE_PRESETS = {
     maxWidth: 800,
     maxHeight: 800,
   },
+  // TODO: adding main window size as settings but do not reuse this for other windows
   SETTINGS: {
     widthProportion: 0.6,
     heightProportion: 0.7,
