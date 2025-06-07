@@ -28,6 +28,7 @@ import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
+import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { createChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
@@ -63,18 +64,18 @@ function simulateClipboardCopy(): Promise<void> {
       console.log("Using RobotJS to simulate copy command");
 
       // Release modifier keys first to prevent conflicts
-      robot.keyToggle("shift", "up");
-      robot.keyToggle("control", "up");
-      robot.keyToggle("alt", "up");
+      robot?.keyToggle("shift", "up");
+      robot?.keyToggle("control", "up");
+      robot?.keyToggle("alt", "up");
 
       // Small delay to ensure modifiers are released
       setTimeout(() => {
         if (process.platform === "darwin") {
           // For macOS, use Command+C
-          robot.keyTap("c", "command");
+          robot?.keyTap("c", "command");
         } else {
           // For Windows/Linux, use Control+C
-          robot.keyTap("c", "control");
+          robot?.keyTap("c", "control");
         }
 
         // Add a delay to ensure clipboard has been updated
@@ -279,6 +280,8 @@ app.whenReady().then(async () => {
       if (BrowserWindow.getAllWindows().length === 0)
         chatWindow = createChatWindow();
     });
+
+    createSystemTray(chatWindow);
   } catch (error) {
     console.error("Error during app initialization", error);
   }
@@ -287,6 +290,7 @@ app.whenReady().then(async () => {
 app.on("will-quit", () => {
   console.log("Unregistering all global shortcuts.");
   globalShortcut.unregisterAll();
+  destroySystemTray();
 });
 
 app.on("window-all-closed", () => {

@@ -1,4 +1,5 @@
 // app/src/renderer/stores/agent-store.ts
+import { ToolReference } from "@/server/agents/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -8,6 +9,8 @@ export interface Agent {
   description: string;
   category: string;
   iconUrl?: string;
+  toolReferences?: ToolReference[];
+  predefined?: boolean;
 }
 
 interface AgentState {
@@ -18,6 +21,10 @@ interface AgentState {
 
   setSelectedAgent: (agent: Agent | null) => void;
   setAvailableAgents: (agents: Agent[]) => void;
+  fetchAgents: () => Promise<void>;
+  updateSelectedAgent: (updatedAgent: Agent) => void;
+  updateAvailableAgent: (updatedAgent: Agent) => void;
+  saveAgent: (agent: Agent) => Promise<void>;
   triggerAgentSelect: (
     e: React.MouseEvent<HTMLButtonElement>,
     selectedAgent: Agent | null | undefined,
@@ -68,7 +75,84 @@ export const useAgentStore = create<AgentState>()(
 
           set({ availableAgents: agents });
           localStorage.setItem("availableAgents", JSON.stringify(agents));
-          window.dispatchEvent(new Event("availableAgents-updated"));
+          // Remove event dispatch to prevent infinite loop when called from fetchAgents
+          // window.dispatchEvent(new Event("agent-list-updated"));
+        },
+
+        fetchAgents: async () => {
+          console.log("Fetching available agents from store...");
+          const response = await fetch("http://localhost:38000/api/agents");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === "success" && Array.isArray(data.agents)) {
+              console.log(`Store loaded ${data.agents.length} agents`);
+              get().setAvailableAgents(data.agents);
+
+              // Update selected agent if it exists in the new list
+              const currentSelected = get().selectedAgent;
+              if (currentSelected) {
+                const updatedSelectedAgent = data.agents.find(
+                  (agent: Agent) => agent.id === currentSelected.id,
+                );
+                if (updatedSelectedAgent) {
+                  set({ selectedAgent: updatedSelectedAgent });
+                  localStorage.setItem(
+                    "selectedAgent",
+                    JSON.stringify(updatedSelectedAgent),
+                  );
+                }
+              }
+
+              // Remove the event dispatch to prevent infinite loop
+              // window.dispatchEvent(new CustomEvent("agent-list-updated"));
+            }
+          } else {
+            console.error("Error fetching agents from store:", response.status);
+          }
+        },
+
+        updateSelectedAgent: (updatedAgent: Agent) => {
+          set({ selectedAgent: updatedAgent });
+          localStorage.setItem(
+            "selectedAgent",
+            updatedAgent ? JSON.stringify(updatedAgent) : "null",
+          );
+
+          console.log("Updated selected agent:", updatedAgent.name);
+        },
+
+        updateAvailableAgent: (updatedAgent: Agent) => {
+          const currentAgents = get().availableAgents;
+          const updatedAgents = currentAgents.map((agent) =>
+            agent.id === updatedAgent.id ? updatedAgent : agent,
+          );
+          set({ availableAgents: updatedAgents });
+          localStorage.setItem(
+            "availableAgents",
+            JSON.stringify(updatedAgents),
+          );
+          console.log("Updated available agent:", updatedAgent.name);
+        },
+
+        saveAgent: async (agent: Agent) => {
+          const response = await fetch(
+            `http://localhost:38000/api/agents/${agent.id}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(agent),
+            },
+          );
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(
+              `Failed to update agent: ${response.status} ${text}`,
+            );
+          }
+
+          get().updateSelectedAgent(agent);
+          get().updateAvailableAgent(agent);
         },
 
         triggerAgentSelect: async (
@@ -90,19 +174,15 @@ export const useAgentStore = create<AgentState>()(
               await window.electronAPI.getCurrentWindowPosition();
 
             // Calculate absolute position relative to the window
-            // No need to multiply by devicePixelRatio since getBoundingClientRect already accounts for it
-            const width = 240;
-            const height = 300;
-
-            // Position the popover to the left of the button, aligned to the top
-            const absX = Math.round(winX + rect.left - width - 8); // 8px gap to the left of button
-            const absY = Math.round(winY + rect.top);
+            // Position the popover above the button, aligned to the left
+            const absX = Math.round(winX + rect.left);
+            const absY = Math.round(winY + rect.top - 350 - 8); // 8px gap above button, 350px is the popover height
 
             console.log(
               `Positioning agent popover at: x=${absX}, y=${absY} (button rect: ${rect.left}, ${rect.top}, window: ${winX}, ${winY})`,
             );
 
-            window.electronAPI.toggleAgentPopover(absX, absY, width, height);
+            window.electronAPI.toggleAgentPopover(absX, absY);
           } catch (err) {
             console.error("Failed to get window position:", err);
             get().setSelectedAgent(selectedAgent ?? null);
@@ -135,29 +215,15 @@ export const useAgentStore = create<AgentState>()(
 
           const storageEventHandler = ((event: StorageEvent) => {
             if (event.key === "selectedAgent" && event.newValue) {
-              try {
-                const parsedAgent = JSON.parse(event.newValue);
-                set({
-                  selectedAgent: parsedAgent === "null" ? null : parsedAgent,
-                });
-              } catch (error) {
-                console.error(
-                  "Error parsing selectedAgent from storage:",
-                  error,
-                );
-              }
+              const parsedAgent = JSON.parse(event.newValue);
+              set({
+                selectedAgent: parsedAgent === "null" ? null : parsedAgent,
+              });
             }
 
             if (event.key === "availableAgents" && event.newValue) {
-              try {
-                const parsedAgents = JSON.parse(event.newValue);
-                set({ availableAgents: parsedAgents });
-              } catch (error) {
-                console.error(
-                  "Error parsing availableAgents from storage:",
-                  error,
-                );
-              }
+              const parsedAgents = JSON.parse(event.newValue);
+              set({ availableAgents: parsedAgents });
             }
           }) as EventListener;
 

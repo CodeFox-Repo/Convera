@@ -1,4 +1,71 @@
 #!/bin/sh
 # Print a colored, bold message for pre-push
-printf '\033[1;36m[foxychat] Running package & make for app...\033[0m\n'
-cd app && pnpm lint && pnpm lint-staged && pnpm package && pnpm make
+printf '\033[1;36m[foxychat] Running checks before push...\033[0m\n'
+
+cd app
+
+# Function to print colored messages
+print_error() {
+    printf '\033[1;31m[ERROR] %s\033[0m\n' "$1"
+}
+
+print_success() {
+    printf '\033[1;32m[SUCCESS] %s\033[0m\n' "$1"
+}
+
+print_info() {
+    printf '\033[1;33m[INFO] %s\033[0m\n' "$1"
+}
+
+print_warning() {
+    printf '\033[1;33m[WARNING] %s\033[0m\n' "$1"
+}
+
+# Check prettier formatting
+printf '\033[1;34m→ Checking code formatting with Prettier...\033[0m\n'
+if ! pnpm run format; then
+    print_warning "Code formatting issues detected! Auto-fixing..."
+    
+    # Auto-fix formatting issues
+    if pnpm run format:write; then
+        print_success "Code has been auto-formatted!"
+        
+        # Check if any files were changed
+        if ! git diff --exit-code --quiet; then
+            print_info "Files have been modified by prettier:"
+            git diff --name-only
+            print_error "Push stopped! Please review the formatting changes, then commit and push again."
+            print_info "Commands to commit the formatting changes:"
+            print_info "  git add ."
+            print_info "  git commit -m \"style: auto-fix code formatting\""
+            print_info "  git push"
+            exit 1
+        else
+            print_info "No files were changed by prettier (formatting was already correct)"
+        fi
+    else
+        print_error "Failed to auto-fix formatting! Please fix manually."
+        exit 1
+    fi
+fi
+print_success "Code formatting is correct!"
+
+# Check linting
+printf '\033[1;34m→ Running ESLint checks...\033[0m\n'
+if ! pnpm run lint; then
+    print_error "Linting check failed!"
+    print_info "Please fix the linting errors above, then push again."
+    exit 1
+fi
+print_success "Linting checks passed!"
+
+# Run tests
+printf '\033[1;34m→ Running tests...\033[0m\n'
+if ! pnpm test; then
+    print_error "Tests failed!"
+    print_info "Please fix the failing tests, then push again."
+    exit 1
+fi
+print_success "All tests passed!"
+
+print_success "All checks passed! Ready to push! 🚀"

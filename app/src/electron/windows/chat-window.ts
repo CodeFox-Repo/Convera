@@ -1,16 +1,9 @@
-import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   positionWindowAtCenterBottom,
-  resizeWindowAndMaintainPosition,
   setWindowHidden,
   setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
 import { setMainWindowResizable } from "@/electron/windows/window-resize";
-import {
-  WINDOW_SIZE_PRESETS,
-  WindowDimensions,
-} from "@/electron/windows/window-size";
-import { injectWindowStyles } from "@/electron/windows/window-styles";
 import { inDevelopment } from "@/shared/constants/dev";
 import {
   BrowserWindow,
@@ -19,15 +12,18 @@ import {
 } from "electron";
 import path from "path";
 
+const CHAT_WINDOW_DIMENSIONS = {
+  width: 600,
+  height: 700,
+};
+
 // Extract platform-specific configurations for chat window
-function createPlatformSpecificConfig(
-  dimensions: WindowDimensions,
-): BrowserWindowConstructorOptions {
+function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
+  const { width, height } = CHAT_WINDOW_DIMENSIONS;
+
   const baseConfig: BrowserWindowConstructorOptions = {
-    width: dimensions.width,
-    height: dimensions.height,
-    x: dimensions.x,
-    y: dimensions.y,
+    width,
+    height,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -43,6 +39,8 @@ function createPlatformSpecificConfig(
     fullscreenable: false,
     show: false,
     alwaysOnTop: true,
+    backgroundColor: "#00000000", // Fully transparent
+    transparent: true,
   };
 
   if (process.platform === "darwin") {
@@ -50,7 +48,6 @@ function createPlatformSpecificConfig(
       ...baseConfig,
       vibrancy: "fullscreen-ui",
       titleBarStyle: "hiddenInset",
-      transparent: true,
       visualEffectState: "active",
       thickFrame: false,
       roundedCorners: true,
@@ -62,7 +59,6 @@ function createPlatformSpecificConfig(
       titleBarStyle: "hiddenInset",
       visualEffectState: "active",
       roundedCorners: true,
-      transparent: true,
     };
   }
 }
@@ -78,7 +74,6 @@ function configurePlatformAppearance(window: BrowserWindow) {
 // Configure chat window properties
 function configureWindowProperties(window: BrowserWindow) {
   setMainWindowResizable(false, window);
-  injectWindowStyles(window);
   window.setMenuBarVisibility(false);
   window.setMenu(null);
 }
@@ -99,7 +94,8 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle ready-to-show event
   window.once("ready-to-show", () => {
     console.log("Chat window ready, positioning and hiding.");
-    positionWindowAtCenterBottom(window, undefined, WINDOW_SIZE_PRESETS.MAIN);
+    // Position the window at center bottom without changing size
+    positionWindowAtCenterBottom(window);
     setWindowHidden(window);
   });
 
@@ -126,32 +122,11 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
   });
 
-  // Handle window closed event
-  window.on("closed", () => {
-    // Window cleanup will be handled automatically
-  });
-
-  // Handle display changes - ensure window fits within new screen bounds
+  // Handle display changes - just reposition, no resizing needed
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      const currentBounds = window.getBounds();
-
-      const isExpanded =
-        currentBounds.height > WINDOW_SIZE_PRESETS.MAIN.minHeight! * 2;
-
-      const config = isExpanded
-        ? WINDOW_SIZE_PRESETS.EXPANDED_CHAT
-        : WINDOW_SIZE_PRESETS.MAIN;
-
-      const newDimensions = calculateWindowDimensions(config, undefined, true);
-
-      resizeWindowAndMaintainPosition(
-        window,
-        newDimensions.width,
-        newDimensions.height,
-        true,
-        config,
-      );
+      // Just reposition the window, size stays fixed
+      positionWindowAtCenterBottom(window);
     }
   });
 
@@ -166,14 +141,14 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 
 // Create chat window (quick popup chat interface)
 export function createChatWindow(): BrowserWindow | null {
-  const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+  const { width, height } = CHAT_WINDOW_DIMENSIONS;
 
   console.log(
-    `Creating chat window with bounds: x=${dimensions.x}, y=${dimensions.y}, w=${dimensions.width}, h=${dimensions.height}`,
+    `Creating chat window with fixed transparent bounds: w=${width}, h=${height}`,
   );
 
   // Create window with platform-specific configuration
-  const config = createPlatformSpecificConfig(dimensions);
+  const config = createPlatformSpecificConfig();
   const chatWindow = new BrowserWindow(config);
 
   // Configure appearance and properties

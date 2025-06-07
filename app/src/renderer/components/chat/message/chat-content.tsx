@@ -1,34 +1,40 @@
 import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+// Import highlight.js styles
+import "highlight.js/styles/github-dark.css";
+// Import KaTeX styles
+import "katex/dist/katex.min.css";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
 /**
- * Simple markdown renderer component
+ * Advanced markdown renderer component with syntax highlighting, math, and more
  */
 const Markdown = memo(({ children }: { children: string }) => {
-  // Simple markdown rendering
-  const formattedText = children
-    .replace(
-      /```([\s\S]*?)```/g,
-      "<pre class='bg-foreground/10 p-3 rounded-md my-2 overflow-x-auto'><code>$1</code></pre>",
-    )
-    .replace(
-      /`([^`]+)`/g,
-      "<code class='bg-foreground/10 px-1 py-0.5 rounded text-xs'>$1</code>",
-    )
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/\n/g, "<br />");
-
   return (
-    <div
-      className="markdown no-drag-region"
-      dangerouslySetInnerHTML={{ __html: formattedText }}
-    />
+    <div className="markdown no-drag-region max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
+        rehypePlugins={[
+          rehypeHighlight,
+          rehypeKatex,
+          [rehypeRaw, { passThrough: ["element"] }],
+        ]}
+        urlTransform={(value: string) => value}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 });
 
@@ -159,16 +165,16 @@ export default function ChatContent({
   // Extract copied content from message content
   const extractCopiedContent = useCallback((content: string) => {
     if (!content) return { copiedContent: null, cleanContent: content };
-    
+
     const copiedContentPattern = /<copied>\n([\s\S]*?)\n<\/copied>/;
     const copiedContentMatch = content.match(copiedContentPattern);
-    
+
     if (copiedContentMatch) {
       const copiedContent = copiedContentMatch[1];
       const cleanContent = content.replace(copiedContentPattern, "").trim();
       return { copiedContent, cleanContent };
     }
-    
+
     return { copiedContent: null, cleanContent: content };
   }, []);
 
@@ -182,7 +188,7 @@ export default function ChatContent({
 
       // Extract special content
       const modifiedContentMatch = content.match(modifiedContentPattern);
-      
+
       // Check if this message's modified content has already been responded to
       const modificationResponse = modifiedResponses[messageId];
 
@@ -199,7 +205,7 @@ export default function ChatContent({
       // Add main content if it exists
       if (cleanContent) {
         contentSections.push(
-          <Markdown key="main-content">{cleanContent}</Markdown>
+          <Markdown key="main-content">{cleanContent}</Markdown>,
         );
       }
 
@@ -213,12 +219,16 @@ export default function ChatContent({
             onAccept={() => handleAcceptModification(messageId)}
           >
             <Markdown>{modifiedContent}</Markdown>
-          </ModifiedContentBlock>
+          </ModifiedContentBlock>,
         );
       }
 
       // Return all sections or fallback to original content
-      return contentSections.length > 0 ? <>{contentSections}</> : <Markdown>{content}</Markdown>;
+      return contentSections.length > 0 ? (
+        <>{contentSections}</>
+      ) : (
+        <Markdown>{content}</Markdown>
+      );
     },
     [modifiedResponses, handleAcceptModification],
   );
@@ -293,25 +303,42 @@ export default function ChatContent({
 
   // Renders regenerating indicator
   function renderLoadingIndicator() {
+    const avatar = "../../images/icon.png";
+
     return (
-      <div className="w-full py-4 border-b border-border/30">
+      <div className="w-full py-2">
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {/* Avatar section */}
-            <div className="flex-shrink-0 mt-1">
-              <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                <Bot className="size-4 text-muted-foreground" />
+            <div className="flex-shrink-0">
+              <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
+                <img
+                  src={avatar}
+                  alt="Agent"
+                  className="size-6 object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement!;
+                    parent.innerHTML = "";
+                    const botIcon = document.createElement("div");
+                    botIcon.innerHTML =
+                      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                    botIcon.className = "text-muted-foreground";
+                    parent.appendChild(botIcon);
+                  }}
+                />
               </div>
             </div>
 
             {/* Content section */}
-            <div className="flex-1 min-w-0">
-              {/* Header */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-foreground">
+            <div className="flex-1 min-w-0 space-y-3">
+              {/* Header with role and timestamp - inline with avatar */}
+              <div className="flex items-center gap-3 -mt-0.5">
+                <span className="text-sm font-semibold text-foreground">
                   FoxyChat
                 </span>
-                <span className="text-xs text-muted-foreground">Now</span>
+                <span className="text-xs text-muted-foreground/80">Now</span>
               </div>
 
               {/* Loading content */}
@@ -354,6 +381,8 @@ export default function ChatContent({
   }, [messages.length]);
 
   if (messages.length === 0) {
+    const avatar = "../../images/icon.png";
+
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
         <motion.div
@@ -363,7 +392,22 @@ export default function ChatContent({
           className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <Bot className="h-8 w-8 text-zinc-500" />
+            <img
+              src={avatar}
+              alt="FoxyChat"
+              className="h-10 w-10 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement!;
+                parent.innerHTML = "";
+                const botIcon = document.createElement("div");
+                botIcon.innerHTML =
+                  '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
+                botIcon.className = "text-zinc-500";
+                parent.appendChild(botIcon);
+              }}
+            />
           </div>
           <h3 className="mb-2 text-xl font-semibold">Welcome to FoxChat</h3>
           <p className="text-zinc-500 dark:text-zinc-400">
@@ -390,7 +434,9 @@ export default function ChatContent({
       let contentToRender = message.content;
 
       if (message.role === "user" && message.content) {
-        const { copiedContent: extracted, cleanContent } = extractCopiedContent(message.content);
+        const { copiedContent: extracted, cleanContent } = extractCopiedContent(
+          message.content,
+        );
         copiedContent = extracted;
         contentToRender = cleanContent;
       }
@@ -446,19 +492,21 @@ export default function ChatContent({
       <div className="no-drag-region flex h-full flex-col">
         {renderMessages()}
 
-        {/* Show waiting for first token animation */}
+        {/* Show waiting for first token animation - only if last message is not from assistant */}
         <AnimatePresence mode="wait">
-          {isLoading && messages.length > 0 && (
-            <motion.div
-              key="waiting-first-token"
-              className="no-drag-region w-full"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {renderLoadingIndicator()}
-            </motion.div>
-          )}
+          {isLoading &&
+            messages.length > 0 &&
+            !(messages[messages.length - 1]?.role === "assistant") && (
+              <motion.div
+                key="waiting-first-token"
+                className="no-drag-region w-full"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderLoadingIndicator()}
+              </motion.div>
+            )}
         </AnimatePresence>
 
         <div ref={messagesEndRef} className="h-8" />

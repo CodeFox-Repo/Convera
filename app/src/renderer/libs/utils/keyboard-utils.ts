@@ -10,7 +10,11 @@ export function parseShortcut(shortcut: string): ParsedShortcut {
   const parts = shortcut.split("+").map((p) => p.trim().toLowerCase());
   const result: ParsedShortcut = { key: parts[parts.length - 1] };
 
-  if (parts.includes("meta") || parts.includes("command") || parts.includes("cmd")) {
+  if (
+    parts.includes("meta") ||
+    parts.includes("command") ||
+    parts.includes("cmd")
+  ) {
     result.metaKey = true;
   }
   if (parts.includes("ctrl") || parts.includes("control")) {
@@ -26,7 +30,13 @@ export function parseShortcut(shortcut: string): ParsedShortcut {
   return result;
 }
 
-export function matchesShortcut(event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>, shortcut: string): boolean {
+export function matchesShortcut(
+  event: Pick<
+    KeyboardEvent,
+    "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey"
+  >,
+  shortcut: string,
+): boolean {
   const parsed = parseShortcut(shortcut);
   if (parsed.key !== event.key.toLowerCase()) return false;
   if (parsed.metaKey && !event.metaKey) return false;

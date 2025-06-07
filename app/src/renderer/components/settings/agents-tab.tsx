@@ -21,6 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
+import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { ToolReference } from "@/server/agents/types";
 import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
 import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
@@ -43,14 +44,12 @@ interface AgentsTabProps {
 }
 
 export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServerConfigs, setMcpServerConfigs] = useState<
     Record<string, MCPServerConfig>
   >({});
   const [mcpServerTools, setMcpServerTools] = useState<
     Record<string, ToolDefinition[]>
   >({});
-  const [loadingAgents, setLoadingAgents] = useState(false);
   const [loadingMcpConfigs, setLoadingMcpConfigs] = useState(false);
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
@@ -71,11 +70,14 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   }>({});
   const [activeTab, setActiveTab] = useState("manage");
 
+  // Get agent store methods and state
+  const { availableAgents, fetchAgents } = useAgentStore();
+
   // Load agents and MCP configs
   useEffect(() => {
     fetchAgents();
     fetchMcpConfigs();
-  }, []);
+  }, [fetchAgents]);
 
   // Reset editing state when dialog closes
   useEffect(() => {
@@ -107,7 +109,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     if (activeTab === "create") {
       // Reset tool selections to start fresh
       setSelectedToolNames({});
-      
+
       // Re-fetch tools for all enabled MCPs to trigger auto-selection
       Object.entries(mcpServerConfigs)
         .filter(([, config]) => config.enabled)
@@ -116,22 +118,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         });
     }
   }, [activeTab, mcpServerConfigs]);
-
-  const fetchAgents = async () => {
-    setLoadingAgents(true);
-    try {
-      const res = await fetch("http://localhost:38000/api/agents");
-      if (!res.ok) throw new Error("Failed to fetch agents");
-      const data = await res.json();
-      console.log("Fetched agents data:", data.agents);
-      setAgents(data.agents || []);
-    } catch (err) {
-      console.error("Error fetching agents:", err);
-      toast.error("Failed to load agents");
-    } finally {
-      setLoadingAgents(false);
-    }
-  };
 
   const fetchMcpConfigs = async () => {
     setLoadingMcpConfigs(true);
@@ -366,7 +352,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         description: "",
         systemPrompt: "",
       });
-      
+
       // Reset tool selections after agent creation
       setSelectedToolNames({});
 
@@ -375,22 +361,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       // Switch to the manage tab
       setActiveTab("manage");
-
-      // Dispatch an event to notify other components (like AgentPopover)
-      // that the agent list has been updated
-      try {
-        // For the main window
-        window.dispatchEvent(new CustomEvent("agent-list-updated"));
-
-        // For other windows (like the agent popover) - we'll dispatch using a custom event
-        // that the preload script will convert to an IPC message
-        window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
-
-        // Log the event dispatch
-        console.log("Dispatched agent-list-updated event");
-      } catch (error) {
-        console.error("Error dispatching agent list update event:", error);
-      }
     } catch (err) {
       console.error("Save agent error", err);
       toast.error(
@@ -453,9 +423,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       setIsEditDialogOpen(false);
       fetchAgents();
-
-      window.dispatchEvent(new CustomEvent("agent-list-updated"));
-      window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
     } catch (err) {
       console.error("Update agent error:", err);
       toast.error(
@@ -490,15 +457,6 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
       // Refresh the agent list
       fetchAgents();
-
-      // Dispatch event to notify other components
-      try {
-        window.dispatchEvent(new CustomEvent("agent-list-updated"));
-        window.dispatchEvent(new CustomEvent("agent-list-updated-ipc"));
-        console.log("Dispatched agent-list-updated event after deletion");
-      } catch (error) {
-        console.error("Error dispatching agent list update event:", error);
-      }
     } catch (err) {
       console.error("Delete agent error:", err);
       toast.error(
@@ -509,32 +467,32 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
   const handleMcpToggle = (id: string, enabled: boolean) => {
     updateMcpConfig(id, "enabled", enabled);
-    
+
     // When enabling an MCP server, automatically select all its tools
     if (enabled && mcpServerTools[id]?.length > 0) {
       // If edit dialog is open, update editSelectedTools instead
       if (isEditDialogOpen) {
-        setEditSelectedTools(prev => ({
+        setEditSelectedTools((prev) => ({
           ...prev,
-          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name),
         }));
       } else {
         // Normal mode - update selectedToolNames
-        setSelectedToolNames(prev => ({
+        setSelectedToolNames((prev) => ({
           ...prev,
-          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name)
+          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name),
         }));
       }
     } else if (!enabled) {
       // When disabling, clear the tool selections for this MCP
       if (isEditDialogOpen) {
-        setEditSelectedTools(prev => {
+        setEditSelectedTools((prev) => {
           const updated = { ...prev };
           delete updated[id];
           return updated;
         });
       } else {
-        setSelectedToolNames(prev => {
+        setSelectedToolNames((prev) => {
           const updated = { ...prev };
           delete updated[id];
           return updated;
@@ -784,7 +742,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
           Create and manage agents with MCP tools
         </p>
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="manage">Manage Agents</TabsTrigger>
@@ -851,7 +809,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
             <h3 className="mb-4 text-lg font-medium">MCP Servers & Tools</h3>
             {renderMcpTools(false, selectedToolNames, handleToolSelection)}
           </div>
-          
+
           <div className="mt-6 flex justify-end">
             <Button
               onClick={handleSaveAgent}
@@ -865,48 +823,47 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
         </TabsContent>
 
         <TabsContent value="manage">
-          {loadingAgents ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-            </div>
-          ) : agents.length === 0 ? (
+          {availableAgents.length === 0 ? (
             <p className="text-muted-foreground">No agents created yet.</p>
           ) : (
             <div className="space-y-4">
-              {agents.map((agent) => {
+              {availableAgents.map((agent) => {
                 // Get unique MCP server names only
                 const mcpServers = new Set<string>();
-                
+
                 if (agent.toolReferences && agent.toolReferences.length > 0) {
-                  agent.toolReferences.forEach(toolRef => mcpServers.add(toolRef.mcpName));
-                } else if (agent.toolNames && agent.toolNames.length > 0) {
-                  agent.toolNames.forEach(toolId => {
-                    const parts = toolId.split(":");
-                    if (parts.length > 1) {
-                      mcpServers.add(parts[0]);
-                    }
-                  });
+                  agent.toolReferences.forEach((toolRef) =>
+                    mcpServers.add(toolRef.mcpName),
+                  );
                 }
-                
+
                 // Convert the Set to Array
                 const mcpServersList = Array.from(mcpServers);
 
                 return (
-                  <div key={agent.id} className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-sm border border-border/30">
+                  <div
+                    key={agent.id}
+                    className="bg-card hover:bg-card/90 flex items-start justify-between rounded-lg p-4 transition-colors shadow-xs border border-border/30"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="text-primary bg-primary/10 rounded-full p-1.5">
                         <Bot size={18} />
                       </div>
                       <div>
-                        <h4 className="font-medium leading-tight">{agent.name}</h4>
+                        <h4 className="font-medium leading-tight">
+                          {agent.name}
+                        </h4>
                         <p className="text-muted-foreground mt-0.5 text-xs">
                           {agent.description}
                         </p>
-                        
+
                         {mcpServersList.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {mcpServersList.map((serverName) => (
-                              <div key={serverName} className="bg-primary/5 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs">
+                              <div
+                                key={serverName}
+                                className="bg-primary/80 text-primary-foreground/80 flex items-center rounded-full px-2 py-0.5 text-xs"
+                              >
                                 <Server size={10} className="mr-1" />
                                 {serverName}
                               </div>
@@ -915,7 +872,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -923,7 +880,7 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                         className="h-8 w-8 p-0 rounded-full"
                         onClick={() => handleEditAgent(agent)}
                       >
-                        < Settings size={14} />
+                        <Settings size={14} />
                         <span className="sr-only">Edit</span>
                       </Button>
                       <Button

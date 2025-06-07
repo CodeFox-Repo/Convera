@@ -1,9 +1,9 @@
 /**
  * Hono server for handling chat API requests with OpenAI
  */
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { serve } from "@hono/node-server";
 import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
 import chatRouter from "./api/chat";
@@ -12,6 +12,7 @@ import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
 
 const app = new Hono();
+export type AppType = typeof app;
 app.use("*", cors());
 
 app.get("/api/health", (c) =>
@@ -54,3 +55,4 @@ function startChatServer() {
 }
 
 export default startChatServer;
+export { app };

@@ -19,25 +19,57 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
 
       # Install pnpm
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
+
+      # Install macOS dependencies for robotjs
+      - name: Install macOS dependencies
+        run: |
+          # Ensure Xcode command line tools are available
+          xcode-select --install 2>/dev/null || true
+          # Install Python for node-gyp (robotjs compilation)
+          brew install python@3.11
+          # Install additional build tools
+          npm install -g node-gyp
+
+      # Cache dependencies
+      - name: Cache pnpm store
+        uses: actions/cache@v4
         with:
-          version: 8
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       # Install dependencies with pnpm from workspace root
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Clean and rebuild robotjs for release environment
+      - name: Clean and rebuild robotjs for release
+        working-directory: app
+        run: |
+          # Set environment for native compilation
+          export CI=false
+
+          # Clean any existing builds
+          rm -rf node_modules/@hurdlegroup/robotjs/build
+
+          # Force rebuild robotjs with proper electron ABI
+          pnpm run rebuild:robotjs
+
       # Run tests
       - name: Run tests
-        run: cd app && pnpm test
+        working-directory: app
+        run: pnpm test
 
       # Make app distributable (this will also package)
-      - name: Make app distributable
-        run: cd app && pnpm make
+      - name: Make app distributable with robotjs
+        working-directory: app
+        run: pnpm run make:robotjs
 
       # Get version from tag
       - name: Get version from tag
@@ -58,27 +90,59 @@ jobs:
 
       # Update Homebrew formula
       - name: Update Homebrew formula
+        continue-on-error: true # Don't fail the entire workflow if Homebrew update fails
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Clone Homebrew repository
-          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/CodeFox-Repo/homebrew-codefox.git
+          # Check if we have the required token
+          if [ -z "${{ secrets.REPO_ACCESS_TOKEN }}" ]; then
+            echo "⚠️  REPO_ACCESS_TOKEN not available, skipping Homebrew formula update"
+            exit 0
+          fi
+
+          echo "🍺 Updating Homebrew formula for FoxyChat v${VERSION}"
+
+          # Wait a bit for GitHub Release to be fully available
+          echo "⏳ Waiting for release assets to be available..."
+          sleep 30
+
+          # Clone Homebrew repository with the correct token
+          echo "📦 Cloning Homebrew repository..."
+          git clone https://x-access-token:${{ secrets.REPO_ACCESS_TOKEN }}@github.com/CodeFox-Repo/homebrew-codefox.git
           cd homebrew-codefox
 
           # Create Formula directory if it doesn't exist
           mkdir -p Formula
 
-          # Get DMG URL and calculate SHA
+          # Get DMG URL and calculate SHA (fix URL case consistency)
           DMG_URL="https://github.com/CodeFox-Repo/foxychat/releases/download/v${VERSION}/FoxyChat-${VERSION}-arm64.dmg"
-          DMG_SHA=$(curl -sL "$DMG_URL" | shasum -a 256 | cut -d' ' -f1)
+          echo "📁 Downloading DMG for SHA calculation: $DMG_URL"
 
-          # Create or update formula file
+          # Try to download and calculate SHA with retries
+          for i in {1..5}; do
+            echo "🔄 Attempt $i/5 to download DMG..."
+            if DMG_SHA=$(curl -sL "$DMG_URL" | shasum -a 256 | cut -d' ' -f1) && [ -n "$DMG_SHA" ]; then
+              echo "✅ Successfully calculated SHA: $DMG_SHA"
+              break
+            else
+              echo "❌ Failed to download or calculate SHA, retrying in 30 seconds..."
+              sleep 30
+            fi
+            
+            if [ $i -eq 5 ]; then
+              echo "💥 Failed to download DMG after 5 attempts, skipping Homebrew update"
+              exit 1
+            fi
+          done
+
+          # Create or update formula file (fix URL consistency)
+          echo "📝 Creating Homebrew formula..."
           cat > Formula/foxychat.rb << EOF
           cask "foxychat" do
             version "${VERSION}"
             sha256 "${DMG_SHA}"
             
-            url "https://github.com/CodeFox-Repo/Foxychat/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
+            url "https://github.com/CodeFox-Repo/foxychat/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
             name "FoxyChat"
             desc "All in one Chat App"
             homepage "https://github.com/CodeFox-Repo/foxychat"
@@ -95,8 +159,16 @@ jobs:
           EOF
 
           # Commit and push changes
+          echo "🚀 Committing and pushing changes..."
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Formula/foxychat.rb
-          git commit -m "Update FoxyChat to version ${VERSION}"
-          git push
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "📋 No changes to commit"
+          else
+            git commit -m "Update FoxyChat to version ${VERSION}"
+            git push
+            echo "✅ Successfully updated Homebrew formula"
+          fi

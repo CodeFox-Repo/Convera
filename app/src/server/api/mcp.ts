@@ -6,6 +6,14 @@ import {
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
 import { MCPServerConfig } from "../mcp/types";
+import {
+  McpSettingsSchema,
+  UpdateMcpConfigSchema,
+  ManualMCPConfigSchema,
+  DisabledToolsSchema,
+  IdSchema,
+} from "../mcp/types";
+import { zValidator } from "@hono/zod-validator";
 
 const router = new Hono();
 
@@ -65,29 +73,23 @@ router.get("/api/mcp/marketplace", async (c) => {
 });
 
 // MCP settings endpoint
-router.post("/api/mcp/settings", async (c) => {
-  const { toolId, settings } = await c.req.json();
+router.post(
+  "/api/mcp/settings",
+  zValidator("json", McpSettingsSchema),
+  async (c) => {
+    const { toolId, settings } = c.req.valid("json");
 
-  if (!toolId || !settings) {
-    return c.json(
-      {
-        error:
-          "Missing required parameters. 'toolId' and 'settings' are required.",
-      },
-      400,
-    );
-  }
+    // Here you would save the settings for the specific MCP tool
+    // This is a placeholder for the actual implementation
+    console.log(`Saving settings for MCP tool: ${toolId}`, settings);
 
-  // Here you would save the settings for the specific MCP tool
-  // This is a placeholder for the actual implementation
-  console.log(`Saving settings for MCP tool: ${toolId}`, settings);
-
-  // Return success
-  return c.json({
-    success: true,
-    message: `Settings for ${toolId} saved successfully`,
-  });
-});
+    // Return success
+    return c.json({
+      success: true,
+      message: `Settings for ${toolId} saved successfully`,
+    });
+  },
+);
 
 // Get all MCP server configurations
 router.get("/api/mcp/configurations", async (c) => {
@@ -104,9 +106,12 @@ router.get("/api/mcp/configurations", async (c) => {
 });
 
 // Update a specific MCP server configuration
-router.put("/api/mcp/configurations/:id", async (c) => {
+router.put(
+  "/api/mcp/configurations/:id",
+  zValidator("json", UpdateMcpConfigSchema),
+  async (c) => {
     const id = c.req.param("id");
-    const updatedConfig: Partial<MCPServerConfig> = await c.req.json();
+    const updatedConfig: Partial<MCPServerConfig> = c.req.valid("json");
     const manager = getMCPManager();
 
     if (id === "Dev-MCP") {
@@ -124,21 +129,15 @@ router.put("/api/mcp/configurations/:id", async (c) => {
       status: "success",
       message: `Configuration for ${id} updated.`,
     });
-});
+  },
+);
 
 // Manual MCP configuration installation endpoint
-router.post("/api/mcp/configurations/manual", async (c) => {
-    const configData = await c.req.json();
-
-    if (!configData?.mcpServers || typeof configData.mcpServers !== "object") {
-      return c.json(
-        {
-          status: "error",
-          message: "Invalid configuration format. Expected {mcpServers: {...}}",
-        },
-        400,
-      );
-    }
+router.post(
+  "/api/mcp/configurations/manual",
+  zValidator("json", ManualMCPConfigSchema),
+  async (c) => {
+    const configData = c.req.valid("json");
 
     const manager = getMCPManager();
     const serverIds = Object.keys(configData.mcpServers);
@@ -169,7 +168,8 @@ router.post("/api/mcp/configurations/manual", async (c) => {
       message: `Manually configured ${serverIds.length} MCP server(s)`,
       serverIds,
     });
-});
+  },
+);
 
 // MCP predefined servers endpoint
 router.get("/api/mcp/predefined-servers", (c) => {
@@ -230,59 +230,59 @@ router.get("/api/mcp/installed-servers", (c) => {
 });
 
 // Install predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/install", async (c) => {
-  const { id } = await c.req.json();
+router.post(
+  "/api/mcp/predefined-servers/install",
+  zValidator("json", IdSchema),
+  async (c) => {
+    const { id } = c.req.valid("json");
 
-  if (!id) {
-    return c.json({ status: "error", message: "Server ID is required" }, 400);
-  }
+    const manager = getMCPManager();
+    const success = manager.installPredefinedServer(id);
 
-  const manager = getMCPManager();
-  const success = manager.installPredefinedServer(id);
+    if (success) {
+      const serverConfig = manager.getServerConfig(id);
+      if (serverConfig?.enabled) {
+        manager.startServer(id).catch((err) => {
+          console.error(`Error auto-starting MCP server ${id}:`, err);
+        });
+      }
 
-  if (success) {
-    const serverConfig = manager.getServerConfig(id);
-    if (serverConfig?.enabled) {
-      manager.startServer(id).catch((err) => {
-        console.error(`Error auto-starting MCP server ${id}:`, err);
+      return c.json({
+        status: "success",
+        message: `Server ${id} installed successfully`,
       });
+    } else {
+      return c.json(
+        { status: "error", message: `Failed to install server ${id}` },
+        400,
+      );
     }
-
-    return c.json({
-      status: "success",
-      message: `Server ${id} installed successfully`,
-    });
-  } else {
-    return c.json(
-      { status: "error", message: `Failed to install server ${id}` },
-      400,
-    );
-  }
-});
+  },
+);
 
 // Uninstall predefined MCP server endpoint
-router.post("/api/mcp/predefined-servers/uninstall", async (c) => {
-  const { id } = await c.req.json();
+router.post(
+  "/api/mcp/predefined-servers/uninstall",
+  zValidator("json", IdSchema),
+  async (c) => {
+    const { id } = c.req.valid("json");
 
-  if (!id) {
-    return c.json({ status: "error", message: "Server ID is required" }, 400);
-  }
+    const manager = getMCPManager();
+    const serverStatus = manager.getServerStatus(id);
 
-  const manager = getMCPManager();
-  const serverStatus = manager.getServerStatus(id);
+    if (serverStatus?.running) {
+      await manager.stopServer(id);
+    }
 
-  if (serverStatus?.running) {
-    await manager.stopServer(id);
-  }
+    const success = manager.unregisterServer(id);
+    const status = success ? 200 : 400;
+    const message = success
+      ? `Server ${id} uninstalled successfully`
+      : `Failed to uninstall server ${id}`;
 
-  const success = manager.unregisterServer(id);
-  const status = success ? 200 : 400;
-  const message = success
-    ? `Server ${id} uninstalled successfully`
-    : `Failed to uninstall server ${id}`;
-
-  return c.json({ status: success ? "success" : "error", message }, status);
-});
+    return c.json({ status: success ? "success" : "error", message }, status);
+  },
+);
 
 // Get tools for a specific MCP server
 router.get("/api/mcp/servers/:id/tools", async (c) => {
@@ -326,10 +326,10 @@ router.get("/api/mcp/servers/:id/tools", async (c) => {
       enabled: !disabledTools.includes(name),
     }));
 
-      return c.json({
-        status: "success",
-        tools: allTools,
-        serverId: id,
+    return c.json({
+      status: "success",
+      tools: allTools,
+      serverId: id,
       disabledTools,
     });
     return;
@@ -356,16 +356,12 @@ router.get("/api/mcp/servers/:id/tools", async (c) => {
 });
 
 // Update MCP server enabled tools
-router.post("/api/mcp/servers/:id/tools", async (c) => {
+router.post(
+  "/api/mcp/servers/:id/tools",
+  zValidator("json", DisabledToolsSchema),
+  async (c) => {
     const id = c.req.param("id");
-    const { disabledTools } = await c.req.json();
-
-    if (!Array.isArray(disabledTools)) {
-      return c.json(
-        { status: "error", message: "disabledTools must be an array of tool names" },
-        400,
-      );
-    }
+    const { disabledTools } = c.req.valid("json");
 
     const manager = getMCPManager();
     const serverStatus = manager.getServerStatus(id);
@@ -391,6 +387,7 @@ router.post("/api/mcp/servers/:id/tools", async (c) => {
       message: `Disabled ${disabledCount} tools for server ${id}. ${totalTools - disabledCount} tools are now available.`,
       disabledTools,
     });
-});
+  },
+);
 
 export default router;

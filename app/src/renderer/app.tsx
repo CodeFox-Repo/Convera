@@ -1,22 +1,56 @@
-import { RouterProvider } from "@tanstack/react-router";
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRouter,
+} from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import "../shared/localization/i18n";
 import AgentPopover from "./components/chat/popover/agent-popover";
 import ModelSelector from "./components/chat/popover/model-selector-popover";
-import { DragLayer } from "./components/ui/drag-layer";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
-import { syncThemeWithLocal } from "./libs/helper/theme_helpers";
-import { router } from "./routes/router";
+import { useThemeSync } from "./libs/hooks/use-theme-sync";
+import { routeTree } from "./routes/routeTree.gen";
+
+// Router type declarations
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+declare global {
+  interface Window {
+    router?: typeof router;
+  }
+}
+
+// Create router instance with debug options
+const history = createMemoryHistory({
+  initialEntries: ["/"],
+});
+
+const router = createRouter({
+  routeTree,
+  history,
+  defaultPreload: "intent",
+  defaultPreloadStaleTime: 0,
+});
+
+if (typeof window !== "undefined") {
+  window.router = router;
+}
 
 export default function App() {
   const { i18n } = useTranslation();
   const [view, setView] = useState<string | null>(null);
 
+  // Use proper theme synchronization hook instead of manual sync
+  useThemeSync();
+
   useEffect(() => {
-    syncThemeWithLocal();
     updateAppLanguage(i18n);
 
     // Check for hash in URL
@@ -46,20 +80,13 @@ export default function App() {
   if (view === "model-selector") {
     return (
       <div className="model-selector-container h-screen w-full overflow-hidden">
-        <ModelSelector
-    
-        />
+        <ModelSelector />
       </div>
     );
   }
 
   // Normal app view
-  return (
-    <div className="app-container relative h-screen w-full overflow-hidden">
-      <DragLayer height={6} />
-      <RouterProvider router={router} />
-    </div>
-  );
+  return <RouterProvider router={router} />;
 }
 
 const root = createRoot(document.getElementById("app")!);

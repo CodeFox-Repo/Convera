@@ -1,10 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { standardErrors } from "@/renderer/libs/utils/error-handler";
+import { generateId } from "@ai-sdk/ui-utils";
+import { zValidator } from "@hono/zod-validator";
+import { Message } from "ai";
 import { Hono } from "hono";
 import { processAgentChat, processChatRequest } from "../agents";
 import { deleteChat, getChatById, getChats } from "../service/chat";
+import { ChatRequestSchema, type CreateUIMessage } from "./chat-schemas";
 
 const router = new Hono();
+
+/**
+ * Transform CreateUIMessage to Message by ensuring all messages have IDs
+ */
+function transformToMessages(createMessages: CreateUIMessage[]): Message[] {
+  return createMessages.map((msg) => ({
+    ...msg,
+    id: msg.id || generateId(),
+    createdAt: msg.createdAt || new Date(),
+  })) as Message[];
+}
 
 // Updated authentication middleware using standardized error responses
 const authenticateRequest = async (c: any, next: () => Promise<void>) => {
@@ -26,49 +41,64 @@ const authenticateRequest = async (c: any, next: () => Promise<void>) => {
   await next();
 };
 
-// Chat endpoint - only this route requires authentication
-router.post("/api/chat", authenticateRequest, async (c) => {
-  const { messages, config, agentId, modelId, id } = await c.req.json();
-  const apiKey = (c as any).apiToken;
+// Chat endpoint
+router.post(
+  "/api/chat",
+  authenticateRequest,
+  zValidator("json", ChatRequestSchema),
+  async (c) => {
+    const {
+      messages: createMessages,
+      config,
+      agentId,
+      modelId,
+      id,
+    } = c.req.valid("json");
+    const apiKey = (c as any).apiToken;
 
-  if (!apiKey) {
-    return c.json(standardErrors.authFailed, 401);
-  }
+    if (!apiKey) {
+      return c.json(standardErrors.authFailed, 401);
+    }
 
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    return c.json(standardErrors.emptyMessage, 400);
-  }
+    // Transform CreateMessages to Messages with IDs
+    const messages = transformToMessages(createMessages);
 
-  const headers = {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  };
+    // Safely access config properties
+    const configOpenAI = config?.openai as
+      | { modelId?: string; endpoint?: string }
+      | undefined;
 
-  const response = agentId
-    ? await processAgentChat(
-        messages,
-        apiKey,
-        { agentId, modelId: modelId || config?.openai?.modelId },
-        config?.openai?.endpoint,
-        id,
-      )
-    : await processChatRequest(messages, apiKey, {
-        modelId: modelId || config?.openai?.modelId,
-        endpoint: config?.openai?.endpoint,
-        config,
-        id,
-      });
+    const headers = {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    };
 
-  if (!response.body) {
-    return new Response(
-      `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
-      { headers },
-    );
-  }
+    const response = agentId
+      ? await processAgentChat(
+          messages,
+          apiKey,
+          { agentId, modelId: modelId || configOpenAI?.modelId },
+          configOpenAI?.endpoint,
+          id,
+        )
+      : await processChatRequest(messages, apiKey, {
+          modelId: modelId || configOpenAI?.modelId,
+          endpoint: configOpenAI?.endpoint,
+          config: config as any, // Type assertion for backward compatibility
+          id,
+        });
 
-  return new Response(response.body, { headers });
-});
+    if (!response.body) {
+      return new Response(
+        `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
+        { headers },
+      );
+    }
+
+    return new Response(response.body, { headers });
+  },
+);
 
 // These routes don't require authentication
 router.get("/api/chat", async (c) => {

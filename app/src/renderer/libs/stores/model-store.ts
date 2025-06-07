@@ -16,7 +16,6 @@ export const useModelStore = create<ModelState>()(
       const savedModel = localStorage.getItem("selectedModelId");
       const savedSupportedModels = localStorage.getItem("supportedModels");
 
-      // Use fallback defaults since getSettings() is async and store creation can't be async
       const defaultModelIds: string[] = savedSupportedModels
         ? JSON.parse(savedSupportedModels)
         : [
