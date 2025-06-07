@@ -1,6 +1,7 @@
 // app/src/renderer/components/chat/index.tsx
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { useThemeSync } from '@/renderer/libs/hooks/use-theme-sync';
+import { useWindowClose } from '@/renderer/libs/hooks/use-window-close';
 import { useChatContext } from '@/renderer/libs/stores/chat-store';
 import { useChatUIStore } from '@/renderer/libs/stores/chat-ui-store';
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,6 +20,9 @@ export default function Chat() {
   
   // Listen for theme changes from settings
   useThemeSync();
+  
+  // Handle Command+W for chat window deactivation
+  useWindowClose({ type: "close" });
   
   useEffect(() => {
     const mountTimer = setTimeout(() => {
