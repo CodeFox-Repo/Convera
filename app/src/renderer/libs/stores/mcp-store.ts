@@ -1,4 +1,8 @@
-import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import type {
+  GeneralMCPConfig,
+  MCPServerConfig,
+  ToolDefinition,
+} from "@/server/mcp/types";
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -301,7 +305,7 @@ export const useMcpStore = create<McpState>()(
       // Manual install MCP configuration
       handleManualInstallMcp: async (configJson: string) => {
         try {
-          let config;
+          let config: GeneralMCPConfig;
           try {
             config = JSON.parse(configJson);
           } catch {
@@ -325,9 +329,7 @@ export const useMcpStore = create<McpState>()(
 
           if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(
-              errorData.message || "Failed to install MCP configuration",
-            );
+            throw new Error(errorData.message);
           }
 
           toast.success("MCP configuration installed successfully");

@@ -11,6 +11,7 @@ import AgentPopover from "./components/chat/popover/agent-popover";
 import ModelSelector from "./components/chat/popover/model-selector-popover";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
+import { useFonts } from "./libs/hooks/use-fonts";
 import { useThemeSync } from "./libs/hooks/use-theme-sync";
 import { routeTree } from "./routes/routeTree.gen";
 
@@ -49,6 +50,9 @@ export default function App() {
 
   // Use proper theme synchronization hook instead of manual sync
   useThemeSync();
+  
+  // Auto-load and configure fonts
+  useFonts();
 
   useEffect(() => {
     updateAppLanguage(i18n);

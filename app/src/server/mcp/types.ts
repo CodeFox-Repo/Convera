@@ -5,9 +5,10 @@
 import { Server } from "http";
 
 /**
- * MCP Server Configuration
+ * General MCP Server Configuration (external format)
+ * This is the standard format used in MCP documentation and third-party configs
  */
-export interface MCPServerConfig {
+export interface GeneralMCPServerConfig {
   // Remote server configuration
   url?: string;
   apiKey?: string;
@@ -21,13 +22,20 @@ export interface MCPServerConfig {
   // Tools configuration
   enabledTools?: string[];
   disabledTools?: string[];
-  builtInToolsList?: string[]; // List of all available built-in tools
-  autoEnableAllTools?: boolean; // Flag to automatically enable all discovered tools
+  autoEnableAllTools?: boolean;
 
-  // Metadata
-  name: string;
+  // Optional metadata
   description?: string;
+}
+
+/**
+ * Database MCP Server Configuration (internal format)
+ * This includes our internal fields for managing servers
+ */
+export interface MCPServerConfig extends GeneralMCPServerConfig {
+  name: string;
   enabled: boolean;
+  builtInToolsList?: string[];
 }
 
 /**
@@ -45,7 +53,14 @@ export interface PredefinedMCPServer {
 }
 
 /**
- * MCP Configuration
+ * General MCP Configuration (external format)
+ */
+export interface GeneralMCPConfig {
+  mcpServers: Record<string, GeneralMCPServerConfig>;
+}
+
+/**
+ * Database MCP Configuration (internal format)
  */
 export interface MCPConfig {
   mcpServers: Record<string, MCPServerConfig>;
@@ -91,7 +106,8 @@ export interface ServerInstance {
 
 import { z } from "zod";
 
-export const McpServerConfigSchema = z.object({
+// General MCP Server Config Schema (external format)
+export const GeneralMcpServerConfigSchema = z.object({
   url: z.string().optional(),
   apiKey: z.string().optional(),
   command: z.string().optional(),
@@ -100,15 +116,25 @@ export const McpServerConfigSchema = z.object({
   env: z.record(z.string()).optional(),
   enabledTools: z.array(z.string()).optional(),
   disabledTools: z.array(z.string()).optional(),
-  builtInToolsList: z.array(z.string()).optional(),
   autoEnableAllTools: z.boolean().optional(),
-  name: z.string(),
   description: z.string().optional(),
+});
+
+// Database MCP Server Config Schema (internal format)
+export const McpServerConfigSchema = GeneralMcpServerConfigSchema.extend({
+  name: z.string(),
   enabled: z.boolean(),
+  builtInToolsList: z.array(z.string()).optional(),
 });
 
 export const UpdateMcpConfigSchema = McpServerConfigSchema.partial();
 
+// General MCP Config Schema (for manual installation)
+export const GeneralMCPConfigSchema = z.object({
+  mcpServers: z.record(GeneralMcpServerConfigSchema),
+});
+
+// Internal MCP Config Schema (for database storage)
 export const ManualMCPConfigSchema = z.object({
   mcpServers: z.record(McpServerConfigSchema),
 });

@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
   getAvailablePredefinedServers,
@@ -5,15 +6,15 @@ import {
   isPredefinedServerInstalled,
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
-import { MCPServerConfig } from "../mcp/types";
 import {
+  DisabledToolsSchema,
+  GeneralMCPConfig,
+  GeneralMCPConfigSchema,
+  IdSchema,
+  MCPServerConfig,
   McpSettingsSchema,
   UpdateMcpConfigSchema,
-  ManualMCPConfigSchema,
-  DisabledToolsSchema,
-  IdSchema,
 } from "../mcp/types";
-import { zValidator } from "@hono/zod-validator";
 
 const router = new Hono();
 
@@ -135,12 +136,12 @@ router.put(
 // Manual MCP configuration installation endpoint
 router.post(
   "/api/mcp/configurations/manual",
-  zValidator("json", ManualMCPConfigSchema),
+  zValidator("json", GeneralMCPConfigSchema),
   async (c) => {
-    const configData = c.req.valid("json");
+    const generalConfigData: GeneralMCPConfig = c.req.valid("json");
 
     const manager = getMCPManager();
-    const serverIds = Object.keys(configData.mcpServers);
+    const serverIds = Object.keys(generalConfigData.mcpServers);
 
     if (serverIds.length === 0) {
       return c.json(
@@ -150,12 +151,18 @@ router.post(
     }
 
     for (const id of serverIds) {
-      const serverConfig = configData.mcpServers[id];
+      const generalServerConfig = generalConfigData.mcpServers[id];
+      const dbServerConfig: MCPServerConfig = {
+        ...generalServerConfig,
+        name: id,
+        enabled: true,
+        env: generalServerConfig.env || {},
+      };
 
       if (manager.getServerConfig(id)) {
-        manager.updateServerConfig(id, serverConfig);
+        manager.updateServerConfig(id, dbServerConfig);
       } else {
-        manager.registerServer(id, serverConfig);
+        manager.registerServer(id, dbServerConfig);
       }
 
       manager.startServer(id).catch((err) => {
@@ -317,10 +324,9 @@ router.get("/api/mcp/servers/:id/tools", async (c) => {
         serverId: id,
         disabledTools,
       });
-      return;
     }
 
-    const allTools = Object.keys(serverTools).map((name) => ({
+    const allDevMCPTools = Object.keys(serverTools).map((name) => ({
       name,
       description: serverTools[name]?.description || `Tool: ${name}`,
       enabled: !disabledTools.includes(name),
@@ -328,11 +334,10 @@ router.get("/api/mcp/servers/:id/tools", async (c) => {
 
     return c.json({
       status: "success",
-      tools: allTools,
+      tools: allDevMCPTools,
       serverId: id,
       disabledTools,
     });
-    return;
   }
 
   if (!serverStatus.running) {
