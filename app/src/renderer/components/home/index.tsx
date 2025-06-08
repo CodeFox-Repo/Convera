@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+import { UserButton } from "../auth/user-button";
 import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
 import ChatContent from "../chat/message/chat-content";
 
@@ -265,6 +266,7 @@ export function HomePage() {
                 <Settings size={16} />
                 <span className="text-sm">Settings</span>
               </button>
+              <UserButton collapsed={false} />
             </div>
           ) : (
             <div className="space-y-2 flex flex-col items-center">
@@ -274,6 +276,7 @@ export function HomePage() {
               <button className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                 <Settings size={16} />
               </button>
+              <UserButton collapsed={true} />
             </div>
           )}
         </div>
@@ -304,12 +307,6 @@ export function HomePage() {
             <h2 className="text-lg font-semibold text-foreground">
               {getCurrentChatTitle()}
             </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium">
-              Online
-            </div>
           </div>
         </div>
 

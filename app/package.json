@@ -18,8 +18,8 @@
     "routes:generate": "tsr generate",
     "routes:watch": "tsr watch",
     "lint": "eslint .",
-    "format": "prettier --check . '!template/**' '!.vite/**' '!out/**'",
-    "format:write": "prettier --write . '!template/**' '!.vite/**' '!out/**'",
+    "format": "prettier --check . '!template/**' '!.vite/**' '!out/**' '!routeTree.gen.ts'",
+    "format:write": "prettier --write . '!template/**' '!.vite/**' '!out/**' '!routeTree.gen.ts'",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:unit": "vitest",
@@ -56,7 +56,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/ws": "^8.18.1",
-    "electron": "35.0.1",
+    "electron": "34.5.8",
     "electron-devtools-installer": "^4.0.0",
     "electron-playwright-helpers": "^1.7.1",
     "eslint": "^9.22.0",
@@ -76,6 +76,8 @@
     "vitest": "^3.0.8"
   },
   "dependencies": {
+    "@daveyplate/better-auth-tanstack": "1.3.6",
+    "@daveyplate/better-auth-ui": "1.7.4",
     "@ai-sdk/openai": "^1.3.10",
     "@fontsource/inter": "^5.2.5",
     "@hono/node-server": "^1.14.3",
