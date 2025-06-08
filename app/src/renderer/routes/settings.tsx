@@ -15,7 +15,7 @@ import {
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
-import { ConnectAppsTab } from "@/renderer/components/settings/app-tab";
+import { AppTab } from "@/renderer/components/settings/app-tab";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
@@ -461,7 +461,7 @@ function SettingsPage() {
         )}
 
         {/* App Tab Content */}
-        {activeTab === "app" && <ConnectAppsTab />}
+        {activeTab === "app" && <AppTab />}
 
         {/* Developer Tab Content */}
         {activeTab === "developer" && (
