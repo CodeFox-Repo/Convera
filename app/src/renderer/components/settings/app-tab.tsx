@@ -6,13 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/renderer/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/renderer/components/ui/dialog";
+
 import { Input } from "@/renderer/components/ui/input";
 import {
   Tabs,
@@ -20,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
-import { ExternalLink, Loader2, Plug, Search, Trash2 } from "lucide-react";
+import { Loader2, Plug, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -44,8 +38,7 @@ export function AppTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isConnecting, setIsConnecting] = useState<Record<string, boolean>>({});
-  const [selectedApp, setSelectedApp] = useState<AvailableApp | null>(null);
-  const [showAppDetails, setShowAppDetails] = useState(false);
+
   const [activeTab, setActiveTab] = useState("connected");
   const [loading, setLoading] = useState(true);
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
@@ -54,9 +47,15 @@ export function AppTab() {
   // Helper function to get icon for app type
   const getAppIcon = (app: ConnectedApp | AvailableApp) => {
     if (app.logoUrl) {
-      return <img src={app.logoUrl} alt={app.name} className="h-8 w-8" />;
+      return (
+        <img
+          src={app.logoUrl}
+          alt={app.name}
+          className="h-8 w-8 object-contain rounded-sm"
+        />
+      );
     }
-    return <Plug className="h-8 w-8 text-gray-500" />;
+    return <Plug className="h-8 w-8 text-gray-500 flex-shrink-0" />;
   };
 
   // Fetch apps from API
@@ -146,10 +145,54 @@ export function AppTab() {
     }
   };
 
-  const handleViewAppDetails = (app: AvailableApp) => {
-    setSelectedApp(app);
-    setShowAppDetails(true);
-  };
+  // Unified app card component
+  const AppCard = ({
+    app,
+    isConnected,
+  }: {
+    app: ConnectedApp | AvailableApp;
+    isConnected: boolean;
+  }) => (
+    <Card className="relative border-border/20 h-[180px] flex flex-col">
+      <CardHeader className="pb-3 flex-none">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-none">{getAppIcon(app)}</div>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-base truncate">{app.name}</CardTitle>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 flex-1 flex flex-col justify-end">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {isConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 border-border/30"
+                onClick={() => handleDisconnectApp(app as ConnectedApp)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Disconnect
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => handleConnectApp(app as AvailableApp)}
+                disabled={isConnecting[app.id]}
+                className="flex-1"
+              >
+                {isConnecting[app.id] && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Connect
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   // Get unique categories from all apps
   const categories = [
@@ -218,42 +261,9 @@ export function AppTab() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {connectedApps.map((app) => (
-                <Card key={app.id} className="relative border-border/20">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getAppIcon(app)}
-                        <div>
-                          <CardTitle className="text-base">
-                            {app.name}
-                          </CardTitle>
-                        </div>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        Connected
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground"></div>
-
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 border-border/30"
-                          onClick={() => handleDisconnectApp(app)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Disconnect
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <AppCard key={app.id} app={app} isConnected={true} />
               ))}
             </div>
           )}
@@ -290,46 +300,7 @@ export function AppTab() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredApps.map((app) => (
-              <Card
-                key={app.id}
-                className="relative group hover:shadow-md transition-shadow border-border/20"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    {getAppIcon(app)}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base">{app.name}</CardTitle>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectApp(app)}
-                        disabled={isConnecting[app.id]}
-                        className="flex-1"
-                      >
-                        {isConnecting[app.id] && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Connect
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewAppDetails(app)}
-                        className="border-border/30"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AppCard key={app.id} app={app} isConnected={false} />
             ))}
           </div>
 
@@ -346,71 +317,6 @@ export function AppTab() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* App Details Dialog */}
-      <Dialog open={showAppDetails} onOpenChange={setShowAppDetails}>
-        <DialogContent className="max-w-lg border-border/20">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedApp && getAppIcon(selectedApp)}
-              {selectedApp?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedApp && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Details</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Category:</span>
-                    <span>{selectedApp.category}</span>
-                  </div>
-                </div>
-              </div>
-
-              {selectedApp.mcpConfig && (
-                <div>
-                  <h4 className="font-medium mb-2">MCP Configuration</h4>
-                  <div className="bg-muted/50 rounded p-3 text-xs">
-                    <pre className="whitespace-pre-wrap">
-                      {JSON.stringify(selectedApp.mcpConfig, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAppDetails(false)}
-              className="border-border/30"
-            >
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedApp) {
-                  handleConnectApp(selectedApp);
-                  setShowAppDetails(false);
-                }
-              }}
-              disabled={isConnecting[selectedApp?.id || ""]}
-            >
-              {isConnecting[selectedApp?.id || ""] ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                "Connect App"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
