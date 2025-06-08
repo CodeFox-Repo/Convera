@@ -1,4 +1,8 @@
-import type { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import type {
+  GeneralMCPConfig,
+  MCPServerConfig,
+  ToolDefinition,
+} from "@/server/mcp/types";
 import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
 import { toast } from "sonner";
 import { create } from "zustand";

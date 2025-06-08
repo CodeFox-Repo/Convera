@@ -266,7 +266,10 @@ export function HomePage() {
                 <Settings size={16} />
                 <span className="text-sm">Settings</span>
               </button>
-              <UserButton size="full" />
+              <UserButton
+                size="full"
+                className="w-full border-none shadow-none"
+              />
             </div>
           ) : (
             <div className="space-y-2 flex flex-col items-center">
