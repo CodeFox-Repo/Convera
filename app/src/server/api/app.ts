@@ -43,12 +43,9 @@ const appSources = {
       source: "remote" as const,
       category: "communication",
       mcpConfig: {
-        serverUrl: "http://localhost:8788/sse",
-        installCommand: "npx mcp-remote http://localhost:8788/sse",
-        configSchema: {
-          workspaceUrl: { type: "string", required: true },
-          apiToken: { type: "string", required: true, secure: true },
-        },
+        command: "npx",
+        args: ["mcp-remote", "http://localhost:8788/sse"],
+        name: "Gmail",
       },
     },
   ],
@@ -169,6 +166,9 @@ app.post("/api/apps/connect", async (c) => {
     // For MCP apps: install package, start server, configure
     // For integrations: OAuth flow, API setup, etc.
     console.log(`Connecting app: ${appId}`, { config });
+
+    if (appToConnect.type === "mcp") {
+    }
 
     // For now, just add to connected apps
     const connectedApp: ConnectedApp = {
