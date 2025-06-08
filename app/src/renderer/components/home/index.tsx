@@ -2,7 +2,6 @@ import { useChatHistory } from "@/renderer/libs/hooks/use-chat-history";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
-import { UserButton } from "@daveyplate/better-auth-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
@@ -14,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+import { UserButton } from "../auth/user-button";
 import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
 import ChatContent from "../chat/message/chat-content";
 
@@ -266,10 +266,7 @@ export function HomePage() {
                 <Settings size={16} />
                 <span className="text-sm">Settings</span>
               </button>
-              <UserButton
-                size="full"
-                className="w-full border-none shadow-none"
-              />
+              <UserButton collapsed={false} />
             </div>
           ) : (
             <div className="space-y-2 flex flex-col items-center">
@@ -279,6 +276,7 @@ export function HomePage() {
               <button className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                 <Settings size={16} />
               </button>
+              <UserButton collapsed={true} />
             </div>
           )}
         </div>
