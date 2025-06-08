@@ -1,22 +1,14 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/renderer/components/ui/accordion";
 import { Badge } from "@/renderer/components/ui/badge";
 import { Button } from "@/renderer/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/renderer/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -28,125 +20,96 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
-import {
-  Calendar,
-  CheckCircle,
-  ExternalLink,
-  Github,
-  Loader2,
-  Mail,
-  Plug,
-  Search,
-  Slack,
-  Trash2,
-  Twitter,
-} from "lucide-react";
-import React, { useState } from "react";
+import { ExternalLink, Loader2, Plug, Search, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface ConnectedApp {
   id: string;
   name: string;
-  description: string;
-  icon: React.ReactNode;
-  status: "connected" | "error" | "pending";
-  connectedAt: string;
-  permissions: string[];
+  logoUrl: string;
   category: string;
+  mcpConfig?: any;
 }
 
 interface AvailableApp {
   id: string;
   name: string;
-  description: string;
-  icon: React.ReactNode;
+  logoUrl: string;
   category: string;
-  tags: string[];
-  isConnected: boolean;
-  isPopular: boolean;
-  documentation?: string;
+  mcpConfig?: any;
 }
 
-export function ConnectAppsTab() {
+export function AppTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isConnecting, setIsConnecting] = useState<Record<string, boolean>>({});
   const [selectedApp, setSelectedApp] = useState<AvailableApp | null>(null);
   const [showAppDetails, setShowAppDetails] = useState(false);
   const [activeTab, setActiveTab] = useState("connected");
+  const [loading, setLoading] = useState(true);
+  const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
+  const [availableApps, setAvailableApps] = useState<AvailableApp[]>([]);
 
-  // Mock data for connected apps
-  const [connectedApps] = useState<ConnectedApp[]>([
-    {
-      id: "gmail",
-      name: "Gmail",
-      description: "Access and manage your Gmail emails",
-      icon: <Mail className="h-8 w-8 text-red-500" />,
-      status: "connected",
-      connectedAt: "2024-01-15",
-      permissions: ["Read emails", "Send emails", "Manage labels"],
-      category: "Communication",
-    },
-    {
-      id: "github",
-      name: "GitHub",
-      description: "Manage repositories and pull requests",
-      icon: <Github className="h-8 w-8 text-gray-800 dark:text-white" />,
-      status: "connected",
-      connectedAt: "2024-01-10",
-      permissions: [
-        "Read repositories",
-        "Create issues",
-        "Manage pull requests",
-      ],
-      category: "Development",
-    },
-    {
-      id: "slack",
-      name: "Slack",
-      description: "Send messages and manage channels",
-      icon: <Slack className="h-8 w-8 text-purple-500" />,
-      status: "error",
-      connectedAt: "2024-01-08",
-      permissions: ["Send messages", "Read channels", "Manage workspace"],
-      category: "Communication",
-    },
-  ]);
+  // Helper function to get icon for app type
+  const getAppIcon = (app: ConnectedApp | AvailableApp) => {
+    if (app.logoUrl) {
+      return <img src={app.logoUrl} alt={app.name} className="h-8 w-8" />;
+    }
+    return <Plug className="h-8 w-8 text-gray-500" />;
+  };
 
-  // Mock data for available apps
-  const [availableApps] = useState<AvailableApp[]>([
-    {
-      id: "twitter",
-      name: "Twitter/X",
-      description: "Post tweets and manage your Twitter account",
-      icon: <Twitter className="h-8 w-8 text-blue-400" />,
-      category: "Social Media",
-      tags: ["social", "posting", "engagement"],
-      isConnected: false,
-      isPopular: true,
-      documentation: "https://docs.composio.dev/apps/twitter",
-    },
-    {
-      id: "calendar",
-      name: "Google Calendar",
-      description: "Create and manage calendar events",
-      icon: <Calendar className="h-8 w-8 text-blue-600" />,
-      category: "Productivity",
-      tags: ["calendar", "scheduling", "events"],
-      isConnected: false,
-      isPopular: true,
-      documentation: "https://docs.composio.dev/apps/calendar",
-    },
-  ]);
+  // Fetch apps from API
+  const fetchApps = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:38000/api/apps");
 
-  const categories = ["all"];
+      if (!response.ok) {
+        throw new Error("Failed to fetch apps");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        setConnectedApps(result.data.connected || []);
+        setAvailableApps(result.data.available || []);
+      } else {
+        throw new Error(result.error || "Failed to fetch apps");
+      }
+    } catch (error) {
+      console.error("Error fetching apps:", error);
+      toast.error("Failed to load apps");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load apps on mount
+  useEffect(() => {
+    fetchApps();
+  }, []);
 
   const handleConnectApp = async (app: AvailableApp) => {
     setIsConnecting((prev) => ({ ...prev, [app.id]: true }));
     try {
-      // Mock connection process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.success(`Successfully connected to ${app.name}`);
+      const response = await fetch("http://localhost:38000/api/apps/connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ appId: app.id }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message);
+        // Refresh the apps list
+        await fetchApps();
+      } else {
+        throw new Error(result.error || "Failed to connect app");
+      }
     } catch (error) {
       console.error(`Error connecting to ${app.name}:`, error);
       toast.error(`Failed to connect to ${app.name}`);
@@ -157,9 +120,26 @@ export function ConnectAppsTab() {
 
   const handleDisconnectApp = async (app: ConnectedApp) => {
     try {
-      // Mock disconnection process
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Disconnected from ${app.name}`);
+      const response = await fetch(
+        "http://localhost:38000/api/apps/disconnect",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ appId: app.id }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message);
+        // Refresh the apps list
+        await fetchApps();
+      } else {
+        throw new Error(result.error || "Failed to disconnect app");
+      }
     } catch (error) {
       console.error(`Error disconnecting from ${app.name}:`, error);
       toast.error(`Failed to disconnect from ${app.name}`);
@@ -171,14 +151,16 @@ export function ConnectAppsTab() {
     setShowAppDetails(true);
   };
 
+  // Get unique categories from all apps
+  const categories = [
+    "all",
+    ...new Set([...connectedApps, ...availableApps].map((app) => app.category)),
+  ];
+
   const filteredApps = availableApps.filter((app) => {
     const matchesSearch =
       searchQuery === "" ||
-      app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+      app.name.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesCategory =
       selectedCategory === "all" || app.category === selectedCategory;
@@ -186,40 +168,23 @@ export function ConnectAppsTab() {
     return matchesSearch && matchesCategory;
   });
 
-  const getStatusBadge = (status: ConnectedApp["status"]) => {
-    switch (status) {
-      case "connected":
-        return (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            Connected
-          </Badge>
-        );
-      case "error":
-        return (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            Error
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-            Pending
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading apps...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-medium text-foreground mb-2">
-          Connect Apps
-        </h2>
+        <h2 className="text-2xl font-medium text-foreground mb-2">Apps</h2>
         <p className="text-muted-foreground">
-          Connect external applications using Composio to enhance your AI
-          assistants capabilities
+          Manage your connected applications and browse available apps
         </p>
       </div>
 
@@ -259,48 +224,21 @@ export function ConnectAppsTab() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {app.icon}
+                        {getAppIcon(app)}
                         <div>
                           <CardTitle className="text-base">
                             {app.name}
                           </CardTitle>
-                          <CardDescription className="text-sm">
-                            {app.description}
-                          </CardDescription>
                         </div>
                       </div>
-                      {getStatusBadge(app.status)}
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Connected
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Connected on{" "}
-                          {new Date(app.connectedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="permissions" className="border-0">
-                          <AccordionTrigger className="text-sm py-2 hover:no-underline">
-                            View Permissions ({app.permissions.length})
-                          </AccordionTrigger>
-                          <AccordionContent className="pt-0">
-                            <ul className="space-y-1">
-                              {app.permissions.map((permission, index) => (
-                                <li
-                                  key={index}
-                                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                                >
-                                  <CheckCircle className="h-3 w-3 text-green-500" />
-                                  {permission}
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground"></div>
 
                       <div className="flex gap-2 pt-2">
                         <Button
@@ -358,50 +296,27 @@ export function ConnectAppsTab() {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
-                    {app.icon}
+                    {getAppIcon(app)}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base">{app.name}</CardTitle>
-                        {app.isPopular && (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs border-border/20"
-                          >
-                            Popular
-                          </Badge>
-                        )}
                       </div>
-                      <CardDescription className="text-sm">
-                        {app.description}
-                      </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {app.tags.slice(0, 3).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="text-xs border-border/30"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleConnectApp(app)}
-                        disabled={isConnecting[app.id] || app.isConnected}
+                        disabled={isConnecting[app.id]}
                         className="flex-1"
                       >
                         {isConnecting[app.id] && (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
-                        {app.isConnected ? "Connected" : "Connect"}
+                        Connect
                       </Button>
                       <Button
                         variant="outline"
@@ -437,48 +352,31 @@ export function ConnectAppsTab() {
         <DialogContent className="max-w-lg border-border/20">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {selectedApp?.icon}
+              {selectedApp && getAppIcon(selectedApp)}
               {selectedApp?.name}
             </DialogTitle>
-            <DialogDescription>{selectedApp?.description}</DialogDescription>
           </DialogHeader>
 
           {selectedApp && (
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium mb-2">Category</h4>
-                <Badge variant="outline" className="border-border/30">
-                  {selectedApp.category}
-                </Badge>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Tags</h4>
-                <div className="flex flex-wrap gap-1">
-                  {selectedApp.tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="text-xs border-border/20"
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
+                <h4 className="font-medium mb-2">Details</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Category:</span>
+                    <span>{selectedApp.category}</span>
+                  </div>
                 </div>
               </div>
 
-              {selectedApp.documentation && (
+              {selectedApp.mcpConfig && (
                 <div>
-                  <h4 className="font-medium mb-2">Documentation</h4>
-                  <a
-                    href={selectedApp.documentation}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    View Documentation
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <h4 className="font-medium mb-2">MCP Configuration</h4>
+                  <div className="bg-muted/50 rounded p-3 text-xs">
+                    <pre className="whitespace-pre-wrap">
+                      {JSON.stringify(selectedApp.mcpConfig, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               )}
             </div>
@@ -499,9 +397,16 @@ export function ConnectAppsTab() {
                   setShowAppDetails(false);
                 }
               }}
-              disabled={selectedApp?.isConnected}
+              disabled={isConnecting[selectedApp?.id || ""]}
             >
-              {selectedApp?.isConnected ? "Already Connected" : "Connect App"}
+              {isConnecting[selectedApp?.id || ""] ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                "Connect App"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
