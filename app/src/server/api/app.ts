@@ -12,7 +12,7 @@ interface App {
   type: "web" | "mcp";
   source: "predefined" | "marketplace" | "custom";
   category: string;
-  icon?: string;
+  logoUrl?: string;
   isConnected?: boolean;
   lastConnected?: string;
   // MCP-specific fields
@@ -64,6 +64,7 @@ function convertMCPServerToApp(
     type: "mcp",
     source: "predefined",
     category: "Tools", // Default category for MCP servers
+    logoUrl: mcpServer.logoUrl,
     mcpConfig: {
       ...mcpServer.defaultConfig,
       enabled: isConnected,
