@@ -1,11 +1,8 @@
 import { Hono } from "hono";
-import os from "os";
-import path from "path";
+import { MCPManager } from "../mcp/mcp-manager";
+import { PredefinedMCPServer } from "../mcp/types";
 
 const app = new Hono();
-
-const mcpDir = path.join(os.homedir(), ".foxychat", "mcp.json");
-const appDir = path.join(os.homedir(), ".foxychat", "app.json");
 
 // Types for app management
 interface App {
@@ -13,12 +10,26 @@ interface App {
   name: string;
   description: string;
   type: "web" | "mcp";
-  version?: string;
-  source: "remote" | "marketplace";
+  source: "predefined" | "marketplace" | "custom";
   category: string;
   icon?: string;
   isConnected?: boolean;
   lastConnected?: string;
+  // MCP-specific fields
+  mcpConfig?: {
+    command?: string;
+    args?: string[];
+    name?: string;
+    url?: string;
+    enabled?: boolean;
+  };
+  // Future marketplace fields
+  marketplaceInfo?: {
+    publisher: string;
+    rating: number;
+    downloads: number;
+    verified: boolean;
+  };
 }
 
 interface ConnectedApp extends App {
@@ -27,43 +38,129 @@ interface ConnectedApp extends App {
   connectionConfig?: Record<string, any>;
 }
 
-// In-memory storage for demo (in production, this would be a database)
-let connectedApps: ConnectedApp[] = [];
+// App sources registry - designed for extensibility
+interface AppSource {
+  id: string;
+  name: string;
+  type: "predefined" | "marketplace" | "custom";
+  enabled: boolean;
+  fetcher: () => Promise<App[]>;
+}
 
-// Available apps from different sources - designed to be scalable
-const appSources = {
-  // Remote MCP apps - hardcoded for now but structured for scalability
-  remote: [
-    {
-      id: "Gmail",
-      name: "Gmail",
-      description: "Connect to gmail workspaces and manage messages",
-      type: "mcp" as const,
-      version: "2.1.0",
-      source: "remote" as const,
-      category: "communication",
-      mcpConfig: {
-        command: "npx",
-        args: ["mcp-remote", "http://localhost:8788/sse"],
-        name: "Gmail",
-      },
+// Get MCP Manager instance
+function getMCPManager(): MCPManager {
+  return MCPManager.getInstance();
+}
+
+// Helper function to convert predefined MCP server to App format
+function convertMCPServerToApp(
+  mcpServer: PredefinedMCPServer,
+  isConnected: boolean = false,
+): App {
+  return {
+    id: mcpServer.id,
+    name: mcpServer.name,
+    description: mcpServer.description,
+    type: "mcp",
+    source: "predefined",
+    category: "Tools", // Default category for MCP servers
+    mcpConfig: {
+      ...mcpServer.defaultConfig,
+      enabled: isConnected,
     },
-  ],
+    isConnected,
+  };
+}
 
-  // Marketplace apps - for future extensibility
-  marketplace: [],
-};
+// App sources registry
+const appSources: AppSource[] = [
+  // Predefined MCP servers source
+  {
+    id: "predefined-mcp",
+    name: "Predefined MCP Servers",
+    type: "predefined",
+    enabled: true,
+    fetcher: async (): Promise<App[]> => {
+      const mcpManager = getMCPManager();
+      const predefinedServers = mcpManager.getAllPredefinedServers();
+      const connectedConfigs = mcpManager.getAllServerConfigs();
 
-// Helper function to get all available apps
-function getAllAvailableApps(): App[] {
+      return predefinedServers.map((server) => {
+        const isConnected = !!connectedConfigs[server.id];
+        return convertMCPServerToApp(server, isConnected);
+      });
+    },
+  },
+
+  // Future marketplace source (placeholder)
+  {
+    id: "marketplace",
+    name: "App Marketplace",
+    type: "marketplace",
+    enabled: false, // Will be enabled when marketplace is ready
+    fetcher: async (): Promise<App[]> => {
+      // TODO: Implement marketplace API integration
+      // This could fetch from a remote marketplace API
+      return [];
+    },
+  },
+
+  // Custom apps source (for user-added apps)
+  {
+    id: "custom",
+    name: "Custom Apps",
+    type: "custom",
+    enabled: true,
+    fetcher: async (): Promise<App[]> => {
+      // TODO: Load custom apps from local storage
+      // This could read from appDir file
+      return [];
+    },
+  },
+];
+
+// Helper function to get all available apps from all sources
+async function getAllAvailableApps(): Promise<App[]> {
   const allApps: App[] = [];
 
-  // Aggregate apps from all sources
-  Object.entries(appSources).forEach(([sourceType, apps]) => {
-    allApps.push(...apps);
-  });
+  for (const source of appSources) {
+    if (source.enabled) {
+      try {
+        const apps = await source.fetcher();
+        allApps.push(...apps);
+      } catch (error) {
+        console.error(`Error fetching apps from source ${source.id}:`, error);
+      }
+    }
+  }
 
   return allApps;
+}
+
+// Helper function to get connected apps
+function getConnectedApps(): ConnectedApp[] {
+  const mcpManager = getMCPManager();
+  const connectedConfigs = mcpManager.getAllServerConfigs();
+  const serverStatuses = mcpManager.getAllServerStatus();
+
+  const connectedApps: ConnectedApp[] = [];
+
+  for (const [id, config] of Object.entries(connectedConfigs)) {
+    const status = serverStatuses.find((s) => s.id === id);
+    const predefinedServer = mcpManager.getPredefinedServerById(id);
+
+    if (predefinedServer) {
+      const app = convertMCPServerToApp(predefinedServer, true);
+      connectedApps.push({
+        ...app,
+        isConnected: true,
+        lastConnected: new Date().toISOString(), // TODO: Store actual connection time
+        connectionConfig: config,
+      });
+    }
+  }
+
+  return connectedApps;
 }
 
 // Helper function to format time ago
@@ -86,9 +183,12 @@ function formatTimeAgo(isoString: string): string {
 }
 
 // GET /api/apps - Get all apps (connected and available)
-app.get("/api/apps", (c) => {
+app.get("/api/apps", async (c) => {
   try {
-    const availableApps = getAllAvailableApps();
+    const [availableApps, connectedApps] = await Promise.all([
+      getAllAvailableApps(),
+      Promise.resolve(getConnectedApps()),
+    ]);
 
     // Format connected apps for frontend
     const formattedConnectedApps = connectedApps.map((app) => ({
@@ -97,8 +197,9 @@ app.get("/api/apps", (c) => {
     }));
 
     // Get apps that are available but not connected
+    const connectedIds = new Set(connectedApps.map((app) => app.id));
     const availableNotConnected = availableApps.filter(
-      (app) => !connectedApps.some((connected) => connected.id === app.id),
+      (app) => !connectedIds.has(app.id),
     );
 
     return c.json({
@@ -106,7 +207,12 @@ app.get("/api/apps", (c) => {
       data: {
         connected: formattedConnectedApps,
         available: availableNotConnected,
-        sources: Object.keys(appSources), // For debugging/info
+        sources: appSources.map((source) => ({
+          id: source.id,
+          name: source.name,
+          type: source.type,
+          enabled: source.enabled,
+        })),
       },
     });
   } catch (error) {
@@ -125,7 +231,7 @@ app.get("/api/apps", (c) => {
 app.post("/api/apps/connect", async (c) => {
   try {
     const body = await c.req.json();
-    const { appId, config } = body;
+    const { appId, config = {} } = body;
 
     if (!appId) {
       return c.json(
@@ -137,8 +243,11 @@ app.post("/api/apps/connect", async (c) => {
       );
     }
 
-    // Check if app is already connected
-    if (connectedApps.some((app) => app.id === appId)) {
+    const mcpManager = getMCPManager();
+
+    // Check if app is already connected (for MCP apps)
+    const existingConfig = mcpManager.getServerConfig(appId);
+    if (existingConfig) {
       return c.json(
         {
           success: false,
@@ -148,8 +257,8 @@ app.post("/api/apps/connect", async (c) => {
       );
     }
 
-    // Find the app in available apps
-    const availableApps = getAllAvailableApps();
+    // Get all available apps to find the one to connect
+    const availableApps = await getAllAvailableApps();
     const appToConnect = availableApps.find((app) => app.id === appId);
 
     if (!appToConnect) {
@@ -162,32 +271,78 @@ app.post("/api/apps/connect", async (c) => {
       );
     }
 
-    // TODO: Implement actual connection logic based on app type and source
-    // For MCP apps: install package, start server, configure
-    // For integrations: OAuth flow, API setup, etc.
-    console.log(`Connecting app: ${appId}`, { config });
+    // Handle different app types
+    if (appToConnect.type === "mcp" && appToConnect.source === "predefined") {
+      // Handle predefined MCP server installation
+      console.log(`Installing predefined MCP server: ${appId}`);
 
-    if (appToConnect.type === "mcp") {
+      const installResult = mcpManager.installPredefinedServer(appId);
+
+      if (!installResult) {
+        return c.json(
+          {
+            success: false,
+            error: "Failed to install MCP server",
+          },
+          500,
+        );
+      }
+
+      // Start the server after installation
+      try {
+        await mcpManager.startServer(appId);
+        console.log(`Successfully started MCP server: ${appId}`);
+      } catch (error) {
+        console.warn(
+          `MCP server ${appId} installed but failed to start:`,
+          error,
+        );
+        // Don't fail the connection if server can't start immediately
+      }
+
+      return c.json({
+        success: true,
+        message: `${appToConnect.name} connected successfully`,
+        data: {
+          id: appId,
+          name: appToConnect.name,
+          type: appToConnect.type,
+          source: appToConnect.source,
+          connectedAt: new Date().toISOString(),
+        },
+      });
+    } else if (
+      appToConnect.type === "mcp" &&
+      appToConnect.source === "marketplace"
+    ) {
+      // Handle marketplace MCP app installation
+      // TODO: Implement marketplace app installation logic
+      return c.json(
+        {
+          success: false,
+          error: "Marketplace apps not yet supported",
+        },
+        501,
+      );
+    } else if (appToConnect.type === "web") {
+      // Handle web app connections (OAuth, API keys, etc.)
+      // TODO: Implement web app connection logic
+      return c.json(
+        {
+          success: false,
+          error: "Web app connections not yet supported",
+        },
+        501,
+      );
     }
 
-    // For now, just add to connected apps
-    const connectedApp: ConnectedApp = {
-      ...appToConnect,
-      isConnected: true,
-      lastConnected: new Date().toISOString(),
-      connectionConfig: config,
-    };
-
-    connectedApps.push(connectedApp);
-
-    return c.json({
-      success: true,
-      message: `${appToConnect.name} connected successfully`,
-      data: {
-        ...connectedApp,
-        lastConnected: formatTimeAgo(connectedApp.lastConnected),
+    return c.json(
+      {
+        success: false,
+        error: "Unsupported app type or source",
       },
-    });
+      400,
+    );
   } catch (error) {
     console.error("Error connecting app:", error);
     return c.json(
@@ -216,10 +371,11 @@ app.post("/api/apps/disconnect", async (c) => {
       );
     }
 
-    // Find the connected app
-    const appIndex = connectedApps.findIndex((app) => app.id === appId);
+    const mcpManager = getMCPManager();
 
-    if (appIndex === -1) {
+    // Check if app is connected (for MCP apps)
+    const existingConfig = mcpManager.getServerConfig(appId);
+    if (!existingConfig) {
       return c.json(
         {
           success: false,
@@ -229,20 +385,39 @@ app.post("/api/apps/disconnect", async (c) => {
       );
     }
 
-    const appToDisconnect = connectedApps[appIndex];
+    // Get app info
+    const predefinedServer = mcpManager.getPredefinedServerById(appId);
+    if (predefinedServer) {
+      // Handle predefined MCP server uninstallation
+      console.log(`Uninstalling predefined MCP server: ${appId}`);
 
-    // TODO: Implement actual disconnection logic
-    // For MCP apps: stop server, cleanup resources
-    // For integrations: revoke tokens, cleanup webhooks, etc.
-    console.log(`Disconnecting app: ${appId}`);
+      const uninstallResult = mcpManager.uninstallPredefinedServer(appId);
 
-    // Remove from connected apps
-    connectedApps.splice(appIndex, 1);
+      if (!uninstallResult) {
+        return c.json(
+          {
+            success: false,
+            error: "Failed to uninstall MCP server",
+          },
+          500,
+        );
+      }
 
-    return c.json({
-      success: true,
-      message: `${appToDisconnect.name} disconnected successfully`,
-    });
+      return c.json({
+        success: true,
+        message: `${predefinedServer.name} disconnected successfully`,
+      });
+    } else {
+      // Handle other app types (marketplace, web apps, etc.)
+      // TODO: Implement other app disconnection logic
+      return c.json(
+        {
+          success: false,
+          error: "App type not supported for disconnection",
+        },
+        501,
+      );
+    }
   } catch (error) {
     console.error("Error disconnecting app:", error);
     return c.json(

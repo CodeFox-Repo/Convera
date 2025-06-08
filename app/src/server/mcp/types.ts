@@ -36,7 +36,7 @@ export interface MCPServerConfig {
 export interface PredefinedMCPServer {
   id: string;
   name: string;
-  repoUrl: string;
+  repoUrl?: string;
   description: string;
   defaultConfig: MCPServerConfig;
   logoUrl?: string;
