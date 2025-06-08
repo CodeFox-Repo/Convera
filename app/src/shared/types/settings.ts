@@ -30,6 +30,14 @@ export interface McpMarketplaceItem {
   updatedAt: string;
 }
 
+export interface MCPConfig {
+  command?: string;
+  args?: string[];
+  name?: string;
+  url?: string;
+  enabled?: boolean;
+}
+
 export interface McpMarketplaceCatalog {
   items: McpMarketplaceItem[];
 }

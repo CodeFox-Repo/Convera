@@ -1,3 +1,4 @@
+import { MCPConfig } from "@/shared/types/settings";
 import { Hono } from "hono";
 import { MCPManager } from "../mcp/mcp-manager";
 import { PredefinedMCPServer } from "../mcp/types";
@@ -35,7 +36,7 @@ interface App {
 interface ConnectedApp extends App {
   isConnected: true;
   lastConnected: string;
-  connectionConfig?: Record<string, any>;
+  connectionConfig?: MCPConfig;
 }
 
 // App sources registry - designed for extensibility
@@ -142,12 +143,10 @@ async function getAllAvailableApps(): Promise<App[]> {
 function getConnectedApps(): ConnectedApp[] {
   const mcpManager = getMCPManager();
   const connectedConfigs = mcpManager.getAllServerConfigs();
-  const serverStatuses = mcpManager.getAllServerStatus();
 
   const connectedApps: ConnectedApp[] = [];
 
   for (const [id, config] of Object.entries(connectedConfigs)) {
-    const status = serverStatuses.find((s) => s.id === id);
     const predefinedServer = mcpManager.getPredefinedServerById(id);
 
     if (predefinedServer) {
@@ -232,7 +231,7 @@ app.get("/api/apps", async (c) => {
 app.post("/api/apps/connect", async (c) => {
   try {
     const body = await c.req.json();
-    const { appId, config = {} } = body;
+    const { appId } = body;
 
     if (!appId) {
       return c.json(

@@ -14,6 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
+import { MCPConfig } from "@/shared/types/settings";
 import { Loader2, Plug, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ interface ConnectedApp {
   name: string;
   logoUrl: string;
   category: string;
-  mcpConfig?: any;
+  mcpConfig?: MCPConfig;
 }
 
 interface AvailableApp {
@@ -31,7 +32,7 @@ interface AvailableApp {
   name: string;
   logoUrl: string;
   category: string;
-  mcpConfig?: any;
+  mcpConfig?: MCPConfig;
 }
 
 export function AppTab() {
