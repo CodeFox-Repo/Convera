@@ -308,12 +308,6 @@ export function HomePage() {
               {getCurrentChatTitle()}
             </h2>
           </div>
-
-          <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium">
-              Online
-            </div>
-          </div>
         </div>
 
         {/* Messages Area */}
