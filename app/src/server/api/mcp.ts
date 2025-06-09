@@ -14,7 +14,6 @@ import {
   IdSchema,
   MCPServerConfig,
   MCPServerType,
-  McpSettingsSchema,
   UpdateMcpConfigSchema,
 } from "../mcp/types";
 
@@ -74,25 +73,6 @@ router.get("/api/mcp/marketplace", async (c) => {
 
   return c.json({ status: "success", catalog });
 });
-
-// MCP settings endpoint
-router.post(
-  "/api/mcp/settings",
-  zValidator("json", McpSettingsSchema),
-  async (c) => {
-    const { toolId, settings } = c.req.valid("json");
-
-    // Here you would save the settings for the specific MCP tool
-    // This is a placeholder for the actual implementation
-    console.log(`Saving settings for MCP tool: ${toolId}`, settings);
-
-    // Return success
-    return c.json({
-      success: true,
-      message: `Settings for ${toolId} saved successfully`,
-    });
-  },
-);
 
 // Get all MCP server configurations
 router.get("/api/mcp/configurations", async (c) => {
