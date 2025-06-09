@@ -158,7 +158,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               </div>
             )}
 
-            <div className="drag-region flex flex-col p-4">
+            <div className="drag-region flex flex-col p-2">
               <div className="flex-1">
                 <ChatInput
                   ref={chatInputRef}
