@@ -156,9 +156,9 @@ export function AppTab() {
   }) => (
     <Card className="relative border-border/20 h-[180px] flex flex-col">
       <CardHeader className="pb-3 flex-none">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex flex-col items-center justify-center gap-3 flex-1 min-w-0">
           <div className="flex-none">{getAppIcon(app)}</div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 text-center w-full">
             <CardTitle className="text-base truncate">{app.name}</CardTitle>
           </div>
         </div>
