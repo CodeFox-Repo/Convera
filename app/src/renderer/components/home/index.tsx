@@ -19,7 +19,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { UserButton } from "../auth/user-button";
 import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
 import ChatContent from "../chat/message/chat-content";
-import { closeWindow } from "../drag-window-region";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -293,7 +292,7 @@ export function HomePage() {
         <div className="absolute top-4 left-4 z-10 flex gap-2">
           <button
             onClick={() => setSidebarCollapsed(false)}
-            className="p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+            className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
             aria-label="Expand sidebar"
             title="Expand Sidebar"
           >
@@ -301,7 +300,7 @@ export function HomePage() {
           </button>
           <button
             onClick={handleNewChat}
-            className="p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+            className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
             aria-label="New chat"
             title="New Chat"
           >
@@ -314,8 +313,8 @@ export function HomePage() {
       <div className="flex-1 flex flex-col bg-background relative">
         {/* Close Button - Top Right */}
         <button
-          onClick={closeWindow}
-          className="absolute top-4 right-4 z-10 p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+          onClick={() => window.electronAPI.toggleWindow("main")}
+          className="absolute top-4 right-4 z-10 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
           aria-label="Close window"
           title="Close Window"
         >

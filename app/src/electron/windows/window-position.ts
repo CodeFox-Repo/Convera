@@ -45,7 +45,13 @@ export function positionWindowAtCenterBottom(
   // If config is provided, ensure window size matches the config
   if (config) {
     // Calculate dimensions based on config
-    const dimensions = calculateWindowDimensions(config, bottomMargin);
+    console.log(
+      "Expected position is null, using bottom margin",
+      expectedPosition,
+    );
+    const dimensions = expectedPosition
+      ? expectedPosition
+      : calculateWindowDimensions(config, bottomMargin);
     window.setBounds(dimensions);
   } else {
     // Use current size but just reposition
@@ -55,7 +61,55 @@ export function positionWindowAtCenterBottom(
     const y = Math.round(
       primaryDisplay.workAreaSize.height - windowBounds.height - bottomMargin,
     );
-    window.setPosition(x, y);
+
+    // Compare with expected position if available
+    if (expectedPosition) {
+      const newPosition = {
+        x,
+        y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+      const currentPosition = {
+        x: windowBounds.x,
+        y: windowBounds.y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+
+      console.log(`Current position: ${JSON.stringify(currentPosition)}`);
+      console.log(`Expected position: ${JSON.stringify(expectedPosition)}`);
+      console.log(`Calculated position: ${JSON.stringify(newPosition)}`);
+
+      // Check if current position deviates significantly from expected
+      const xDiff = Math.abs(currentPosition.x - expectedPosition.x);
+      const yDiff = Math.abs(currentPosition.y - expectedPosition.y);
+
+      if (xDiff > 50 || yDiff > 50) {
+        console.log(
+          `Position deviation detected (x: ${xDiff}px, y: ${yDiff}px), repositioning to calculated position`,
+        );
+        window.setPosition(x, y);
+        // Update expected position to the new calculated position
+        expectedPosition = newPosition;
+      } else {
+        console.log(
+          `Position is within expected range, keeping current position`,
+        );
+        // Keep current position but update expected position
+        expectedPosition = currentPosition;
+      }
+    } else {
+      console.log(`No expected position set, using calculated position`);
+      window.setPosition(x, y);
+      // Set expected position to the new position
+      expectedPosition = {
+        x,
+        y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+    }
   }
 
   console.log(
