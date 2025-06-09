@@ -6,13 +6,14 @@ import {
   isPredefinedServerInstalled,
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
+import { getPredefinedServerById } from "../mcp/predefined-servers";
 import {
   DisabledToolsSchema,
   GeneralMCPConfig,
   GeneralMCPConfigSchema,
   IdSchema,
   MCPServerConfig,
-  McpSettingsSchema,
+  MCPServerType,
   UpdateMcpConfigSchema,
 } from "../mcp/types";
 
@@ -72,25 +73,6 @@ router.get("/api/mcp/marketplace", async (c) => {
 
   return c.json({ status: "success", catalog });
 });
-
-// MCP settings endpoint
-router.post(
-  "/api/mcp/settings",
-  zValidator("json", McpSettingsSchema),
-  async (c) => {
-    const { toolId, settings } = c.req.valid("json");
-
-    // Here you would save the settings for the specific MCP tool
-    // This is a placeholder for the actual implementation
-    console.log(`Saving settings for MCP tool: ${toolId}`, settings);
-
-    // Return success
-    return c.json({
-      success: true,
-      message: `Settings for ${toolId} saved successfully`,
-    });
-  },
-);
 
 // Get all MCP server configurations
 router.get("/api/mcp/configurations", async (c) => {
@@ -244,7 +226,7 @@ router.post(
     const { id } = c.req.valid("json");
 
     const manager = getMCPManager();
-    const success = manager.installPredefinedServer(id);
+    const success = manager.installPredefinedServer(id, MCPServerType.LOCAL);
 
     if (success) {
       const serverConfig = manager.getServerConfig(id);
@@ -267,29 +249,39 @@ router.post(
   },
 );
 
-// Uninstall predefined MCP server endpoint
-router.post(
-  "/api/mcp/predefined-servers/uninstall",
-  zValidator("json", IdSchema),
-  async (c) => {
-    const { id } = c.req.valid("json");
+// Uninstall MCP server endpoint
+router.post("/api/mcp/uninstall", zValidator("json", IdSchema), async (c) => {
+  const { id } = c.req.valid("json");
 
-    const manager = getMCPManager();
-    const serverStatus = manager.getServerStatus(id);
+  // Check if server is a built-in predefined server
+  const localPredefined = getPredefinedServerById(id, MCPServerType.LOCAL);
+  const remotePredefined = getPredefinedServerById(id, MCPServerType.REMOTE);
 
-    if (serverStatus?.running) {
-      await manager.stopServer(id);
-    }
+  if (localPredefined?.builtIn || remotePredefined?.builtIn) {
+    return c.json(
+      {
+        status: "error",
+        message: `Cannot uninstall built-in server ${id}`,
+      },
+      400,
+    );
+  }
 
-    const success = manager.unregisterServer(id);
-    const status = success ? 200 : 400;
-    const message = success
-      ? `Server ${id} uninstalled successfully`
-      : `Failed to uninstall server ${id}`;
+  const manager = getMCPManager();
+  const serverStatus = manager.getServerStatus(id);
 
-    return c.json({ status: success ? "success" : "error", message }, status);
-  },
-);
+  if (serverStatus?.running) {
+    await manager.stopServer(id);
+  }
+
+  const success = manager.unregisterServer(id);
+  const status = success ? 200 : 400;
+  const message = success
+    ? `Server ${id} uninstalled successfully`
+    : `Failed to uninstall server ${id}`;
+
+  return c.json({ status: success ? "success" : "error", message }, status);
+});
 
 // Get tools for a specific MCP server
 router.get("/api/mcp/servers/:id/tools", async (c) => {

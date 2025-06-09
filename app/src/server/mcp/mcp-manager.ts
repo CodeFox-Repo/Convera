@@ -11,12 +11,14 @@ import * as path from "path";
 import { serverTools } from "./dev-mcp/tools";
 import { MCPClient } from "./mcp-client";
 import {
+  PREDEFINED_REMOTE_SERVERS,
   PREDEFINED_SERVERS,
   getPredefinedServerById,
 } from "./predefined-servers";
 import {
   MCPConfig,
   MCPServerConfig,
+  MCPServerType,
   PredefinedMCPServer,
   ServerStatus,
 } from "./types";
@@ -519,24 +521,31 @@ export class MCPManager extends EventEmitter {
   /**
    * Get all predefined servers
    */
-  public getAllPredefinedServers(): PredefinedMCPServer[] {
-    return PREDEFINED_SERVERS;
+  public getAllPredefinedServers(type: MCPServerType): PredefinedMCPServer[] {
+    if (type === MCPServerType.LOCAL) {
+      return PREDEFINED_SERVERS;
+    } else {
+      return PREDEFINED_REMOTE_SERVERS;
+    }
   }
 
   /**
    * Get predefined server by ID
    * @param id Server ID
    */
-  public getPredefinedServerById(id: string): PredefinedMCPServer | undefined {
-    return getPredefinedServerById(id);
+  public getPredefinedServerById(
+    id: string,
+    type: MCPServerType,
+  ): PredefinedMCPServer | undefined {
+    return getPredefinedServerById(id, type);
   }
 
   /**
    * Install predefined server
    * @param id Predefined server ID
    */
-  public installPredefinedServer(id: string): boolean {
-    const predefinedServer = this.getPredefinedServerById(id);
+  public installPredefinedServer(id: string, type: MCPServerType): boolean {
+    const predefinedServer = this.getPredefinedServerById(id, type);
     if (!predefinedServer) {
       return false;
     }
@@ -575,38 +584,5 @@ export class MCPManager extends EventEmitter {
       console.error(`Error installing predefined server ${id}:`, error);
       return false;
     }
-  }
-
-  /**
-   * Uninstall predefined server
-   * @param id Server ID
-   * @returns Whether uninstallation was successful
-   */
-  public uninstallPredefinedServer(id: string): boolean {
-    // Check if this server is registered
-    if (!this.servers.has(id)) {
-      console.warn(`Server with ID ${id} not found, cannot uninstall`);
-      return false;
-    }
-
-    // Stop the server if it's running
-    const server = this.servers.get(id);
-    if (server && server.status.running) {
-      this.stopServer(id).catch((error) =>
-        console.error(`Error stopping server ${id} during uninstall:`, error),
-      );
-    }
-
-    // Unregister the server
-    const result = this.unregisterServer(id);
-    if (result) {
-      console.log(`Successfully uninstalled server ${id}`);
-      // Emit server uninstalled event
-      this.emit("server:uninstalled", id);
-    } else {
-      console.error(`Failed to uninstall server ${id}`);
-    }
-
-    return result;
   }
 }

@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { initializeAgents } from "./agents";
 import agentRouter from "./api/agent";
+import appRouter from "./api/app";
 import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
 import toolsRouter from "./api/tools";
@@ -24,6 +25,7 @@ const PORT = 38000;
 function startChatServer() {
   // Mount the routers to the app
   app.route("/", agentRouter);
+  app.route("/", appRouter);
   app.route("/", chatRouter);
   app.route("/", mcpRouter);
   app.route("/", toolsRouter);

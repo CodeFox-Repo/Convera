@@ -5,6 +5,7 @@ import {
   Code,
   LayoutGrid,
   Moon,
+  Plug,
   Server,
   Settings as SettingsIcon,
   Sun,
@@ -14,6 +15,7 @@ import {
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/agents-tab";
 import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
+import { AppTab } from "@/renderer/components/settings/app-tab";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
@@ -320,6 +322,7 @@ function SettingsPage() {
       label: "General",
       icon: <SettingsIcon className="h-5 w-5" />,
     },
+    { id: "app", label: "Apps", icon: <Plug className="h-5 w-5" /> },
     { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
     { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> },
     { id: "developer", label: "Developer", icon: <Code className="h-5 w-5" /> },
@@ -456,6 +459,9 @@ function SettingsPage() {
         {activeTab === "agents" && (
           <AgentsTab onNavigateToMcp={() => setActiveTab("mcp")} />
         )}
+
+        {/* App Tab Content */}
+        {activeTab === "app" && <AppTab />}
 
         {/* Developer Tab Content */}
         {activeTab === "developer" && (

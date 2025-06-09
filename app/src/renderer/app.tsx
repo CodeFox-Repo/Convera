@@ -50,7 +50,7 @@ export default function App() {
 
   // Use proper theme synchronization hook instead of manual sync
   useThemeSync();
-  
+
   // Auto-load and configure fonts
   useFonts();
 

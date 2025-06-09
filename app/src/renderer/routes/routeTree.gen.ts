@@ -11,12 +11,12 @@
 // Import Routes
 
 import { Route as rootRoute } from './__root'
-import { Route as SettingsImport } from './settings'
-import { Route as HistoryImport } from './history'
-import { Route as ChatImport } from './chat'
 import { Route as AgentPopoverImport } from './agent-popover'
-import { Route as IndexImport } from './index'
 import { Route as AuthPathnameImport } from './auth/$pathname'
+import { Route as ChatImport } from './chat'
+import { Route as HistoryImport } from './history'
+import { Route as IndexImport } from './index'
+import { Route as SettingsImport } from './settings'
 
 // Create/Update Routes
 
