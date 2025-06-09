@@ -5,17 +5,21 @@ import { cleanTitle } from "@/renderer/libs/utils/tag";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
+  ChevronLeft,
+  ChevronRight,
   MessageSquare,
   MoreHorizontal,
   Plus,
   Settings,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { UserButton } from "../auth/user-button";
 import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
 import ChatContent from "../chat/message/chat-content";
+import { closeWindow } from "../drag-window-region";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -45,11 +49,24 @@ export function HomePage() {
 
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Fetch chat history on component mount
   useEffect(() => {
     fetchChatHistory();
   }, [fetchChatHistory]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenMenuId(null);
+    };
+
+    if (openMenuId) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [openMenuId]);
 
   const handleNewChat = () => {
     // Clear current messages to start a new chat
@@ -69,6 +86,7 @@ export function HomePage() {
       setCurrentSessionId("");
       resetChat();
     }
+    setOpenMenuId(null); // Close menu after delete
   };
 
   const formatTimestamp = (dateString: string) => {
@@ -87,30 +105,21 @@ export function HomePage() {
     }
   };
 
-  // Get current chat title for header
-  const getCurrentChatTitle = () => {
-    if (currentSessionId) {
-      const currentChat = chatHistory.find(
-        (chat) => chat.id === currentSessionId,
-      );
-      return currentChat ? cleanTitle(currentChat.title) : "Chat";
-    }
-    return messages.length > 0 ? "New Chat" : "Chat";
-  };
-
   return (
     <div className="h-screen w-full flex bg-background">
       {/* Sidebar */}
       <motion.div
-        className={`bg-card flex flex-col border-r border-border transition-all duration-300 ${
-          sidebarCollapsed ? "w-16" : "w-80"
+        className={`bg-card flex flex-col border-r border-border/60 ${
+          sidebarCollapsed ? "w-0" : "w-80"
         }`}
         initial={false}
-        animate={{ width: sidebarCollapsed ? 64 : 320 }}
+        animate={{ width: sidebarCollapsed ? 0 : 320 }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        style={{ overflow: "hidden" }}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-border">
-          {!sidebarCollapsed ? (
+        {!sidebarCollapsed && (
+          <div className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles size={20} className="text-orange-500" />
@@ -118,31 +127,32 @@ export function HomePage() {
                   FoxyChat
                 </h1>
               </div>
-              <button
-                onClick={handleNewChat}
-                className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
-                aria-label="New chat"
-              >
-                <Plus size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleNewChat}
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                  aria-label="New chat"
+                  title="New Chat"
+                >
+                  <Plus size={16} />
+                </button>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  aria-label="Collapse sidebar"
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="flex justify-center">
-              <button
-                onClick={handleNewChat}
-                className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
-                aria-label="New chat"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Chat Sessions */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ overflow: "visible" }}>
           {!sidebarCollapsed ? (
-            <div className="p-2">
+            <div className="p-2" style={{ position: "relative", zIndex: 0 }}>
               {historyLoading && chatHistory.length === 0 ? (
                 <div className="flex items-center justify-center p-8">
                   <div className="text-center">
@@ -174,6 +184,7 @@ export function HomePage() {
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50"
                     }`}
+                    style={{ zIndex: 1 }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -197,17 +208,41 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all flex gap-1">
-                      <button
-                        onClick={(e) => handleDeleteChat(e, chat.id)}
-                        className="p-1 rounded hover:bg-destructive/20 hover:text-destructive transition-all"
-                        title="Delete chat"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      <button className="p-1 rounded hover:bg-muted transition-all">
-                        <MoreHorizontal size={12} />
-                      </button>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="relative">
+                        <button
+                          className="p-1 rounded hover:bg-muted transition-all"
+                          title="More options"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(
+                              openMenuId === chat.id ? null : chat.id,
+                            );
+                          }}
+                        >
+                          <MoreHorizontal size={12} />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {openMenuId === chat.id && (
+                          <div
+                            className="absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-md shadow-xl py-1"
+                            style={{ zIndex: 999 }}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseEnter={(e) => e.stopPropagation()}
+                            onMouseLeave={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-2"
+                              style={{ pointerEvents: "all" }}
+                              onClick={(e) => handleDeleteChat(e, chat.id)}
+                            >
+                              <Trash2 size={12} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 ))
@@ -232,31 +267,12 @@ export function HomePage() {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="p-2">
-              {chatHistory.map((chat) => (
-                <motion.div
-                  key={chat.id}
-                  onClick={() => handleSelectChat(chat.id)}
-                  className={`p-2 mb-1 rounded-lg cursor-pointer transition-all flex justify-center ${
-                    currentSessionId === chat.id
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/50"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  title={cleanTitle(chat.title)}
-                >
-                  <MessageSquare size={16} />
-                </motion.div>
-              ))}
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Sidebar Footer */}
-        <div className="border-t border-border p-4">
-          {!sidebarCollapsed ? (
+        {!sidebarCollapsed && (
+          <div className="border-t border-border/60 p-4">
             <div className="space-y-2">
               <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
                 <Archive size={16} />
@@ -268,47 +284,43 @@ export function HomePage() {
               </button>
               <UserButton collapsed={false} />
             </div>
-          ) : (
-            <div className="space-y-2 flex flex-col items-center">
-              <button className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                <Archive size={16} />
-              </button>
-              <button className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                <Settings size={16} />
-              </button>
-              <UserButton collapsed={true} />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </motion.div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-background">
-        {/* Chat Header */}
-        <div className="h-16 border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-semibold text-foreground">
-              {getCurrentChatTitle()}
-            </h2>
-          </div>
+      {/* Floating Controls - positioned at left edge when sidebar is collapsed */}
+      {sidebarCollapsed && (
+        <div className="absolute top-4 left-4 z-10 flex gap-2">
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+            aria-label="Expand sidebar"
+            title="Expand Sidebar"
+          >
+            <ChevronRight size={16} />
+          </button>
+          <button
+            onClick={handleNewChat}
+            className="p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+            aria-label="New chat"
+            title="New Chat"
+          >
+            <Plus size={16} />
+          </button>
         </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-background relative">
+        {/* Close Button - Top Right */}
+        <button
+          onClick={closeWindow}
+          className="absolute top-4 right-4 z-10 p-2 rounded-md bg-background/80 backdrop-blur-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150"
+          aria-label="Close window"
+          title="Close Window"
+        >
+          <X size={16} />
+        </button>
 
         {/* Messages Area */}
         {messages.length > 0 ? (
@@ -366,7 +378,7 @@ export function HomePage() {
         </AnimatePresence>
 
         {/* Input Area */}
-        <div className="border-t border-border p-6">
+        <div className="p-6">
           <div className="max-w-4xl mx-auto">
             <ChatInput
               ref={chatInputRef}
