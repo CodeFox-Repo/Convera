@@ -16,11 +16,7 @@ import { initProjectTool } from "./dev-mcp/tools/project-tools";
 import { webSearch } from "./dev-mcp/tools/web-search-tool";
 import { MCPClient } from "./mcp-client";
 import { MCPManager } from "./mcp-manager";
-import {
-  MCPServerType,
-  type PredefinedMCPServer,
-  type ToolDefinition,
-} from "./types";
+import { MCPServerType, type PredefinedMCPServer } from "./types";
 
 // Initialize MCP manager instance
 let manager: MCPManager | null = null;
@@ -52,80 +48,6 @@ export function getMCPManager(): MCPManager {
 export async function startMCPServers(): Promise<Map<string, boolean>> {
   const mgr = getMCPManager();
   return mgr.startAllEnabled();
-}
-
-/**
- * Stop all MCP servers
- */
-export async function stopMCPServers(): Promise<Map<string, boolean>> {
-  const mgr = getMCPManager();
-  return mgr.stopAll();
-}
-
-/**
- * Get all available MCP tools
- */
-export async function listAllMCPTools(): Promise<
-  { serverId: string; tool: ToolDefinition }[]
-> {
-  const mgr = getMCPManager();
-  const allServers = mgr.getAllServerStatus();
-  const result: { serverId: string; tool: ToolDefinition }[] = [];
-
-  for (const server of allServers) {
-    if (server.tools && server.running) {
-      for (const tool of server.tools) {
-        result.push({
-          serverId: server.id,
-          tool,
-        });
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Run MCP tool by tool name
- */
-export async function runMCPTool<T>(
-  toolName: string,
-  input: Record<string, unknown>,
-): Promise<T> {
-  const mgr = getMCPManager();
-  // Find which server has this tool
-  const allServers = mgr.getAllServerStatus();
-
-  for (const server of allServers) {
-    if (server.tools && server.running) {
-      const hasTool = server.tools.some((t) => t.name === toolName);
-      if (hasTool) {
-        const client = mgr.getClient(server.id);
-        if (client) {
-          return client.runTool<T>(toolName, input);
-        }
-      }
-    }
-  }
-
-  throw new Error(`Tool ${toolName} not found in any running server`);
-}
-
-/**
- * Import MCP configuration
- */
-export function importMCPConfig(configJson: string): boolean {
-  const mgr = getMCPManager();
-  return mgr.importFromJson(configJson);
-}
-
-/**
- * Export MCP configuration
- */
-export function exportMCPConfig(): string {
-  const mgr = getMCPManager();
-  return mgr.exportToJson();
 }
 
 /**
@@ -372,75 +294,6 @@ export function getPredefinedServer(
 ): PredefinedMCPServer | undefined {
   const mgr = getMCPManager();
   return mgr.getPredefinedServerById(id, MCPServerType.LOCAL);
-}
-
-/**
- * Install a predefined MCP server
- * @param id Server ID
- * @param autoEnableAllTools 如果为true，不再设置enabledTools（默认全部启用），而是设置disabledTools为空数组
- * @returns Whether installation was successful
- */
-export function installPredefinedMCPServer(
-  id: string,
-  autoEnableAllTools = true,
-): boolean {
-  const predefinedServer = getPredefinedServer(id);
-  if (!predefinedServer) {
-    return false;
-  }
-
-  const manager = getMCPManager();
-  const { defaultConfig } = predefinedServer;
-
-  // Create a copy of the config
-  const config = { ...defaultConfig };
-
-  // 如果autoEnableAllTools为true，使用黑名单方式
-  if (autoEnableAllTools) {
-    // 使用黑名单方式，默认所有工具都启用
-    config.disabledTools = []; // 设置空的禁用列表，表示没有工具被禁用
-    console.log(
-      `Installing server ${id} with all tools enabled by default (using disabledTools=[])`,
-    );
-
-    // 清除可能存在的旧配置
-    config.enabledTools = undefined;
-    config.autoEnableAllTools = undefined;
-  }
-
-  try {
-    manager.registerServer(id, config);
-
-    // 启动服务器以便发现工具
-    manager
-      .startServer(id)
-      .then(async (success) => {
-        if (success) {
-          console.log(`Server ${id} started successfully`);
-
-          // 获取所有可用工具，仅用于记录
-          const serverStatus = manager.getServerStatus(id);
-          if (
-            serverStatus &&
-            serverStatus.tools &&
-            serverStatus.tools.length > 0
-          ) {
-            const toolNames = serverStatus.tools.map((tool) => tool.name);
-            console.log(
-              `Server ${id} has ${toolNames.length} available tools: ${toolNames.join(", ")}`,
-            );
-          }
-        }
-      })
-      .catch((error) => {
-        console.error(`Error starting server ${id}:`, error);
-      });
-
-    return true;
-  } catch (error) {
-    console.error(`Error installing MCP server ${id}:`, error);
-    return false;
-  }
 }
 
 /**
