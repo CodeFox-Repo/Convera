@@ -8,6 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import packageJson from "../../../package.json";
 import { ToolDefinition } from "./types";
 
 /**
@@ -20,11 +21,12 @@ export class MCPClient {
     | StreamableHTTPClientTransport
     | SSEClientTransport
     | null = null;
+
   private tools: ToolDefinition[] = [];
-  private baseUrl?: string;
+  private url?: string;
   private apiKey?: string;
-  private serverCommand?: string;
-  private serverArgs?: string[];
+  private command?: string;
+  private args?: string[];
   private serverEnv?: Record<string, string>;
   private isStdioTransport = false;
 
@@ -46,11 +48,11 @@ export class MCPClient {
 
     if (isStdio) {
       // Setup for local command-based server
-      this.serverCommand = baseUrlOrCommand;
-      this.serverArgs = Array.isArray(apiKeyOrArgs) ? apiKeyOrArgs : [];
+      this.command = baseUrlOrCommand;
+      this.args = Array.isArray(apiKeyOrArgs) ? apiKeyOrArgs : [];
     } else {
       // Setup for remote HTTP server
-      this.baseUrl = baseUrlOrCommand.endsWith("/")
+      this.url = baseUrlOrCommand.endsWith("/")
         ? baseUrlOrCommand.slice(0, -1)
         : baseUrlOrCommand;
       this.apiKey = typeof apiKeyOrArgs === "string" ? apiKeyOrArgs : undefined;
@@ -65,14 +67,14 @@ export class MCPClient {
       // Initialize the MCP client
       this.client = new Client({
         name: "foxychat-mcp-client",
-        version: "1.0.0",
+        version: packageJson.version,
       });
 
-      if (this.isStdioTransport && this.serverCommand) {
+      if (this.isStdioTransport && this.command) {
         // Connect using stdio transport for local servers
         const options: any = {
-          command: this.serverCommand,
-          args: this.serverArgs || [],
+          command: this.command,
+          args: this.args || [],
           env: { ...process.env }, // Always include system environment variables,
         };
 
@@ -89,15 +91,12 @@ export class MCPClient {
         }
 
         console.log(
-          `Spawning process with command: ${this.serverCommand} ${this.serverArgs?.join(" ") || ""}`,
+          `Spawning process with command: ${this.command} ${this.args?.join(" ") || ""}`,
         );
 
         try {
           this.transport = new StdioClientTransport(options);
           await this.client.connect(this.transport);
-          console.log(
-            `Connected to MCP server using command: ${this.serverCommand}`,
-          );
         } catch (error: any) {
           console.error("Error spawning MCP server process:", error);
           // If it's an ENOENT error, provide a helpful message about PATH
@@ -107,22 +106,15 @@ export class MCPClient {
             error.message.includes("ENOENT")
           ) {
             console.error(
-              `Could not find the command '${this.serverCommand}'. Make sure it's installed and in your PATH.`,
-            );
-            // Suggest some common locations to check
-            console.error("Common locations to check:");
-            console.error("- Global npm: ~/.npm-global/bin or /usr/local/bin");
-            console.error("- Local npm: ./node_modules/.bin");
-            console.error(
-              "You can also try using the absolute path to the command in the MCP server configuration.",
+              `Could not find the command '${this.command}'. Make sure it's installed and in your PATH.`,
             );
           }
           throw error;
         }
-      } else if (this.baseUrl) {
+      } else if (this.url) {
         // Try connecting using Streamable HTTP transport first
         try {
-          const url = new URL(this.baseUrl);
+          const url = new URL(this.url);
           console.log(`Connecting to MCP server at ${url.href}`);
 
           this.transport = new StreamableHTTPClientTransport(url);
@@ -145,7 +137,7 @@ export class MCPClient {
             "Streamable HTTP connection failed, falling back to SSE transport",
           );
           try {
-            const url = new URL(this.baseUrl);
+            const url = new URL(this.url);
             this.transport = new SSEClientTransport(url);
 
             // Add API key as bearer token if available
@@ -247,23 +239,6 @@ export class MCPClient {
     } catch (error) {
       console.error(`Error executing tool ${toolName}:`, error);
       throw error;
-    }
-  }
-
-  /**
-   * Check if the connection to the server is valid
-   */
-  public async checkConnection(): Promise<boolean> {
-    if (!this.client) {
-      return false;
-    }
-
-    try {
-      await this.client.listTools();
-      return true;
-    } catch (error) {
-      console.error("Connection check failed:", error);
-      return false;
     }
   }
 
