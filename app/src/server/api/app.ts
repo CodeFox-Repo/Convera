@@ -402,7 +402,7 @@ app.post("/api/apps/disconnect", async (c) => {
       // Handle predefined MCP server uninstallation
       console.log(`Uninstalling predefined MCP server: ${appId}`);
 
-      const uninstallResult = mcpManager.uninstallPredefinedServer(appId);
+      const uninstallResult = mcpManager.unregisterServer(appId);
 
       if (!uninstallResult) {
         return c.json(
