@@ -40,7 +40,7 @@ export function AppTab() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isConnecting, setIsConnecting] = useState<Record<string, boolean>>({});
 
-  const [activeTab, setActiveTab] = useState("connected");
+  const [activeTab, setActiveTab] = useState("apps");
   const [loading, setLoading] = useState(true);
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
   const [availableApps, setAvailableApps] = useState<AvailableApp[]>([]);
@@ -234,8 +234,8 @@ export function AppTab() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="dark:bg-background/60 mb-6">
-          <TabsTrigger value="connected">Connected Apps</TabsTrigger>
           <TabsTrigger value="apps">Browse Apps</TabsTrigger>
+          <TabsTrigger value="connected">Connected Apps</TabsTrigger>
         </TabsList>
 
         {/* Connected Apps Section */}
