@@ -6,6 +6,7 @@ import {
   isPredefinedServerInstalled,
 } from "../mcp";
 import { serverTools } from "../mcp/dev-mcp/tools";
+import { getPredefinedServerById } from "../mcp/predefined-servers";
 import {
   DisabledToolsSchema,
   GeneralMCPConfig,
@@ -271,6 +272,20 @@ router.post(
 // Uninstall MCP server endpoint
 router.post("/api/mcp/uninstall", zValidator("json", IdSchema), async (c) => {
   const { id } = c.req.valid("json");
+
+  // Check if server is a built-in predefined server
+  const localPredefined = getPredefinedServerById(id, MCPServerType.LOCAL);
+  const remotePredefined = getPredefinedServerById(id, MCPServerType.REMOTE);
+
+  if (localPredefined?.builtIn || remotePredefined?.builtIn) {
+    return c.json(
+      {
+        status: "error",
+        message: `Cannot uninstall built-in server ${id}`,
+      },
+      400,
+    );
+  }
 
   const manager = getMCPManager();
   const serverStatus = manager.getServerStatus(id);
