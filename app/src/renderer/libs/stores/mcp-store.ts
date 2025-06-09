@@ -263,7 +263,7 @@ export const useMcpStore = create<McpState>()(
       handleUninstallPredefinedServer: async (serverId: string) => {
         try {
           const response = await fetch(
-            "http://localhost:38000/api/mcp/predefined-servers/uninstall",
+            "http://localhost:38000/api/mcp/uninstall",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

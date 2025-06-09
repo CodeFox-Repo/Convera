@@ -268,29 +268,25 @@ router.post(
   },
 );
 
-// Uninstall predefined MCP server endpoint
-router.post(
-  "/api/mcp/predefined-servers/uninstall",
-  zValidator("json", IdSchema),
-  async (c) => {
-    const { id } = c.req.valid("json");
+// Uninstall MCP server endpoint
+router.post("/api/mcp/uninstall", zValidator("json", IdSchema), async (c) => {
+  const { id } = c.req.valid("json");
 
-    const manager = getMCPManager();
-    const serverStatus = manager.getServerStatus(id);
+  const manager = getMCPManager();
+  const serverStatus = manager.getServerStatus(id);
 
-    if (serverStatus?.running) {
-      await manager.stopServer(id);
-    }
+  if (serverStatus?.running) {
+    await manager.stopServer(id);
+  }
 
-    const success = manager.unregisterServer(id);
-    const status = success ? 200 : 400;
-    const message = success
-      ? `Server ${id} uninstalled successfully`
-      : `Failed to uninstall server ${id}`;
+  const success = manager.unregisterServer(id);
+  const status = success ? 200 : 400;
+  const message = success
+    ? `Server ${id} uninstalled successfully`
+    : `Failed to uninstall server ${id}`;
 
-    return c.json({ status: success ? "success" : "error", message }, status);
-  },
-);
+  return c.json({ status: success ? "success" : "error", message }, status);
+});
 
 // Get tools for a specific MCP server
 router.get("/api/mcp/servers/:id/tools", async (c) => {
