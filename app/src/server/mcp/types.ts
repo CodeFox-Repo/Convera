@@ -5,6 +5,14 @@
 import { Server } from "http";
 
 /**
+ * MCP Server Types
+ */
+export enum MCPServerType {
+  LOCAL = "local",
+  REMOTE = "remote",
+}
+
+/**
  * General MCP Server Configuration (external format)
  * This is the standard format used in MCP documentation and third-party configs
  */

@@ -2,26 +2,13 @@
  * Predefined MCP Servers
  * Contains a list of installable MCP servers
  */
-import { PredefinedMCPServer } from "./types";
+import { MCPServerType, PredefinedMCPServer } from "./types";
 
 /**
  * Predefined MCP Servers List
  * Used to provide installable MCP server options
  */
 export const PREDEFINED_SERVERS: PredefinedMCPServer[] = [
-  {
-    id: "Gmail",
-    name: "Gmail",
-    description: "Gmail Remote MCP Server",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg",
-    defaultConfig: {
-      name: "Gmail",
-      enabled: true,
-      command: "npx",
-      args: ["mcp-remote", "http://localhost:8788/sse"],
-    },
-  },
   {
     id: "Dev-MCP",
     name: "Development Tools MCP",
@@ -97,10 +84,36 @@ export const PREDEFINED_SERVERS: PredefinedMCPServer[] = [
 ];
 
 /**
+ * Predefined Remote MCP Servers List
+ * Used to provide installable MCP server options
+ */
+export const PREDEFINED_REMOTE_SERVERS: PredefinedMCPServer[] = [
+  {
+    id: "Gmail",
+    name: "Gmail",
+    description: "Gmail Remote MCP Server",
+    logoUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg",
+    defaultConfig: {
+      name: "Gmail",
+      enabled: true,
+      command: "npx",
+      args: ["mcp-remote", "http://localhost:8788/sse"],
+    },
+  },
+];
+
+/**
  * Get all predefined servers
  */
-export function getAllPredefinedServers(): PredefinedMCPServer[] {
-  return PREDEFINED_SERVERS;
+export function getAllPredefinedServers(
+  type: MCPServerType,
+): PredefinedMCPServer[] {
+  if (type === MCPServerType.LOCAL) {
+    return PREDEFINED_SERVERS;
+  } else {
+    return PREDEFINED_REMOTE_SERVERS;
+  }
 }
 
 /**
@@ -109,6 +122,11 @@ export function getAllPredefinedServers(): PredefinedMCPServer[] {
  */
 export function getPredefinedServerById(
   id: string,
+  type: MCPServerType,
 ): PredefinedMCPServer | undefined {
-  return PREDEFINED_SERVERS.find((server) => server.id === id);
+  if (type === MCPServerType.LOCAL) {
+    return PREDEFINED_SERVERS.find((server) => server.id === id);
+  } else {
+    return PREDEFINED_REMOTE_SERVERS.find((server) => server.id === id);
+  }
 }

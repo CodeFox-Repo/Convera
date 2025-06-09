@@ -16,7 +16,11 @@ import { initProjectTool } from "./dev-mcp/tools/project-tools";
 import { webSearch } from "./dev-mcp/tools/web-search-tool";
 import { MCPClient } from "./mcp-client";
 import { MCPManager } from "./mcp-manager";
-import type { PredefinedMCPServer, ToolDefinition } from "./types";
+import {
+  MCPServerType,
+  type PredefinedMCPServer,
+  type ToolDefinition,
+} from "./types";
 
 // Initialize MCP manager instance
 let manager: MCPManager | null = null;
@@ -356,7 +360,7 @@ function createZodSchemaFromMCPParams(mcpParams: any): z.ZodObject<any> {
  */
 export function getAvailablePredefinedServers(): PredefinedMCPServer[] {
   const mgr = getMCPManager();
-  return mgr.getAllPredefinedServers();
+  return mgr.getAllPredefinedServers(MCPServerType.LOCAL);
 }
 
 /**
@@ -367,7 +371,7 @@ export function getPredefinedServer(
   id: string,
 ): PredefinedMCPServer | undefined {
   const mgr = getMCPManager();
-  return mgr.getPredefinedServerById(id);
+  return mgr.getPredefinedServerById(id, MCPServerType.LOCAL);
 }
 
 /**

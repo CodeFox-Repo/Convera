@@ -12,6 +12,7 @@ import {
   GeneralMCPConfigSchema,
   IdSchema,
   MCPServerConfig,
+  MCPServerType,
   McpSettingsSchema,
   UpdateMcpConfigSchema,
 } from "../mcp/types";
@@ -244,7 +245,7 @@ router.post(
     const { id } = c.req.valid("json");
 
     const manager = getMCPManager();
-    const success = manager.installPredefinedServer(id);
+    const success = manager.installPredefinedServer(id, MCPServerType.LOCAL);
 
     if (success) {
       const serverConfig = manager.getServerConfig(id);

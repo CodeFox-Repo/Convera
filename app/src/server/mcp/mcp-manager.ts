@@ -11,12 +11,14 @@ import * as path from "path";
 import { serverTools } from "./dev-mcp/tools";
 import { MCPClient } from "./mcp-client";
 import {
+  PREDEFINED_REMOTE_SERVERS,
   PREDEFINED_SERVERS,
   getPredefinedServerById,
 } from "./predefined-servers";
 import {
   MCPConfig,
   MCPServerConfig,
+  MCPServerType,
   PredefinedMCPServer,
   ServerStatus,
 } from "./types";
@@ -519,24 +521,31 @@ export class MCPManager extends EventEmitter {
   /**
    * Get all predefined servers
    */
-  public getAllPredefinedServers(): PredefinedMCPServer[] {
-    return PREDEFINED_SERVERS;
+  public getAllPredefinedServers(type: MCPServerType): PredefinedMCPServer[] {
+    if (type === MCPServerType.LOCAL) {
+      return PREDEFINED_SERVERS;
+    } else {
+      return PREDEFINED_REMOTE_SERVERS;
+    }
   }
 
   /**
    * Get predefined server by ID
    * @param id Server ID
    */
-  public getPredefinedServerById(id: string): PredefinedMCPServer | undefined {
-    return getPredefinedServerById(id);
+  public getPredefinedServerById(
+    id: string,
+    type: MCPServerType,
+  ): PredefinedMCPServer | undefined {
+    return getPredefinedServerById(id, type);
   }
 
   /**
    * Install predefined server
    * @param id Predefined server ID
    */
-  public installPredefinedServer(id: string): boolean {
-    const predefinedServer = this.getPredefinedServerById(id);
+  public installPredefinedServer(id: string, type: MCPServerType): boolean {
+    const predefinedServer = this.getPredefinedServerById(id, type);
     if (!predefinedServer) {
       return false;
     }
