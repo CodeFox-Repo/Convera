@@ -820,9 +820,7 @@ export default function AgentPopover() {
                     .map(([id, config]) => {
                       const { enabled, total } = getEnabledToolsCount(id);
                       const serverTools = mcpServerTools[id] || [];
-                      const isServerExpanded =
-                        expandedMcpServers[id] ??
-                        (config.enabled && serverTools.length > 0);
+                      const isServerExpanded = expandedMcpServers[id] ?? false;
 
                       return (
                         <div
