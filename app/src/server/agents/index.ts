@@ -370,8 +370,12 @@ export async function processChatRequest(
     if (agent) {
       systemPrompt = agent.systemPrompt;
 
-      // Filter tools based on agent's toolReferences
-      if (agent.toolReferences && agent.toolReferences.length > 0) {
+      if (agent.id === "DefaultAssistant") {
+        // For DefaultAssistant with no tool references, use all available tools
+        tools = { ...mcpTools };
+        toolsList = Object.keys(mcpTools);
+        // Filter tools based on agent's toolReferences
+      } else if (agent.toolReferences && agent.toolReferences.length > 0) {
         // Use getToolsByNames to filter tools based on toolReferences
         const filteredTools = getToolsByNames(agent.toolReferences);
 
