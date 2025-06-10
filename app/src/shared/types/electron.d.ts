@@ -89,6 +89,7 @@ export interface IElectronAPI {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
+  onAgentPopoverVisible: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }

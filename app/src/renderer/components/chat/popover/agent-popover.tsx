@@ -47,6 +47,7 @@ export default function AgentPopover() {
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
   >({});
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Expandable sections state
   const [expandedSections, setExpandedSections] = useState<
@@ -72,9 +73,10 @@ export default function AgentPopover() {
   } = useAgentStore();
   const { fetchMcpConfigurations, getMcpServerTools } = useMcpStore();
   useThemeSync();
+
   // Fetch agents from server
   const fetchMcpConfigs = async () => {
-    setLoadingMcpConfigs(true);
+    if (isInitialLoad) setLoadingMcpConfigs(true);
     await fetchMcpConfigurations();
     const configs = useMcpStore.getState().mcpServerConfigs;
     setMcpServerConfigs(configs);
@@ -83,12 +85,21 @@ export default function AgentPopover() {
       .forEach(([id]) => {
         fetchMcpServerTools(id);
       });
-    setLoadingMcpConfigs(false);
+    if (isInitialLoad) setLoadingMcpConfigs(false);
+  };
+
+  // Refetch all data
+  const refetchAllData = async (isRefresh = false) => {
+    console.log("Refetching all data for agent popover");
+    if (isRefresh && isInitialLoad) {
+      setIsInitialLoad(false);
+    }
+    await Promise.all([fetchAgents(), fetchMcpConfigs()]);
   };
 
   // Fetch tools for specific MCP server
   const fetchMcpServerTools = async (id: string) => {
-    setLoadingMcpTools((prev) => ({ ...prev, [id]: true }));
+    if (isInitialLoad) setLoadingMcpTools((prev) => ({ ...prev, [id]: true }));
     try {
       const tools = await getMcpServerTools(id);
       setMcpServerTools((prev) => {
@@ -112,20 +123,27 @@ export default function AgentPopover() {
     } catch (err) {
       console.error(`Failed to fetch tools for server ${id}:`, err);
     } finally {
-      setLoadingMcpTools((prev) => ({ ...prev, [id]: false }));
+      if (isInitialLoad)
+        setLoadingMcpTools((prev) => ({ ...prev, [id]: false }));
     }
   };
 
   // Initialize component
   useEffect(() => {
-    fetchAgents();
-    fetchMcpConfigs();
+    refetchAllData();
 
     // Subscribe to agent changes for auto-sync
     const unsubscribe = subscribeToAgentChanges();
 
+    // Listen for popover visibility to refetch data
+    const unlisten = window.electronAPI.onAgentPopoverVisible(() => {
+      console.log("Agent popover visible, refetching data");
+      refetchAllData(true);
+    });
+
     return () => {
       unsubscribe();
+      unlisten();
     };
   }, []);
 
@@ -475,7 +493,7 @@ export default function AgentPopover() {
     setExpandedMcpServers((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
   };
 
-  // Handle click outside to close popover
+  // Handle click outside to close popover and detect when popover gets focus
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -494,6 +512,7 @@ export default function AgentPopover() {
 
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
@@ -535,6 +554,28 @@ export default function AgentPopover() {
               Agent Configuration
             </h3>
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              refetchAllData(true);
+            }}
+            className="p-1.5 hover:bg-muted/30 rounded-md transition-colors duration-150"
+            title="Refresh data"
+          >
+            <svg
+              className="w-4 h-4 text-muted-foreground hover:text-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
         </div>
 
         {/* Scrollable content */}
@@ -801,7 +842,7 @@ export default function AgentPopover() {
                   : "max-h-0 opacity-0 transform scale-y-95"
               }`}
             >
-              {loadingMcpConfigs ? (
+              {isInitialLoad && loadingMcpConfigs ? (
                 <div className="flex justify-center py-4">
                   <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
                 </div>
@@ -880,7 +921,7 @@ export default function AgentPopover() {
                               }`}
                             >
                               <div className="p-2 space-y-1">
-                                {loadingMcpTools[id] ? (
+                                {isInitialLoad && loadingMcpTools[id] ? (
                                   <div className="flex justify-center py-2">
                                     <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
                                   </div>

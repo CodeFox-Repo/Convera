@@ -1,3 +1,4 @@
+import { CHANNELS } from "@/electro-bridge/ipc/channels";
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
   WINDOW_SIZE_PRESETS,
@@ -70,6 +71,12 @@ function handleUrlHash(window: BrowserWindow) {
 function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle hash parameter
   handleUrlHash(window);
+
+  // Send event on show
+  window.on("show", () => {
+    console.log("Agent popover shown, sending event to renderer");
+    window.webContents.send(CHANNELS.AGENT.POPOVER_VISIBLE);
+  });
 
   // Click outside to close
   window.on("blur", () => {

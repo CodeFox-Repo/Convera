@@ -37,6 +37,7 @@ interface ElectronAPI extends IPCServer {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
+  onAgentPopoverVisible: (callback: () => void) => () => void;
   onSetInputText: (callback: (text: string) => void) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
@@ -83,6 +84,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.AGENT.LIST_UPDATED, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.AGENT.LIST_UPDATED, handler);
+    };
+  };
+
+  api.onAgentPopoverVisible = (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on(CHANNELS.AGENT.POPOVER_VISIBLE, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.AGENT.POPOVER_VISIBLE, handler);
     };
   };
 

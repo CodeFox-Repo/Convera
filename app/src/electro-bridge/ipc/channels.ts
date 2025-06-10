@@ -102,6 +102,7 @@ export const CHANNELS = {
     LIST_UPDATED: "agent:list-updated",
     TOGGLE_POPOVER: "agent:toggle-popover",
     HIDE_POPOVER: "agent:hide-popover",
+    POPOVER_VISIBLE: "agent:popover-visible",
   },
   MODEL: {
     MODEL_SELECTED: "model:selected",
