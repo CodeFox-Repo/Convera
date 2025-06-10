@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/renderer/components/ui/card";
-
 import { Input } from "@/renderer/components/ui/input";
 import {
   Tabs,
@@ -14,36 +13,29 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
-import { MCPConfig } from "@/shared/types/settings";
+import {
+  useAppStore,
+  type AvailableApp,
+  type ConnectedApp,
+} from "@/renderer/libs/stores/app-store";
 import { Loader2, Plug, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { toast } from "sonner";
-
-interface ConnectedApp {
-  id: string;
-  name: string;
-  logoUrl: string;
-  category: string;
-  mcpConfig?: MCPConfig;
-}
-
-interface AvailableApp {
-  id: string;
-  name: string;
-  logoUrl: string;
-  category: string;
-  mcpConfig?: MCPConfig;
-}
 
 export function AppTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [isConnecting, setIsConnecting] = useState<Record<string, boolean>>({});
-
   const [activeTab, setActiveTab] = useState("apps");
-  const [loading, setLoading] = useState(true);
-  const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
-  const [availableApps, setAvailableApps] = useState<AvailableApp[]>([]);
+
+  // Use the app store
+  const {
+    connectedApps,
+    availableApps,
+    loading,
+    isConnecting,
+    fetchApps,
+    connectApp,
+    disconnectApp,
+  } = useAppStore();
 
   // Helper function to get icon for app type
   const getAppIcon = (app: ConnectedApp | AvailableApp) => {
@@ -59,91 +51,17 @@ export function AppTab() {
     return <Plug className="h-8 w-8 text-gray-500 flex-shrink-0" />;
   };
 
-  // Fetch apps from API
-  const fetchApps = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("http://localhost:38000/api/apps");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch apps");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        setConnectedApps(result.data.connected || []);
-        setAvailableApps(result.data.available || []);
-      } else {
-        throw new Error(result.error || "Failed to fetch apps");
-      }
-    } catch (error) {
-      console.error("Error fetching apps:", error);
-      toast.error("Failed to load apps");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Load apps on mount
   useEffect(() => {
     fetchApps();
-  }, []);
+  }, [fetchApps]);
 
   const handleConnectApp = async (app: AvailableApp) => {
-    setIsConnecting((prev) => ({ ...prev, [app.id]: true }));
-    try {
-      const response = await fetch("http://localhost:38000/api/apps/connect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ appId: app.id }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(result.message);
-        // Refresh the apps list
-        await fetchApps();
-      } else {
-        throw new Error(result.error || "Failed to connect app");
-      }
-    } catch (error) {
-      console.error(`Error connecting to ${app.name}:`, error);
-      toast.error(`Failed to connect to ${app.name}`);
-    } finally {
-      setIsConnecting((prev) => ({ ...prev, [app.id]: false }));
-    }
+    await connectApp(app);
   };
 
   const handleDisconnectApp = async (app: ConnectedApp) => {
-    try {
-      const response = await fetch(
-        "http://localhost:38000/api/apps/disconnect",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ appId: app.id }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(result.message);
-        // Refresh the apps list
-        await fetchApps();
-      } else {
-        throw new Error(result.error || "Failed to disconnect app");
-      }
-    } catch (error) {
-      console.error(`Error disconnecting from ${app.name}:`, error);
-      toast.error(`Failed to disconnect from ${app.name}`);
-    }
+    await disconnectApp(app);
   };
 
   // Unified app card component
