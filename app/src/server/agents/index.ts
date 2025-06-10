@@ -29,7 +29,6 @@ const builtInAgents: AgentDefinition[] = [
     systemPrompt: getDefaultSystemPrompt(),
     toolReferences: [
       { mcpName: "built-in", toolName: "websearch", isBuiltIn: true },
-      { mcpName: "built-in", toolName: "thinking", isBuiltIn: true },
     ],
     predefined: true,
   },
