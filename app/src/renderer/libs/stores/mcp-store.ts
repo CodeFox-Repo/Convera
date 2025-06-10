@@ -364,7 +364,8 @@ export const useMcpStore = create<McpState>()(
               typeof serverConfig === "object" &&
               "name" in serverConfig
             ) {
-              const serverName = (serverConfig as any).name || serverId;
+              const serverName =
+                (serverConfig as MCPServerConfig).name || serverId;
               await addToolsToDefaultAssistant(
                 serverId,
                 serverName,

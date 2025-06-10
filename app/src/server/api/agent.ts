@@ -145,9 +145,6 @@ router.put(
 
     const finalToolReferences =
       toolReferences || existingAgent.toolReferences || [];
-    const formattedToolNames = finalToolReferences.map(
-      (ref: ToolReference) => `${ref.toolName} (${ref.mcpName})`,
-    );
 
     // Handle systemPrompt update
     let updatedSystemPrompt: string;

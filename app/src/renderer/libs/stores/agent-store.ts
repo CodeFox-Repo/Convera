@@ -1,5 +1,6 @@
 // app/src/renderer/stores/agent-store.ts
 import { ToolReference } from "@/server/agents/types";
+import { ToolDefinition } from "@/server/mcp/types";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -37,7 +38,7 @@ interface AgentState {
   addToolsToDefaultAssistant: (
     serverId: string,
     serverName: string,
-    toolsGetter: () => Promise<any[]>,
+    toolsGetter: () => Promise<ToolDefinition[]>,
     toolType?: string,
   ) => Promise<void>;
   removeToolsFromDefaultAssistant: (
@@ -173,7 +174,7 @@ export const useAgentStore = create<AgentState>()(
         addToolsToDefaultAssistant: async (
           serverId: string,
           serverName: string,
-          toolsGetter: () => Promise<any[]>,
+          toolsGetter: () => Promise<ToolDefinition[]>,
           toolType: string = "tools",
         ) => {
           try {
@@ -197,7 +198,7 @@ export const useAgentStore = create<AgentState>()(
               if (tools && tools.length > 0) {
                 // Create tool references for the new tools
                 const newToolReferences: ToolReference[] = tools.map(
-                  (tool: any) => ({
+                  (tool: ToolDefinition) => ({
                     mcpName: serverId,
                     toolName: tool.name,
                     isBuiltIn:
