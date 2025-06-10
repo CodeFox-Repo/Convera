@@ -1,9 +1,30 @@
 import z from "zod";
 
 /**
+ * JSON Schema property definition
+ */
+interface JSONSchemaProperty {
+  type: "string" | "number" | "integer" | "boolean" | "array" | "object";
+  description?: string;
+  items?: JSONSchemaProperty;
+  properties?: Record<string, JSONSchemaProperty>;
+}
+
+/**
+ * JSON Schema object definition
+ */
+interface JSONSchemaObject {
+  properties?: Record<string, JSONSchemaProperty>;
+  required?: string[];
+  type?: string;
+}
+
+/**
  * Helper to convert MCP parameter schema to Zod schema
  */
-export function createZodSchemaFromMCPParams(mcpParams: any): z.ZodObject<any> {
+export function createZodSchemaFromMCPParams(
+  mcpParams: JSONSchemaObject,
+): z.ZodObject<Record<string, z.ZodTypeAny>> {
   // If no parameters or invalid format, return empty object schema
   if (!mcpParams || typeof mcpParams !== "object") {
     return z.object({}).describe("No parameters needed");
@@ -15,7 +36,7 @@ export function createZodSchemaFromMCPParams(mcpParams: any): z.ZodObject<any> {
     const required = mcpParams.required || [];
 
     Object.entries(mcpParams.properties).forEach(([name, propValue]) => {
-      const prop = propValue as any;
+      const prop = propValue as JSONSchemaProperty;
       let zodType: z.ZodTypeAny;
 
       // Convert JSON Schema types to Zod types
