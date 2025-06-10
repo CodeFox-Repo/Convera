@@ -187,10 +187,7 @@ export default function AgentPopover() {
         prev.map((tool) => {
           const isEnabled =
             selectedAgent.toolReferences?.some(
-              (ref) =>
-                ref.toolName === tool.id &&
-                ref.mcpName === "built-in" &&
-                ref.isBuiltIn !== false,
+              (ref) => ref.toolName === tool.id && ref.mcpName === "built-in",
             ) ?? false;
           return { ...tool, enabled: isEnabled };
         }),
@@ -214,10 +211,7 @@ export default function AgentPopover() {
       prev.map((tool) => {
         const isEnabled =
           agent.toolReferences?.some(
-            (ref) =>
-              ref.toolName === tool.id &&
-              ref.mcpName === "built-in" &&
-              ref.isBuiltIn !== false,
+            (ref) => ref.toolName === tool.id && ref.mcpName === "built-in",
           ) ?? false;
         return { ...tool, enabled: isEnabled };
       }),
