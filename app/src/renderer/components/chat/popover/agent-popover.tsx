@@ -52,7 +52,7 @@ export default function AgentPopover() {
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
-    currentAgent: true,
+    currentAgent: false,
     builtin: true,
     mcp: true,
   });
