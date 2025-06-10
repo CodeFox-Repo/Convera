@@ -15,6 +15,7 @@ import { initProjectTool } from "./dev-mcp/tools/project-tools";
 import { webSearch } from "./dev-mcp/tools/web-search-tool";
 import { MCPClient } from "./mcp-client";
 import { MCPManager } from "./mcp-manager";
+import { getPredefinedServerById } from "./predefined-servers";
 import { createZodSchemaFromMCPParams } from "./schema";
 import { MCPServerType, type PredefinedMCPServer } from "./types";
 
@@ -228,8 +229,7 @@ export function getAvailablePredefinedServers(): PredefinedMCPServer[] {
 export function getPredefinedServer(
   id: string,
 ): PredefinedMCPServer | undefined {
-  const mgr = getMCPManager();
-  return mgr.getPredefinedServerById(id, MCPServerType.LOCAL);
+  return getPredefinedServerById(id, MCPServerType.LOCAL);
 }
 
 /**
