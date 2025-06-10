@@ -153,21 +153,11 @@ router.put(
     let updatedSystemPrompt: string;
     if (typeof systemPrompt === "string") {
       // If systemPrompt is explicitly provided, use it and append tools
-      updatedSystemPrompt =
-        formattedToolNames.length > 0
-          ? `${systemPrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-          : systemPrompt;
+      updatedSystemPrompt = systemPrompt;
     } else {
-      // If systemPrompt is not provided, update the existing one with new tools
+      // If systemPrompt is not provided, use the original system prompt
       const existingPrompt = existingAgent.systemPrompt || "";
-      // Remove existing "Available tools:" section if it exists
-      const basePrompt = existingPrompt
-        .replace(/\n\nAvailable tools:.*$/, "")
-        .trim();
-      updatedSystemPrompt =
-        formattedToolNames.length > 0
-          ? `${basePrompt}\n\nAvailable tools: ${formattedToolNames.join(", ")}`
-          : basePrompt;
+      updatedSystemPrompt = existingPrompt;
     }
 
     const updatedAgent: AgentDefinition = {
