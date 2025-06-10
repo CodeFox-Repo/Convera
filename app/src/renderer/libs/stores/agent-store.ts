@@ -1,5 +1,6 @@
 // app/src/renderer/stores/agent-store.ts
 import { ToolReference } from "@/server/agents/types";
+import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -31,6 +32,19 @@ interface AgentState {
   ) => Promise<void>;
   handleAgentChange: (accept: boolean) => void;
   subscribeToAgentChanges: () => () => void;
+
+  // New consolidated functions for DefaultAssistant tool management
+  addToolsToDefaultAssistant: (
+    serverId: string,
+    serverName: string,
+    toolsGetter: () => Promise<any[]>,
+    toolType?: string,
+  ) => Promise<void>;
+  removeToolsFromDefaultAssistant: (
+    serverId: string,
+    serverName: string,
+    toolType?: string,
+  ) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentState>()(
@@ -153,6 +167,144 @@ export const useAgentStore = create<AgentState>()(
 
           get().updateSelectedAgent(agent);
           get().updateAvailableAgent(agent);
+        },
+
+        // Consolidated function to add tools to DefaultAssistant
+        addToolsToDefaultAssistant: async (
+          serverId: string,
+          serverName: string,
+          toolsGetter: () => Promise<any[]>,
+          toolType: string = "tools",
+        ) => {
+          try {
+            // Fetch latest agents to ensure we have current data
+            await get().fetchAgents();
+
+            // Find the DefaultAssistant agent
+            const defaultAgent = get().availableAgents.find(
+              (agent: Agent) => agent.id === "DefaultAssistant",
+            );
+
+            if (!defaultAgent) {
+              console.warn("DefaultAssistant agent not found");
+              return;
+            }
+
+            try {
+              // Get the tools using the provided getter function
+              const tools = await toolsGetter();
+
+              if (tools && tools.length > 0) {
+                // Create tool references for the new tools
+                const newToolReferences: ToolReference[] = tools.map(
+                  (tool: any) => ({
+                    mcpName: serverId,
+                    toolName: tool.name,
+                    isBuiltIn:
+                      serverId === "Dev-MCP" || serverId === "codefox-mcp",
+                  }),
+                );
+
+                // Get current tool references and avoid duplicates
+                const currentToolReferences = defaultAgent.toolReferences || [];
+                const existingToolNames = new Set(
+                  currentToolReferences
+                    .filter((ref: ToolReference) => ref.mcpName === serverId)
+                    .map((ref: ToolReference) => ref.toolName),
+                );
+
+                // Only add tools that don't already exist
+                const toolsToAdd = newToolReferences.filter(
+                  (newRef) => !existingToolNames.has(newRef.toolName),
+                );
+
+                if (toolsToAdd.length > 0) {
+                  // Update the agent with the new tools
+                  const updatedAgent = {
+                    ...defaultAgent,
+                    toolReferences: [...currentToolReferences, ...toolsToAdd],
+                  };
+
+                  await get().saveAgent(updatedAgent);
+                  console.log(
+                    `Added ${toolsToAdd.length} ${toolType} from ${serverName} to DefaultAssistant agent:`,
+                    toolsToAdd.map((ref) => ref.toolName),
+                  );
+                  toast.success(
+                    `Enabled ${toolsToAdd.length} ${toolType} from ${serverName} for DefaultAssistant`,
+                  );
+                }
+              }
+            } catch (toolError) {
+              console.error(
+                `Failed to get ${toolType} for ${serverName}:`,
+                toolError,
+              );
+              // Don't show error toast here as the main operation was successful
+            }
+          } catch (error) {
+            console.error(
+              `Failed to update DefaultAssistant with ${toolType}:`,
+              error,
+            );
+            // Don't show error toast here as the main operation was successful
+          }
+        },
+
+        // Consolidated function to remove tools from DefaultAssistant
+        removeToolsFromDefaultAssistant: async (
+          serverId: string,
+          serverName: string,
+          toolType: string = "tools",
+        ) => {
+          try {
+            // Fetch latest agents to ensure we have current data
+            await get().fetchAgents();
+
+            // Find the DefaultAssistant agent
+            const defaultAgent = get().availableAgents.find(
+              (agent: Agent) => agent.id === "DefaultAssistant",
+            );
+
+            if (!defaultAgent) {
+              console.warn("DefaultAssistant agent not found");
+              return;
+            }
+
+            // Get current tool references
+            const currentToolReferences = defaultAgent.toolReferences || [];
+
+            // Filter out tools from the specified server
+            const filteredToolReferences = currentToolReferences.filter(
+              (ref: ToolReference) => ref.mcpName !== serverId,
+            );
+
+            // Only update if there were tools to remove
+            if (filteredToolReferences.length < currentToolReferences.length) {
+              const removedCount =
+                currentToolReferences.length - filteredToolReferences.length;
+
+              // Update the agent with the filtered tools
+              const updatedAgent = {
+                ...defaultAgent,
+                toolReferences: filteredToolReferences,
+              };
+
+              await get().saveAgent(updatedAgent);
+              console.log(
+                `Removed ${removedCount} ${toolType} from ${serverName} from DefaultAssistant agent`,
+              );
+              toast.success(
+                `Removed ${removedCount} ${toolType} from ${serverName} from DefaultAssistant`,
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Failed to remove ${toolType} from DefaultAssistant:`,
+              error,
+            );
+            // Don't show error toast here as the main operation was successful
+          }
         },
 
         triggerAgentSelect: async (

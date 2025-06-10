@@ -7,6 +7,7 @@ import { McpMarketplaceItem, MCPServer } from "@/shared/types/settings";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAgentStore } from "./agent-store";
 
 interface McpState {
   // Marketplace data
@@ -246,6 +247,15 @@ export const useMcpStore = create<McpState>()(
           toast.success(`Server ${serverId} installed successfully`);
           await get().fetchAllMcpServers();
           await get().fetchMcpConfigurations();
+
+          // Update DefaultAssistant agent with new MCP server tools using consolidated function
+          const { addToolsToDefaultAssistant } = useAgentStore.getState();
+          await addToolsToDefaultAssistant(
+            serverId,
+            serverId,
+            () => get().getMcpServerTools(serverId),
+            "MCP tools",
+          );
         } catch (error) {
           console.error(`Error installing server ${serverId}:`, error);
           toast.error(
@@ -281,6 +291,14 @@ export const useMcpStore = create<McpState>()(
           toast.success(`Server ${serverId} uninstalled successfully`);
           await get().fetchAllMcpServers();
           await get().fetchMcpConfigurations();
+
+          // Remove MCP server tools from DefaultAssistant agent using consolidated function
+          const { removeToolsFromDefaultAssistant } = useAgentStore.getState();
+          await removeToolsFromDefaultAssistant(
+            serverId,
+            serverId,
+            "MCP tools",
+          );
         } catch (error) {
           console.error(`Error uninstalling server ${serverId}:`, error);
           toast.error(
@@ -335,6 +353,26 @@ export const useMcpStore = create<McpState>()(
           toast.success("MCP configuration installed successfully");
           await get().fetchAllMcpServers();
           await get().fetchMcpConfigurations();
+
+          // Update DefaultAssistant agent with tools from manually installed MCP servers using consolidated function
+          const { addToolsToDefaultAssistant } = useAgentStore.getState();
+          for (const [serverId, serverConfig] of Object.entries(
+            config.mcpServers,
+          )) {
+            if (
+              serverConfig &&
+              typeof serverConfig === "object" &&
+              "name" in serverConfig
+            ) {
+              const serverName = (serverConfig as any).name || serverId;
+              await addToolsToDefaultAssistant(
+                serverId,
+                serverName,
+                () => get().getMcpServerTools(serverId),
+                "MCP tools",
+              );
+            }
+          }
         } catch (error) {
           console.error("Error installing manual MCP configuration:", error);
           toast.error(
