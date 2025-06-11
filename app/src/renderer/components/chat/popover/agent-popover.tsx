@@ -1,3 +1,4 @@
+import { useAgentPopoverVisibility } from "@/renderer/libs/hooks/use-agent-popover-visibility";
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
@@ -135,17 +136,16 @@ export default function AgentPopover() {
     // Subscribe to agent changes for auto-sync
     const unsubscribe = subscribeToAgentChanges();
 
-    // Listen for popover visibility to refetch data
-    const unlisten = window.electronAPI.onAgentPopoverVisible(() => {
-      console.log("Agent popover visible, refetching data");
-      refetchAllData(true);
-    });
-
     return () => {
       unsubscribe();
-      unlisten();
     };
   }, []);
+
+  // Use unified hook for agent popover visibility
+  useAgentPopoverVisibility(() => {
+    console.log("Agent popover visible, refetching data");
+    refetchAllData(true);
+  });
 
   // Set default agent when agents are loaded and no agent is selected
   useEffect(() => {
