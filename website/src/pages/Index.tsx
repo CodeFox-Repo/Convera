@@ -27,6 +27,7 @@ const Index = () => {
     apps: false,
     demo: false,
     features: false,
+    coreFeatures: false,
     agent: false,
   });
 
@@ -469,6 +470,65 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Core Features Section */}
+      <section
+        className="w-full bg-gradient-to-br from-white via-gray-50/30 to-blue-50/20 py-16 md:py-24"
+        data-section="coreFeatures"
+      >
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div
+            className={`mb-16 text-center transition-all duration-1000 ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+          >
+            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Powerful Core Features
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
+              Discover the advanced capabilities that make Foxychat your ultimate AI desktop
+              companion
+            </p>
+          </div>
+
+          {/* Core Features Grid */}
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
+            {/* Current App Detection */}
+            <div
+              className={`group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              style={{ transitionDelay: "0ms" }}
+            >
+              <div
+                className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
+                style={{ backgroundImage: "url(/images/current-app-detected.jpg)" }}
+              />
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6">
+                <h3 className="mb-3 text-xl font-semibold text-gray-800">Smart App Detection</h3>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Automatically detects your current application and provides contextual assistance.
+                  Foxychat understands what you're working on and adapts its responses accordingly.
+                </p>
+              </div>
+            </div>
+
+            {/* MCP Market */}
+            <div
+              className={`group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              style={{ transitionDelay: "200ms" }}
+            >
+              <div
+                className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
+                style={{ backgroundImage: "url(/images/mcp-market.jpg)" }}
+              />
+              <div className="h-full bg-gradient-to-r from-blue-50 to-cyan-50 p-6">
+                <h3 className="mb-3 text-xl font-semibold text-gray-800">MCP Marketplace</h3>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Explore a rich ecosystem of Model Context Protocol integrations. Discover and
+                  install plugins that extend Foxychat's capabilities instantly.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Build Your Own Agent Section */}
       <section
         className="w-full bg-gradient-to-br from-indigo-50/40 via-purple-50/30 to-pink-50/40 py-16 md:py-24"
@@ -493,21 +553,10 @@ const Index = () => {
           >
             <div className="w-full max-w-2xl">
               <div className="relative overflow-hidden rounded-xl border border-purple-200 bg-white shadow-xl transition-all duration-300 hover:border-purple-300 hover:shadow-2xl">
-                <div className="aspect-video w-full">
-                  <div className="hover:to-purple-150 flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100 transition-all duration-300 hover:from-purple-100">
-                    <div className="space-y-4 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-500 shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
-                        <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                      <p className="font-medium text-purple-700">Agent Builder Demo</p>
-                      <p className="text-sm text-purple-600">
-                        See how to create your custom AI agent
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <div
+                  className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 hover:scale-105"
+                  style={{ backgroundImage: "url(/images/custom-agent.jpg)" }}
+                />
               </div>
             </div>
           </div>
