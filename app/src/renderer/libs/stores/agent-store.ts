@@ -191,57 +191,49 @@ export const useAgentStore = create<AgentState>()(
               return;
             }
 
-            try {
-              // Get the tools using the provided getter function
-              const tools = await toolsGetter();
+            // Get the tools using the provided getter function
+            const tools = await toolsGetter();
 
-              if (tools && tools.length > 0) {
-                // Create tool references for the new tools
-                const newToolReferences: ToolReference[] = tools.map(
-                  (tool: ToolDefinition) => ({
-                    mcpName: serverId,
-                    toolName: tool.name,
-                    isBuiltIn:
-                      serverId === "Dev-MCP" || serverId === "codefox-mcp",
-                  }),
-                );
-
-                // Get current tool references and avoid duplicates
-                const currentToolReferences = defaultAgent.toolReferences || [];
-                const existingToolNames = new Set(
-                  currentToolReferences
-                    .filter((ref: ToolReference) => ref.mcpName === serverId)
-                    .map((ref: ToolReference) => ref.toolName),
-                );
-
-                // Only add tools that don't already exist
-                const toolsToAdd = newToolReferences.filter(
-                  (newRef) => !existingToolNames.has(newRef.toolName),
-                );
-
-                if (toolsToAdd.length > 0) {
-                  // Update the agent with the new tools
-                  const updatedAgent = {
-                    ...defaultAgent,
-                    toolReferences: [...currentToolReferences, ...toolsToAdd],
-                  };
-
-                  await get().saveAgent(updatedAgent);
-                  console.log(
-                    `Added ${toolsToAdd.length} ${toolType} from ${serverName} to DefaultAssistant agent:`,
-                    toolsToAdd.map((ref) => ref.toolName),
-                  );
-                  toast.success(
-                    `Enabled ${toolsToAdd.length} ${toolType} from ${serverName} for DefaultAssistant`,
-                  );
-                }
-              }
-            } catch (toolError) {
-              console.error(
-                `Failed to get ${toolType} for ${serverName}:`,
-                toolError,
+            if (tools && tools.length > 0) {
+              // Create tool references for the new tools
+              const newToolReferences: ToolReference[] = tools.map(
+                (tool: ToolDefinition) => ({
+                  mcpName: serverId,
+                  toolName: tool.name,
+                  isBuiltIn:
+                    serverId === "Dev-MCP" || serverId === "codefox-mcp",
+                }),
               );
-              // Don't show error toast here as the main operation was successful
+
+              // Get current tool references and avoid duplicates
+              const currentToolReferences = defaultAgent.toolReferences || [];
+              const existingToolNames = new Set(
+                currentToolReferences
+                  .filter((ref: ToolReference) => ref.mcpName === serverId)
+                  .map((ref: ToolReference) => ref.toolName),
+              );
+
+              // Only add tools that don't already exist
+              const toolsToAdd = newToolReferences.filter(
+                (newRef) => !existingToolNames.has(newRef.toolName),
+              );
+
+              if (toolsToAdd.length > 0) {
+                // Update the agent with the new tools
+                const updatedAgent = {
+                  ...defaultAgent,
+                  toolReferences: [...currentToolReferences, ...toolsToAdd],
+                };
+
+                await get().saveAgent(updatedAgent);
+                console.log(
+                  `Added ${toolsToAdd.length} ${toolType} from ${serverName} to DefaultAssistant agent:`,
+                  toolsToAdd.map((ref) => ref.toolName),
+                );
+                toast.success(
+                  `Enabled ${toolsToAdd.length} ${toolType} from ${serverName} for DefaultAssistant`,
+                );
+              }
             }
           } catch (error) {
             console.error(
