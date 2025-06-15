@@ -212,18 +212,6 @@ function SettingsPage() {
     setActiveShortcut(id);
   };
 
-  const handleCloseSettings = () => {
-    try {
-      if (window.electronAPI) {
-        window.electronAPI.toggleWindow("settings").catch((error: unknown) => {
-          console.error("Error toggling settings window:", error);
-        });
-      }
-    } catch (error: unknown) {
-      console.error("Error toggling settings window:", error);
-    }
-  };
-
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
