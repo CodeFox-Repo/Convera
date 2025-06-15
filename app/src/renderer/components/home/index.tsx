@@ -2,6 +2,7 @@ import { useChatHistory } from "@/renderer/libs/hooks/use-chat-history";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
+import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
@@ -277,10 +278,12 @@ export function HomePage() {
                 <Archive size={16} />
                 <span className="text-sm">Archive</span>
               </button>
-              <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
-                <Settings size={16} />
-                <span className="text-sm">Settings</span>
-              </button>
+              <Link to="/settings">
+                <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
+                  <Settings size={16} />
+                  <span className="text-sm">Settings</span>
+                </button>
+              </Link>
               <UserButton collapsed={false} />
             </div>
           </div>
