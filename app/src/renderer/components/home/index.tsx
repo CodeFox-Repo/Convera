@@ -149,9 +149,9 @@ export function HomePage() {
         )}
 
         {/* Chat Sessions */}
-        <div className="flex-1 overflow-y-auto" style={{ overflow: "visible" }}>
-          {!sidebarCollapsed ? (
-            <div className="p-2" style={{ position: "relative", zIndex: 0 }}>
+        <div className="flex-1 overflow-y-auto min-h-0 relative z-0">
+          {!sidebarCollapsed && (
+            <div className="p-2 relative z-0">
               {historyLoading && chatHistory.length === 0 ? (
                 <div className="flex items-center justify-center p-8">
                   <div className="text-center">
@@ -183,7 +183,7 @@ export function HomePage() {
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50"
                     }`}
-                    style={{ zIndex: 1 }}
+                    style={{ zIndex: 1, position: "relative" }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -266,12 +266,12 @@ export function HomePage() {
                 </div>
               )}
             </div>
-          ) : null}
+          )}
         </div>
 
-        {/* Sidebar Footer */}
+        {/* Sidebar Footer - Fixed at bottom */}
         {!sidebarCollapsed && (
-          <div className="border-t border-border/60 p-4">
+          <div className="border-t border-border/60 p-4 flex-shrink-0 relative z-10">
             <div className="space-y-2">
               <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
                 <Archive size={16} />
