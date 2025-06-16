@@ -55,8 +55,6 @@ export function HomePage() {
   useEffect(() => {
     fetchChatHistory();
   }, [fetchChatHistory]);
-
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setOpenMenuId(null);
@@ -228,14 +226,13 @@ export function HomePage() {
                           <div
                             className="absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-md shadow-xl py-1"
                             style={{ zIndex: 999 }}
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseEnter={(e) => e.stopPropagation()}
-                            onMouseLeave={(e) => e.stopPropagation()}
                           >
                             <button
                               className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-2"
-                              style={{ pointerEvents: "all" }}
-                              onClick={(e) => handleDeleteChat(e, chat.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteChat(e, chat.id);
+                              }}
                             >
                               <Trash2 size={12} />
                               Delete

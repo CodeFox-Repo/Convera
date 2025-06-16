@@ -61,7 +61,6 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
 
   const handleExit = () => {
     if (window.electronAPI) {
-      console.log("Closing window", window.electronAPI);
       window.electronAPI.closeWindow();
     }
   };
