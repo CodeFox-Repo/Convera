@@ -1,9 +1,13 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { zValidator } from "@hono/zod-validator";
+import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   deleteCustomAgent,
   getAgentById,
   getAgentList,
+  getDefaultSystemPrompt,
   saveCustomAgent,
 } from "../agents";
 import {
@@ -12,7 +16,9 @@ import {
   ToolReference,
   UpdateAgentSchema,
 } from "../agents/types";
+import { desktopAutomationTools } from "../builtIn-tools/desktop-automation";
 import { createCustomAgent } from "../service/agent";
+import { saveChat } from "../service/chat";
 
 const router = new Hono();
 
@@ -187,6 +193,100 @@ router.put(
     // saveCustomAgent handles updating existing agents automatically
     await saveCustomAgent(updatedAgent);
     return c.json({ status: "success", agent: updatedAgent });
+  },
+);
+
+// Add schema for automation chat request
+const AutomationChatSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(["user", "assistant", "system"]),
+      content: z.string(),
+    }),
+  ),
+  modelId: z.string().optional(),
+  chatId: z.string().optional(),
+});
+
+// Add automation endpoint
+router.post(
+  "/api/agent/automation",
+  zValidator("json", AutomationChatSchema),
+  async (c) => {
+    const { messages, modelId, chatId } = c.req.valid("json");
+
+    const anthropicApiKey = "";
+
+    try {
+      // Setup desktop automation tools
+      const tools: ToolSet = {
+        ...desktopAutomationTools,
+      };
+
+      // Get tool names for system prompt
+      const toolsList = Object.keys(desktopAutomationTools);
+      const systemPrompt = getDefaultSystemPrompt(toolsList);
+
+      console.log(
+        `Automation chat: Using ${toolsList.length} desktop automation tools`,
+      );
+      console.log(`Available tools: ${toolsList.join(", ")}`);
+
+      // Create Anthropic model
+      const anthropicProvider = createAnthropic({
+        apiKey: anthropicApiKey,
+      });
+      const model = anthropicProvider("claude-sonnet-4-20250514");
+
+      console.log("model", model);
+
+      // Stream the response
+      const result = streamText({
+        model,
+        messages: messages as Message[],
+        system: systemPrompt,
+        tools,
+        maxSteps: 25,
+        onFinish: async (response) => {
+          console.log("Automation chat completed:", response);
+          if (chatId) {
+            await saveChat({
+              id: chatId,
+              messages: appendResponseMessages({
+                messages: messages as Message[],
+                responseMessages: response.response.messages,
+              }),
+            });
+          }
+        },
+      });
+
+      const headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      };
+
+      const response = result.toDataStreamResponse();
+
+      if (!response.body) {
+        return new Response(
+          `data: ${JSON.stringify({ error: "No response body" })}\n\n`,
+          { headers },
+        );
+      }
+
+      return new Response(response.body, { headers });
+    } catch (error) {
+      console.error("Error in automation chat:", error);
+      return c.json(
+        {
+          status: "error",
+          message: `Automation chat failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        },
+        500,
+      );
+    }
   },
 );
 
