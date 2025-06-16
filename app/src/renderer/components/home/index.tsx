@@ -2,6 +2,7 @@ import { useChatHistory } from "@/renderer/libs/hooks/use-chat-history";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
+import * as Popover from "@radix-ui/react-popover";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -49,33 +50,12 @@ export function HomePage() {
 
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
-  // Ref for the dropdown menu to detect outside clicks
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   // Fetch chat history on component mount
   useEffect(() => {
     fetchChatHistory();
   }, [fetchChatHistory]);
-
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpenMenuId(null);
-      }
-    };
-
-    if (openMenuId) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [openMenuId]);
 
   const handleNewChat = () => {
     // Clear current messages to start a new chat
@@ -95,7 +75,6 @@ export function HomePage() {
       setCurrentSessionId("");
       resetChat();
     }
-    setOpenMenuId(null); // Close menu after delete
   };
 
   const formatTimestamp = (dateString: string) => {
@@ -191,10 +170,12 @@ export function HomePage() {
                     className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all ${
                       currentSessionId === chat.id
                         ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50"
+                        : menuOpenId === chat.id
+                          ? "bg-accent/50 text-muted-foreground"
+                          : "text-muted-foreground hover:bg-accent/50"
                     }`}
                     style={{
-                      zIndex: openMenuId === chat.id ? 100 : 1,
+                      zIndex: 1,
                       position: "relative",
                     }}
                     whileHover={{ scale: 1.02 }}
@@ -222,43 +203,43 @@ export function HomePage() {
 
                     <div
                       className={`absolute top-2 right-2 transition-all ${
-                        openMenuId === chat.id
+                        menuOpenId === chat.id
                           ? "opacity-100"
                           : "opacity-0 group-hover:opacity-100"
                       }`}
                     >
-                      <div className="relative">
-                        <button
-                          className="p-1 rounded hover:bg-muted transition-all"
-                          title="More options"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(
-                              openMenuId === chat.id ? null : chat.id,
-                            );
-                          }}
-                        >
-                          <MoreHorizontal size={12} />
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        {openMenuId === chat.id && (
-                          <div
-                            ref={dropdownRef}
-                            className="text-destructive absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-md shadow-xl py-1 z-90"
+                      <Popover.Root
+                        open={menuOpenId === chat.id}
+                        onOpenChange={(open) =>
+                          setMenuOpenId(open ? chat.id : null)
+                        }
+                      >
+                        <Popover.Trigger asChild>
+                          <button
+                            className="p-1 rounded hover:bg-muted data-[state=open]:bg-muted transition-all"
+                            title="More options"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal size={12} />
+                          </button>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Content
+                            className="w-32 bg-popover border border-border rounded-md shadow-xl py-1 z-50"
+                            side="bottom"
+                            align="end"
+                            sideOffset={4}
                           >
                             <button
-                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-2"
-                              onClick={(e) => {
-                                handleDeleteChat(e, chat.id);
-                              }}
+                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2"
+                              onClick={(e) => handleDeleteChat(e, chat.id)}
                             >
                               <Trash2 size={12} />
                               Delete
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
                     </div>
                   </motion.div>
                 ))
