@@ -451,21 +451,40 @@ export const screenshot = tool({
         console.warn("Failed to clean up temporary screenshot file:", e);
       }
 
-      // Return object with data property for the newer format
-      return {
+      // Return structured result that frontend can parse
+      return JSON.stringify({
         type: "image",
         data: base64,
-      };
+        mimeType: "image/png",
+        message: `Screenshot captured (${mode} mode)`,
+      });
     } catch (error: any) {
       throw new Error(`Screenshot failed: ${error.message}`);
     }
   },
   // Use newer format with mimeType to properly handle images
   experimental_toToolResultContent(result) {
+    try {
+      // Try to parse JSON result
+      const parsed = JSON.parse(result as string);
+      if (parsed.type === "image") {
+        return [
+          {
+            type: "image",
+            data: parsed.data,
+            mimeType: parsed.mimeType || "image/png",
+          },
+        ];
+      }
+    } catch (e) {
+      // If JSON parsing fails, treat as regular string
+    }
+
+    // Fallback for string results
     return [
       {
         type: "image",
-        data: result.data,
+        data: result as string,
         mimeType: "image/png",
       },
     ];
