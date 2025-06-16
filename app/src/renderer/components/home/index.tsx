@@ -51,18 +51,29 @@ export function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
+  // Ref for the dropdown menu to detect outside clicks
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   // Fetch chat history on component mount
   useEffect(() => {
     fetchChatHistory();
   }, [fetchChatHistory]);
+
+  // Handle click outside to close dropdown
   useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenMenuId(null);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpenMenuId(null);
+      }
     };
 
     if (openMenuId) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [openMenuId]);
 
@@ -182,11 +193,14 @@ export function HomePage() {
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50"
                     }`}
-                    style={{ zIndex: 1, position: "relative" }}
+                    style={{
+                      zIndex: openMenuId === chat.id ? 100 : 1,
+                      position: "relative",
+                    }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 z-1">
                       <MessageSquare
                         size={16}
                         className="mt-0.5 flex-shrink-0"
@@ -206,7 +220,13 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <div
+                      className={`absolute top-2 right-2 transition-all ${
+                        openMenuId === chat.id
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
                       <div className="relative">
                         <button
                           className="p-1 rounded hover:bg-muted transition-all"
@@ -224,13 +244,12 @@ export function HomePage() {
                         {/* Dropdown Menu */}
                         {openMenuId === chat.id && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-md shadow-xl py-1"
-                            style={{ zIndex: 999 }}
+                            ref={dropdownRef}
+                            className="text-destructive absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-md shadow-xl py-1 z-90"
                           >
                             <button
                               className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-2"
                               onClick={(e) => {
-                                e.stopPropagation();
                                 handleDeleteChat(e, chat.id);
                               }}
                             >
