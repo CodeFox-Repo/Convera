@@ -20,10 +20,6 @@ import {
   getAgentPopoverWindow,
 } from "@/electron/windows/agent-popover-window";
 import {
-  createHistoryWindow,
-  getHistoryWindow,
-} from "@/electron/windows/history-window";
-import {
   createMainWindow,
   getMainWindow,
 } from "@/electron/windows/main-window";
@@ -31,11 +27,6 @@ import {
   createModelSelectorWindow,
   getModelSelectorWindow,
 } from "@/electron/windows/model-selector-window";
-import {
-  createSettingsWindow,
-  getSettingsWindow,
-} from "@/electron/windows/settings-window";
-
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
 let previousAppName = "";
@@ -77,17 +68,12 @@ export function setPreviousApp(appName: string, appId?: number): void {
 // ========== UNIFIED WINDOW CONTROL ==========
 
 export function toggleWindow(type: WindowType): void {
+  const route = type === "main" ? "/" : "/" + type;
   switch (type) {
     case "settings":
-      toggleGenericWindow(getSettingsWindow, createSettingsWindow);
-      break;
-
     case "history":
-      toggleGenericWindow(getHistoryWindow, createHistoryWindow);
-      break;
-
     case "main":
-      toggleGenericWindow(getMainWindow, createMainWindow);
+      toggleGenericWindow(getMainWindow, createMainWindow, route);
       break;
 
     default:
@@ -96,13 +82,14 @@ export function toggleWindow(type: WindowType): void {
 }
 
 function toggleGenericWindow(
-  getWindow: () => BrowserWindow | null,
-  createWindow: () => void,
+  getWindow: (route?: string) => BrowserWindow | null,
+  createWindow: (route?: string) => void,
+  route?: string,
 ): void {
-  const window = getWindow();
+  const window = getWindow(route);
 
   if (!window) {
-    createWindow();
+    createWindow(route);
     return;
   }
 
@@ -177,19 +164,6 @@ export function setLightTheme(): string {
 
 export function setSystemTheme(): string {
   return setTheme("system");
-}
-
-export function toggleSettingsWindow(): void {
-  console.log("Legacy toggleSettingsWindow called");
-  toggleWindow("settings");
-}
-
-export function closeSettingsWindow(): void {
-  console.log("Legacy closeSettingsWindow called");
-  const settingsWindow = getSettingsWindow();
-  if (settingsWindow) {
-    settingsWindow.hide();
-  }
 }
 
 // ========== GLOBAL SHORTCUTS ==========

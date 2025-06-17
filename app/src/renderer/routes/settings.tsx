@@ -540,14 +540,11 @@ function SettingsPage() {
                           <p className="text-xs text-muted-foreground mb-2">
                             Main application interface
                           </p>
-                          <button
-                            onClick={() =>
-                              window.electronAPI?.toggleWindow("main")
-                            }
-                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                          >
-                            Toggle Main Window
-                          </button>
+                          <Link to="/">
+                            <button className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors">
+                              Toggle Main Window
+                            </button>
+                          </Link>
                         </div>
 
                         <div className="border border-border rounded-md p-3">

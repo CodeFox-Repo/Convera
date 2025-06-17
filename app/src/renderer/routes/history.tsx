@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
@@ -22,7 +22,6 @@ function ChatHistoryPage() {
     fetchChatHistory,
     selectChat,
     deleteChat,
-    triggerHistoryWindow,
   } = useChatHistory(() => {});
 
   // Listen for theme changes from settings
@@ -71,11 +70,6 @@ function ChatHistoryPage() {
     await deleteChat(chatId);
   };
 
-  // Handle closing the history window
-  const handleCloseHistory = () => {
-    triggerHistoryWindow();
-  };
-
   // Handle refreshing chat list manually
   const handleRefresh = () => {
     fetchChatHistory();
@@ -120,13 +114,14 @@ function ChatHistoryPage() {
             <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
           </button>
         </div>
-        <button
-          onClick={handleCloseHistory}
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-          aria-label="Close history"
-        >
-          <X size={20} />
-        </button>
+        <Link to="/">
+          <button
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            aria-label="Close history"
+          >
+            <X size={20} />
+          </button>
+        </Link>
       </div>
 
       <div className="relative mb-6">
