@@ -13,18 +13,108 @@ import * as path from "path";
 import { z } from "zod";
 
 // Import nutjs with error handling
-let mouse: any,
-  keyboard: any,
-  Button: any,
-  Key: any,
-  Point: any,
-  Region: any,
-  Size: any,
-  screen: any;
-let getWindows: any, getActiveWindow: any;
+interface NutjsPoint {
+  x: number;
+  y: number;
+}
+
+interface NutjsRegion {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface NutjsWindow {
+  getTitle: () => Promise<string>;
+  getRegion: () => Promise<NutjsRegion>;
+  focus: () => Promise<void>;
+  move: (point: NutjsPoint) => Promise<void>;
+  resize: (size: NutjsSize) => Promise<void>;
+  minimize: () => Promise<void>;
+  restore: () => Promise<void>;
+}
+
+interface NutjsSize {
+  width: number;
+  height: number;
+}
+
+interface NutjsColor {
+  R: number;
+  G: number;
+  B: number;
+  A: number;
+}
+
+interface NutjsButton {
+  LEFT: string;
+  RIGHT: string;
+  MIDDLE: string;
+}
+
+interface NutjsKey {
+  [keyName: string]: string;
+  LeftControl: string;
+  LeftSuper: string;
+  LeftShift: string;
+  LeftAlt: string;
+  C: string;
+  V: string;
+  X: string;
+  Z: string;
+  Y: string;
+  A: string;
+  S: string;
+  Q: string;
+  M: string;
+  Tab: string;
+  T: string;
+  W: string;
+  F4: string;
+  Down: string;
+}
+
+let mouse: {
+  setPosition: (point: NutjsPoint) => Promise<void>;
+  click: (button: string) => Promise<void>;
+  doubleClick: (button: string) => Promise<void>;
+  getPosition: () => Promise<NutjsPoint>;
+  scrollUp: (amount: number) => Promise<void>;
+  scrollDown: (amount: number) => Promise<void>;
+  scrollLeft: (amount: number) => Promise<void>;
+  scrollRight: (amount: number) => Promise<void>;
+  drag: (points: NutjsPoint[]) => Promise<void>;
+  pressButton: (button: string) => Promise<void>;
+  releaseButton: (button: string) => Promise<void>;
+  move: (points: NutjsPoint[]) => Promise<void>;
+};
+let keyboard: {
+  type: (text: string) => Promise<void>;
+  pressKey: (...keys: string[]) => Promise<void>;
+  releaseKey: (...keys: string[]) => Promise<void>;
+};
+let Button: NutjsButton;
+let Key: NutjsKey;
+let Point: new (x: number, y: number) => NutjsPoint;
+let Region: new (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) => NutjsRegion;
+let Size: new (width: number, height: number) => NutjsSize;
+let screen: {
+  size: () => Promise<{ width: number; height: number }>;
+  highlight: (region: unknown) => Promise<void>;
+  colorAt: (point: unknown) => Promise<NutjsColor>;
+};
+let getWindows: () => Promise<NutjsWindow[]>;
+let getActiveWindow: () => Promise<NutjsWindow>;
 let nutjsAvailable = false;
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const nutjs = require("@nut-tree-fork/nut-js");
   ({
     mouse,
@@ -40,10 +130,11 @@ try {
   } = nutjs);
   nutjsAvailable = true;
   console.log("✅ nutjs loaded successfully for desktop automation");
-} catch (error: any) {
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
   console.warn(
     "⚠️ nutjs not fully available for desktop automation:",
-    error.message,
+    errorMessage,
   );
   console.log(
     "📋 Basic screenshot functionality will still work via macOS screencapture",
@@ -51,10 +142,17 @@ try {
 }
 
 // macOS permissions handling
-let macPermissions: any;
+interface MacPermissions {
+  getAuthStatus: (permission: string) => string;
+  askForAccessibilityAccess: () => void;
+  askForScreenCaptureAccess: () => void;
+}
+
+let macPermissions: MacPermissions;
 let permissionsAvailable = false;
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   macPermissions = require("node-mac-permissions");
   permissionsAvailable = true;
 
@@ -70,8 +168,9 @@ try {
       "⚠️ Please enable Screen Recording for this app in System Settings > Privacy & Security > Screen Recording.",
     );
   }
-} catch (error: any) {
-  console.warn("⚠️ macOS permissions module not available:", error.message);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+  console.warn("⚠️ macOS permissions module not available:", errorMessage);
 }
 
 // Helper function to check nutjs availability
@@ -100,25 +199,8 @@ const getScreenInfo = async (nutjsAvailable: boolean) => {
         return "Unable to determine screen dimensions";
       }
     }
-  } catch (error) {
+  } catch {
     return "Error getting screen information";
-  }
-};
-
-// Helper function to create base64 image content
-const createImageContent = (imagePath: string) => {
-  try {
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64 = imageBuffer.toString("base64");
-    const mimeType = imagePath.endsWith(".png") ? "image/png" : "image/jpeg";
-
-    return {
-      type: "image",
-      mimeType,
-      data: base64,
-    };
-  } catch (error) {
-    throw new Error(`Failed to read image: ${error}`);
   }
 };
 
@@ -297,9 +379,9 @@ export const type = tool({
       // Parse comma-separated key names
       const keyNames = keys.split(",").map((k) => k.trim());
       // Map each key name to nut.js Key constant
-      const keyConsts: any[] = keyNames.map((name) => {
+      const keyConsts: string[] = keyNames.map((name) => {
         const keyName = name === "Command" ? "LeftSuper" : name;
-        const keyConst = (Key as any)[keyName];
+        const keyConst = Key[keyName];
         if (!keyConst) throw new Error(`Unknown key: ${name}`);
         return keyConst;
       });
@@ -332,9 +414,9 @@ export const keyControl = tool({
   execute: async ({ action, keys }) => {
     requireNutjs();
     const keyNames = keys.split(",").map((k) => k.trim());
-    const keyConsts: any[] = keyNames.map((name) => {
+    const keyConsts: string[] = keyNames.map((name) => {
       const keyName = name === "Command" ? "LeftSuper" : name;
-      const keyConst = (Key as any)[keyName];
+      const keyConst = Key[keyName];
       if (!keyConst) throw new Error(`Unknown key: ${name}`);
       return keyConst;
     });
@@ -415,18 +497,22 @@ export const screenshot = tool({
         let targetId = windowId;
         if (!targetId && windowName) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { openWindows } = require("get-windows");
             const allWindows = await openWindows();
             const targetWin = allWindows.find(
-              (w: any) => w.title && w.title.includes(windowName),
+              (w: { title?: string; id: number }) =>
+                w.title && w.title.includes(windowName),
             );
             if (!targetWin)
               throw new Error(
                 `Window containing title "${windowName}" not found`,
               );
             targetId = targetWin.id;
-          } catch (e) {
-            throw new Error(`Failed to find window: ${e}`);
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error";
+            throw new Error(`Failed to find window: ${errorMessage}`);
           }
         }
         if (!targetId)
@@ -458,8 +544,10 @@ export const screenshot = tool({
         mimeType: "image/png",
         message: `Screenshot captured (${mode} mode)`,
       });
-    } catch (error: any) {
-      throw new Error(`Screenshot failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Screenshot failed: ${errorMessage}`);
     }
   },
   // Use newer format with mimeType to properly handle images
@@ -476,7 +564,7 @@ export const screenshot = tool({
           },
         ];
       }
-    } catch (e) {
+    } catch {
       // If JSON parsing fails, treat as regular string
     }
 
@@ -542,7 +630,7 @@ export const getWindowsList = tool({
       try {
         const windows = await getWindows();
         const windowInfo = await Promise.all(
-          windows.map(async (win: any, index: number) => {
+          windows.map(async (win: NutjsWindow, index: number) => {
             const title = await win.getTitle();
             const region = await win.getRegion();
             return `${index + 1}. "${title}" - Position: (${region.left}, ${
@@ -551,21 +639,26 @@ export const getWindowsList = tool({
           }),
         );
         return `Open windows:\n${windowInfo.join("\n")}`;
-      } catch (e) {
+      } catch {
         console.warn("nutjs getWindows failed, trying fallback");
       }
     }
 
     // Fallback to get-windows
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { openWindows } = require("get-windows");
       const allWindows = await openWindows();
-      const windowInfo = allWindows.map((win: any, index: number) => {
-        return `${index + 1}. "${win.title}" - ID: ${win.id}`;
-      });
+      const windowInfo = allWindows.map(
+        (win: { title: string; id: number }, index: number) => {
+          return `${index + 1}. "${win.title}" - ID: ${win.id}`;
+        },
+      );
       return `Open windows:\n${windowInfo.join("\n")}`;
-    } catch (e) {
-      throw new Error(`Failed to get windows: ${e}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to get windows: ${errorMessage}`);
     }
   },
 });
@@ -581,20 +674,23 @@ export const getActiveWindowInfo = tool({
         const title = await activeWindow.getTitle();
         const region = await activeWindow.getRegion();
         return `Active window: "${title}" - Position: (${region.left}, ${region.top}), Size: ${region.width}x${region.height}`;
-      } catch (e) {
+      } catch {
         console.warn("nutjs getActiveWindow failed, trying fallback");
       }
     }
 
     // Fallback method
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { openWindows } = require("get-windows");
       const allWindows = await openWindows();
-      const activeWindow = allWindows.find((w: any) => w.active);
+      const activeWindow = allWindows.find(
+        (w: { title: string; id: number; active?: boolean }) => w.active,
+      );
       if (activeWindow) {
         return `Active window: "${activeWindow.title}" - ID: ${activeWindow.id}`;
       }
-    } catch (e) {
+    } catch {
       // Another fallback using AppleScript
       try {
         const output = child_process
@@ -604,8 +700,10 @@ export const getActiveWindowInfo = tool({
           .toString()
           .trim();
         return `Active window: "${output}"`;
-      } catch (e2) {
-        throw new Error(`Failed to get active window: ${e2}`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new Error(`Failed to get active window: ${errorMessage}`);
       }
     }
 
@@ -638,20 +736,22 @@ export const windowControl = tool({
             `osascript -e 'tell application "${windowTitle}" to activate'`,
           );
           return `Attempted to focus application: "${windowTitle}"`;
-        } catch (e) {
-          throw new Error(`Failed to focus application: ${e}`);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          throw new Error(`Failed to focus application: ${errorMessage}`);
         }
       } else {
         throw new Error("Window control requires nutjs to be fully loaded");
       }
     }
 
-    let targetWindow: any;
+    let targetWindow: NutjsWindow;
 
     if (windowTitle) {
       const windows = await getWindows();
-      targetWindow = await Promise.all(
-        windows.map(async (win: any) => ({
+      const foundWindow = await Promise.all(
+        windows.map(async (win: NutjsWindow) => ({
           window: win,
           title: await win.getTitle(),
         })),
@@ -660,11 +760,12 @@ export const windowControl = tool({
           windowsWithTitles.find((w) => w.title.includes(windowTitle))?.window,
       );
 
-      if (!targetWindow) {
+      if (!foundWindow) {
         throw new Error(
           `Window with title containing "${windowTitle}" not found`,
         );
       }
+      targetWindow = foundWindow;
     } else {
       targetWindow = await getActiveWindow();
     }
@@ -731,7 +832,7 @@ export const sleep = tool({
     ms: z.number().describe("Time to sleep in milliseconds"),
   }),
   execute: async ({ ms }) => {
-    await new Promise((resolve) => setTimeout(resolve, ms));
+    await new Promise((resolve) => setTimeout(resolve, ms * 1000));
     return `Slept for ${ms} milliseconds`;
   },
 });
@@ -757,7 +858,7 @@ export const mouseMovePath = tool({
     }
 
     // Convert flat array to Point objects
-    const points: any[] = [];
+    const points: NutjsPoint[] = [];
     for (let i = 0; i < path.length; i += 2) {
       points.push(new Point(path[i], path[i + 1]));
     }
