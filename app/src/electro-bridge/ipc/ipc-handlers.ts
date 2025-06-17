@@ -19,10 +19,7 @@ import {
   createAgentPopoverWindow,
   getAgentPopoverWindow,
 } from "@/electron/windows/agent-popover-window";
-import {
-  createHistoryWindow,
-  getHistoryWindow,
-} from "@/electron/windows/history-window";
+import { getChatWindow } from "@/electron/windows/chat-window";
 import {
   createMainWindow,
   getMainWindow,
@@ -31,10 +28,6 @@ import {
   createModelSelectorWindow,
   getModelSelectorWindow,
 } from "@/electron/windows/model-selector-window";
-import {
-  createSettingsWindow,
-  getSettingsWindow,
-} from "@/electron/windows/settings-window";
 
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
@@ -74,43 +67,43 @@ export function setPreviousApp(appName: string, appId?: number): void {
   }
 }
 
-// ========== UNIFIED WINDOW CONTROL ==========
+export function toggleWindow(
+  type: WindowType,
+  params?: Record<string, string>,
+): void {
+  const baseRoute = type === "main" ? "/" : "/" + type;
 
-export function toggleWindow(type: WindowType): void {
+  const searchParams = new URLSearchParams(params);
+  const queryString = searchParams.toString()
+    ? `?${searchParams.toString()}`
+    : "";
+
+  const route = baseRoute + queryString;
+
   switch (type) {
     case "settings":
-      toggleGenericWindow(getSettingsWindow, createSettingsWindow);
-      break;
-
     case "history":
-      toggleGenericWindow(getHistoryWindow, createHistoryWindow);
-      break;
+    case "main": {
+      const window = getMainWindow(route);
 
-    case "main":
-      toggleGenericWindow(getMainWindow, createMainWindow);
+      if (!window) {
+        createMainWindow();
+        return;
+      }
+
+      if (window.isVisible()) {
+        window.hide();
+        toggleChatWindowVisibility(getChatWindow());
+      } else {
+        toggleChatWindowVisibility(getChatWindow());
+        window.show();
+        window.focus();
+      }
       break;
+    }
 
     default:
       console.warn(`Unknown window type: ${type}`);
-  }
-}
-
-function toggleGenericWindow(
-  getWindow: () => BrowserWindow | null,
-  createWindow: () => void,
-): void {
-  const window = getWindow();
-
-  if (!window) {
-    createWindow();
-    return;
-  }
-
-  if (window.isVisible()) {
-    window.hide();
-  } else {
-    window.show();
-    window.focus();
   }
 }
 
@@ -179,19 +172,6 @@ export function setSystemTheme(): string {
   return setTheme("system");
 }
 
-export function toggleSettingsWindow(): void {
-  console.log("Legacy toggleSettingsWindow called");
-  toggleWindow("settings");
-}
-
-export function closeSettingsWindow(): void {
-  console.log("Legacy closeSettingsWindow called");
-  const settingsWindow = getSettingsWindow();
-  if (settingsWindow) {
-    settingsWindow.hide();
-  }
-}
-
 // ========== GLOBAL SHORTCUTS ==========
 
 export function updateGlobalShortcut(
@@ -244,6 +224,7 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
+    // Toggle chat window visibility
     toggleChatWindowVisibility(mainWindow);
   }
 }

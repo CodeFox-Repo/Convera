@@ -44,8 +44,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       rejectCopiedContent,
       resetChatWindow,
       handleVoiceInput,
-      openSettings,
-      openHistoryWindow,
+      toggleWindow,
       attachments,
       addAttachments,
     } = useChatContext();
@@ -229,11 +228,10 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
             <ChatInputButtons
               onReset={resetChatWindow}
-              onOpenSettings={openSettings}
+              toggleWindow={toggleWindow}
               onVoiceInput={handleVoiceInput}
               onStopGeneration={stopGeneration}
               onSendMessage={handleSubmit}
-              triggerHistoryWindow={openHistoryWindow}
               isLoading={isLoading}
               hasContent={!!editorContent.trim() || attachments.length > 0}
               selectedModelId={selectedModelId}

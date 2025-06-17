@@ -3,6 +3,7 @@ import {
   parseApiError,
 } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
+import { WindowType } from "@/shared/types/electron";
 import { AppSettings } from "@/shared/types/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
@@ -14,7 +15,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useChatHistory } from "../hooks/use-chat-history";
 import { useAgentStore } from "./agent-store";
 import { useModelStore } from "./model-store";
 
@@ -48,8 +48,7 @@ interface ChatContextType {
   // Chat-related actions (previously in app-actions)
   resetChatWindow: () => void;
   handleVoiceInput: () => void;
-  openSettings: () => void;
-  openHistoryWindow: () => void;
+  toggleWindow: (route: WindowType, params?: Record<string, string>) => void;
   isVoiceInputActive: boolean;
 }
 
@@ -123,9 +122,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       setViewMode("expanded");
     }
   }, [chatAPI.messages.length, viewMode]);
-
-  // Integrate the useChatHistory hook
-  const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
@@ -281,15 +277,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsVoiceInputActive((prev) => !prev);
   }, []);
 
-  const openSettings = useCallback(() => {
-    window.electronAPI.toggleWindow("settings").catch((error) => {
-      console.error("Failed to toggle settings window:", error);
-    });
-  }, []);
-
-  const openHistoryWindow = useCallback(() => {
-    triggerHistoryWindow();
-  }, [triggerHistoryWindow]);
+  const toggleWindow = useCallback(
+    (route: WindowType, params?: Record<string, string>) => {
+      window.electronAPI.toggleWindow(route, params);
+    },
+    [],
+  );
 
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
@@ -314,8 +307,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     clearAttachments,
     resetChatWindow,
     handleVoiceInput,
-    openSettings,
-    openHistoryWindow,
+    toggleWindow,
     isVoiceInputActive,
   };
 

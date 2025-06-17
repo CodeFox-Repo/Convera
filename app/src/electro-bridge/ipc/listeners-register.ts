@@ -116,9 +116,12 @@ export function registerListeners(options: ListenerOptions = {}) {
   const { chatWindow, registerGlobalShortcuts } = options;
 
   // Unified Window Control
-  ipcMain.handle(CHANNELS.WINDOW.TOGGLE, (_event, type: WindowType) => {
-    return toggleWindow(type);
-  });
+  ipcMain.handle(
+    CHANNELS.WINDOW.TOGGLE,
+    (_event, type: WindowType, params?: Record<string, string>) => {
+      return toggleWindow(type, params);
+    },
+  );
 
   ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
     const window = chatWindow?.() || null;

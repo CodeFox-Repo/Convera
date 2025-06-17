@@ -173,6 +173,25 @@ export function createMainWindow(): void {
 }
 
 // Get main window reference
-export function getMainWindow(): BrowserWindow | null {
+export function getMainWindow(route?: string): BrowserWindow | null {
+  if (mainWindow) {
+    mainWindow.webContents
+      .executeJavaScript(
+        `
+      console.log("Redirecting to ${route || "/"} page...");
+      
+      if (window.router) {
+        console.log("Using router API");
+        window.router.navigate({ to: "${route || "/"}", replace: true });
+      } else {
+        console.log("Using location.hash");
+        window.location.hash = "${route || "/"}"
+      }
+    `,
+      )
+      .catch((err) => {
+        console.error("Failed to execute navigation script:", err);
+      });
+  }
   return mainWindow;
 }

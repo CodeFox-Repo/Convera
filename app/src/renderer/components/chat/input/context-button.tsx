@@ -91,14 +91,15 @@ export function ContextButtons({
           <button
             className={`h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
                 bg-background/30 text-xs font-medium hover:bg-background/50 transition-colors
-                ${hasContexts ? "px-2 py-1 aspect-square" : "px-3 py-1 max-w-[36ch]"}`}
+                ${hasContexts ? "px-2 py-1 aspect-square justify-center" : "px-3 py-1 max-w-[36ch]"}
+              
+                
+                `}
             onClick={onAddFile}
             title="Add context"
           >
-            <Plus size={14} className="flex-shrink-0" />
-            {!hasContexts && (
-              <span className="ml-1">{formatAppName("Add context")}</span>
-            )}
+            <Plus size={12} className="flex-shrink-0" />
+            {!hasContexts && <span className="ml-1.5 mt-0.5">Add context</span>}
           </button>
 
           {copiedContent && (

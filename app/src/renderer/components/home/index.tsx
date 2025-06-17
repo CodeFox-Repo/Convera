@@ -33,6 +33,7 @@ export function HomePage() {
     regenerateMessage,
     error,
     resetChat,
+    toggleWindow,
   } = useChatContext();
 
   const { agentChanged, handleAgentChange } = useAgentStore();
@@ -313,7 +314,7 @@ export function HomePage() {
       <div className="flex-1 flex flex-col bg-background relative">
         {/* Close Button - Top Right */}
         <button
-          onClick={() => window.electronAPI.toggleWindow("main")}
+          onClick={() => toggleWindow("main")}
           className="absolute top-4 right-4 z-10 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
           aria-label="Close window"
           title="Close Window"

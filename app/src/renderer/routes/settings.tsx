@@ -11,6 +11,7 @@ import {
   Sun,
   X,
 } from "lucide-react";
+import { z } from "zod";
 
 // Import our component tabs
 import { AgentsTab } from "@/renderer/components/settings/agents-tab";
@@ -23,8 +24,14 @@ import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+// Search params schema
+const settingsSearchSchema = z.object({
+  from: z.string().optional(),
+});
+
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
+  validateSearch: settingsSearchSchema,
 });
 
 /**
@@ -32,6 +39,9 @@ export const Route = createFileRoute("/settings")({
  * and keyboard shortcuts.
  */
 function SettingsPage() {
+  // Get search params
+  const { from } = Route.useSearch();
+
   // UI state only
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -90,6 +100,13 @@ function SettingsPage() {
     const unsubscribe = subscribeToSettingsChanges();
     return unsubscribe;
   }, []);
+
+  // Log where user came from for debugging
+  useEffect(() => {
+    if (from) {
+      console.log(`Settings opened from: ${from}`);
+    }
+  }, [from]);
 
   // Handle Command+W for settings window
   useWindowClose({ type: "toggle", windowType: "settings" });
@@ -382,19 +399,36 @@ function SettingsPage() {
           </ul>
         </nav>
 
-        <Link to="/">
+        {!from ? (
+          <Link to="/">
+            <div className="border-t border-border/40 p-4">
+              <button
+                className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
+                  isSidebarCollapsed ? "justify-center" : ""
+                }`}
+                title={isSidebarCollapsed ? "Close Settings" : undefined}
+              >
+                <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
+                {!isSidebarCollapsed && <span>Close Settings</span>}
+              </button>
+            </div>
+          </Link>
+        ) : (
           <div className="border-t border-border/40 p-4">
             <button
               className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
                 isSidebarCollapsed ? "justify-center" : ""
               }`}
               title={isSidebarCollapsed ? "Close Settings" : undefined}
+              onClick={() => {
+                window.electronAPI?.toggleWindow("settings");
+              }}
             >
               <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
               {!isSidebarCollapsed && <span>Close Settings</span>}
             </button>
           </div>
-        </Link>
+        )}
       </div>
 
       {/* Mobile sidebar toggle - only shown on small screens */}
@@ -540,14 +574,11 @@ function SettingsPage() {
                           <p className="text-xs text-muted-foreground mb-2">
                             Main application interface
                           </p>
-                          <button
-                            onClick={() =>
-                              window.electronAPI?.toggleWindow("main")
-                            }
-                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                          >
-                            Toggle Main Window
-                          </button>
+                          <Link to="/">
+                            <button className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors">
+                              Toggle Main Window
+                            </button>
+                          </Link>
                         </div>
 
                         <div className="border border-border rounded-md p-3">

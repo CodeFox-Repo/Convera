@@ -1,5 +1,6 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { WindowType } from "@/shared/types/electron";
 import {
   Bot,
   History,
@@ -16,11 +17,10 @@ import ModelSelector from "../popover/model-selector-popover";
 // TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
 interface ChatInputButtonsProps {
   onReset?: () => void;
-  onOpenSettings?: () => void;
   onVoiceInput?: () => void;
   onStopGeneration?: () => void;
   onSendMessage?: () => void;
-  triggerHistoryWindow: () => void;
+  toggleWindow: (route: WindowType, params?: Record<string, string>) => void;
   isLoading: boolean;
   hasContent: boolean;
   selectedModelId?: string;
@@ -52,7 +52,7 @@ interface ActionButtonConfig {
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
-  const { onOpenSettings, triggerHistoryWindow } = props;
+  const { toggleWindow: toggleWindow } = props;
 
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
@@ -70,7 +70,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const leftActionButtons: ActionButtonConfig[] = [
     {
       id: "history",
-      onClick: triggerHistoryWindow,
+      onClick: () => toggleWindow("history"),
       title: "View chat history",
       Icon: History,
       show: true,
@@ -78,10 +78,10 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "settings",
-      onClick: onOpenSettings,
+      onClick: () => toggleWindow("settings", { from: "chat" }),
       title: "Open settings",
       Icon: Settings,
-      show: !!onOpenSettings,
+      show: true,
       iconSize: 16,
     },
     {

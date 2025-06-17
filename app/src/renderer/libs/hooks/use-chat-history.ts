@@ -92,25 +92,6 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
     }
   }, []);
 
-  /**
-   * Function to open chat history window
-   */
-  const triggerHistoryWindow = useCallback(async () => {
-    await window.electronAPI.toggleWindow("history").catch((error: Error) => {
-      console.error("Error toggling chat history window:", error);
-    });
-  }, []);
-
-  /**
-   * Function to close chat history window
-   */
-  const closeHistoryWindow = useCallback(() => {
-    console.log("Closing history window...");
-    window.electronAPI.toggleWindow("history").catch((error: Error) => {
-      console.error("Error toggling history window:", error);
-    });
-  }, []);
-
   useEffect(() => {
     const handleChatHistorySelected = (event: Event) => {
       const customEvent = event as CustomEvent;
@@ -156,8 +137,6 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
     fetchChatHistory,
     selectChat,
     deleteChat,
-    triggerHistoryWindow,
-    closeHistoryWindow,
   };
 }
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useChatHistory } from "../libs/hooks/use-chat-history";
 import { useThemeSync } from "../libs/hooks/use-theme-sync";
 import { useWindowClose } from "../libs/hooks/use-window-close";
+import { useChatContext } from "../libs/stores/chat-store";
 import { cleanTitle } from "../libs/utils/tag";
 
 export const Route = createFileRoute("/history")({
@@ -22,7 +23,6 @@ function ChatHistoryPage() {
     fetchChatHistory,
     selectChat,
     deleteChat,
-    triggerHistoryWindow,
   } = useChatHistory(() => {});
 
   // Listen for theme changes from settings
@@ -71,15 +71,12 @@ function ChatHistoryPage() {
     await deleteChat(chatId);
   };
 
-  // Handle closing the history window
-  const handleCloseHistory = () => {
-    triggerHistoryWindow();
-  };
-
   // Handle refreshing chat list manually
   const handleRefresh = () => {
     fetchChatHistory();
   };
+
+  const { toggleWindow } = useChatContext();
 
   // Format the date for display
   const formatDate = (dateString: string) => {
@@ -121,9 +118,11 @@ function ChatHistoryPage() {
           </button>
         </div>
         <button
-          onClick={handleCloseHistory}
           className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
           aria-label="Close history"
+          onClick={() => {
+            toggleWindow("history");
+          }}
         >
           <X size={20} />
         </button>

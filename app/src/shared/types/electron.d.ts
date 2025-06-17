@@ -21,7 +21,7 @@ export interface IElectronAPI {
   // Unified Window Control
   toggleWindow: (
     type: WindowType,
-    options?: WindowControlOptions,
+    params?: Record<string, string>,
   ) => Promise<void>;
   closeWindow: () => Promise<void>;
 
