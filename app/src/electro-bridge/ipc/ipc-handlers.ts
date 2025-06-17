@@ -19,6 +19,7 @@ import {
   createAgentPopoverWindow,
   getAgentPopoverWindow,
 } from "@/electron/windows/agent-popover-window";
+import { getChatWindow } from "@/electron/windows/chat-window";
 import {
   createMainWindow,
   getMainWindow,
@@ -31,6 +32,36 @@ import {
 let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
+
+// ========== WINDOW STATE MANAGEMENT ==========
+
+type WindowState = "main" | "chat";
+
+// In-memory storage for current window state
+let currentActiveWindow: WindowState = "chat";
+let previousActiveWindow: WindowState = "chat";
+
+export function getCurrentActiveWindow(): WindowState {
+  return currentActiveWindow;
+}
+
+export function setActiveWindow(windowType: WindowState): void {
+  previousActiveWindow = currentActiveWindow;
+  currentActiveWindow = windowType;
+  console.log(
+    `Window state changed: ${previousActiveWindow} -> ${currentActiveWindow}`,
+  );
+}
+
+export function toggleToMain(): void {
+  toggleChatWindowVisibility(getChatWindow());
+  setActiveWindow("main");
+}
+
+export function returnToChat(): void {
+  toggleChatWindowVisibility(getChatWindow());
+  setActiveWindow("chat");
+}
 
 // ========== APP HANDLERS ==========
 
@@ -69,6 +100,7 @@ export function setPreviousApp(appName: string, appId?: number): void {
 
 export function toggleWindow(type: WindowType): void {
   const route = type === "main" ? "/" : "/" + type;
+
   switch (type) {
     case "settings":
     case "history":
@@ -89,13 +121,17 @@ function toggleGenericWindow(
   const window = getWindow(route);
 
   if (!window) {
+    toggleToMain();
     createWindow(route);
     return;
   }
 
   if (window.isVisible()) {
+    console.log("Hiding window, returning to chat state");
+    returnToChat();
     window.hide();
   } else {
+    toggleToMain();
     window.show();
     window.focus();
   }
@@ -218,6 +254,13 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
+    // Check current window state and handle accordingly
+    if (currentActiveWindow === "main") {
+      console.log("Closing main window, returning to chat state");
+      returnToChat();
+    }
+
+    // Always toggle chat window visibility
     toggleChatWindowVisibility(mainWindow);
   }
 }
