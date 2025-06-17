@@ -16,11 +16,10 @@ import ModelSelector from "../popover/model-selector-popover";
 // TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
 interface ChatInputButtonsProps {
   onReset?: () => void;
-  onOpenSettings?: () => void;
   onVoiceInput?: () => void;
   onStopGeneration?: () => void;
   onSendMessage?: () => void;
-  triggerHistoryWindow: () => void;
+  onOpenWindow: (route: string) => void;
   isLoading: boolean;
   hasContent: boolean;
   selectedModelId?: string;
@@ -52,7 +51,7 @@ interface ActionButtonConfig {
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
-  const { onOpenSettings, triggerHistoryWindow } = props;
+  const { onOpenWindow } = props;
 
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
@@ -70,7 +69,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const leftActionButtons: ActionButtonConfig[] = [
     {
       id: "history",
-      onClick: triggerHistoryWindow,
+      onClick: () => onOpenWindow("history"),
       title: "View chat history",
       Icon: History,
       show: true,
@@ -78,10 +77,10 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "settings",
-      onClick: onOpenSettings,
+      onClick: () => onOpenWindow("settings"),
       title: "Open settings",
       Icon: Settings,
-      show: !!onOpenSettings,
+      show: true,
       iconSize: 16,
     },
     {

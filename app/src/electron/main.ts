@@ -32,13 +32,8 @@ import {
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { createChatWindow } from "./windows/chat-window";
-import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
-import {
-  getSettingsWindow,
-  preCreateSettingsWindow,
-} from "./windows/settings-window";
 import { isInExpandedViewMode } from "./windows/window-resize";
 
 const { activeWindowSync } =
@@ -234,16 +229,6 @@ function setupScreenResizeHandlers() {
           : calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
         chatWindow.setBounds(dimensions);
       }
-
-      // Update settings window if visible
-      const settingsWindow = getSettingsWindow();
-
-      if (settingsWindow && settingsWindow.isVisible()) {
-        const dimensions = expectedPosition
-          ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
-        settingsWindow.setBounds(dimensions);
-      }
     }
   });
 }
@@ -260,9 +245,7 @@ app.whenReady().then(async () => {
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
-    preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
-    preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
     chatWindow = createChatWindow();
     preCreateMainWindow(chatWindow || undefined); // Pre-create main window
