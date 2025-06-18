@@ -7,7 +7,6 @@ import {
   deleteCustomAgent,
   getAgentById,
   getAgentList,
-  getDefaultSystemPrompt,
   saveCustomAgent,
 } from "../agents";
 import {
@@ -17,6 +16,7 @@ import {
   UpdateAgentSchema,
 } from "../agents/types";
 import { desktopAutomationTools } from "../builtIn-tools/desktop-automation";
+import { desktopAutomationPrompt } from "../builtIn-tools/desktop-automation/prompt";
 import { createCustomAgent } from "../service/agent";
 import { saveChat } from "../service/chat";
 
@@ -213,7 +213,7 @@ router.post(
   "/api/agent/automation",
   zValidator("json", AutomationChatSchema),
   async (c) => {
-    const { messages, modelId, chatId } = c.req.valid("json");
+    const { messages, chatId } = c.req.valid("json");
 
     const anthropicApiKey = "";
 
@@ -225,7 +225,7 @@ router.post(
 
       // Get tool names for system prompt
       const toolsList = Object.keys(desktopAutomationTools);
-      const systemPrompt = getDefaultSystemPrompt(toolsList);
+      const systemPrompt = desktopAutomationPrompt;
 
       console.log(
         `Automation chat: Using ${toolsList.length} desktop automation tools`,
