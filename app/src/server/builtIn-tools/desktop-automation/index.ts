@@ -186,21 +186,51 @@ const requireNutjs = () => {
 const getScreenInfo = async (nutjsAvailable: boolean) => {
   try {
     if (nutjsAvailable) {
-      const screenSize = await screen.size();
-      return `Screen dimensions: ${screenSize.width}x${screenSize.height} pixels`;
-    } else {
-      // Fallback for macOS using system_profiler
       try {
-        const output = child_process
-          .execSync("system_profiler SPDisplaysDataType | grep Resolution")
-          .toString();
-        return `Screen info: ${output.trim()}`;
-      } catch {
-        return "Unable to determine screen dimensions";
+        const screenSize = await screen.size();
+        return `Screen dimensions: ${screenSize.width}x${screenSize.height} pixels`;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.warn("nutjs screen.size() failed:", errorMessage);
+        // Fall through to system_profiler fallback
       }
     }
-  } catch {
-    return "Error getting screen information";
+
+    // Fallback for macOS using system_profiler
+    try {
+      const output = child_process
+        .execSync("system_profiler SPDisplaysDataType | grep Resolution", {
+          timeout: 5000,
+        })
+        .toString();
+      return `Screen info: ${output.trim()}`;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.warn("system_profiler failed:", errorMessage);
+    }
+
+    // Final fallback using AppleScript
+    try {
+      const output = child_process
+        .execSync(
+          `osascript -e 'tell application "Finder" to get bounds of window of desktop'`,
+          { timeout: 5000 },
+        )
+        .toString();
+      return `Screen bounds: ${output.trim()}`;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.warn("AppleScript fallback failed:", errorMessage);
+    }
+
+    return "Unable to determine screen dimensions - all methods failed";
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return `Error getting screen information: ${errorMessage}`;
   }
 };
 
@@ -1028,7 +1058,7 @@ export const desktopAutomationTools = {
   screenshot,
   screenInfo,
   screenHighlight,
-  colorAt,
+  // colorAt,
 
   // Window management tools
   getWindowsList,
@@ -1036,7 +1066,7 @@ export const desktopAutomationTools = {
   windowControl,
 
   // Advanced automation tools
-  waitForImage,
+  // waitForImage,
   sleep,
   mouseMovePath,
   systemCommand,
