@@ -100,8 +100,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedModelId]);
 
   // TODO(Sma1lboy): change api to use the api from the backend
+  // const chatAPI = useChat({
+  //   api: "http://localhost:38000/api/chat",
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //     Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
+  //   },
+  //   body: {
+  //     config: settings,
+  //     agentId: currentAgentIdRef.current,
+  //     modelId: currentModelIdRef.current || settings?.openai?.modelId,
+  //   },
+  //   onError: (error) => {
+  //     const parsedError = parseApiError(error as unknown as GenericError);
+  //     console.error("Chat API error:", parsedError);
+  //   },
+  // });
+
   const chatAPI = useChat({
-    api: "http://localhost:38000/api/chat",
+    api: "http://localhost:38000/api/agent/automation",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
