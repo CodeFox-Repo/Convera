@@ -2,6 +2,7 @@ import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import {
   Bot,
+  Eye,
   History,
   LucideIcon,
   Mic,
@@ -25,6 +26,9 @@ interface ChatInputButtonsProps {
   hasContent: boolean;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
+  // Vision automate mode props
+  isVisionAutomateMode?: boolean;
+  onToggleVisionAutomateMode?: () => void;
 }
 
 interface ActionButtonConfig {
@@ -124,6 +128,27 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         </button>
       ),
       show: true,
+    },
+    {
+      id: "vision-automate",
+      render: () => (
+        <button
+          className={`no-drag-region flex items-center ${
+            props.isVisionAutomateMode
+              ? "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30 rounded px-2 py-0.5 text-xs font-medium"
+              : "text-foreground/70 hover:text-foreground"
+          }`}
+          onClick={props.onToggleVisionAutomateMode}
+          title="Toggle Vision Automate Mode"
+        >
+          <Eye
+            size={props.isVisionAutomateMode ? 12 : 16}
+            className={props.isVisionAutomateMode ? "mr-1" : ""}
+          />
+          {props.isVisionAutomateMode && "Vision"}
+        </button>
+      ),
+      show: !!props.onToggleVisionAutomateMode,
     },
   ];
 

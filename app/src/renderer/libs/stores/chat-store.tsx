@@ -33,6 +33,11 @@ interface ChatContextType {
   setViewMode: (mode: ChatViewMode) => void;
   toggleViewMode: () => void;
 
+  // Vision automate mode
+  isVisionAutomateMode: boolean;
+  setVisionAutomateMode: (enabled: boolean) => void;
+  toggleVisionAutomateMode: () => void;
+
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
@@ -69,6 +74,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [isVisionAutomateMode, setIsVisionAutomateMode] = useState(false);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
@@ -100,24 +106,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedModelId]);
 
   // TODO(Sma1lboy): change api to use the api from the backend
-  // const chatAPI = useChat({
-  //   api: "http://localhost:38000/api/chat",
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //     Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
-  //   },
-  //   body: {
-  //     config: settings,
-  //     agentId: currentAgentIdRef.current,
-  //     modelId: currentModelIdRef.current || settings?.openai?.modelId,
-  //   },
-  //   onError: (error) => {
-  //     const parsedError = parseApiError(error as unknown as GenericError);
-  //     console.error("Chat API error:", parsedError);
-  //   },
-  // });
-
   const chatAPI = useChat({
+    api: "http://localhost:38000/api/chat",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
+    },
+    body: {
+      config: settings,
+      agentId: currentAgentIdRef.current,
+      modelId: currentModelIdRef.current || settings?.openai?.modelId,
+    },
+    onError: (error) => {
+      const parsedError = parseApiError(error as unknown as GenericError);
+      console.error("Chat API error:", parsedError);
+    },
+  });
+
+  const chatVisionAPI = useChat({
     api: "http://localhost:38000/api/agent/automation",
     headers: {
       "Content-Type": "application/json",
@@ -136,16 +142,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-expand when there are messages
   useEffect(() => {
-    if (chatAPI.messages.length > 0 && viewMode === "compact") {
+    const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+    if (activeAPI.messages.length > 0 && viewMode === "compact") {
       setViewMode("expanded");
     }
-  }, [chatAPI.messages.length, viewMode]);
+  }, [
+    chatAPI.messages.length,
+    chatVisionAPI.messages.length,
+    viewMode,
+    isVisionAutomateMode,
+  ]);
 
   // Integrate the useChatHistory hook
   const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
+  }, []);
+
+  const toggleVisionAutomateMode = useCallback(() => {
+    setIsVisionAutomateMode((prev) => !prev);
   }, []);
 
   const addAttachments = useCallback((files: File | File[]) => {
@@ -190,10 +206,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         filesToSend.push(...extraFiles);
       }
 
-      if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0)
+      // Use the appropriate API based on vision automate mode
+      const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+
+      if (!activeAPI.input.trim() && !copiedContent && filesToSend.length === 0)
         return;
 
-      let messageText = chatAPI.input.trim();
+      let messageText = activeAPI.input.trim();
 
       if (copiedContent) {
         messageText = messageText
@@ -216,7 +235,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             );
             message.experimental_attachments = fileAttachments;
           }
-          chatAPI.append(message);
+          activeAPI.append(message);
           clearAttachments();
         } catch (error) {
           console.error("Error processing file attachments:", error);
@@ -225,32 +244,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       sendMessageWithAttachments();
     },
-    [chatAPI, copiedContent, attachments, clearAttachments, fileToAttachment],
+    [
+      chatAPI,
+      chatVisionAPI,
+      copiedContent,
+      attachments,
+      clearAttachments,
+      fileToAttachment,
+      isVisionAutomateMode,
+    ],
   );
 
   const setInput = useCallback(
     (newInput: string) => {
-      chatAPI.handleInputChange({
+      const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+      activeAPI.handleInputChange({
         target: { value: newInput },
       } as React.ChangeEvent<HTMLInputElement>);
     },
-    [chatAPI],
+    [chatAPI, chatVisionAPI, isVisionAutomateMode],
   );
 
   const stopGeneration = useCallback(() => {
-    if (chatAPI.isLoading) {
-      chatAPI.stop();
+    const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+    if (activeAPI.isLoading) {
+      activeAPI.stop();
     }
-  }, [chatAPI]);
+  }, [chatAPI, chatVisionAPI, isVisionAutomateMode]);
 
   const editMessage = useCallback(
     (message: Message, newContent: string) => {
-      const messageIndex = chatAPI.messages.findIndex(
+      const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+      const messageIndex = activeAPI.messages.findIndex(
         (m) => m.id === message.id,
       );
       if (messageIndex === -1) return;
 
-      const updatedMessages = [...chatAPI.messages];
+      const updatedMessages = [...activeAPI.messages];
       updatedMessages[messageIndex] = {
         ...updatedMessages[messageIndex],
         content: newContent,
@@ -260,28 +290,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         updatedMessages.splice(messageIndex + 1);
       }
 
-      chatAPI.setMessages(updatedMessages);
+      activeAPI.setMessages(updatedMessages);
 
       setTimeout(() => {
-        chatAPI.reload();
+        activeAPI.reload();
       }, 100);
     },
-    [chatAPI],
+    [chatAPI, chatVisionAPI, isVisionAutomateMode],
   );
 
   const regenerateMessage = useCallback(() => {
-    if (!chatAPI.isLoading) {
-      chatAPI.reload();
+    const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+    if (!activeAPI.isLoading) {
+      activeAPI.reload();
     }
-  }, [chatAPI]);
+  }, [chatAPI, chatVisionAPI, isVisionAutomateMode]);
 
   const resetChat = useCallback(() => {
     chatAPI.setMessages([]);
+    chatVisionAPI.setMessages([]);
     setCopiedContent(null);
     clearAttachments();
     // Reset to compact mode when clearing chat
     setViewMode("compact");
-  }, [chatAPI, clearAttachments]);
+  }, [chatAPI, chatVisionAPI, clearAttachments]);
 
   const rejectCopiedContent = useCallback(() => {
     setCopiedContent(null);
@@ -308,16 +340,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     triggerHistoryWindow();
   }, [triggerHistoryWindow]);
 
+  // Use the appropriate API based on vision automate mode for context values
+  const activeAPI = isVisionAutomateMode ? chatVisionAPI : chatAPI;
+
   const contextValue: ChatContextType = {
-    messages: chatAPI.messages as UIMessage[],
-    input: chatAPI.input,
-    isLoading: chatAPI.isLoading,
-    error: chatAPI.error,
+    messages: activeAPI.messages as UIMessage[],
+    input: activeAPI.input,
+    isLoading: activeAPI.isLoading,
+    error: activeAPI.error,
     copiedContent,
     attachments,
     viewMode,
     setViewMode,
     toggleViewMode,
+    isVisionAutomateMode,
+    setVisionAutomateMode: setIsVisionAutomateMode,
+    toggleVisionAutomateMode,
     setInput,
     sendMessage,
     stopGeneration,

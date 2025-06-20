@@ -48,6 +48,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       openHistoryWindow,
       attachments,
       addAttachments,
+      isVisionAutomateMode,
+      toggleVisionAutomateMode,
     } = useChatContext();
 
     const { selectedModelId, setSelectedModelId } = useModelStore();
@@ -238,6 +240,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               hasContent={!!editorContent.trim() || attachments.length > 0}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
+              isVisionAutomateMode={isVisionAutomateMode}
+              onToggleVisionAutomateMode={toggleVisionAutomateMode}
             />
           </div>
         </div>
