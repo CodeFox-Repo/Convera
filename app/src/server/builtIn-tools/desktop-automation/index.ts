@@ -12,6 +12,13 @@ import * as os from "os";
 import * as path from "path";
 import { z } from "zod";
 
+// Import visual feedback system
+import {
+  showClickHighlight,
+  showRegionHighlight,
+  showTypingIndicator,
+} from "./visual-feedback";
+
 // Import nutjs with error handling
 interface NutjsPoint {
   x: number;
@@ -246,9 +253,34 @@ export const mouseClick = tool({
       .enum(["left", "right", "middle"])
       .default("left")
       .describe("Mouse button to click (default left)"),
+    showFeedback: z
+      .boolean()
+      .default(true)
+      .describe("Whether to show visual feedback (default true)"),
   }),
-  execute: async ({ x, y, button }) => {
+  execute: async ({ x, y, button, showFeedback }) => {
     requireNutjs();
+
+    // Show visual feedback before clicking
+    if (showFeedback) {
+      try {
+        await showClickHighlight({
+          x,
+          y,
+          size: 60,
+          color:
+            button === "left"
+              ? "#ff6b35"
+              : button === "right"
+                ? "#e74c3c"
+                : "#9b59b6",
+          duration: 2000,
+        });
+      } catch (error) {
+        console.warn("Visual feedback failed:", error);
+      }
+    }
+
     // Move mouse to (x,y) and perform the click
     await mouse.setPosition(new Point(x, y));
     const btn =
@@ -258,7 +290,7 @@ export const mouseClick = tool({
           ? Button.RIGHT
           : Button.MIDDLE;
     await mouse.click(btn);
-    return `Mouse ${button}-click at (${x}, ${y}) completed.`;
+    return `Mouse ${button}-click at (${x}, ${y}) completed with${showFeedback ? "" : "out"} visual feedback.`;
   },
 });
 
@@ -272,9 +304,29 @@ export const mouseDoubleClick = tool({
       .enum(["left", "right", "middle"])
       .default("left")
       .describe("Mouse button to double-click (default left)"),
+    showFeedback: z
+      .boolean()
+      .default(true)
+      .describe("Whether to show visual feedback (default true)"),
   }),
-  execute: async ({ x, y, button }) => {
+  execute: async ({ x, y, button, showFeedback }) => {
     requireNutjs();
+
+    // Show visual feedback for double-click
+    if (showFeedback) {
+      try {
+        await showClickHighlight({
+          x,
+          y,
+          size: 80, // Slightly larger for double-click
+          color: "#3498db",
+          duration: 2500,
+        });
+      } catch (error) {
+        console.warn("Visual feedback failed:", error);
+      }
+    }
+
     await mouse.setPosition(new Point(x, y));
     const btn =
       button === "left"
@@ -283,7 +335,7 @@ export const mouseDoubleClick = tool({
           ? Button.RIGHT
           : Button.MIDDLE;
     await mouse.doubleClick(btn);
-    return `Mouse double-${button}-click at (${x}, ${y}) completed.`;
+    return `Mouse double-${button}-click at (${x}, ${y}) completed with${showFeedback ? "" : "out"} visual feedback.`;
   },
 });
 
@@ -402,9 +454,14 @@ export const type = tool({
       .describe(
         "Comma-separated key names to press simultaneously (optional, e.g. 'LeftControl,C')",
       ),
+    showFeedback: z
+      .boolean()
+      .default(true)
+      .describe("Whether to show visual feedback (default true)"),
   }),
-  execute: async ({ text, keys }) => {
+  execute: async ({ text, keys, showFeedback }) => {
     requireNutjs();
+
     if (keys && keys.length > 0) {
       // Parse comma-separated key names
       const keyNames = keys.split(",").map((k) => k.trim());
@@ -415,15 +472,48 @@ export const type = tool({
         if (!keyConst) throw new Error(`Unknown key: ${name}`);
         return keyConst;
       });
+
+      // Show visual feedback for key combinations
+      if (showFeedback) {
+        try {
+          const currentPos = await mouse.getPosition();
+          await showTypingIndicator(
+            currentPos.x,
+            currentPos.y - 40,
+            `⌨️ ${keyNames.join(" + ")}`,
+            1500,
+          );
+        } catch (error) {
+          console.warn("Visual feedback failed:", error);
+        }
+      }
+
       // Press and release the key combination
       await keyboard.pressKey(...keyConsts);
       await keyboard.releaseKey(...keyConsts);
-      return `Pressed key combination [${keyNames.join(" + ")}].`;
+      return `Pressed key combination [${keyNames.join(" + ")}] with${showFeedback ? "" : "out"} visual feedback.`;
     }
+
     if (text !== undefined) {
+      // Show visual feedback for text typing
+      if (showFeedback && text.length > 0) {
+        try {
+          const currentPos = await mouse.getPosition();
+          await showTypingIndicator(
+            currentPos.x,
+            currentPos.y - 40,
+            `✏️ "${text.length > 20 ? text.substring(0, 20) + "..." : text}"`,
+            Math.max(2000, text.length * 50),
+          );
+        } catch (error) {
+          console.warn("Visual feedback failed:", error);
+        }
+      }
+
       await keyboard.type(text);
-      return `Typed text: "${text}"`;
+      return `Typed text: "${text}" with${showFeedback ? "" : "out"} visual feedback`;
     }
+
     throw new Error(
       "Provide either 'text' to type or 'keys' for key combination.",
     );
@@ -626,12 +716,30 @@ export const screenHighlight = tool({
     y: z.number().describe("Top coordinate of region"),
     width: z.number().describe("Width of region"),
     height: z.number().describe("Height of region"),
+    color: z
+      .string()
+      .default("#4CAF50")
+      .describe("Highlight color (default green)"),
+    duration: z
+      .number()
+      .default(3000)
+      .describe("Duration in milliseconds (default 3000)"),
   }),
-  execute: async ({ x, y, width, height }) => {
-    requireNutjs();
-    const region = new Region(x, y, width, height);
-    await screen.highlight(region);
-    return `Highlighted region at (${x}, ${y}) with size ${width}x${height}`;
+  execute: async ({ x, y, width, height, color, duration }) => {
+    try {
+      // Use our visual feedback system instead of nutjs highlight
+      await showRegionHighlight(x, y, width, height, color, duration);
+      return `Highlighted region at (${x}, ${y}) with size ${width}x${height} for ${duration}ms`;
+    } catch (error) {
+      // Fallback to nutjs highlight if available
+      if (nutjsAvailable) {
+        requireNutjs();
+        const region = new Region(x, y, width, height);
+        await screen.highlight(region);
+        return `Highlighted region at (${x}, ${y}) with size ${width}x${height} using nutjs fallback`;
+      }
+      throw error;
+    }
   },
 });
 
@@ -1039,6 +1147,58 @@ export const systemCommand = tool({
   },
 });
 
+// Tool 21: Visual Feedback Test
+export const testVisualFeedback = tool({
+  description:
+    "Test the visual feedback system with different types of animations.",
+  parameters: z.object({
+    type: z
+      .enum(["click", "region", "typing"])
+      .describe("Type of feedback to test"),
+    x: z.number().default(500).describe("X coordinate (default 500)"),
+    y: z.number().default(300).describe("Y coordinate (default 300)"),
+    width: z
+      .number()
+      .default(200)
+      .describe("Width for region test (default 200)"),
+    height: z
+      .number()
+      .default(100)
+      .describe("Height for region test (default 100)"),
+    text: z.string().default("Test typing").describe("Text for typing test"),
+  }),
+  execute: async ({ type, x, y, width, height, text }) => {
+    try {
+      switch (type) {
+        case "click":
+          await showClickHighlight({
+            x,
+            y,
+            size: 60,
+            color: "#ff6b35",
+            duration: 2000,
+          });
+          return `Showed click highlight at (${x}, ${y})`;
+
+        case "region":
+          await showRegionHighlight(x, y, width, height, "#4CAF50", 3000);
+          return `Showed region highlight at (${x}, ${y}) with size ${width}x${height}`;
+
+        case "typing":
+          await showTypingIndicator(x, y, text, 2000);
+          return `Showed typing indicator at (${x}, ${y}) with text "${text}"`;
+
+        default:
+          throw new Error(`Unknown feedback type: ${type}`);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Visual feedback test failed: ${errorMessage}`);
+    }
+  },
+});
+
 // Export all tools as a tools object for easy import
 export const desktopAutomationTools = {
   // Mouse tools
@@ -1070,6 +1230,9 @@ export const desktopAutomationTools = {
   sleep,
   mouseMovePath,
   systemCommand,
+
+  // Visual feedback tools
+  testVisualFeedback,
 };
 
 console.log(
