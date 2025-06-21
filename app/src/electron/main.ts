@@ -2,6 +2,7 @@ import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
 import { initializeChatServer } from "@/electron/chat-server";
 import {
+  expectedPosition,
   isHiddenOffscreen,
   toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
@@ -228,7 +229,9 @@ function setupScreenResizeHandlers() {
 
       // Update chat window if it exists
       if (chatWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
-        const dimensions = calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
+        const dimensions = expectedPosition
+          ? expectedPosition
+          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
         chatWindow.setBounds(dimensions);
       }
 
@@ -236,12 +239,9 @@ function setupScreenResizeHandlers() {
       const settingsWindow = getSettingsWindow();
 
       if (settingsWindow && settingsWindow.isVisible()) {
-        const dimensions = calculateWindowDimensions(
-          WINDOW_SIZE_PRESETS.SETTINGS,
-          undefined,
-          true,
-          true,
-        );
+        const dimensions = expectedPosition
+          ? expectedPosition
+          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
         settingsWindow.setBounds(dimensions);
       }
     }

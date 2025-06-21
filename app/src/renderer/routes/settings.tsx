@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -214,18 +214,6 @@ function SettingsPage() {
     setActiveShortcut(id);
   };
 
-  const handleCloseSettings = () => {
-    try {
-      if (window.electronAPI) {
-        window.electronAPI.toggleWindow("settings").catch((error: unknown) => {
-          console.error("Error toggling settings window:", error);
-        });
-      }
-    } catch (error: unknown) {
-      console.error("Error toggling settings window:", error);
-    }
-  };
-
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
@@ -394,18 +382,19 @@ function SettingsPage() {
           </ul>
         </nav>
 
-        <div className="border-t border-border/40 p-4">
-          <button
-            onClick={handleCloseSettings}
-            className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
-              isSidebarCollapsed ? "justify-center" : ""
-            }`}
-            title={isSidebarCollapsed ? "Close Settings" : undefined}
-          >
-            <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
-            {!isSidebarCollapsed && <span>Close Settings</span>}
-          </button>
-        </div>
+        <Link to="/">
+          <div className="border-t border-border/40 p-4">
+            <button
+              className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
+                isSidebarCollapsed ? "justify-center" : ""
+              }`}
+              title={isSidebarCollapsed ? "Close Settings" : undefined}
+            >
+              <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
+              {!isSidebarCollapsed && <span>Close Settings</span>}
+            </button>
+          </div>
+        </Link>
       </div>
 
       {/* Mobile sidebar toggle - only shown on small screens */}

@@ -1,6 +1,7 @@
 import { MCPConfig } from "@/shared/types/settings";
 import { Hono } from "hono";
 import { MCPManager } from "../mcp/mcp-manager";
+import { getPredefinedServerById } from "../mcp/predefined-servers";
 import { MCPServerType, PredefinedMCPServer } from "../mcp/types";
 
 const app = new Hono();
@@ -149,10 +150,7 @@ function getConnectedApps(): ConnectedApp[] {
   const connectedApps: ConnectedApp[] = [];
 
   for (const [id, config] of Object.entries(connectedConfigs)) {
-    const predefinedServer = mcpManager.getPredefinedServerById(
-      id,
-      MCPServerType.REMOTE,
-    );
+    const predefinedServer = getPredefinedServerById(id, MCPServerType.REMOTE);
 
     if (predefinedServer) {
       const app = convertMCPServerToApp(predefinedServer, true);
@@ -394,7 +392,7 @@ app.post("/api/apps/disconnect", async (c) => {
     }
 
     // Get app info
-    const predefinedServer = mcpManager.getPredefinedServerById(
+    const predefinedServer = getPredefinedServerById(
       appId,
       MCPServerType.REMOTE,
     );

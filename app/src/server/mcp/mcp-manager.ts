@@ -407,14 +407,6 @@ export class MCPManager extends EventEmitter {
   }
 
   /**
-   * Check if server is running
-   * @param id Server ID
-   */
-  public isServerRunning(id: string): boolean {
-    return this.servers.get(id)?.status.running || false;
-  }
-
-  /**
    * Update tools for a specific server
    * @param id Server ID
    */
@@ -530,22 +522,11 @@ export class MCPManager extends EventEmitter {
   }
 
   /**
-   * Get predefined server by ID
-   * @param id Server ID
-   */
-  public getPredefinedServerById(
-    id: string,
-    type: MCPServerType,
-  ): PredefinedMCPServer | undefined {
-    return getPredefinedServerById(id, type);
-  }
-
-  /**
    * Install predefined server
    * @param id Predefined server ID
    */
   public installPredefinedServer(id: string, type: MCPServerType): boolean {
-    const predefinedServer = this.getPredefinedServerById(id, type);
+    const predefinedServer = getPredefinedServerById(id, type);
     if (!predefinedServer) {
       return false;
     }
