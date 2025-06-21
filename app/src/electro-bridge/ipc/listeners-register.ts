@@ -2,6 +2,7 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import { setupMCPIPC } from "../../electron/bridge/ipc/mcp";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import {
   closeWindow,
@@ -21,6 +22,7 @@ import {
   openPath,
   pasteModifiedContent,
   resizeWindow,
+  setInputText,
   setTheme,
   toggleAgentPopoverWindow,
   toggleModelSelectorWindow,
@@ -111,8 +113,11 @@ export interface ListenerOptions {
   registerGlobalShortcuts?: () => void;
 }
 
-// Register all IPC listeners for main process
-export function registerListeners(options: ListenerOptions = {}) {
+/**
+ * Setup Electron API IPC handlers
+ * This is a cleaner way to register standard Electron API handlers
+ */
+export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   const { chatWindow, registerGlobalShortcuts } = options;
 
   // Unified Window Control
@@ -128,7 +133,9 @@ export function registerListeners(options: ListenerOptions = {}) {
   // Global Shortcuts
   ipcMain.handle(CHANNELS.SHORTCUTS.UPDATE, (_event, shortcut: string) => {
     if (!registerGlobalShortcuts) {
-      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      console.warn(
+        "registerGlobalShortcuts not provided to setupElectronAPIIPC",
+      );
       return false;
     }
     return updateGlobalShortcut(shortcut, registerGlobalShortcuts);
@@ -136,7 +143,9 @@ export function registerListeners(options: ListenerOptions = {}) {
 
   ipcMain.handle(CHANNELS.SHORTCUTS.INIT, (_event, shortcut: string) => {
     if (!registerGlobalShortcuts) {
-      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      console.warn(
+        "registerGlobalShortcuts not provided to setupElectronAPIIPC",
+      );
       return false;
     }
     return initGlobalShortcut(shortcut, registerGlobalShortcuts);
@@ -257,8 +266,12 @@ export function registerListeners(options: ListenerOptions = {}) {
     return hideAgentPopoverWindow();
   });
 
-  console.log("All IPC listeners registered successfully");
+  console.log("Electron API IPC handlers registered successfully");
 }
 
-// Legacy import for setInputText handler
-import { setInputText } from "./ipc-handlers";
+// Register all IPC listeners for main process
+export function registerListeners(options: ListenerOptions = {}) {
+  setupMCPIPC();
+  setupElectronAPIIPC(options);
+  console.log("All IPC listeners registered successfully");
+}

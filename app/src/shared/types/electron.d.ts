@@ -1,6 +1,7 @@
 // src/types/electron.d.ts
 
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import type { IMcpAPI } from "./mcp";
 
 // Enum for window types
 export type WindowType = "settings" | "history" | "main";
@@ -97,5 +98,6 @@ export interface IElectronAPI {
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
+    mcpAPI: IMcpAPI;
   }
 }

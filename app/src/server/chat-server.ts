@@ -10,7 +10,6 @@ import appRouter from "./api/app";
 import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
 import toolsRouter from "./api/tools";
-import { initializeMCP, startMCPServers } from "./mcp";
 
 const app = new Hono();
 export type AppType = typeof app;
@@ -34,18 +33,6 @@ function startChatServer() {
     .then(() => console.log("Agent system initialized successfully"))
     .catch((error) =>
       console.error("Failed to initialize agent system:", error),
-    );
-
-  initializeMCP();
-
-  startMCPServers()
-    .then((results) => {
-      const startedCount = Array.from(results.values()).filter(Boolean).length;
-      const totalCount = results.size;
-      console.log(`Started ${startedCount}/${totalCount} enabled MCP servers`);
-    })
-    .catch((error) =>
-      console.error("Error starting enabled MCP servers:", error),
     );
 
   const server = serve({ fetch: app.fetch, port: PORT });

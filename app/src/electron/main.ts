@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
 import { initializeChatServer } from "@/electron/chat-server";
+import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
   isHiddenOffscreen,
@@ -257,6 +258,10 @@ app.whenReady().then(async () => {
     await initializeChatServer();
     console.log("Chat server is fully initialized");
 
+    // Initialize MCP Hub
+    await initializeMCPHub();
+    console.log("MCP Hub initialized");
+
     startAppFocusTracking();
     registerGlobalShortcuts();
     preCreateAgentPopoverWindow();
@@ -291,6 +296,13 @@ app.on("will-quit", () => {
   console.log("Unregistering all global shortcuts.");
   globalShortcut.unregisterAll();
   destroySystemTray();
+
+  // Cleanup MCP Hub
+  const hub = getMCPHub();
+  if (hub) {
+    hub.cleanup();
+    console.log("MCP Hub cleaned up");
+  }
 });
 
 app.on("window-all-closed", () => {

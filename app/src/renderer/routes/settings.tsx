@@ -43,15 +43,10 @@ function SettingsPage() {
 
   // MCP Store
   const {
-    mcpMarketItems,
-    loadingMarketplace,
-    loadingMcpServers,
     mcpServers,
-    installingTools,
-    handleInstallPredefinedServer,
-    handleInstallMcpTool,
+    loadingMcpServers,
     handleManualInstallMcp,
-    handleUninstallPredefinedServer,
+    handleRemoveServer,
     refreshAll: refreshMcpData,
   } = useMcpStore();
 
@@ -291,15 +286,10 @@ function SettingsPage() {
   }
 
   const marketplaceProps = {
-    loadingMarketplace,
-    loadingMcpServers,
-    mcpMarketItems,
     mcpServers,
-    installingTools,
-    onInstallPredefinedServer: handleInstallPredefinedServer,
-    onInstallMcpTool: handleInstallMcpTool,
+    loadingMcpServers,
     onManualInstallMcp: handleManualInstallMcp,
-    onUninstallPredefinedServer: handleUninstallPredefinedServer,
+    onRemoveServer: handleRemoveServer,
     onRefreshServers: refreshMcpData,
   };
 
@@ -311,7 +301,7 @@ function SettingsPage() {
       icon: <SettingsIcon className="h-5 w-5" />,
     },
     { id: "app", label: "Apps", icon: <Plug className="h-5 w-5" /> },
-    { id: "mcp", label: "MCP Market", icon: <Server className="h-5 w-5" /> },
+    { id: "mcp", label: "MCP Servers", icon: <Server className="h-5 w-5" /> },
     { id: "agents", label: "Agents", icon: <LayoutGrid className="h-5 w-5" /> },
     { id: "developer", label: "Developer", icon: <Code className="h-5 w-5" /> },
   ];
@@ -441,7 +431,7 @@ function SettingsPage() {
           </div>
         )}
 
-        {/* MCP Market Tab Content */}
+        {/* MCP Servers Tab Content */}
         {activeTab === "mcp" && <MarketplaceSection {...marketplaceProps} />}
 
         {/* Agents Tab Content */}
