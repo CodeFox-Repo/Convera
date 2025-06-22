@@ -21,36 +21,21 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
-import { useAgentStore } from "@/renderer/libs/stores/agent-store";
-import { ToolReference } from "@/server/agents/types";
-import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import { useAgentStore, type Agent } from "@/renderer/libs/stores/agent-store";
+import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
+import { MCPServerConfig, ToolDefinition } from "@/shared/types/mcp";
 import { Bot, Loader2, Server, Settings, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
-
-// Define agent type
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  systemPrompt?: string;
-  toolNames?: string[];
-  toolReferences?: ToolReference[];
-}
 
 interface AgentsTabProps {
   onNavigateToMcp?: () => void;
 }
 
 export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
-  const [mcpServerConfigs, setMcpServerConfigs] = useState<
-    Record<string, MCPServerConfig>
-  >({});
   const [mcpServerTools, setMcpServerTools] = useState<
     Record<string, ToolDefinition[]>
   >({});
-  const [loadingMcpConfigs, setLoadingMcpConfigs] = useState(false);
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
   >({});
@@ -71,13 +56,54 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const [activeTab, setActiveTab] = useState("manage");
 
   // Get agent store methods and state
-  const { availableAgents, fetchAgents } = useAgentStore();
+  const { availableAgents, fetchAgents, createAgent, saveAgent, deleteAgent } =
+    useAgentStore();
+
+  // Get MCP store methods and state
+  const {
+    mcpServerConfigs,
+    loadingMcpConfigs,
+    fetchMcpConfigurations,
+    getMcpServerTools,
+    handleMcpConfigChange,
+  } = useMcpStore();
 
   // Load agents and MCP configs
   useEffect(() => {
     fetchAgents();
-    fetchMcpConfigs();
-  }, [fetchAgents]);
+    fetchMcpConfigurations();
+    // Fetch all MCP server tools immediately
+    initializeMcpTools();
+  }, [fetchAgents, fetchMcpConfigurations]);
+
+  // Watch for MCP config changes and ensure tools are loaded
+  useEffect(() => {
+    if (mcpServerConfigs?.mcpServers) {
+      Object.keys(mcpServerConfigs.mcpServers).forEach((id) => {
+        // If we don't have tools for this server yet, fetch them
+        if (!mcpServerTools[id] && !loadingMcpTools[id]) {
+          fetchMcpServerTools(id);
+        }
+      });
+    }
+  }, [mcpServerConfigs]);
+
+  const initializeMcpTools = async () => {
+    // Wait a bit for configs to load, then fetch all tools
+    setTimeout(async () => {
+      const configs = useMcpStore.getState().mcpServerConfigs;
+      if (configs?.mcpServers) {
+        console.log(
+          "Initializing tools for all MCP servers:",
+          Object.keys(configs.mcpServers),
+        );
+        // Fetch tools for all servers regardless of enabled status
+        Object.keys(configs.mcpServers).forEach((id) => {
+          fetchMcpServerTools(id);
+        });
+      }
+    }, 500);
+  };
 
   // Reset editing state when dialog closes
   useEffect(() => {
@@ -89,152 +115,58 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
   // Initialize edit tools when editing agent changes
   useEffect(() => {
-    if (editingAgent && editingAgent.toolReferences) {
-      // Group tools by MCP name
+    if (editingAgent) {
+      // Initialize with all available tools, then remove disabled ones
       const toolsByMcp: { [mcpId: string]: string[] } = {};
 
-      editingAgent.toolReferences.forEach((ref) => {
-        if (!toolsByMcp[ref.mcpName]) {
-          toolsByMcp[ref.mcpName] = [];
-        }
-        toolsByMcp[ref.mcpName].push(ref.toolName);
-      });
+      // Start with all MCP server tools (not filtering by enabled status)
+      if (mcpServerConfigs?.mcpServers) {
+        Object.keys(mcpServerConfigs.mcpServers).forEach((mcpId) => {
+          const mcpTools = mcpServerTools[mcpId] || [];
+          if (mcpTools.length > 0) {
+            // Add all tools, then filter out disabled ones
+            toolsByMcp[mcpId] = mcpTools
+              .filter(
+                (tool) =>
+                  !editingAgent.disableToolReferences?.some(
+                    (disabled) =>
+                      disabled.mcpName === mcpId &&
+                      disabled.toolName === tool.name,
+                  ),
+              )
+              .map((tool) => tool.name);
+          }
+        });
+      }
 
       setEditSelectedTools(toolsByMcp);
     }
-  }, [editingAgent]);
+  }, [editingAgent, mcpServerConfigs, mcpServerTools]);
 
   // Reset tool selections when switching to create tab
   useEffect(() => {
     if (activeTab === "create") {
-      // Reset tool selections to start fresh
       setSelectedToolNames({});
-
-      // Re-fetch tools for all enabled MCPs to trigger auto-selection
-      Object.entries(mcpServerConfigs)
-        .filter(([, config]) => config.enabled)
-        .forEach(([id]) => {
-          fetchMcpServerTools(id);
-        });
     }
-  }, [activeTab, mcpServerConfigs]);
-
-  const fetchMcpConfigs = async () => {
-    setLoadingMcpConfigs(true);
-    try {
-      const res = await fetch("http://localhost:38000/api/mcp/configurations");
-      if (!res.ok) throw new Error("Failed to fetch MCP configurations");
-      const data = await res.json();
-
-      const configs = (data.configurations || {}) as Record<
-        string,
-        MCPServerConfig
-      >;
-      setMcpServerConfigs(configs);
-
-      // Fetch tools for enabled MCP servers
-      Object.entries(configs)
-        .filter(([, config]) => config.enabled)
-        .forEach(([id]) => {
-          fetchMcpServerTools(id);
-        });
-    } catch (err) {
-      console.error("Error fetching MCP configs:", err);
-      toast.error("Failed to load MCP configurations");
-    } finally {
-      setLoadingMcpConfigs(false);
-    }
-  };
+  }, [activeTab]);
 
   const fetchMcpServerTools = async (id: string) => {
     setLoadingMcpTools((prev) => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(
-        `http://localhost:38000/api/mcp/servers/${id}/tools`,
-      );
-      console.log("Fetching tools for MCP server:", id);
-      if (!res.ok)
-        throw new Error(`Failed to fetch tools for MCP server ${id}`);
-      const data = await res.json();
-      const tools = data.tools || [];
-
-      const processedTools = tools.map((tool: ToolDefinition) => {
-        let description: string | undefined;
-
-        if (tool.description && typeof tool.description === "string") {
-          description = tool.description;
-        } else {
-          try {
-            if (typeof tool === "object") {
-              if (tool.parameters?.description) {
-                description = tool.parameters.description;
-              } else if (
-                tool.parameters?.properties?.description?.description
-              ) {
-                description =
-                  tool.parameters.properties.description.description;
-              } else {
-                Object.entries(tool).forEach(([key, value]) => {
-                  if (
-                    !description &&
-                    key.toLowerCase().includes("desc") &&
-                    typeof value === "string"
-                  ) {
-                    description = value;
-                  }
-                });
-
-                if (!description && tool.parameters?.properties) {
-                  Object.values(tool.parameters.properties).forEach(
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (prop: any) => {
-                      if (
-                        !description &&
-                        prop.description &&
-                        typeof prop.description === "string"
-                      ) {
-                        description = prop.description;
-                      }
-                    },
-                  );
-                }
-              }
-            }
-          } catch (e) {
-            console.error(
-              `Error parsing description for tool ${tool.name}:`,
-              e,
-            );
-          }
-        }
-
-        console.log(`Final description for ${tool.name}:`, description);
-
-        const processedTool = {
-          ...tool,
-          description: description || "No description available",
-        };
-
-        return processedTool;
-      });
-
-      console.log(`Processed tools for MCP ${id}:`, processedTools);
-      setMcpServerTools((prev) => ({ ...prev, [id]: processedTools }));
+      const tools = await getMcpServerTools(id);
+      setMcpServerTools((prev) => ({ ...prev, [id]: tools }));
 
       // Auto-select all tools for this MCP when they're first loaded
-      if (processedTools.length > 0) {
-        // Check if we're in edit mode
-        if (isEditDialogOpen) {
-          setEditSelectedTools((prev) => ({
-            ...prev,
-            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
-          }));
-        } else {
-          setSelectedToolNames((prev) => ({
-            ...prev,
-            [id]: processedTools.map((tool: ToolDefinition) => tool.name),
-          }));
-        }
+      // All tools are enabled by default since MCP servers are always available
+      if (tools.length > 0) {
+        const toolNames = tools.map((tool: ToolDefinition) => tool.name);
+        const setter = isEditDialogOpen
+          ? setEditSelectedTools
+          : setSelectedToolNames;
+        setter((prev) => ({ ...prev, [id]: toolNames }));
+        console.log(
+          `Auto-selected ${toolNames.length} tools for MCP server: ${id}`,
+        );
       }
     } catch (err) {
       console.error(`Error fetching tools for MCP ${id}:`, err);
@@ -256,41 +188,44 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       | undefined,
   ) => {
     try {
-      const updatedConfig = {
-        ...mcpServerConfigs[id],
-        [field]: value,
-      };
-
-      setMcpServerConfigs((prev) => ({
-        ...prev,
-        [id]: updatedConfig,
-      }));
-
-      // If we're enabling a server, fetch its tools
-      if (field === "enabled" && value === true) {
-        fetchMcpServerTools(id);
-      }
-
-      // Save to server
-      const res = await fetch(
-        `http://localhost:38000/api/mcp/configurations/${id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedConfig),
-        },
-      );
-
-      if (!res.ok) {
-        throw new Error("Failed to update MCP configuration");
-      }
-    } catch (err) {
-      console.error("Error updating MCP config:", err);
+      await handleMcpConfigChange(id, field, value);
+      // No need to start/stop servers or fetch tools based on enabled status
+      // All tools are always available
+    } catch (error) {
+      console.error(`Error updating MCP config ${id}:`, error);
       toast.error("Failed to update MCP configuration");
-
-      // Revert the change
-      fetchMcpConfigs();
     }
+  };
+
+  // Helper function to build disable tool references from unselected tools
+  const buildDisableToolReferences = (selectedTools: {
+    [mcpId: string]: string[];
+  }) => {
+    const disableToolReferences: Array<{
+      mcpName: string;
+      toolName: string;
+      reason?: string;
+    }> = [];
+
+    if (mcpServerConfigs?.mcpServers) {
+      // Check all MCP servers, not just enabled ones
+      Object.keys(mcpServerConfigs.mcpServers).forEach((mcpId) => {
+        const mcpTools = mcpServerTools[mcpId] || [];
+        const selectedToolsForMcp = selectedTools[mcpId] || [];
+
+        mcpTools.forEach((tool) => {
+          if (!selectedToolsForMcp.includes(tool.name)) {
+            disableToolReferences.push({
+              mcpName: mcpId,
+              toolName: tool.name,
+              reason: "Manually disabled",
+            });
+          }
+        });
+      });
+    }
+
+    return disableToolReferences;
   };
 
   const handleSaveAgent = async () => {
@@ -299,51 +234,15 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       return;
     }
 
-    // Combine all selected tools from all MCPs
-    const allToolReferences: ToolReference[] = [];
-    // For backward compatibility
-    const allSelectedTools: string[] = [];
-
-    Object.entries(selectedToolNames).forEach(([mcpId, toolNames]) => {
-      if (toolNames.length > 0) {
-        toolNames.forEach((tool) => {
-          // Add standardized tool reference
-          allToolReferences.push({
-            mcpName: mcpId,
-            toolName: tool,
-            isBuiltIn: mcpId === "Dev-MCP" || mcpId === "codefox-mcp",
-          });
-
-          // Keep the old format for backward compatibility
-          allSelectedTools.push(`${mcpId}:${tool}`);
-        });
-      }
-    });
-
-    console.log("Saving agent with tools:", allSelectedTools);
-    console.log("Saving agent with toolReferences:", allToolReferences);
-
     const agentData = {
-      id: uuidv4(),
       name: newAgent.name,
-      description: newAgent.description || newAgent.name, // Use description or fall back to name
-      systemPrompt: newAgent.systemPrompt || "", // Ensure systemPrompt is always a string
-      toolNames: allSelectedTools,
-      toolReferences: allToolReferences,
+      description: newAgent.description || newAgent.name,
+      systemPrompt: newAgent.systemPrompt || "",
+      disableToolReferences: buildDisableToolReferences(selectedToolNames),
     };
 
     try {
-      const res = await fetch("http://localhost:38000/api/agents/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(agentData),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || "Failed to save agent");
-      }
-
+      await createAgent(agentData);
       toast.success("Agent saved successfully");
 
       // Reset form
@@ -356,13 +255,9 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       // Reset tool selections after agent creation
       setSelectedToolNames({});
 
-      // Refresh agents list
-      fetchAgents();
-
       // Switch to the manage tab
       setActiveTab("manage");
     } catch (err) {
-      console.error("Save agent error", err);
       toast.error(
         `Failed to save agent: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
@@ -375,56 +270,17 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     setIsUpdating(true);
 
     try {
-      const allToolReferences: ToolReference[] = [];
-      const allSelectedTools: string[] = [];
-
-      Object.entries(editSelectedTools).forEach(([mcpId, toolNames]) => {
-        if (toolNames.length > 0) {
-          toolNames.forEach((tool) => {
-            allToolReferences.push({
-              mcpName: mcpId,
-              toolName: tool,
-              isBuiltIn: mcpId === "Dev-MCP" || mcpId === "codefox-mcp",
-            });
-
-            allSelectedTools.push(`${mcpId}:${tool}`);
-          });
-        }
-      });
-
-      console.log(
-        `Updating agent ID ${editingAgent.id} with ${allToolReferences.length} tools`,
-      );
-
-      const agentData = {
-        id: editingAgent.id,
-        name: editingAgent.name,
-        description: editingAgent.description,
+      const updatedAgent: Agent = {
+        ...editingAgent,
+        disableToolReferences: buildDisableToolReferences(editSelectedTools),
         systemPrompt: editingAgent.systemPrompt || "",
-        toolNames: allSelectedTools,
-        toolReferences: allToolReferences,
       };
 
-      const res = await fetch(
-        `http://localhost:38000/api/agents/${editingAgent.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(agentData),
-        },
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to update agent");
-      }
-
+      await saveAgent(updatedAgent);
       toast.success(`Agent "${editingAgent.name}" updated successfully`);
 
       setIsEditDialogOpen(false);
-      fetchAgents();
     } catch (err) {
-      console.error("Update agent error:", err);
       toast.error(
         `Failed to update agent: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
@@ -444,21 +300,14 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:38000/api/agents/${agentId}`, {
-        method: "DELETE",
-      });
+      const success = await deleteAgent(agentId);
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to delete agent");
+      if (success) {
+        toast.success(`Agent "${agentName}" deleted successfully`);
+      } else {
+        throw new Error("Failed to delete agent");
       }
-
-      toast.success(`Agent "${agentName}" deleted successfully`);
-
-      // Refresh the agent list
-      fetchAgents();
     } catch (err) {
-      console.error("Delete agent error:", err);
       toast.error(
         `Failed to delete agent: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
@@ -467,70 +316,22 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
   const handleMcpToggle = (id: string, enabled: boolean) => {
     updateMcpConfig(id, "enabled", enabled);
-
-    // When enabling an MCP server, automatically select all its tools
-    if (enabled && mcpServerTools[id]?.length > 0) {
-      // If edit dialog is open, update editSelectedTools instead
-      if (isEditDialogOpen) {
-        setEditSelectedTools((prev) => ({
-          ...prev,
-          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name),
-        }));
-      } else {
-        // Normal mode - update selectedToolNames
-        setSelectedToolNames((prev) => ({
-          ...prev,
-          [id]: mcpServerTools[id].map((tool: ToolDefinition) => tool.name),
-        }));
-      }
-    } else if (!enabled) {
-      // When disabling, clear the tool selections for this MCP
-      if (isEditDialogOpen) {
-        setEditSelectedTools((prev) => {
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
-        });
-      } else {
-        setSelectedToolNames((prev) => {
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
-        });
-      }
-    }
+    // Note: enabled/disabled status doesn't affect tool availability
+    // Tools are always available, enabled/disabled is just a configuration flag
   };
 
+  // Generic tool selection handler
   const handleToolSelection = (
     mcpId: string,
     toolName: string,
     selected: boolean,
+    isEditMode: boolean = false,
   ) => {
-    setSelectedToolNames((prev) => {
-      const updatedSelection = { ...prev };
+    const setterFunction = isEditMode
+      ? setEditSelectedTools
+      : setSelectedToolNames;
 
-      if (!updatedSelection[mcpId]) {
-        updatedSelection[mcpId] = [];
-      }
-
-      if (selected) {
-        updatedSelection[mcpId] = [...updatedSelection[mcpId], toolName];
-      } else {
-        updatedSelection[mcpId] = updatedSelection[mcpId].filter(
-          (t) => t !== toolName,
-        );
-      }
-
-      return updatedSelection;
-    });
-  };
-
-  const handleEditToolSelection = (
-    mcpId: string,
-    toolName: string,
-    selected: boolean,
-  ) => {
-    setEditSelectedTools((prev) => {
+    setterFunction((prev) => {
       const updatedSelection = { ...prev };
 
       if (!updatedSelection[mcpId]) {
@@ -571,7 +372,10 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       );
     }
 
-    if (Object.keys(mcpServerConfigs).length === 0) {
+    if (
+      !mcpServerConfigs?.mcpServers ||
+      Object.keys(mcpServerConfigs.mcpServers).length === 0
+    ) {
       return (
         <p className="text-muted-foreground">No MCP servers configured.</p>
       );
@@ -594,142 +398,144 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
           </Button>
         </div>
 
-        {Object.entries(mcpServerConfigs).map(([id, config]) => (
-          <div key={id} className="border-border border-b last:border-0">
-            <div className="flex items-center px-4 py-2">
-              <div className="flex flex-grow items-center">
-                <Accordion
-                  type="single"
-                  collapsible
-                  className="w-full"
-                  defaultValue={id}
-                >
-                  <AccordionItem value={id} className="border-0">
-                    <div className="flex items-center gap-2">
-                      <div className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                        <Checkbox
-                          id={`mcp-checkbox-${isEdit ? "edit-" : ""}${id}`}
-                          checked={config.enabled}
-                          onCheckedChange={(checked) =>
-                            handleMcpToggle(id, checked === true)
+        {Object.entries(mcpServerConfigs.mcpServers).map(([id, config]) => {
+          const serverConfig = config as MCPServerConfig;
+          return (
+            <div key={id} className="border-border border-b last:border-0">
+              <div className="flex items-center px-4 py-2">
+                <div className="flex flex-grow items-center">
+                  <Accordion
+                    type="single"
+                    collapsible
+                    className="w-full"
+                    defaultValue={id}
+                  >
+                    <AccordionItem value={id} className="border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                          <Checkbox
+                            id={`mcp-checkbox-${isEdit ? "edit-" : ""}${id}`}
+                            checked={serverConfig.enabled}
+                            onCheckedChange={(checked) =>
+                              handleMcpToggle(id, checked === true)
+                            }
+                          />
+                        </div>
+                        <span
+                          className="cursor-pointer text-sm font-medium"
+                          onClick={() =>
+                            handleMcpToggle(id, !serverConfig.enabled)
                           }
-                        />
-                      </div>
-                      <span
-                        className="cursor-pointer text-sm font-medium"
-                        onClick={() => handleMcpToggle(id, !config.enabled)}
-                      >
-                        {config.name || id}
-                      </span>
-
-                      <AccordionTrigger
-                        className="px-0 py-0 hover:no-underline"
-                        style={{ transform: "scaleY(-1)" }}
-                      >
-                        <span className="sr-only">Toggle details</span>
-                      </AccordionTrigger>
-
-                      {config.description && (
-                        <span className="text-muted-foreground mr-2 ml-auto max-w-[40%] truncate text-xs">
-                          {config.description}
+                        >
+                          {serverConfig.name || id}
                         </span>
-                      )}
-                    </div>
 
-                    <AccordionContent className="pt-2 pb-2 pl-6">
-                      {!config.enabled ? (
-                        <p className="text-muted-foreground pl-0 text-xs">
-                          Enable this MCP server to access its tools
-                        </p>
-                      ) : loadingMcpTools[id] ? (
-                        <div className="flex items-center py-1">
-                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                          <span className="text-xs">Loading tools...</span>
-                        </div>
-                      ) : !mcpServerTools[id] ||
-                        mcpServerTools[id].length === 0 ? (
-                        <div className="flex items-center justify-between py-1">
-                          <p className="text-muted-foreground text-xs">
-                            No tools available
-                          </p>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-6 text-xs"
-                            onClick={() => fetchMcpServerTools(id)}
-                          >
-                            Refresh
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 py-1">
-                          {mcpServerTools[id].map((tool) => (
-                            <div
-                              key={tool.name}
-                              className="hover:bg-secondary/10 flex flex-col rounded px-1 py-2"
+                        <AccordionTrigger
+                          className="px-0 py-0 hover:no-underline"
+                          style={{ transform: "scaleY(-1)" }}
+                        >
+                          <span className="sr-only">Toggle details</span>
+                        </AccordionTrigger>
+
+                        {serverConfig.description && (
+                          <span className="text-muted-foreground mr-2 ml-auto max-w-[40%] truncate text-xs">
+                            {serverConfig.description}
+                          </span>
+                        )}
+                      </div>
+
+                      <AccordionContent className="pt-2 pb-2 pl-6">
+                        {loadingMcpTools[id] ? (
+                          <div className="flex items-center py-1">
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                            <span className="text-xs">Loading tools...</span>
+                          </div>
+                        ) : !mcpServerTools[id] ||
+                          mcpServerTools[id].length === 0 ? (
+                          <div className="flex items-center justify-between py-1">
+                            <p className="text-muted-foreground text-xs">
+                              No tools available
+                            </p>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-6 text-xs"
+                              onClick={() => fetchMcpServerTools(id)}
                             >
-                              <div className="flex w-full items-center">
-                                <div className="mr-2 inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                                  <Checkbox
-                                    id={`tool-${isEdit ? "edit-" : ""}${id}-${tool.name}`}
-                                    checked={
-                                      selectedTools[id]?.includes(tool.name) ||
-                                      false
-                                    }
-                                    onCheckedChange={(checked) =>
-                                      onToolSelection(
-                                        id,
-                                        tool.name,
-                                        checked === true,
-                                      )
-                                    }
-                                  />
-                                </div>
-                                <span className="text-sm font-medium">
-                                  {tool.name}
-                                </span>
-                              </div>
+                              Refresh
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 py-1">
+                            {mcpServerTools[id].map((tool) => (
                               <div
-                                className="mt-1 w-full pl-6"
-                                style={{
-                                  opacity: 1,
-                                  visibility: "visible",
-                                }}
+                                key={tool.name}
+                                className="hover:bg-secondary/10 flex flex-col rounded px-1 py-2"
                               >
-                                <span
-                                  className={`text-muted-foreground text-xs`}
+                                <div className="flex w-full items-center">
+                                  <div className="mr-2 inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                                    <Checkbox
+                                      id={`tool-${isEdit ? "edit-" : ""}${id}-${tool.name}`}
+                                      checked={
+                                        selectedTools[id]?.includes(
+                                          tool.name,
+                                        ) || false
+                                      }
+                                      onCheckedChange={(checked) =>
+                                        onToolSelection(
+                                          id,
+                                          tool.name,
+                                          checked === true,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <span className="text-sm font-medium">
+                                    {tool.name}
+                                  </span>
+                                </div>
+                                <div
+                                  className="mt-1 w-full pl-6"
                                   style={{
-                                    padding: "2px 4px",
-                                    color: "var(--muted-foreground)",
-                                    whiteSpace: "normal",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    maxHeight: "3rem",
-                                    lineHeight: "1.2",
-                                    WebkitLineClamp: 2,
-                                    display: "-webkit-box",
-                                    WebkitBoxOrient: "vertical",
-                                    background: "transparent",
-                                    borderRadius: "4px",
+                                    opacity: 1,
+                                    visibility: "visible",
                                   }}
                                 >
-                                  {typeof tool.description === "string" &&
-                                  tool.description.trim() !== ""
-                                    ? tool.description
-                                    : "No description"}
-                                </span>
+                                  <span
+                                    className={`text-muted-foreground text-xs`}
+                                    style={{
+                                      padding: "2px 4px",
+                                      color: "var(--muted-foreground)",
+                                      whiteSpace: "normal",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      maxHeight: "3rem",
+                                      lineHeight: "1.2",
+                                      WebkitLineClamp: 2,
+                                      display: "-webkit-box",
+                                      WebkitBoxOrient: "vertical",
+                                      background: "transparent",
+                                      borderRadius: "4px",
+                                    }}
+                                  >
+                                    {typeof tool.description === "string" &&
+                                    tool.description.trim() !== ""
+                                      ? tool.description
+                                      : "No description"}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                            ))}
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -807,7 +613,12 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
 
           <div className="mt-6">
             <h3 className="mb-4 text-lg font-medium">MCP Servers & Tools</h3>
-            {renderMcpTools(false, selectedToolNames, handleToolSelection)}
+            {renderMcpTools(
+              false,
+              selectedToolNames,
+              (mcpId, toolName, selected) =>
+                handleToolSelection(mcpId, toolName, selected, false),
+            )}
           </div>
 
           <div className="mt-6 flex justify-end">
@@ -828,17 +639,33 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
           ) : (
             <div className="space-y-4">
               {availableAgents.map((agent) => {
-                // Get unique MCP server names only
-                const mcpServers = new Set<string>();
+                // Get MCP servers with enabled tools based on disableToolReferences
+                const serversWithEnabledTools = new Set<string>();
 
-                if (agent.toolReferences && agent.toolReferences.length > 0) {
-                  agent.toolReferences.forEach((toolRef) =>
-                    mcpServers.add(toolRef.mcpName),
-                  );
+                // Get all configured MCP servers
+                if (mcpServerConfigs?.mcpServers) {
+                  Object.keys(mcpServerConfigs.mcpServers).forEach((mcpId) => {
+                    const mcpTools = mcpServerTools[mcpId] || [];
+                    if (mcpTools.length > 0) {
+                      // Check if this MCP has any tools that are NOT disabled
+                      const hasEnabledTools = mcpTools.some(
+                        (tool) =>
+                          !agent.disableToolReferences?.some(
+                            (disabled) =>
+                              disabled.mcpName === mcpId &&
+                              disabled.toolName === tool.name,
+                          ),
+                      );
+
+                      if (hasEnabledTools) {
+                        serversWithEnabledTools.add(mcpId);
+                      }
+                    }
+                  });
                 }
 
                 // Convert the Set to Array
-                const mcpServersList = Array.from(mcpServers);
+                const mcpServersList = Array.from(serversWithEnabledTools);
 
                 return (
                   <div
@@ -984,7 +811,8 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                 {renderMcpTools(
                   true,
                   editSelectedTools,
-                  handleEditToolSelection,
+                  (mcpId, toolName, selected) =>
+                    handleToolSelection(mcpId, toolName, selected, true),
                 )}
               </div>
             </div>

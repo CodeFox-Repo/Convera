@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { MCPServerConfig, ToolDefinition } from "@/shared/types/mcp";
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
@@ -38,12 +39,6 @@ export type ConnectionStatusType =
 
 // Connection timeout for initial connection (5 minutes for installs)
 const CLIENT_CONNECT_TIMEOUT = 5 * 60000;
-
-export interface ToolDefinition {
-  name: string;
-  description?: string;
-  parameters?: Record<string, unknown>;
-}
 
 export interface ResourceDefinition {
   uri: string;
@@ -86,8 +81,6 @@ export interface ConnectionError extends Error {
   code?: string;
   data?: Record<string, unknown>;
 }
-
-import type { MCPServerConfig } from "./hub";
 
 /**
  * MCPConnection manages a single MCP server connection in Electron

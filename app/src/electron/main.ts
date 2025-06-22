@@ -1,6 +1,5 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
-import { initializeChatServer } from "@/electron/chat-server";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
@@ -254,9 +253,6 @@ app.whenReady().then(async () => {
     if (inDevelopment) {
       await installExtensions();
     }
-
-    await initializeChatServer();
-    console.log("Chat server is fully initialized");
 
     // Initialize MCP Hub
     await initializeMCPHub();

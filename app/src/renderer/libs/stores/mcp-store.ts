@@ -35,8 +35,6 @@ interface McpState {
   handleAddServer: (id: string, config: MCPServerConfig) => Promise<void>;
   handleManualInstallMcp: (configJson: string) => Promise<void>;
   handleRemoveServer: (id: string) => Promise<void>;
-  handleStartServer: (id: string) => Promise<void>;
-  handleStopServer: (id: string) => Promise<void>;
 
   refreshAll: () => Promise<void>;
 }
@@ -125,7 +123,7 @@ export const useMcpStore = create<McpState>()(
         };
         set({ mcpServerConfigs: updatedConfigs });
 
-        // Auto-save and handle enable/disable
+        // Auto-save configuration (without starting/stopping servers)
         if (field === "enabled") {
           try {
             const currentConfig = updatedConfigs.mcpServers[id];
@@ -140,17 +138,17 @@ export const useMcpStore = create<McpState>()(
               );
             }
 
-            if (value === true) {
-              toast.info(`Starting MCP server ${currentConfig.name || id}...`);
-              await get().handleStartServer(id);
-            } else {
-              toast.info(`Stopping MCP server ${currentConfig.name || id}...`);
-              await get().handleStopServer(id);
-            }
+            // Just show configuration saved message
+            toast.success(
+              `Configuration for ${currentConfig.name || id} saved`,
+            );
           } catch (error) {
-            console.error(`Error managing MCP server ${id}:`, error);
+            console.error(
+              `Error updating MCP server configuration ${id}:`,
+              error,
+            );
             toast.error(
-              `Failed to ${value ? "enable" : "disable"} server: ${error instanceof Error ? error.message : "Unknown error"}`,
+              `Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
 
             // Revert the change in UI if save failed
@@ -314,52 +312,6 @@ export const useMcpStore = create<McpState>()(
           console.error(`Error removing server ${id}:`, error);
           toast.error(
             `Failed to remove server: ${error instanceof Error ? error.message : "Unknown error"}`,
-          );
-          throw error;
-        }
-      },
-
-      // Start server
-      handleStartServer: async (id: string) => {
-        try {
-          const response = await window.mcpAPI.startServer(id);
-
-          if (!response.success) {
-            throw new Error(response.error || "Failed to start server");
-          }
-
-          const serverName = response.data?.displayName || id;
-          toast.success(`Server ${serverName} started successfully`);
-
-          // Refresh server data
-          await get().fetchAllMcpServers();
-        } catch (error) {
-          console.error(`Error starting server ${id}:`, error);
-          toast.error(
-            `Failed to start server: ${error instanceof Error ? error.message : "Unknown error"}`,
-          );
-          throw error;
-        }
-      },
-
-      // Stop server
-      handleStopServer: async (id: string) => {
-        try {
-          const response = await window.mcpAPI.stopServer(id);
-
-          if (!response.success) {
-            throw new Error(response.error || "Failed to stop server");
-          }
-
-          const serverName = response.data?.displayName || id;
-          toast.success(`Server ${serverName} stopped successfully`);
-
-          // Refresh server data
-          await get().fetchAllMcpServers();
-        } catch (error) {
-          console.error(`Error stopping server ${id}:`, error);
-          toast.error(
-            `Failed to stop server: ${error instanceof Error ? error.message : "Unknown error"}`,
           );
           throw error;
         }

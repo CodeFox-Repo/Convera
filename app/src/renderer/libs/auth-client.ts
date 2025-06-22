@@ -7,7 +7,7 @@ const getBaseURL = () => {
   //   return "http://localhost:3001";
   // }
   // In production, use production API
-  return "https://api.foxychat.net";
+  return "http://localhost:3001";
 };
 
 // Create auth client with environment-aware configuration

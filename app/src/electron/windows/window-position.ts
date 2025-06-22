@@ -130,9 +130,6 @@ function updateExpectedPosition(window: BrowserWindow) {
   // Only update if the current position is valid
   if (bounds.x >= 0 && bounds.y >= 0) {
     expectedPosition = bounds;
-    console.log(
-      `Updated expected position to: ${JSON.stringify(expectedPosition)}`,
-    );
   }
 }
 

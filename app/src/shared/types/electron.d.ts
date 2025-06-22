@@ -94,10 +94,16 @@ export interface IElectronAPI {
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
+// Define the Environment API interface
+export interface IEnvAPI {
+  isProduction: () => Promise<boolean>;
+}
+
 // Extend the global Window interface
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
     mcpAPI: IMcpAPI;
+    envApi: IEnvAPI;
   }
 }

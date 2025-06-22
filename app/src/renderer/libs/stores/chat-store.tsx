@@ -1,8 +1,3 @@
-import {
-  GenericError,
-  parseApiError,
-} from "@/renderer/libs/utils/error-handler";
-import { getSettings } from "@/renderer/libs/utils/settings";
 import { AppSettings } from "@/shared/types/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
@@ -14,7 +9,10 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { authClient } from "../auth-client";
 import { useChatHistory } from "../hooks/use-chat-history";
+import { parseApiError, type GenericError } from "../utils/error-handler";
+import { getSettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useModelStore } from "./model-store";
 
@@ -69,11 +67,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [apiUrl, setApiUrl] = useState<string | null>(null);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
   const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
+
+  // Load API URL based on environment
+  useEffect(() => {
+    const loadApiUrl = async () => {
+      try {
+        const isProduction = await window.envApi.isProduction();
+        const baseUrl = isProduction
+          ? "https://api.foxychat.net"
+          : "http://localhost:3001";
+        setApiUrl(`${baseUrl}/api/chat/completion`);
+      } catch (error) {
+        console.error("Failed to get environment:", error);
+        // Fallback to localhost
+        setApiUrl("http://localhost:3001/api/chat/completion");
+      }
+    };
+
+    loadApiUrl();
+  }, []);
 
   // Load settings asynchronously
   useEffect(() => {
@@ -101,13 +119,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
-    api: "http://localhost:38000/api/chat",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
+    api: apiUrl || "http://localhost:3001/api/chat/completion", // Fallback while loading
+    fetch: async (url, options = {}) => {
+      // Get session from better-auth
+      const session = await authClient.getSession();
+
+      // Add auth header to the request - better-auth typically uses cookies
+      const headers = {
+        ...options.headers,
+        "Content-Type": "application/json",
+        // Better-auth handles cookies automatically, but we can add session ID if needed
+        ...(session?.data?.session?.id && {
+          "X-Session-ID": session.data.session.id,
+        }),
+      };
+
+      return fetch(url, {
+        ...options,
+        headers,
+        credentials: "include", // Include cookies for better-auth
+      });
     },
     body: {
-      config: settings,
       agentId: currentAgentIdRef.current,
       modelId: currentModelIdRef.current || settings?.openai?.modelId,
     },
@@ -125,7 +158,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [chatAPI.messages.length, viewMode]);
 
   // Integrate the useChatHistory hook
-  const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
+  const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
@@ -288,8 +321,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const openHistoryWindow = useCallback(() => {
-    triggerHistoryWindow();
-  }, [triggerHistoryWindow]);
+    toggleHistoryWindow();
+  }, [toggleHistoryWindow]);
 
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],

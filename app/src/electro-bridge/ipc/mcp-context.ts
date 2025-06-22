@@ -1,6 +1,6 @@
 import type { MCPServerConfig } from "@/shared/types/mcp";
 import { contextBridge, ipcMain, ipcRenderer } from "electron";
-import { getMCPHub } from "../../mcp";
+import { getMCPHub } from "../../electron/mcp";
 
 /**
  * Setup MCP IPC handlers in main process

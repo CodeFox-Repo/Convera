@@ -1,24 +1,9 @@
+import { MCPConfig, MCPServerConfig } from "@/shared/types/mcp";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { MCPConnection, ServerInfo } from "./connection";
-
-export interface MCPServerConfig {
-  name?: string;
-  enabled?: boolean;
-  command?: string;
-  args?: string[];
-  cwd?: string;
-  env?: Record<string, string>;
-  url?: string;
-  apiKey?: string;
-  description?: string;
-}
-
-export interface MCPConfig {
-  mcpServers: Record<string, MCPServerConfig>;
-}
 
 /**
  * MCPHub - Clean MCP connection manager
@@ -205,8 +190,20 @@ export class MCPHub extends EventEmitter {
     this.config.mcpServers[name] = config;
     this.saveConfig();
 
-    // Reconnect
-    return await this.connectServer(name, config);
+    const connection = this.connections.get(name);
+    if (connection) {
+      return connection.getServerInfo();
+    } else {
+      // If no connection exists, create one if enabled
+      if (config.enabled !== false) {
+        return await this.connectServer(name, config);
+      } else {
+        // Create connection but don't start
+        const connection = new MCPConnection(name, config);
+        this.connections.set(name, connection);
+        return connection.getServerInfo();
+      }
+    }
   }
 
   /**

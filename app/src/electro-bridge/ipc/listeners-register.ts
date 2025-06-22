@@ -2,8 +2,8 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
-import { setupMCPIPC } from "../../electron/bridge/ipc/mcp";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
+import { setupEnvIPC } from "./env-context";
 import {
   closeWindow,
   getClipboardText,
@@ -30,6 +30,7 @@ import {
   toggleWindow,
   updateGlobalShortcut,
 } from "./ipc-handlers";
+import { setupMCPIPC } from "./mcp-context";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -273,5 +274,6 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 export function registerListeners(options: ListenerOptions = {}) {
   setupMCPIPC();
   setupElectronAPIIPC(options);
+  setupEnvIPC();
   console.log("All IPC listeners registered successfully");
 }

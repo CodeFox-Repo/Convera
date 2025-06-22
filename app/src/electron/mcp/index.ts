@@ -14,12 +14,11 @@ export type {
   ResourceDefinition,
   ResourceTemplate,
   ServerInfo,
-  ToolDefinition,
 } from "./connection";
-export type { MCPConfig, MCPServerConfig } from "./hub";
 
+import { ToolDefinition } from "@/shared/types/mcp";
 // Import for local use
-import type { ServerInfo, ToolDefinition } from "./connection";
+import type { ServerInfo } from "./connection";
 import { MCPHub } from "./hub";
 
 // Global hub instance
@@ -147,5 +146,4 @@ export type {
   PromptDefinition as Prompt,
   ResourceDefinition as Resource,
   ServerInfo as Server,
-  ToolDefinition as Tool,
 } from "./connection";

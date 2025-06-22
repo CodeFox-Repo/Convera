@@ -1,175 +1,266 @@
-import { ChatData } from "@/server/service/chat";
 import { Message } from "ai";
 import { useCallback, useEffect, useState } from "react";
 
-// Interface for chat data
-interface ChatHistoryData {
+// Standard conversation data from new API (already in AI SDK format)
+interface ConversationData {
   id: string;
-  title: string;
+  title: string | null;
+  agentId: string | null;
+  modelId: string | null;
+  systemPrompt: string | null;
+  metadata: {
+    settings?: Record<string, unknown>;
+    tags?: string[];
+    archived?: boolean;
+    starred?: boolean;
+  } | null;
+  messages: Message[]; // Already in AI SDK format!
   createdAt: string;
-  lastUpdated: string;
-  messageCount: number;
-  messages?: {
-    id: string;
-    role: string;
-    content: string;
-    timestamp: string;
-  }[];
+  updatedAt: string;
 }
 
 /**
- * Hook to handle chat history functionality
+ * Hook to handle chat history functionality using new conversation API
  */
 export function useChatHistory(setMessages: (messages: Message[]) => void) {
-  const [chatHistory, setChatHistory] = useState<ChatHistoryData[]>([]);
+  const [conversations, setConversations] = useState<ConversationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const API_BASE = "http://localhost:3001/api/chat";
+
   /**
-   * Function to fetch chat history
+   * Fetch user's conversations
    */
-  const fetchChatHistory = useCallback(async () => {
+  const fetchConversations = useCallback(async () => {
     setRefreshing(true);
-    const response = await fetch("http://localhost:38000/api/chat");
-    const data = await response.json();
-
-    if (data.status === "success") {
-      setChatHistory(data.chats);
-      setError(null);
-    } else {
-      setError("Failed to load chat history");
-    }
-
-    setLoading(false);
-    setRefreshing(false);
-  }, []);
-
-  /**
-   * Function to select a chat and dispatch events
-   */
-  const selectChat = useCallback(async (chatId: string) => {
-    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`);
-    const data = await response.json();
-
-    if (data.status === "success") {
-      const chatSelectedEvent = new CustomEvent("chat-history-selected", {
-        detail: { chat: data.chat },
+    try {
+      const response = await fetch(API_BASE, {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
-      window.dispatchEvent(chatSelectedEvent);
 
-      const chatData = JSON.stringify({
-        eventType: "chat-history-selected",
-        timestamp: new Date().toISOString(),
-        chat: data.chat,
-      });
-      localStorage.setItem("selectedChatHistory", chatData);
+      const data = await response.json();
 
-      if (window.electronAPI) {
-        window.electronAPI.toggleWindow("history");
+      if (data.status === "success") {
+        setConversations(data.conversations || []);
+        setError(null);
+      } else {
+        setError("Failed to load conversations");
+        console.error("API Error:", data);
       }
-    } else {
-      setError("Failed to load chat");
+    } catch (err) {
+      setError("Failed to connect to conversation service");
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   /**
-   * Function to delete a chat
+   * Select a conversation and load its messages
    */
-  const deleteChat = useCallback(async (chatId: string) => {
-    const response = await fetch(`http://localhost:38000/api/chat/${chatId}`, {
-      method: "DELETE",
-    });
-    const data = await response.json();
+  const selectConversation = useCallback(
+    async (conversationId: string) => {
+      try {
+        const response = await fetch(`${API_BASE}/${conversationId}`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-    if (data.status === "success") {
-      // Remove chat from the local state
-      setChatHistory((prevChats) =>
-        prevChats.filter((chat) => chat.id !== chatId),
-      );
-    } else {
-      setError("Failed to delete chat");
+        const data = await response.json();
+
+        if (data.status === "success" && data.conversation) {
+          const conversation = data.conversation as ConversationData;
+
+          // Messages are already in AI SDK format, no conversion needed!
+          setMessages(conversation.messages);
+
+          // Dispatch custom event for other components
+          const conversationSelectedEvent = new CustomEvent(
+            "conversation-selected",
+            {
+              detail: { conversation },
+            },
+          );
+          window.dispatchEvent(conversationSelectedEvent);
+
+          // Store in localStorage for cross-window communication
+          const eventData = JSON.stringify({
+            eventType: "conversation-selected",
+            timestamp: new Date().toISOString(),
+            conversation,
+          });
+          localStorage.setItem("selectedConversation", eventData);
+
+          // Close history window if in Electron
+          if (window.electronAPI) {
+            window.electronAPI.toggleWindow("history");
+          }
+        } else {
+          setError("Failed to load conversation");
+          console.error("API Error:", data);
+        }
+      } catch (err) {
+        setError("Failed to load conversation");
+        console.error("Select conversation error:", err);
+      }
+    },
+    [setMessages],
+  );
+
+  /**
+   * Delete a conversation
+   */
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/${conversationId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.status === "success") {
+        // Remove conversation from local state
+        setConversations((prev) =>
+          prev.filter((conv) => conv.id !== conversationId),
+        );
+      } else {
+        setError("Failed to delete conversation");
+        console.error("Delete API Error:", data);
+      }
+    } catch (err) {
+      setError("Failed to delete conversation");
+      console.error("Delete error:", err);
     }
   }, []);
 
   /**
-   * Function to open chat history window
+   * Create a new conversation
    */
-  const triggerHistoryWindow = useCallback(async () => {
-    await window.electronAPI.toggleWindow("history").catch((error: Error) => {
+  const createConversation = useCallback(
+    async (
+      options: {
+        title?: string;
+        agentId?: string;
+        modelId?: string;
+        initialMessage?: {
+          role: "user" | "assistant" | "system";
+          content: string;
+        };
+      } = {},
+    ) => {
+      try {
+        const response = await fetch(API_BASE, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(options),
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success" && data.conversation) {
+          const newConversation = data.conversation as ConversationData;
+          setConversations((prev) => [newConversation, ...prev]);
+          return newConversation;
+        } else {
+          setError("Failed to create conversation");
+          console.error("Create API Error:", data);
+          return null;
+        }
+      } catch (err) {
+        setError("Failed to create conversation");
+        console.error("Create error:", err);
+        return null;
+      }
+    },
+    [],
+  );
+
+  /**
+   * Open/close chat history window
+   */
+  const toggleHistoryWindow = useCallback(async () => {
+    try {
+      await window.electronAPI?.toggleWindow("history");
+    } catch (error) {
       console.error("Error toggling chat history window:", error);
-    });
+    }
   }, []);
 
   /**
-   * Function to close chat history window
+   * Handle localStorage changes (cross-window communication)
    */
-  const closeHistoryWindow = useCallback(() => {
-    console.log("Closing history window...");
-    window.electronAPI.toggleWindow("history").catch((error: Error) => {
-      console.error("Error toggling history window:", error);
-    });
-  }, []);
-
   useEffect(() => {
-    const handleChatHistorySelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.chat) {
-        const chatHistory = customEvent.detail.chat as ChatData;
-        if (
-          chatHistory &&
-          chatHistory.messages &&
-          chatHistory.messages.length > 0
-        ) {
-          setMessages(chatHistory.messages);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedConversation" && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.conversation && data.conversation.messages) {
+            // Messages are already in AI SDK format, no conversion needed!
+            setMessages(data.conversation.messages);
+          }
+        } catch (error) {
+          console.warn("Error parsing conversation from localStorage:", error);
         }
       }
     };
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedChatHistory" && event.newValue) {
-        console.log("Detected chat history change in localStorage (hook)");
-        const message = parseStoreMessage(event.newValue);
-        setMessages(message);
+
+    const handleConversationSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.conversation) {
+        const conversation = customEvent.detail
+          .conversation as ConversationData;
+        // Messages are already in AI SDK format, no conversion needed!
+        setMessages(conversation.messages);
       }
     };
 
-    window.addEventListener("chat-history-selected", handleChatHistorySelected);
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(
+      "conversation-selected",
+      handleConversationSelected,
+    );
 
-    // Cleanup event listeners
     return () => {
-      window.removeEventListener(
-        "chat-history-selected",
-        handleChatHistorySelected,
-      );
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(
+        "conversation-selected",
+        handleConversationSelected,
+      );
     };
   }, [setMessages]);
 
+  // Auto-fetch conversations on mount
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
   return {
     // State
-    chatHistory,
+    chatHistory: conversations,
     loading,
     error,
     refreshing,
+
     // Actions
-    fetchChatHistory,
-    selectChat,
-    deleteChat,
-    triggerHistoryWindow,
-    closeHistoryWindow,
+    fetchChatHistory: fetchConversations,
+    selectChat: selectConversation,
+    deleteChat: deleteConversation,
+    createConversation,
+    toggleHistoryWindow,
   };
 }
-
-const parseStoreMessage = (json: string) => {
-  try {
-    const chatData = JSON.parse(json) as { chat: ChatData };
-    if (chatData && chatData.chat) {
-      const chatHistory = chatData.chat;
-      return chatHistory.messages;
-    }
-  } catch (_error) {
-    console.warn("parsing chat history from storage event (hook):", _error);
-  }
-  return [];
-};
