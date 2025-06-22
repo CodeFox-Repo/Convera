@@ -35,6 +35,10 @@ import {
   createSettingsWindow,
   getSettingsWindow,
 } from "@/electron/windows/settings-window";
+import {
+  createVisionWindow,
+  getVisionWindow,
+} from "@/electron/windows/vision-window";
 
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
@@ -88,6 +92,10 @@ export function toggleWindow(type: WindowType): void {
 
     case "main":
       toggleGenericWindow(getMainWindow, createMainWindow);
+      break;
+
+    case "vision":
+      toggleGenericWindow(getVisionWindow, createVisionWindow);
       break;
 
     default:

@@ -58,4 +58,10 @@ export const WINDOW_SIZE_PRESETS = {
     minWidth: 280,
     minHeight: 240,
   },
+  VISION: {
+    widthProportion: 0.1,
+    heightProportion: 0.1,
+    minWidth: 300,
+    minHeight: 75,
+  },
 };
