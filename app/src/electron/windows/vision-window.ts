@@ -128,7 +128,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   });
 }
 
-// Pre-create settings window
+// Pre-create vision window
 export function preCreateVisionWindow(
   mainWindow?: BrowserWindow,
 ): BrowserWindow | null {
@@ -160,7 +160,7 @@ export function preCreateVisionWindow(
   return visionWindow;
 }
 
-// Create and show settings window
+// Create and show vision window
 export function createVisionWindow(): void {
   if (!visionWindow) {
     preCreateVisionWindow();
@@ -172,8 +172,8 @@ export function createVisionWindow(): void {
   }
 }
 
-// Close settings window
-export function closeSettingsWindow(): void {
+// Close vision window
+export function closeVisionWindow(): void {
   if (visionWindow) {
     // Make sure to just hide the window, not close it
     // This prevents triggering the 'closed' event
@@ -185,11 +185,11 @@ export function closeSettingsWindow(): void {
       visionWindow.blur();
     }
 
-    console.log("Settings window hidden");
+    console.log("Vision window hidden");
   }
 }
 
-// Get settings window reference
+// Get vision window reference
 export function getVisionWindow(): BrowserWindow | null {
   return visionWindow;
 }

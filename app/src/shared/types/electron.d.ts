@@ -3,7 +3,7 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 
 // Enum for window types
-export type WindowType = "settings" | "history" | "main";
+export type WindowType = "settings" | "history" | "main" | "vision";
 
 // Enum for theme modes
 export type ThemeMode = "light" | "dark" | "system";
