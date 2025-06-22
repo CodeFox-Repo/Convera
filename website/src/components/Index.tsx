@@ -4,9 +4,9 @@ import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Code, Download, FileText, Palette, Table } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   siDiscord,
   siFigma,
@@ -180,7 +180,7 @@ const Index = () => {
 
       {/* Hero Section */}
       <section
-        className="relative w-full overflow-hidden bg-gradient-to-br from-white via-orange-50/30 to-orange-100/50 py-20 pt-28 md:py-28 md:pt-36"
+        className="relative w-full overflow-hidden bg-gradient-to-br from-orange-50 to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
         {/* Animated background elements */}
@@ -330,7 +330,7 @@ const Index = () => {
                           ) : (
                             <div
                               className="h-8 w-8 transition-transform duration-200 group-hover:scale-110"
-                              dangerouslySetInnerHTML={{ __html: app.logo }}
+                              dangerouslySetInnerHTML={{ __html: app.logo || "" }}
                             />
                           )}
                         </div>
