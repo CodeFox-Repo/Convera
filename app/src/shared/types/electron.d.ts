@@ -96,7 +96,7 @@ export interface IElectronAPI {
 
 // Define the Environment API interface
 export interface IEnvAPI {
-  isProduction: () => Promise<boolean>;
+  isProduction: () => boolean;
 }
 
 // Extend the global Window interface
