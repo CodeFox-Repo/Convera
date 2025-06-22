@@ -1,6 +1,7 @@
 // app/src/renderer/stores/agent-store.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getApiBaseUrl } from "../env";
 
 // Updated interface to match the new server API
 export interface Agent {
@@ -49,27 +50,13 @@ interface AgentState {
   subscribeToAgentChanges: () => () => void;
 }
 
-/**
- * Get API base URL from environment
- */
-async function getApiBaseUrl(): Promise<string> {
-  try {
-    const isProduction = await window.envApi.isProduction();
-    return isProduction
-      ? "https://api.foxychat.net/api"
-      : "http://localhost:3001/api";
-  } catch (error) {
-    console.warn("Failed to get environment, using localhost fallback:", error);
-    return "http://localhost:3001/api";
-  }
-}
-
 export const useAgentStore = create<AgentState>()(
   persist(
     (set, get) => {
       const savedAgent = localStorage.getItem("selectedAgent");
       const savedAgents = localStorage.getItem("availableAgents");
 
+      const baseUrl = getApiBaseUrl();
       return {
         selectedAgent: savedAgent ? JSON.parse(savedAgent) : null,
         agentChanged: false,
@@ -111,8 +98,7 @@ export const useAgentStore = create<AgentState>()(
         fetchAgents: async () => {
           try {
             console.log("Fetching available agents from foxychat-server...");
-            const apiBaseUrl = await getApiBaseUrl();
-            const response = await fetch(`${apiBaseUrl}/agents`, {
+            const response = await fetch(`${baseUrl}/agents`, {
               headers: {
                 "Content-Type": "application/json",
               },
@@ -183,8 +169,7 @@ export const useAgentStore = create<AgentState>()(
 
         saveAgent: async (agent: Agent) => {
           try {
-            const apiBaseUrl = await getApiBaseUrl();
-            const response = await fetch(`${apiBaseUrl}/agents/${agent.id}`, {
+            const response = await fetch(`${baseUrl}/agents/${agent.id}`, {
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
@@ -216,8 +201,7 @@ export const useAgentStore = create<AgentState>()(
 
         createAgent: async (agentData) => {
           try {
-            const apiBaseUrl = await getApiBaseUrl();
-            const response = await fetch(`${apiBaseUrl}/agents`, {
+            const response = await fetch(`${baseUrl}/agents`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -249,8 +233,7 @@ export const useAgentStore = create<AgentState>()(
 
         deleteAgent: async (agentId: string) => {
           try {
-            const apiBaseUrl = await getApiBaseUrl();
-            const response = await fetch(`${apiBaseUrl}/agents/${agentId}`, {
+            const response = await fetch(`${baseUrl}/agents/${agentId}`, {
               method: "DELETE",
               headers: {
                 "Content-Type": "application/json",

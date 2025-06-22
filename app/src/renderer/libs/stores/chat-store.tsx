@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { authClient } from "../auth-client";
+import { getApiBaseUrl } from "../env";
 import { useChatHistory } from "../hooks/use-chat-history";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { getSettings } from "../utils/settings";
@@ -67,31 +68,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
-  const [apiUrl, setApiUrl] = useState<string | null>(null);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
   const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
-
-  // Load API URL based on environment
-  useEffect(() => {
-    const loadApiUrl = async () => {
-      try {
-        const isProduction = await window.envApi.isProduction();
-        const baseUrl = isProduction
-          ? "https://api.foxychat.net"
-          : "http://localhost:3001";
-        setApiUrl(`${baseUrl}/api/chat/completion`);
-      } catch (error) {
-        console.error("Failed to get environment:", error);
-        // Fallback to localhost
-        setApiUrl("http://localhost:3001/api/chat/completion");
-      }
-    };
-
-    loadApiUrl();
-  }, []);
 
   // Load settings asynchronously
   useEffect(() => {
@@ -119,16 +100,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
-    api: apiUrl || "http://localhost:3001/api/chat/completion", // Fallback while loading
+    api: getApiBaseUrl() + "/chat/completion",
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();
-
       // Add auth header to the request - better-auth typically uses cookies
       const headers = {
         ...options.headers,
         "Content-Type": "application/json",
-        // Better-auth handles cookies automatically, but we can add session ID if needed
         ...(session?.data?.session?.id && {
           "X-Session-ID": session.data.session.id,
         }),

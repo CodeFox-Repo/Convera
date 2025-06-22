@@ -100,9 +100,11 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         console.error("Failed to execute navigation script:", err);
       });
 
-    // Always open DevTools for main window
-    console.log("Opening DevTools for main window");
-    window.webContents.openDevTools({ mode: "detach" });
+    // Open DevTools only in development mode
+    if (inDevelopment) {
+      console.log("Opening DevTools for main window in development mode");
+      window.webContents.openDevTools({ mode: "detach" });
+    }
   });
 
   window.webContents.on(

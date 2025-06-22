@@ -8,6 +8,10 @@ config();
 function isProduction(): boolean {
   try {
     const nodeEnv = process.env.NODE_ENV;
+    if (!nodeEnv || nodeEnv === "production-development") {
+      return true;
+    }
+
     const developmentValues = ["development", "dev", "test"];
     return !developmentValues.includes(nodeEnv?.toLowerCase() || "");
   } catch {

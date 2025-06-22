@@ -3,7 +3,7 @@ export const inDevelopment = (() => {
   // Check if we're in a development environment using available indicators
   if (typeof process !== "undefined") {
     // Check environment variables
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === "production-development") {
       return true;
     }
     // Check if VITE dev server is running

@@ -1,5 +1,6 @@
 import { Message } from "ai";
 import { useCallback, useEffect, useState } from "react";
+import { getApiBaseUrl } from "../env";
 
 // Standard conversation data from new API (already in AI SDK format)
 interface ConversationData {
@@ -28,7 +29,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const API_BASE = "http://localhost:3001/api/chat";
+  const API_BASE = getApiBaseUrl() + "/chat";
 
   /**
    * Fetch user's conversations

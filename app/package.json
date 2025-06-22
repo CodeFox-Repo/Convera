@@ -6,7 +6,7 @@
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
-    "start": "electron-forge start",
+    "start": "NODE_ENV=production-development electron-forge start",
     "dev:start": "NODE_ENV=development electron-forge start",
     "package": "electron-forge package",
     "package:robotjs": "electron-forge package && ../scripts/post-package-robotjs.sh",
