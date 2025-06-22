@@ -21,4 +21,19 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          router: ["@tanstack/router", "@tanstack/react-query"],
+        },
+      },
+    },
+  },
+  // For SPA routing support in development
+  preview: {
+    port: 3000,
+    host: true,
+  },
 }));
