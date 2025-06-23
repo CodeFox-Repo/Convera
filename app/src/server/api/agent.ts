@@ -230,7 +230,6 @@ const AutomationChatSchema = z.object({
 // Helper to convert messages to CoreMessage format for AI SDK
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToAISDKFormat(messages: any[]): CoreMessage[] {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return messages.map((msg) => {
     if (msg.content && Array.isArray(msg.content)) {
       return {
@@ -317,6 +316,7 @@ router.post(
               console.log("[Tool Result: Screenshot captured successfully]");
 
               // Add the image in OpenRouter format to our messages array
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (messages as any[]).push({
                 role: "user",
                 content: [
