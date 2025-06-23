@@ -22,7 +22,10 @@ function transformToMessages(createMessages: CreateUIMessage[]): Message[] {
 }
 
 // Updated authentication middleware using standardized error responses
-const authenticateRequest = async (c: any, next: () => Promise<void>) => {
+export const authenticateRequest = async (
+  c: any,
+  next: () => Promise<void>,
+) => {
   const authHeader = c.req.header("Authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {

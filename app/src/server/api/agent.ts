@@ -1,7 +1,20 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { zValidator } from "@hono/zod-validator";
-import { appendResponseMessages, Message, streamText, ToolSet } from "ai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { LanguageModel } from "ai";
+import {
+  appendResponseMessages,
+  CoreMessage,
+  Message,
+  streamText,
+  tool,
+  ToolSet,
+} from "ai";
+import * as child_process from "child_process";
+import * as fs from "fs";
+import type { Context } from "hono";
 import { Hono } from "hono";
+import * as os from "os";
+import * as path from "path";
 import { z } from "zod";
 import {
   deleteCustomAgent,
@@ -19,6 +32,12 @@ import { desktopAutomationTools } from "../builtIn-tools/desktop-automation";
 import { desktopAutomationPrompt } from "../builtIn-tools/desktop-automation/prompt";
 import { createCustomAgent } from "../service/agent";
 import { saveChat } from "../service/chat";
+import { authenticateRequest } from "./chat";
+
+// Add interface for context with apiToken
+interface AuthenticatedContext extends Context {
+  apiToken: string;
+}
 
 const router = new Hono();
 
@@ -205,53 +224,158 @@ const AutomationChatSchema = z.object({
     }),
   ),
   modelId: z.string().optional(),
-  chatId: z.string().optional(),
+  id: z.string().optional(),
 });
+
+// Helper to convert messages to CoreMessage format for AI SDK
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertToAISDKFormat(messages: any[]): CoreMessage[] {
+  return messages.map((msg) => {
+    if (msg.content && Array.isArray(msg.content)) {
+      return {
+        ...msg,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        content: msg.content.map((part: any) => {
+          if (part.type === "image_url") {
+            return {
+              type: "image",
+              image: part.image_url.url,
+            };
+          }
+          return part;
+        }),
+      };
+    }
+    return msg;
+  });
+}
 
 // Add automation endpoint
 router.post(
   "/api/agent/automation",
+  authenticateRequest,
   zValidator("json", AutomationChatSchema),
   async (c) => {
-    const { messages, chatId } = c.req.valid("json");
+    const { messages, id } = c.req.valid("json");
 
-    const anthropicApiKey = "";
+    const apiKey = (c as unknown as AuthenticatedContext).apiToken;
+
+    const openrouter = createOpenRouter({
+      apiKey,
+    });
+
+    const chatModel = openrouter.chat("anthropic/claude-3-7-sonnet");
 
     try {
-      // Setup desktop automation tools
+      // Setup desktop automation tools and add custom computer tool
       const tools: ToolSet = {
         ...desktopAutomationTools,
+        screenshot: tool({
+          description: "Take a screenshot",
+          parameters: z.object({
+            mode: z
+              .enum(["full", "window"])
+              .optional()
+              .describe("Screenshot mode: full screen or active window"),
+            coordinate: z
+              .array(z.number())
+              .optional()
+              .describe("Optional coordinates for actions"),
+            text: z.string().optional().describe("Optional text for actions"),
+          }),
+          execute: async ({ mode }) => {
+            try {
+              console.log("[Tool Result: Capturing screenshot...]");
+
+              // Create screenshot using the same approach as the existing screenshot tool
+              const filePath = path.join(
+                os.tmpdir(),
+                `computer_screenshot_${Date.now()}.png`,
+              );
+
+              // Capture real screenshot using macOS screencapture
+              if (mode === "window") {
+                // Try to capture active window
+                child_process.execSync(`screencapture -x -W "${filePath}"`);
+              } else {
+                // Default to full screen
+                child_process.execSync(`screencapture -x -D1 "${filePath}"`);
+              }
+
+              if (!fs.existsSync(filePath)) {
+                throw new Error(
+                  `Screenshot file was not created at ${filePath}`,
+                );
+              }
+
+              // Read the image and convert to base64
+              const imageBuffer = fs.readFileSync(filePath);
+              const base64 = imageBuffer.toString("base64");
+              const dataURL = `${base64}`;
+
+              console.log("[Tool Result: Screenshot captured successfully]");
+
+              // Add the image in OpenRouter format to our messages array
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (messages as any[]).push({
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Here is the current screenshot:",
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: dataURL,
+                    },
+                  },
+                ],
+              });
+
+              // Clean up temporary file
+              try {
+                fs.unlinkSync(filePath);
+                console.log("[Temporary file cleaned up]");
+              } catch (cleanupError) {
+                console.warn(
+                  `[Warning: Could not clean up temporary file: ${cleanupError}]`,
+                );
+              }
+
+              return "Screenshot captured and added to conversation";
+            } catch (error) {
+              console.log(
+                `[Tool Result: Failed to capture screenshot: ${error}]`,
+              );
+              return `Failed to capture screenshot: ${error}`;
+            }
+          },
+        }),
       };
 
       // Get tool names for system prompt
-      const toolsList = Object.keys(desktopAutomationTools);
+      const toolsList = Object.keys(tools);
       const systemPrompt = desktopAutomationPrompt;
 
       console.log(
-        `Automation chat: Using ${toolsList.length} desktop automation tools`,
+        `Automation chat: Using ${toolsList.length} tools including custom computer tool`,
       );
       console.log(`Available tools: ${toolsList.join(", ")}`);
 
-      // Create Anthropic model
-      const anthropicProvider = createAnthropic({
-        apiKey: anthropicApiKey,
-      });
-      const model = anthropicProvider("claude-sonnet-4-20250514");
-
-      console.log("model", model);
-
       // Stream the response
       const result = streamText({
-        model,
-        messages: messages as Message[],
+        model: chatModel,
+        messages: convertToAISDKFormat(messages),
         system: systemPrompt,
         tools,
         maxSteps: 25,
         onFinish: async (response) => {
           console.log("Automation chat completed:", response);
-          if (chatId) {
+          if (id) {
+            console.log("Saving chat:", id);
             await saveChat({
-              id: chatId,
+              id,
               messages: appendResponseMessages({
                 messages: messages as Message[],
                 responseMessages: response.response.messages,
@@ -260,6 +384,39 @@ router.post(
           }
         },
       });
+
+      let needsFollowUp = false;
+      let followUpConfig = { prompt: "", logMessage: "" };
+
+      const stream = result.fullStream;
+      for await (const part of stream) {
+        if (part.type === "text-delta") {
+          process.stdout.write(part.textDelta);
+        } else if (part.type === "tool-call") {
+          console.log(`\n[Executing tool: ${part.toolName}]`);
+
+          // Configure follow-up based on tool and action
+          if (part.toolName === "screenshot") {
+            needsFollowUp = true;
+            followUpConfig = {
+              prompt:
+                "Please analyze this screenshot in detail. What do you see? What's happening on the screen?",
+              logMessage: "[Auto-analyzing screenshot...]",
+            };
+          }
+          // Add more tool-specific follow-up configurations here as needed
+          // Example: if (part.toolName === "someOtherTool") { ... }
+        }
+      }
+
+      if (needsFollowUp) {
+        await sendFollowUpRequest(
+          followUpConfig.prompt,
+          followUpConfig.logMessage,
+          messages,
+          chatModel,
+        );
+      }
 
       const headers = {
         "Content-Type": "text/event-stream",
@@ -289,5 +446,59 @@ router.post(
     }
   },
 );
+
+// Generic helper function to automatically send follow-up requests
+async function sendFollowUpRequest(
+  followUpPrompt?: string,
+  logMessage?: string,
+  messages?: CoreMessage[],
+  chatModel?: LanguageModel,
+) {
+  if (!messages || !chatModel) {
+    console.error("Missing required parameters for follow-up request");
+    return;
+  }
+
+  const defaultPrompt =
+    "Please analyze or provide more details about what was just processed.";
+  const prompt = followUpPrompt || defaultPrompt;
+  const log = logMessage || "[Auto-processing follow-up request...]";
+
+  console.log(`\n${log}`);
+
+  // Add the follow-up request to messages
+  messages.push({
+    role: "user",
+    content: prompt,
+  });
+
+  const result = streamText({
+    model: chatModel,
+    maxSteps: 5,
+    messages: convertToAISDKFormat(messages),
+  });
+
+  let fullResponse = "";
+  process.stdout.write("\nAssistant: ");
+
+  // Handle the follow-up response
+  const stream = result.fullStream;
+  for await (const part of stream) {
+    if (part.type === "text-delta") {
+      fullResponse += part.textDelta;
+      process.stdout.write(part.textDelta);
+    }
+  }
+
+  process.stdout.write("\n\n");
+
+  // Store the assistant's follow-up response
+  if (fullResponse.trim()) {
+    messages.push({
+      role: "assistant",
+      content: fullResponse,
+    });
+  }
+}
 
 export default router;
