@@ -670,33 +670,6 @@ export const screenshot = tool({
       throw new Error(`Screenshot failed: ${errorMessage}`);
     }
   },
-  // Use newer format with mimeType to properly handle images
-  experimental_toToolResultContent(result) {
-    try {
-      // Try to parse JSON result
-      const parsed = JSON.parse(result as string);
-      if (parsed.type === "image") {
-        return [
-          {
-            type: "image",
-            data: parsed.data,
-            mimeType: parsed.mimeType || "image/png",
-          },
-        ];
-      }
-    } catch {
-      // If JSON parsing fails, treat as regular string
-    }
-
-    // Fallback for string results
-    return [
-      {
-        type: "image",
-        data: result as string,
-        mimeType: "image/png",
-      },
-    ];
-  },
 });
 
 // Tool 11: Screen Information
@@ -1215,7 +1188,7 @@ export const desktopAutomationTools = {
   keyControl,
 
   // Screen tools
-  screenshot,
+  // screenshot,
   screenInfo,
   screenHighlight,
   // colorAt,

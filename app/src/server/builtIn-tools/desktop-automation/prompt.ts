@@ -15,8 +15,6 @@ For click, you need to click twice for the first time change window focus
 
 If user request need visual guide, you should use screenHighlight tool to highlight the region to guide user.
 
-You should always use screenshot to get the information you need.
-
 Some action need time to be done i should wait for the action to be done.
 
 You Must always make sure the task is done.!
