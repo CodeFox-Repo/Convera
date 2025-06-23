@@ -1,5 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { LanguageModel } from "ai";
 import {
   appendResponseMessages,
   CoreMessage,
@@ -10,6 +11,7 @@ import {
 } from "ai";
 import * as child_process from "child_process";
 import * as fs from "fs";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import * as os from "os";
 import * as path from "path";
@@ -31,6 +33,11 @@ import { desktopAutomationPrompt } from "../builtIn-tools/desktop-automation/pro
 import { createCustomAgent } from "../service/agent";
 import { saveChat } from "../service/chat";
 import { authenticateRequest } from "./chat";
+
+// Add interface for context with apiToken
+interface AuthenticatedContext extends Context {
+  apiToken: string;
+}
 
 const router = new Hono();
 
@@ -221,11 +228,14 @@ const AutomationChatSchema = z.object({
 });
 
 // Helper to convert messages to CoreMessage format for AI SDK
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToAISDKFormat(messages: any[]): CoreMessage[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return messages.map((msg) => {
     if (msg.content && Array.isArray(msg.content)) {
       return {
         ...msg,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         content: msg.content.map((part: any) => {
           if (part.type === "image_url") {
             return {
@@ -249,7 +259,7 @@ router.post(
   async (c) => {
     const { messages, id } = c.req.valid("json");
 
-    const apiKey = (c as any).apiToken;
+    const apiKey = (c as unknown as AuthenticatedContext).apiToken;
 
     const openrouter = createOpenRouter({
       apiKey,
@@ -261,10 +271,9 @@ router.post(
       // Setup desktop automation tools and add custom computer tool
       const tools: ToolSet = {
         ...desktopAutomationTools,
-        Screenshot: tool({
+        screenshot: tool({
           description: "Take a screenshot",
           parameters: z.object({
-            action: z.enum(["screenshot"]).describe("The action to perform"),
             mode: z
               .enum(["full", "window"])
               .optional()
@@ -275,83 +284,71 @@ router.post(
               .describe("Optional coordinates for actions"),
             text: z.string().optional().describe("Optional text for actions"),
           }),
-          execute: async ({ action, mode, coordinate, text }) => {
-            console.log(`\n[Tool Called: ${action}]`);
-            switch (action) {
-              case "screenshot": {
-                try {
-                  console.log("[Tool Result: Capturing screenshot...]");
+          execute: async ({ mode }) => {
+            try {
+              console.log("[Tool Result: Capturing screenshot...]");
 
-                  // Create screenshot using the same approach as the existing screenshot tool
-                  const filePath = path.join(
-                    os.tmpdir(),
-                    `computer_screenshot_${Date.now()}.png`,
-                  );
+              // Create screenshot using the same approach as the existing screenshot tool
+              const filePath = path.join(
+                os.tmpdir(),
+                `computer_screenshot_${Date.now()}.png`,
+              );
 
-                  // Capture real screenshot using macOS screencapture
-                  if (mode === "window") {
-                    // Try to capture active window
-                    child_process.execSync(`screencapture -x -W "${filePath}"`);
-                  } else {
-                    // Default to full screen
-                    child_process.execSync(
-                      `screencapture -x -D1 "${filePath}"`,
-                    );
-                  }
-
-                  if (!fs.existsSync(filePath)) {
-                    throw new Error(
-                      `Screenshot file was not created at ${filePath}`,
-                    );
-                  }
-
-                  // Read the image and convert to base64
-                  const imageBuffer = fs.readFileSync(filePath);
-                  const base64 = imageBuffer.toString("base64");
-                  const dataURL = `data:image/png;base64,${base64}`;
-
-                  console.log(
-                    "[Tool Result: Screenshot captured successfully]",
-                  );
-
-                  // Add the image in OpenRouter format to our messages array
-                  (messages as any[]).push({
-                    role: "user",
-                    content: [
-                      {
-                        type: "text",
-                        text: "Here is the current screenshot:",
-                      },
-                      {
-                        type: "image_url",
-                        image_url: {
-                          url: dataURL,
-                        },
-                      },
-                    ],
-                  });
-
-                  // Clean up temporary file
-                  try {
-                    fs.unlinkSync(filePath);
-                    console.log("[Temporary file cleaned up]");
-                  } catch (cleanupError) {
-                    console.warn(
-                      `[Warning: Could not clean up temporary file: ${cleanupError}]`,
-                    );
-                  }
-
-                  return "Screenshot captured and added to conversation";
-                } catch (error) {
-                  console.log(
-                    `[Tool Result: Failed to capture screenshot: ${error}]`,
-                  );
-                  return `Failed to capture screenshot: ${error}`;
-                }
+              // Capture real screenshot using macOS screencapture
+              if (mode === "window") {
+                // Try to capture active window
+                child_process.execSync(`screencapture -x -W "${filePath}"`);
+              } else {
+                // Default to full screen
+                child_process.execSync(`screencapture -x -D1 "${filePath}"`);
               }
-              default: {
-                return `executed ${action}`;
+
+              if (!fs.existsSync(filePath)) {
+                throw new Error(
+                  `Screenshot file was not created at ${filePath}`,
+                );
               }
+
+              // Read the image and convert to base64
+              const imageBuffer = fs.readFileSync(filePath);
+              const base64 = imageBuffer.toString("base64");
+              const dataURL = `${base64}`;
+
+              console.log("[Tool Result: Screenshot captured successfully]");
+
+              // Add the image in OpenRouter format to our messages array
+              (messages as any[]).push({
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Here is the current screenshot:",
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: dataURL,
+                    },
+                  },
+                ],
+              });
+
+              // Clean up temporary file
+              try {
+                fs.unlinkSync(filePath);
+                console.log("[Temporary file cleaned up]");
+              } catch (cleanupError) {
+                console.warn(
+                  `[Warning: Could not clean up temporary file: ${cleanupError}]`,
+                );
+              }
+
+              return "Screenshot captured and added to conversation";
+            } catch (error) {
+              console.log(
+                `[Tool Result: Failed to capture screenshot: ${error}]`,
+              );
+              return `Failed to capture screenshot: ${error}`;
             }
           },
         }),
@@ -399,10 +396,7 @@ router.post(
           console.log(`\n[Executing tool: ${part.toolName}]`);
 
           // Configure follow-up based on tool and action
-          if (
-            part.toolName === "computer" &&
-            part.args.action === "screenshot"
-          ) {
+          if (part.toolName === "screenshot") {
             needsFollowUp = true;
             followUpConfig = {
               prompt:
@@ -457,8 +451,8 @@ router.post(
 async function sendFollowUpRequest(
   followUpPrompt?: string,
   logMessage?: string,
-  messages?: any[],
-  chatModel?: any,
+  messages?: CoreMessage[],
+  chatModel?: LanguageModel,
 ) {
   if (!messages || !chatModel) {
     console.error("Missing required parameters for follow-up request");
