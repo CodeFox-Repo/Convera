@@ -11,10 +11,10 @@ import React, {
 } from "react";
 import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
-import { useChatHistory } from "../hooks/use-chat-history";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { getSettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
+import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";

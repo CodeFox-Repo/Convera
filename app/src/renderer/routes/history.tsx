@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useChatHistory } from "../libs/hooks/use-chat-history";
 import { useThemeSync } from "../libs/hooks/use-theme-sync";
 import { useWindowClose } from "../libs/hooks/use-window-close";
+import { useChatHistory } from "../libs/stores/chat-history-store";
 import { cleanTitle } from "../libs/utils/tag";
 
 export const Route = createFileRoute("/history")({

@@ -1,5 +1,5 @@
-import { useChatHistory } from "@/renderer/libs/hooks/use-chat-history";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useChatHistory } from "@/renderer/libs/stores/chat-history-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
 import * as Popover from "@radix-ui/react-popover";

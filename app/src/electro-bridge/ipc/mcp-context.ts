@@ -148,14 +148,11 @@ export function setupMCPIPC() {
  */
 export function exposeMCPContext() {
   contextBridge.exposeInMainWorld("mcpAPI", {
-    // Server management
     getServers: () => ipcRenderer.invoke("mcp:getServers"),
     startServer: (serverId: string) =>
       ipcRenderer.invoke("mcp:startServer", serverId),
     stopServer: (serverId: string) =>
       ipcRenderer.invoke("mcp:stopServer", serverId),
-
-    // Configuration management
     getConfigurations: () => ipcRenderer.invoke("mcp:getConfigurations"),
     addServer: (serverId: string, config: MCPServerConfig) =>
       ipcRenderer.invoke("mcp:addServer", serverId, config),
@@ -163,8 +160,6 @@ export function exposeMCPContext() {
       ipcRenderer.invoke("mcp:updateServer", serverId, config),
     removeServer: (serverId: string) =>
       ipcRenderer.invoke("mcp:removeServer", serverId),
-
-    // Tool operations
     callTool: (
       serverId: string,
       toolName: string,
