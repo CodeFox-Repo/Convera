@@ -30,6 +30,7 @@ import {
   toggleWindow,
   updateGlobalShortcut,
 } from "./ipc-handlers";
+import { setupLoggerIPC } from "./logger-context";
 import { setupMCPIPC } from "./mcp-context";
 
 // Extended interface that includes additional methods beyond IPCServer
@@ -273,6 +274,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 // Register all IPC listeners for main process
 export function registerListeners(options: ListenerOptions = {}) {
   setupMCPIPC();
+  setupLoggerIPC();
   setupElectronAPIIPC(options);
   setupEnvIPC();
   console.log("All IPC listeners registered successfully");

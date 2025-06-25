@@ -132,21 +132,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     currentModelIdRef.current = selectedModelId;
   }, [selectedModelId]);
 
-  // Debug: Log request parameters when they change
-  useEffect(() => {
-    console.log("Chat request parameters:", {
-      finalUseRemoteStore: isUserLoggedIn && useRemoteStore,
-      hasCustomApiSettings:
-        !(isUserLoggedIn && useRemoteStore) && !!settings?.openai,
-      isUserLoggedIn,
-      useRemoteStore,
-      endpoint: settings?.openai?.endpoint,
-    });
-  }, [isUserLoggedIn, useRemoteStore, settings?.openai]);
-
-  // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
-    api: getApiBaseUrl() + "/chat/completion", // Always use server endpoint
+    api: getApiBaseUrl() + "/chat/completion",
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();

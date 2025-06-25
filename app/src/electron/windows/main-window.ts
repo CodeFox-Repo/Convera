@@ -6,6 +6,10 @@ import {
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for main window
+const logger = getLogger("main-window");
 
 // Global reference to the main window
 let mainWindow: BrowserWindow | null = null;
@@ -80,8 +84,6 @@ function loadWindowContent(window: BrowserWindow) {
 // Setup window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
   window.webContents.on("did-finish-load", () => {
-    console.log("Main page loaded in main window, redirecting to main...");
-
     window.webContents
       .executeJavaScript(
         `
@@ -100,9 +102,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         console.error("Failed to execute navigation script:", err);
       });
 
-    // Open DevTools only in development mode
     if (inDevelopment) {
-      console.log("Opening DevTools for main window in development mode");
       window.webContents.openDevTools({ mode: "detach" });
     }
   });
@@ -114,12 +114,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
     },
   );
 
-  window.once("ready-to-show", () => {
-    console.log("Main window ready, but kept hidden");
-  });
-
   window.on("closed", () => {
-    console.log("Main window closed, setting reference to null");
     mainWindow = null;
   });
 }
@@ -130,7 +125,7 @@ export function preCreateMainWindow(
 ): BrowserWindow | null {
   if (mainWindow) return mainWindow;
 
-  console.log("Pre-creating main window");
+  logger.info("Pre-creating main window");
 
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.SETTINGS,
@@ -139,15 +134,20 @@ export function preCreateMainWindow(
     true,
   );
 
+  logger.debug("Main window dimensions calculated", { dimensions });
+
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig(dimensions);
 
   // Add parent window if provided
   if (chatWindow) {
     config.parent = chatWindow;
+    logger.debug("Main window will be child of chat window");
   }
 
   mainWindow = new BrowserWindow(config);
+
+  logger.debug("Main window created with platform-specific config");
 
   // Configure appearance and properties
   configurePlatformAppearance(mainWindow);
@@ -159,18 +159,24 @@ export function preCreateMainWindow(
   // Setup event handlers
   setupWindowEventHandlers(mainWindow);
 
+  logger.info("Main window pre-creation completed");
+
   return mainWindow;
 }
 
 // Create and show main window
 export function createMainWindow(): void {
   if (!mainWindow) {
+    logger.warn("Main window not pre-created, creating now");
     preCreateMainWindow();
   }
 
   if (mainWindow) {
+    logger.info("Showing main window");
     mainWindow.show();
     mainWindow.focus();
+  } else {
+    logger.error("Failed to create main window");
   }
 }
 

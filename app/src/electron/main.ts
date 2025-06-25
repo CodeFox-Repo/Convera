@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
+import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
@@ -53,6 +54,9 @@ const inDevelopment = !app.isPackaged;
 let trackingAppFocus = false;
 
 let chatWindow: BrowserWindow | null = null;
+
+// Initialize logger for main process
+const logger = getLogger("main-process");
 
 /**
  * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
@@ -250,16 +254,26 @@ function setupScreenResizeHandlers() {
 
 app.whenReady().then(async () => {
   try {
+    logger.info("Application ready, starting initialization");
+
     if (inDevelopment) {
       await installExtensions();
     }
 
+    // Initialize Simple Logger
+    initializeLogger();
+
     // Initialize MCP Hub
     await initializeMCPHub();
-    console.log("MCP Hub initialized");
+    logger.info("MCP Hub initialization completed");
 
+    logger.debug("Starting app focus tracking");
     startAppFocusTracking();
+
+    logger.debug("Registering global shortcuts");
     registerGlobalShortcuts();
+
+    logger.debug("Pre-creating windows");
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
@@ -274,17 +288,23 @@ app.whenReady().then(async () => {
       registerGlobalShortcuts,
     };
 
+    logger.debug("Registering IPC listeners");
     // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0)
+      if (BrowserWindow.getAllWindows().length === 0) {
+        logger.info("App activated, creating chat window");
         chatWindow = createChatWindow();
+      }
     });
 
+    logger.debug("Creating system tray");
     createSystemTray(chatWindow);
+
+    logger.info("Application initialization completed successfully");
   } catch (error) {
-    console.error("Error during app initialization", error);
+    logger.error("Error during app initialization", error);
   }
 });
 

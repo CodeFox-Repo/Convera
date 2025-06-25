@@ -17,6 +17,20 @@ export interface WindowControlOptions {
   height?: number;
 }
 
+// Simple Logger types
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+export interface Logger {
+  debug: (message: string, data?: unknown) => Promise<void>;
+  info: (message: string, data?: unknown) => Promise<void>;
+  warn: (message: string, data?: unknown) => Promise<void>;
+  error: (message: string, data?: unknown) => Promise<void>;
+}
+
+export interface WindowLogger {
+  getLogger: (name?: string) => Logger;
+}
+
 // Define the structure of the API exposed via contextBridge
 export interface IElectronAPI {
   // Unified Window Control
@@ -105,5 +119,6 @@ declare global {
     electronAPI: IElectronAPI;
     mcpAPI: IMcpAPI;
     envApi: IEnvAPI;
+    logger: WindowLogger;
   }
 }

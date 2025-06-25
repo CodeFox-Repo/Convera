@@ -6,6 +6,10 @@ import {
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for history window
+const logger = getLogger("history-window");
 
 // Global reference to the history window
 let historyWindow: BrowserWindow | null = null;
@@ -138,19 +142,22 @@ export function preCreateHistoryWindow(
 ): BrowserWindow | null {
   if (historyWindow) return historyWindow;
 
-  console.log("Pre-creating history window");
+  logger.info("Pre-creating history window");
 
-  // Calculate window dimensions using the utility
   const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.SETTINGS, // Reuse settings size for now
+    WINDOW_SIZE_PRESETS.SETTINGS,
     undefined,
     true,
     true,
   );
 
+  logger.debug("History window dimensions calculated", { dimensions });
+
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig(dimensions, mainWindow);
   historyWindow = new BrowserWindow(config);
+
+  logger.debug("History window created with platform-specific config");
 
   // Configure appearance and properties
   configurePlatformAppearance(historyWindow);
@@ -161,6 +168,8 @@ export function preCreateHistoryWindow(
 
   // Setup event handlers
   setupWindowEventHandlers(historyWindow);
+
+  logger.info("History window pre-creation completed");
 
   return historyWindow;
 }

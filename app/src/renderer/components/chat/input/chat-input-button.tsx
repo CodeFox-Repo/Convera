@@ -64,9 +64,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     return unsubscribe;
   }, []);
 
-  console.log("selectedAgent from chat-input-button", selectedAgent);
-  console.log("previousApp", previousApp);
-
   const leftActionButtons: ActionButtonConfig[] = [
     {
       id: "history",

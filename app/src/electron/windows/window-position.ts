@@ -181,10 +181,6 @@ export function resizeWindowAndMaintainPosition(
     height = dimensions.height;
   }
 
-  console.log(
-    `resizeWindowAndMaintainPosition called with size ${width}x${height}, preserveX: ${preserveX}`,
-  );
-
   const bounds = window.getBounds();
 
   const bottomEdgeY = bounds.y + bounds.height;
