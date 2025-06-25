@@ -155,7 +155,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     },
     body: {
-      agent: selectedAgent,
+      agent: selectedAgent || undefined,
       modelId: currentModelIdRef.current || settings?.openai?.modelId,
       conversationId: currentConversationId,
       // Pass remote store preference and custom API settings to server
