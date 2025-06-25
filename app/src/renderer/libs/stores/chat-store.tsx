@@ -37,6 +37,9 @@ interface ChatContextType {
   setUseRemoteStore: (useRemote: boolean) => void;
   isUserLoggedIn: boolean;
 
+  // Conversation management
+  currentConversationId: string | null;
+
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
@@ -62,6 +65,13 @@ interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
 }
 
+// Conversation data interface for history selection
+interface ConversationData {
+  id: string;
+  title: string | null;
+  messages: Message[];
+}
+
 const ChatContext = createContext<ChatContextType | null>(null);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -75,6 +85,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
   const [useRemoteStore, setUseRemoteStore] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
@@ -157,8 +170,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     body: {
       agent: selectedAgent,
       modelId: currentModelIdRef.current || settings?.openai?.modelId,
+      conversationId: currentConversationId,
       // Pass remote store preference and custom API settings to server
-      useRemoteStore: isUserLoggedIn && useRemoteStore,
+      useRemoteServer: isUserLoggedIn && useRemoteStore,
       customApiSettings:
         !(isUserLoggedIn && useRemoteStore) && settings?.openai
           ? {
@@ -182,6 +196,45 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Integrate the useChatHistory hook
   const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
+
+  // Handle conversation selection from history
+  useEffect(() => {
+    const handleConversationSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.conversation) {
+        const conversation = customEvent.detail
+          .conversation as ConversationData;
+        setCurrentConversationId(conversation.id);
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedConversation" && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.conversation && data.conversation.id) {
+            setCurrentConversationId(data.conversation.id);
+          }
+        } catch (error) {
+          console.warn("Error parsing conversation from localStorage:", error);
+        }
+      }
+    };
+
+    window.addEventListener(
+      "conversation-selected",
+      handleConversationSelected,
+    );
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener(
+        "conversation-selected",
+        handleConversationSelected,
+      );
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
@@ -243,6 +296,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0)
         return;
 
+      // Generate conversation ID if this is the first message
+      if (!currentConversationId) {
+        const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        setCurrentConversationId(newConversationId);
+      }
+
       let messageText = chatAPI.input.trim();
 
       if (copiedContent) {
@@ -275,7 +334,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       sendMessageWithAttachments();
     },
-    [chatAPI, copiedContent, attachments, clearAttachments, fileToAttachment],
+    [
+      chatAPI,
+      copiedContent,
+      attachments,
+      clearAttachments,
+      fileToAttachment,
+      currentConversationId,
+      setCurrentConversationId,
+    ],
   );
 
   const setInput = useCallback(
@@ -329,6 +396,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     chatAPI.setMessages([]);
     setCopiedContent(null);
     clearAttachments();
+    setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
     setViewMode("compact");
   }, [chatAPI, clearAttachments]);
@@ -371,6 +439,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     useRemoteStore,
     setUseRemoteStore: handleUseRemoteStoreChange,
     isUserLoggedIn,
+    currentConversationId,
     setInput,
     sendMessage,
     stopGeneration,
