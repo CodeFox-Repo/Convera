@@ -275,7 +275,7 @@ export function HomePage() {
                 <Archive size={16} />
                 <span className="text-sm">Archive</span>
               </button>
-              <Link to="/settings">
+              <Link to="/settings" search={{ from: "/" }}>
                 <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
                   <Settings size={16} />
                   <span className="text-sm">Settings</span>

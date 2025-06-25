@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter, useSearch } from "@tanstack/react-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,9 +24,15 @@ import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "zod";
+
+const settingsSchema = z.object({
+  from: z.string().optional(),
+});
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
+  validateSearch: settingsSchema,
 });
 
 /**
@@ -34,6 +40,10 @@ export const Route = createFileRoute("/settings")({
  * and keyboard shortcuts.
  */
 function SettingsPage() {
+  // Get search parameters
+  const search = useSearch({ from: "/settings" });
+  const router = useRouter();
+
   // UI state only
   const [activeTab, setActiveTab] = useState<string>("general");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -94,6 +104,17 @@ function SettingsPage() {
 
   // Handle Command+W for settings window
   useWindowClose({ type: "toggle", windowType: "settings" });
+
+  // Handle window close with from parameter check
+  const handleCloseSettings = useCallback(() => {
+    if (search.from) {
+      // If came from somewhere specific, navigate to home
+      router.navigate({ to: "/" });
+    } else {
+      // Default behavior - toggle window to close
+      window.electronAPI?.toggleWindow("settings");
+    }
+  }, [search.from, router]);
 
   // Callback functions for shortcut recording
   const saveRecordedShortcutCallback = useCallback(
@@ -378,19 +399,18 @@ function SettingsPage() {
           </ul>
         </nav>
 
-        <Link to="/">
-          <div className="border-t border-border/40 p-4">
-            <button
-              className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
-                isSidebarCollapsed ? "justify-center" : ""
-              }`}
-              title={isSidebarCollapsed ? "Close Settings" : undefined}
-            >
-              <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
-              {!isSidebarCollapsed && <span>Close Settings</span>}
-            </button>
-          </div>
-        </Link>
+        <div className="border-t border-border/40 p-4">
+          <button
+            onClick={handleCloseSettings}
+            className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
+              isSidebarCollapsed ? "justify-center" : ""
+            }`}
+            title={isSidebarCollapsed ? "Close Settings" : undefined}
+          >
+            <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
+            {!isSidebarCollapsed && <span>Close Settings</span>}
+          </button>
+        </div>
       </div>
 
       {/* Mobile sidebar toggle - only shown on small screens */}
