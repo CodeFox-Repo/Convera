@@ -110,10 +110,14 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-2" align="start" side="top">
+          <PopoverContent
+            className="w-56 p-2 bg-popover border border-border/60 rounded-lg shadow-lg"
+            align="start"
+            side="top"
+          >
             <div className="space-y-1">
               {/* User Info */}
-              <div className="px-3 py-2 border-b border-border">
+              <div className="px-3 py-2 border-b border-border/30">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     {session.user.image && (
@@ -138,7 +142,7 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
               </div>
 
               {/* Menu Items */}
-              <div className="space-y-1">
+              <div className="space-y-1 pt-1">
                 <button
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"

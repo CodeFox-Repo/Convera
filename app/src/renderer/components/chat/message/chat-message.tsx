@@ -1,3 +1,4 @@
+import { authClient } from "@/renderer/libs/auth-client";
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -12,6 +13,7 @@ import {
   User,
 } from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
 
 /**
  * Simple markdown renderer component
@@ -226,6 +228,25 @@ const ChatMessage = memo(
       message.experimental_attachments &&
       message.experimental_attachments.length > 0;
 
+    // Get user session for avatar
+    const { data: session } = authClient.useSession();
+
+    // Get user initials for fallback
+    const getUserInitials = (name?: string, email?: string) => {
+      if (name) {
+        return name
+          .split(" ")
+          .map((word) => word.charAt(0))
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+      }
+      if (email) {
+        return email.charAt(0).toUpperCase();
+      }
+      return "U";
+    };
+
     // State for copied content expansion
     const [copiedContentExpanded, setCopiedContentExpanded] = useState(false);
     const copiedContentRef = useRef<HTMLDivElement>(null);
@@ -246,6 +267,10 @@ const ChatMessage = memo(
       setCopiedContentExpanded(!copiedContentExpanded);
     };
 
+    const userInitials = session?.user
+      ? getUserInitials(session.user.name, session.user.email)
+      : "U";
+
     return (
       <motion.div
         className="group/message no-drag-region w-full py-2"
@@ -260,7 +285,21 @@ const ChatMessage = memo(
             <div className="flex-shrink-0">
               <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
                 {isUser ? (
-                  <User size={16} className="text-muted-foreground" />
+                  session?.user ? (
+                    <Avatar className="h-9 w-9">
+                      {session.user.image && (
+                        <AvatarImage
+                          src={session.user.image}
+                          alt={session.user.name || "User"}
+                        />
+                      )}
+                      <AvatarFallback className="bg-gradient-to-br from-orange-400 to-pink-500 text-white text-sm font-semibold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <User size={16} className="text-muted-foreground" />
+                  )
                 ) : (
                   <img
                     src={avatar}
@@ -287,7 +326,13 @@ const ChatMessage = memo(
               {/* Header with role and timestamp - inline with avatar */}
               <div className="flex items-center gap-3 -mt-0.5">
                 <span className="text-sm font-semibold text-foreground">
-                  {isUser ? "You" : "FoxyChat"}
+                  {isUser
+                    ? session?.user
+                      ? session.user.name ||
+                        session.user.email?.split("@")[0] ||
+                        "You"
+                      : "You"
+                    : "FoxyChat"}
                 </span>
                 <span className="text-xs text-muted-foreground/80">
                   {formatTimestamp(message.createdAt)}
