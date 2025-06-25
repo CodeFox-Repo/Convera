@@ -21,6 +21,7 @@ import {
   modelSelected,
   openPath,
   pasteModifiedContent,
+  resizeAndCenterWindow,
   resizeWindow,
   setInputText,
   setTheme,
@@ -208,6 +209,14 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     (_event, width: number, height: number, preserveX?: boolean) => {
       const window = chatWindow?.() || null;
       return resizeWindow(window, width, height, preserveX);
+    },
+  );
+
+  ipcMain.handle(
+    CHANNELS.WINDOW.RESIZE_AND_CENTER,
+    (_event, width: number, height: number) => {
+      const window = chatWindow?.() || null;
+      return resizeAndCenterWindow(window, width, height);
     },
   );
 

@@ -32,6 +32,7 @@ export interface IPCServer {
   minimizeWindow(): void;
   maximizeWindow(): void;
   resizeWindow(width: number, height: number, preserveX?: boolean): void;
+  resizeAndCenterWindow(width: number, height: number): void;
   getCurrentWindowPosition(): { x: number; y: number };
   getCurrentWindowSize(window: WindowSizeConfig): {
     width: number;
@@ -71,6 +72,7 @@ export const CHANNELS = {
     MINIMIZE: "window:minimize",
     MAXIMIZE: "window:maximize",
     RESIZE: "window:resize",
+    RESIZE_AND_CENTER: "window:resize-and-center",
     GET_POSITION: "window:get-position",
     GET_CURRENT_SIZE: "window:get-current-size",
   },
@@ -144,6 +146,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   minimizeWindow: CHANNELS.WINDOW.MINIMIZE,
   maximizeWindow: CHANNELS.WINDOW.MAXIMIZE,
   resizeWindow: CHANNELS.WINDOW.RESIZE,
+  resizeAndCenterWindow: CHANNELS.WINDOW.RESIZE_AND_CENTER,
   getCurrentWindowPosition: CHANNELS.WINDOW.GET_POSITION,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
 

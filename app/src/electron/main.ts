@@ -32,7 +32,7 @@ import {
 } from "@/electro-bridge/ipc/listeners-register";
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
-import { createChatWindow } from "./windows/chat-window";
+import { getChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
@@ -52,8 +52,6 @@ const { activeWindowSync } =
 const inDevelopment = !app.isPackaged;
 
 let trackingAppFocus = false;
-
-let chatWindow: BrowserWindow | null = null;
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
@@ -190,10 +188,10 @@ function registerGlobalShortcuts() {
 
       clipboard.writeText("");
 
-      if (chatWindow) {
-        toggleChatWindowVisibility(chatWindow);
+      if (getChatWindow()) {
+        toggleChatWindowVisibility(getChatWindow());
         setTimeout(() => {
-          setInputText(chatWindow, selectedText);
+          setInputText(getChatWindow(), selectedText);
         }, 100);
       }
     });
@@ -232,11 +230,11 @@ function setupScreenResizeHandlers() {
       console.log("Primary display metrics changed:", changedMetrics);
 
       // Update chat window if it exists
-      if (chatWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
+      if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
         const dimensions = expectedPosition
           ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
-        chatWindow.setBounds(dimensions);
+          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
+        getChatWindow().setBounds(dimensions);
       }
 
       // Update settings window if visible
@@ -279,12 +277,11 @@ app.whenReady().then(async () => {
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
-    chatWindow = createChatWindow();
-    preCreateMainWindow(chatWindow || undefined); // Pre-create main window
+    preCreateMainWindow(getChatWindow() || undefined); // Pre-create main window
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => chatWindow,
+      chatWindow: () => getChatWindow(),
       registerGlobalShortcuts,
     };
 
@@ -295,25 +292,18 @@ app.whenReady().then(async () => {
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         logger.info("App activated, creating chat window");
-        chatWindow = createChatWindow();
       }
     });
 
-    logger.debug("Creating system tray");
-    createSystemTray(chatWindow);
-
-    logger.info("Application initialization completed successfully");
+    createSystemTray(getChatWindow());
   } catch (error) {
     logger.error("Error during app initialization", error);
   }
 });
 
 app.on("will-quit", () => {
-  console.log("Unregistering all global shortcuts.");
   globalShortcut.unregisterAll();
   destroySystemTray();
-
-  // Cleanup MCP Hub
   const hub = getMCPHub();
   if (hub) {
     hub.cleanup();
@@ -322,8 +312,7 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  // Only quit the app if chatWindow is closed and we're not on macOS
-  if (process.platform !== "darwin" && chatWindow === null) {
+  if (process.platform !== "darwin" && getChatWindow() === null) {
     app.quit();
   }
 });

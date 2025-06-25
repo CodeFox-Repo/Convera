@@ -269,16 +269,16 @@ export function HomePage() {
 
         {/* Sidebar Footer - Fixed at bottom */}
         {!sidebarCollapsed && (
-          <div className="border-t border-border/60 p-4 flex-shrink-0 relative z-10">
-            <div className="space-y-2">
-              <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
-                <Archive size={16} />
-                <span className="text-sm">Archive</span>
+          <div className="border-t border-border/60 p-2 flex-shrink-0 relative z-10">
+            <div>
+              <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm">
+                <Archive size={16} className="flex-shrink-0" />
+                <span>Archive</span>
               </button>
               <Link to="/settings" search={{ from: "/" }}>
-                <button className="w-full p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3">
-                  <Settings size={16} />
-                  <span className="text-sm">Settings</span>
+                <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm">
+                  <Settings size={16} className="flex-shrink-0" />
+                  <span>Settings</span>
                 </button>
               </Link>
               <UserButton collapsed={false} />
@@ -313,7 +313,7 @@ export function HomePage() {
       <div className="flex-1 flex flex-col bg-background relative">
         {/* Close Button - Top Right */}
         <button
-          onClick={() => window.electronAPI.toggleWindow("main")}
+          onClick={() => window.electronAPI.toggleWindow("chat")}
           className="absolute top-4 right-4 z-10 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
           aria-label="Close window"
           title="Close Window"

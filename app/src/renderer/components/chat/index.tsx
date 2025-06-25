@@ -31,7 +31,7 @@ export default function Chat() {
       if (window.electronAPI && messages.length === 0) {
         try {
           window.electronAPI
-            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.MAIN)
+            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.COMPACT_CHAT)
             .then((res) => {
               requestAnimationFrame(() => {
                 window.electronAPI.resizeWindow(res.width, res.height, true);

@@ -284,7 +284,7 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     // If all else fails, use default position
     if (!restored) {
       const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.MAIN,
+        WINDOW_SIZE_PRESETS.COMPACT_CHAT,
         undefined,
         true,
       );

@@ -1,6 +1,8 @@
+import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import { useLocation, useRouter } from "@tanstack/react-router";
 import {
   Bot,
   History,
@@ -66,10 +68,116 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     (state) => state.experimentalFeatures.enableMainWindow,
   );
 
+  // Router for navigation
+  const router = useRouter();
+  const location = useLocation();
+
   useEffect(() => {
     const unsubscribe = subscribeToAgentChanges();
     return unsubscribe;
   }, []);
+
+  // Handle main window toggle
+  const handleMainWindowToggle = async () => {
+    // Get current window position before switching
+    const getCurrentPosition = async () => {
+      try {
+        return await window.electronAPI.getCurrentWindowPosition();
+      } catch (error) {
+        console.error("Failed to get current window position:", error);
+        return { x: 0, y: 0 };
+      }
+    };
+
+    // If we're on the main page (/), go to chat
+    // If we're on chat page (/chat), go to main page
+    if (location.pathname === "/") {
+      // Save current position before switching to chat
+      const currentPos = await getCurrentPosition();
+
+      // Navigate to chat page with position info
+      router.navigate({
+        to: "/chat",
+        search: {
+          fromX: currentPos.x.toString(),
+          fromY: currentPos.y.toString(),
+        },
+      });
+
+      // Resize and center window for chat page (smaller, focused)
+      try {
+        const chatSize = await window.electronAPI.getCurrentWindowSize(
+          WINDOW_SIZE_PRESETS.CHAT_PAGE,
+        );
+        // Resize and center in one smooth operation
+        window.electronAPI.resizeAndCenterWindow(
+          chatSize.width,
+          chatSize.height,
+        );
+      } catch (error) {
+        console.error("Failed to resize window for chat:", error);
+      }
+    } else if (location.pathname === "/chat") {
+      // Get the saved position from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const savedX = parseInt(urlParams.get("fromX") || "0");
+      const savedY = parseInt(urlParams.get("fromY") || "0");
+
+      // Navigate back to main page (pass the position info forward for future use)
+      router.navigate({
+        to: "/",
+        search:
+          savedX > 0 || savedY > 0
+            ? {
+                lastX: savedX.toString(),
+                lastY: savedY.toString(),
+              }
+            : undefined,
+      });
+
+      // Resize window for home page
+      try {
+        const homeSize = await window.electronAPI.getCurrentWindowSize(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+        );
+
+        // If we have reasonable saved position, try to preserve X position
+        // Otherwise, resize and center for better UX
+        if (savedX > 100 && savedY > 100) {
+          // Only preserve position if it seems reasonable (not at screen edge)
+          window.electronAPI.resizeWindow(
+            homeSize.width,
+            homeSize.height,
+            true,
+          );
+        } else {
+          // No good saved position, resize and center for better UX
+          window.electronAPI.resizeAndCenterWindow(
+            homeSize.width,
+            homeSize.height,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to resize window for home:", error);
+      }
+    } else {
+      // Default: go to main page and center
+      router.navigate({ to: "/" });
+
+      try {
+        const homeSize = await window.electronAPI.getCurrentWindowSize(
+          WINDOW_SIZE_PRESETS.SETTINGS,
+        );
+        // Resize and center in one smooth operation
+        window.electronAPI.resizeAndCenterWindow(
+          homeSize.width,
+          homeSize.height,
+        );
+      } catch (error) {
+        console.error("Failed to resize window for home:", error);
+      }
+    }
+  };
 
   const leftActionButtons: ActionButtonConfig[] = [
     {
@@ -82,8 +190,8 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
     },
     {
       id: "main-window",
-      onClick: () => window.electronAPI?.toggleWindow("main"),
-      title: "Open main window",
+      onClick: handleMainWindowToggle,
+      title: location.pathname === "/" ? "Go to chat" : "Go to main",
       Icon: LayoutDashboard,
       show: enableMainWindow,
       iconSize: 16,

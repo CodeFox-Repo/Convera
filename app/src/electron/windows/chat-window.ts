@@ -150,30 +150,22 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 }
 
 // Create chat window (quick popup chat interface)
-export function createChatWindow(): BrowserWindow | null {
-  const { width, height } = CHAT_WINDOW_DIMENSIONS;
-
-  logger.info(`Creating chat window with dimensions: ${width}x${height}`);
-
+export function createChatWindow(): BrowserWindow {
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig();
   const chatWindow = new BrowserWindow(config);
-
-  logger.debug("Chat window created with platform-specific config");
-
-  // Configure appearance and properties
   configurePlatformAppearance(chatWindow);
   configureWindowProperties(chatWindow);
-
-  logger.debug("Chat window appearance and properties configured");
-
-  // Load content
   loadWindowContent(chatWindow);
-
-  // Setup event handlers
   setupWindowEventHandlers(chatWindow);
+  return chatWindow;
+}
 
-  logger.info("Chat window initialization completed");
+let chatWindow: BrowserWindow | null = null;
 
+export function getChatWindow(): BrowserWindow {
+  if (!chatWindow) {
+    chatWindow = createChatWindow();
+  }
   return chatWindow;
 }

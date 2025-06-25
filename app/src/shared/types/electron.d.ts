@@ -4,7 +4,7 @@ import { WindowSizeConfig } from "@/electron/windows/window-size";
 import type { IMcpAPI } from "./mcp";
 
 // Enum for window types
-export type WindowType = "settings" | "history" | "main";
+export type WindowType = "settings" | "history" | "main" | "chat";
 
 // Enum for theme modes
 export type ThemeMode = "light" | "dark" | "system";
@@ -66,6 +66,7 @@ export interface IElectronAPI {
     height: number,
     preserveX?: boolean,
   ) => Promise<void>;
+  resizeAndCenterWindow: (width: number, height: number) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
     width: number;

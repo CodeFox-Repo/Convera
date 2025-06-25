@@ -59,13 +59,13 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
       <button
         disabled
         className={`${
-          collapsed ? "p-2" : "w-full p-2"
+          collapsed ? "p-2" : "w-full px-3 py-2.5"
         } rounded-lg text-muted-foreground bg-muted hover:bg-muted/80 transition-colors flex items-center ${
-          collapsed ? "justify-center" : "gap-3"
+          collapsed ? "justify-center" : "gap-3 text-sm"
         }`}
       >
-        <div className="w-4 h-4 animate-pulse bg-muted-foreground/20 rounded-full" />
-        {!collapsed && <span className="text-sm">Loading...</span>}
+        <div className="w-4 h-4 animate-pulse bg-muted-foreground/20 rounded-full flex-shrink-0" />
+        {!collapsed && <span>Loading...</span>}
       </button>
     );
   }
@@ -82,9 +82,9 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
           <PopoverTrigger asChild>
             <button
               className={`${
-                collapsed ? "p-2" : "w-full p-2"
+                collapsed ? "p-2" : "w-full px-3 py-2.5"
               } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
-                collapsed ? "justify-center" : "gap-3"
+                collapsed ? "justify-center" : "gap-3 text-sm"
               }`}
             >
               <Avatar className="h-4 w-4 flex-shrink-0">
@@ -100,12 +100,12 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
               </Avatar>
               {!collapsed && (
                 <>
-                  <span className="text-sm truncate flex-1 text-left">
+                  <span className="truncate flex-1 text-left">
                     {session.user.name ||
                       session.user.email?.split("@")[0] ||
                       "User"}
                   </span>
-                  <ChevronUp size={12} className="opacity-60" />
+                  <ChevronUp size={12} className="opacity-60 flex-shrink-0" />
                 </>
               )}
             </button>
@@ -155,13 +155,13 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
         <button
           onClick={handleClick}
           className={`${
-            collapsed ? "p-2" : "w-full p-2"
+            collapsed ? "p-2" : "w-full px-3 py-2.5"
           } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
-            collapsed ? "justify-center" : "gap-3"
+            collapsed ? "justify-center" : "gap-3 text-sm"
           }`}
         >
           <User size={16} className="flex-shrink-0" />
-          {!collapsed && <span className="text-sm">Account</span>}
+          {!collapsed && <span>Account</span>}
         </button>
       )}
 

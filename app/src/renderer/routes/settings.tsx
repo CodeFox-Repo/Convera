@@ -676,7 +676,8 @@ function SettingsPage() {
                         Enable Main Window
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Show button in chat input to open main window interface
+                        Show button in chat input to toggle between main and
+                        chat views
                       </p>
                     </div>
                     <button

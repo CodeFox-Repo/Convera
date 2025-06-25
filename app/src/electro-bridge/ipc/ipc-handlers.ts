@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, nativeTheme, shell } from "electron";
+import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -19,6 +19,7 @@ import {
   createAgentPopoverWindow,
   getAgentPopoverWindow,
 } from "@/electron/windows/agent-popover-window";
+import { getChatWindow } from "@/electron/windows/chat-window";
 import {
   createHistoryWindow,
   getHistoryWindow,
@@ -88,6 +89,10 @@ export function toggleWindow(type: WindowType): void {
 
     case "main":
       toggleGenericWindow(getMainWindow, createMainWindow);
+      break;
+
+    case "chat":
+      toggleChatWindowVisibility(getChatWindow());
       break;
 
     default:
@@ -257,6 +262,26 @@ export function resizeWindow(
   if (mainWindow) {
     // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
     resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+  }
+}
+
+export function resizeAndCenterWindow(
+  mainWindow: BrowserWindow | null,
+  width: number,
+  height: number,
+): void {
+  if (mainWindow) {
+    // Get screen dimensions
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } =
+      primaryDisplay.workAreaSize;
+
+    // Calculate center position
+    const x = Math.round((screenWidth - width) / 2);
+    const y = Math.round((screenHeight - height) / 2);
+
+    // Set size and position in one operation
+    mainWindow.setBounds({ x, y, width, height });
   }
 }
 
