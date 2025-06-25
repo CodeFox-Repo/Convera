@@ -12,7 +12,7 @@ import React, {
 import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
 import { parseApiError, type GenericError } from "../utils/error-handler";
-import { getSettings } from "../utils/settings";
+import { getSettings, updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
@@ -31,6 +31,11 @@ interface ChatContextType {
   viewMode: ChatViewMode;
   setViewMode: (mode: ChatViewMode) => void;
   toggleViewMode: () => void;
+
+  // Remote store management
+  useRemoteStore: boolean;
+  setUseRemoteStore: (useRemote: boolean) => void;
+  isUserLoggedIn: boolean;
 
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
@@ -68,10 +73,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [useRemoteStore, setUseRemoteStore] = useState(false);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
-  const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
 
   // Load settings asynchronously
@@ -80,6 +86,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const settingsData = await getSettings();
         setSettings(settingsData);
+        // Initialize remote store setting from settings
+        setUseRemoteStore(settingsData.openai.useRemoteStore);
       } catch (error) {
         console.error("Failed to load settings:", error);
       } finally {
@@ -90,38 +98,74 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     loadSettings();
   }, []);
 
+  // Check login status on mount and periodically
   useEffect(() => {
-    currentAgentIdRef.current = selectedAgent?.id;
-  }, [selectedAgent?.id]);
+    const checkLoginStatus = async () => {
+      try {
+        const loggedIn = await authClient.getSession();
+        setIsUserLoggedIn(loggedIn?.data?.session?.id ? true : false);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (err) {
+        setIsUserLoggedIn(false);
+      }
+    };
+
+    checkLoginStatus();
+    const interval = setInterval(checkLoginStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     currentModelIdRef.current = selectedModelId;
   }, [selectedModelId]);
 
+  // Debug: Log request parameters when they change
+  useEffect(() => {
+    console.log("Chat request parameters:", {
+      finalUseRemoteStore: isUserLoggedIn && useRemoteStore,
+      hasCustomApiSettings:
+        !(isUserLoggedIn && useRemoteStore) && !!settings?.openai,
+      isUserLoggedIn,
+      useRemoteStore,
+      endpoint: settings?.openai?.endpoint,
+    });
+  }, [isUserLoggedIn, useRemoteStore, settings?.openai]);
+
   // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
-    api: getApiBaseUrl() + "/chat/completion",
+    api: getApiBaseUrl() + "/chat/completion", // Always use server endpoint
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();
-      // Add auth header to the request - better-auth typically uses cookies
-      const headers = {
-        ...options.headers,
+
+      const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        ...(session?.data?.session?.id && {
-          "X-Session-ID": session.data.session.id,
-        }),
+        ...(options.headers as Record<string, string>),
       };
+
+      // Always include session if available
+      if (session?.data?.session?.id) {
+        headers["X-Session-ID"] = session.data.session.id;
+      }
 
       return fetch(url, {
         ...options,
         headers,
-        credentials: "include", // Include cookies for better-auth
+        credentials: "include", // Always include credentials
       });
     },
     body: {
-      agentId: currentAgentIdRef.current,
+      agent: selectedAgent,
       modelId: currentModelIdRef.current || settings?.openai?.modelId,
+      // Pass remote store preference and custom API settings to server
+      useRemoteStore: isUserLoggedIn && useRemoteStore,
+      customApiSettings:
+        !(isUserLoggedIn && useRemoteStore) && settings?.openai
+          ? {
+              endpoint: settings.openai.endpoint,
+              apiKey: settings.openai.apiKey,
+            }
+          : undefined,
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
@@ -159,6 +203,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearAttachments = useCallback(() => {
     setAttachments([]);
+  }, []);
+
+  // Handle remote store preference change
+  const handleUseRemoteStoreChange = useCallback(async (useRemote: boolean) => {
+    setUseRemoteStore(useRemote);
+    // Save to settings
+    try {
+      await updateOpenAISettings({ useRemoteStore: useRemote });
+    } catch (error) {
+      console.error("Failed to save remote store preference:", error);
+    }
   }, []);
 
   // Helper to convert a File to an Attachment
@@ -313,6 +368,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     viewMode,
     setViewMode,
     toggleViewMode,
+    useRemoteStore,
+    setUseRemoteStore: handleUseRemoteStoreChange,
+    isUserLoggedIn,
     setInput,
     sendMessage,
     stopGeneration,

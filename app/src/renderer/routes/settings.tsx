@@ -18,7 +18,9 @@ import { AIModelSection } from "@/renderer/components/settings/ai-model-section"
 import { AppTab } from "@/renderer/components/settings/app-tab";
 import { MarketplaceSection } from "@/renderer/components/settings/marketplace-tab";
 import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
+import { Switch } from "@/renderer/components/ui/switch";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -72,6 +74,10 @@ function SettingsPage() {
     setExperimentalFeature,
     subscribeToSettingsChanges,
   } = useSettingsStore();
+
+  // Chat Store
+  const { useRemoteStore, setUseRemoteStore, isUserLoggedIn } =
+    useChatContext();
 
   // Initialize stores on component mount
   useEffect(() => {
@@ -407,14 +413,55 @@ function SettingsPage() {
         {/* General Tab Content */}
         {activeTab === "general" && (
           <div className="space-y-8">
-            <div>
-              <AIModelSection
-                settings={settings}
-                onOpenAIChange={handleOpenAIChange}
-                onAddSupportedModel={handleAddSupportedModel}
-                onRemoveSupportedModel={handleRemoveSupportedModel}
-              />
+            {/* Remote Store Section */}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">
+                  API Settings
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Choose between remote API service or your custom API
+                </p>
+              </div>
+
+              <div className="border border-border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-foreground">
+                      Use Remote Store
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {isUserLoggedIn
+                        ? "Use our remote API service (requires login)"
+                        : "Login required to use remote API service"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={useRemoteStore}
+                    onCheckedChange={(checked) => setUseRemoteStore(checked)}
+                    disabled={!isUserLoggedIn}
+                  />
+                </div>
+                {!isUserLoggedIn && (
+                  <div className="mt-2 text-xs text-orange-600">
+                    Please login to use remote API service. Currently using
+                    custom API.
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Only show AI Model Settings when not using remote store */}
+            {!(isUserLoggedIn && useRemoteStore) && (
+              <div>
+                <AIModelSection
+                  settings={settings}
+                  onOpenAIChange={handleOpenAIChange}
+                  onAddSupportedModel={handleAddSupportedModel}
+                  onRemoveSupportedModel={handleRemoveSupportedModel}
+                />
+              </div>
+            )}
 
             <div>
               <ShortcutsSection

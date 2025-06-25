@@ -188,14 +188,14 @@ export function HomePage() {
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm truncate">
-                          {cleanTitle(chat.title)}
+                          {cleanTitle(chat.title || "")}
                         </h3>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-xs text-muted-foreground">
-                            {formatTimestamp(chat.lastUpdated)}
+                            {formatTimestamp(chat.createdAt || "")}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {chat.messageCount} msgs
+                            {chat.messages.length} msgs
                           </span>
                         </div>
                       </div>
