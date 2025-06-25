@@ -1,8 +1,10 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import {
   Bot,
   History,
+  LayoutDashboard,
   LucideIcon,
   Mic,
   Monitor,
@@ -59,6 +61,11 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
     useAgentStore();
 
+  // Get experimental features setting
+  const enableMainWindow = useSettingsStore(
+    (state) => state.experimentalFeatures.enableMainWindow,
+  );
+
   useEffect(() => {
     const unsubscribe = subscribeToAgentChanges();
     return unsubscribe;
@@ -71,6 +78,14 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       title: "View chat history",
       Icon: History,
       show: true,
+      iconSize: 16,
+    },
+    {
+      id: "main-window",
+      onClick: () => window.electronAPI?.toggleWindow("main"),
+      title: "Open main window",
+      Icon: LayoutDashboard,
+      show: enableMainWindow,
       iconSize: 16,
     },
     {

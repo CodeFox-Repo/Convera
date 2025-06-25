@@ -592,23 +592,6 @@ function SettingsPage() {
 
                         <div className="border border-border rounded-md p-3">
                           <h5 className="font-medium text-sm mb-1">
-                            Main Window
-                          </h5>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Main application interface
-                          </p>
-                          <button
-                            onClick={() =>
-                              window.electronAPI?.toggleWindow("main")
-                            }
-                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                          >
-                            Toggle Main Window
-                          </button>
-                        </div>
-
-                        <div className="border border-border rounded-md p-3">
-                          <h5 className="font-medium text-sm mb-1">
                             Agent Popover
                           </h5>
                           <p className="text-xs text-muted-foreground mb-2">
@@ -693,8 +676,7 @@ function SettingsPage() {
                         Enable Main Window
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Show button in expanded view to open main window
-                        interface
+                        Show button in chat input to open main window interface
                       </p>
                     </div>
                     <button
