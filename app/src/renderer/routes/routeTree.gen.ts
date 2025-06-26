@@ -17,6 +17,7 @@ import { Route as ChatImport } from './chat'
 import { Route as HistoryImport } from './history'
 import { Route as IndexImport } from './index'
 import { Route as SettingsImport } from './settings'
+import { Route as VisionAutomateImport } from './vision-automate'
 
 // Create/Update Routes
 
@@ -53,6 +54,12 @@ const IndexRoute = IndexImport.update({
 const AuthPathnameRoute = AuthPathnameImport.update({
   id: '/auth/$pathname',
   path: '/auth/$pathname',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const VisionAutomateRoute = VisionAutomateImport.update({
+  id: '/vision-automate',
+  path: '/vision-automate',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -102,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthPathnameImport
       parentRoute: typeof rootRoute
     }
+    '/vision-automate': {
+      id: '/vision-automate'
+      path: '/vision-automate'
+      fullPath: '/vision-automate'
+      preLoaderRoute: typeof VisionAutomateImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -114,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/vision-automate': typeof VisionAutomateRoute
 }
 
 export interface FileRoutesByTo {
@@ -123,6 +138,7 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/vision-automate': typeof VisionAutomateRoute
 }
 
 export interface FileRoutesById {
@@ -133,6 +149,7 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/vision-automate': typeof VisionAutomateRoute
 }
 
 export interface FileRouteTypes {
@@ -144,6 +161,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/auth/$pathname'
+    | '/vision-automate'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -152,6 +170,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/auth/$pathname'
+    | '/vision-automate'
   id:
     | '__root__'
     | '/'
@@ -160,6 +179,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/auth/$pathname'
+    | '/vision-automate'
   fileRoutesById: FileRoutesById
 }
 
@@ -170,6 +190,7 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
   AuthPathnameRoute: typeof AuthPathnameRoute
+  VisionAutomateRoute: typeof VisionAutomateRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -179,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
   AuthPathnameRoute: AuthPathnameRoute,
+  VisionAutomateRoute: VisionAutomateRoute,
 }
 
 export const routeTree = rootRoute
@@ -196,7 +218,8 @@ export const routeTree = rootRoute
         "/chat",
         "/history",
         "/settings",
-        "/auth/$pathname"
+        "/auth/$pathname",
+        "/vision-automate"
       ]
     },
     "/": {
@@ -216,6 +239,9 @@ export const routeTree = rootRoute
     },
     "/auth/$pathname": {
       "filePath": "auth/$pathname.tsx"
+    },
+    "/vision-automate": {
+      "filePath": "vision-automate.tsx"
     }
   }
 }

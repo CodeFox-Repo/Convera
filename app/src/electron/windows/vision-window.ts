@@ -42,6 +42,7 @@ function createPlatformSpecificConfig(
     fullscreenable: false,
     roundedCorners: true,
     vibrancy: "fullscreen-ui",
+    alwaysOnTop: true,
   };
 
   return baseConfig;

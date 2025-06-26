@@ -603,6 +603,23 @@ function SettingsPage() {
                             Toggle Model Selector
                           </button>
                         </div>
+
+                        <div className="border border-border rounded-md p-3">
+                          <h5 className="font-medium text-sm mb-1">
+                            Vision View
+                          </h5>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Toggle vision chat view
+                          </p>
+                          <button
+                            onClick={() =>
+                              window.electronAPI?.toggleWindow("vision")
+                            }
+                            className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
+                          >
+                            Toggle Vision View
+                          </button>
+                        </div>
                       </div>
                     </div>
 

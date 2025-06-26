@@ -1,11 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React from "react";
-import Chat from "../components/chat";
+import VisionChatView from "../components/chat/core/vision-chat-view";
 
-export const Route = createFileRoute("/chat")({
-  component: ChatPage,
+export const Route = createFileRoute("/vision-automate")({
+  component: VisionChatView,
 });
-
-function ChatPage() {
-  return <Chat />;
-}
