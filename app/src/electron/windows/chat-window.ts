@@ -17,6 +17,8 @@ const CHAT_WINDOW_DIMENSIONS = {
   height: 700,
 };
 
+let chatWindow: BrowserWindow | null = null;
+
 // Extract platform-specific configurations for chat window
 function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
   const { width, height } = CHAT_WINDOW_DIMENSIONS;
@@ -149,7 +151,7 @@ export function createChatWindow(): BrowserWindow | null {
 
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig();
-  const chatWindow = new BrowserWindow(config);
+  chatWindow = new BrowserWindow(config);
 
   // Configure appearance and properties
   configurePlatformAppearance(chatWindow);
@@ -161,5 +163,9 @@ export function createChatWindow(): BrowserWindow | null {
   // Setup event handlers
   setupWindowEventHandlers(chatWindow);
 
+  return chatWindow;
+}
+
+export function getChatWindow(): BrowserWindow | null {
   return chatWindow;
 }

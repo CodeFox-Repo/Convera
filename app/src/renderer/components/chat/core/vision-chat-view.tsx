@@ -7,10 +7,10 @@ import {
   StopCircle,
   X as XIcon,
 } from "lucide-react";
-import React from "react";
+import React, { useMemo } from "react";
 
 const VisionChatView: React.FC = () => {
-  const { stopGeneration } = useChatContext();
+  const { stopGeneration, messages, isLoading } = useChatContext();
 
   const handleExit = () => {
     window.electronAPI?.toggleWindow("vision");
@@ -19,7 +19,24 @@ const VisionChatView: React.FC = () => {
   const handleSettings = () => {
     window.electronAPI?.toggleWindow("settings");
   };
+  const lastAssistantMessage = useMemo(() => {
+    return messages.filter((message) => message.role === "assistant").pop();
+  }, [messages]);
 
+  const actionText = React.useMemo(() => {
+    if (lastAssistantMessage?.content) {
+      const match = lastAssistantMessage.content.match(
+        /<action>(.*?)<\/action>/s,
+      );
+      if (match?.[1]) {
+        return match[1].trim();
+      }
+    }
+    if (isLoading) {
+      return "Thinking...";
+    }
+    return "Waiting for command...";
+  }, [lastAssistantMessage, isLoading]);
   // --- Styles from reference ---
   const iconBare =
     "flex items-center justify-center p-1 text-orange-400 hover:text-orange-300 transition focus:outline-none";
@@ -43,7 +60,7 @@ const VisionChatView: React.FC = () => {
 
           {/* Placeholder text */}
           <span className="flex-1 truncate text-center text-sm text-neutral-400">
-            Message from FoxyChat…
+            {actionText}
           </span>
 
           {/* Stop button */}

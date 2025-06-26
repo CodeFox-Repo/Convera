@@ -39,6 +39,7 @@ import {
   getSettingsWindow,
   preCreateSettingsWindow,
 } from "./windows/settings-window";
+import { preCreateVisionWindow } from "./windows/vision-window";
 import { isInExpandedViewMode } from "./windows/window-resize";
 
 const { activeWindowSync } =
@@ -263,6 +264,7 @@ app.whenReady().then(async () => {
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
+    preCreateVisionWindow();
     setupScreenResizeHandlers(); // Setup screen resize handlers
     chatWindow = createChatWindow();
     preCreateMainWindow(chatWindow || undefined); // Pre-create main window

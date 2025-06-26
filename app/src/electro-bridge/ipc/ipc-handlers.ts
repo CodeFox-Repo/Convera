@@ -19,6 +19,7 @@ import {
   createAgentPopoverWindow,
   getAgentPopoverWindow,
 } from "@/electron/windows/agent-popover-window";
+import { getChatWindow } from "@/electron/windows/chat-window";
 import {
   createHistoryWindow,
   getHistoryWindow,
@@ -35,15 +36,23 @@ import {
   createSettingsWindow,
   getSettingsWindow,
 } from "@/electron/windows/settings-window";
-import {
-  createVisionWindow,
-  getVisionWindow,
-} from "@/electron/windows/vision-window";
+import { getVisionWindow } from "@/electron/windows/vision-window";
 
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
+
+let previousActiveWindow: BrowserWindow | null = null;
+
+function getActiveWindow(
+  mainWindow: BrowserWindow,
+  chatWindow: BrowserWindow,
+): BrowserWindow | null {
+  if (mainWindow?.isVisible()) return mainWindow;
+  if (chatWindow?.isVisible()) return chatWindow;
+  return null;
+}
 
 // ========== APP HANDLERS ==========
 
@@ -95,11 +104,44 @@ export function toggleWindow(type: WindowType): void {
       break;
 
     case "vision":
-      toggleGenericWindow(getVisionWindow, createVisionWindow);
+      toggleVisionWindowAndSwitchMainOrChatWindow();
       break;
 
     default:
       console.warn(`Unknown window type: ${type}`);
+  }
+}
+
+// ========== VISION WINDOW HANDLERS, INCLUDES SWITCHING LOGIC ==========
+export function toggleVisionWindowAndSwitchMainOrChatWindow(): void {
+  const visionWindow = getVisionWindow();
+  const mainWindow = getMainWindow();
+  const chatWindow = getChatWindow();
+
+  if (!visionWindow || !mainWindow || !chatWindow) {
+    console.error("One or more windows are not available.");
+    return;
+  }
+
+  // 如果 vision 窗口当前可见，就隐藏它并恢复上一个窗口
+  if (visionWindow.isVisible()) {
+    visionWindow.hide();
+    // 如果我们记录了上一个窗口，就显示它
+    if (previousActiveWindow && !previousActiveWindow.isDestroyed()) {
+      previousActiveWindow.show();
+    }
+    previousActiveWindow = null; // 清除状态
+    console.log("closing vision window");
+    // 如果 vision 窗口不可见，就显示它并隐藏当前活动窗口
+  } else {
+    // 找到当前活动的窗口并记录下来
+    const currentActive = getActiveWindow(mainWindow, chatWindow);
+    if (currentActive) {
+      previousActiveWindow = currentActive;
+      currentActive.hide();
+    }
+    visionWindow.show();
+    console.log("opening vision window");
   }
 }
 

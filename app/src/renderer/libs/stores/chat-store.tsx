@@ -242,7 +242,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
-      sendMessageWithAttachments();
+      if (!isVisionAutomateMode) {
+        sendMessageWithAttachments();
+      } else {
+        window.electronAPI?.toggleWindow("vision");
+        activeAPI.append(message);
+      }
     },
     [
       chatAPI,
