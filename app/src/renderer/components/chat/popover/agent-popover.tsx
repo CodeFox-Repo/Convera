@@ -57,7 +57,7 @@ export default function AgentPopover() {
     availableAgents,
     fetchAgents,
     subscribeToAgentChanges,
-    saveAgent,
+    updateAgent: saveAgent,
   } = useAgentStore();
 
   const {

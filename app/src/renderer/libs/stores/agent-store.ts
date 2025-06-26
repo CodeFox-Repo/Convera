@@ -1,9 +1,7 @@
-// app/src/renderer/stores/agent-store.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getApiBaseUrl } from "../env";
 
-// Updated interface to match the new server API
 export interface Agent {
   id: string;
   name: string;
@@ -15,6 +13,7 @@ export interface Agent {
     reason?: string;
   }>;
   predefined: boolean;
+  selectedMCPs?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -30,17 +29,8 @@ interface AgentState {
   fetchAgents: () => Promise<void>;
   updateSelectedAgent: (updatedAgent: Agent) => void;
   updateAvailableAgent: (updatedAgent: Agent) => void;
-  saveAgent: (agent: Agent) => Promise<void>;
-  createAgent: (agentData: {
-    name: string;
-    description: string;
-    systemPrompt: string;
-    disableToolReferences?: Array<{
-      mcpName: string;
-      toolName: string;
-      reason?: string;
-    }>;
-  }) => Promise<Agent>;
+  updateAgent: (agent: Agent) => Promise<void>;
+  createAgent: (agent: Agent) => Promise<Agent>;
   deleteAgent: (agentId: string) => Promise<boolean>;
   triggerAgentSelect: (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -167,7 +157,7 @@ export const useAgentStore = create<AgentState>()(
           console.log("Updated available agent:", updatedAgent.name);
         },
 
-        saveAgent: async (agent: Agent) => {
+        updateAgent: async (agent: Agent) => {
           try {
             const response = await fetch(`${baseUrl}/agents/${agent.id}`, {
               method: "PUT",
@@ -180,6 +170,7 @@ export const useAgentStore = create<AgentState>()(
                 description: agent.description,
                 systemPrompt: agent.systemPrompt,
                 disableToolReferences: agent.disableToolReferences,
+                selectedMCPs: agent.selectedMCPs,
               }),
             });
 

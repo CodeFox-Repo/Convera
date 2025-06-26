@@ -196,6 +196,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
     },
+    onToolCall: (toolCall) => {
+      console.log("🔍 Tool call:", toolCall);
+    },
   });
 
   // Auto-expand when there are messages

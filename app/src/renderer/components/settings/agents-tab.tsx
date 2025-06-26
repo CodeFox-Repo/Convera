@@ -56,8 +56,13 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const [activeTab, setActiveTab] = useState("manage");
 
   // Get agent store methods and state
-  const { availableAgents, fetchAgents, createAgent, saveAgent, deleteAgent } =
-    useAgentStore();
+  const {
+    availableAgents,
+    fetchAgents,
+    createAgent,
+    updateAgent,
+    deleteAgent,
+  } = useAgentStore();
 
   // Get MCP store methods and state
   const {
@@ -234,12 +239,20 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
       return;
     }
 
+    const selectedMcpKeys = Object.keys(selectedToolNames);
+    window.logger.getLogger("agents-tab").info("Saving agent", {
+      name: newAgent.name,
+      description: newAgent.description,
+      systemPrompt: newAgent.systemPrompt,
+      selectedMcpKeys: selectedMcpKeys,
+    });
     const agentData = {
       name: newAgent.name,
       description: newAgent.description || newAgent.name,
       systemPrompt: newAgent.systemPrompt || "",
       disableToolReferences: buildDisableToolReferences(selectedToolNames),
-    };
+      selectedMCPs: selectedMcpKeys.length > 0 ? selectedMcpKeys : undefined,
+    } as Agent;
 
     try {
       await createAgent(agentData);
@@ -270,13 +283,15 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     setIsUpdating(true);
 
     try {
+      const selectedMcpKeys = Object.keys(editSelectedTools);
       const updatedAgent: Agent = {
         ...editingAgent,
         disableToolReferences: buildDisableToolReferences(editSelectedTools),
         systemPrompt: editingAgent.systemPrompt || "",
+        selectedMCPs: selectedMcpKeys.length > 0 ? selectedMcpKeys : undefined,
       };
 
-      await saveAgent(updatedAgent);
+      await updateAgent(updatedAgent);
       toast.success(`Agent "${editingAgent.name}" updated successfully`);
 
       setIsEditDialogOpen(false);
@@ -350,6 +365,35 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
     });
   };
 
+  // MCP selection handler - manages tool selections for entire MCP server
+  const handleMcpSelection = (
+    mcpId: string,
+    selected: boolean,
+    isEditMode: boolean = false,
+  ) => {
+    const setterFunction = isEditMode
+      ? setEditSelectedTools
+      : setSelectedToolNames;
+
+    if (selected) {
+      // Add all tools from this MCP server
+      const mcpTools = mcpServerTools[mcpId] || [];
+      const toolNames = mcpTools.map((tool) => tool.name);
+
+      setterFunction((prev) => ({
+        ...prev,
+        [mcpId]: toolNames,
+      }));
+    } else {
+      // Remove this MCP server entirely
+      setterFunction((prev) => {
+        const updated = { ...prev };
+        delete updated[mcpId];
+        return updated;
+      });
+    }
+  };
+
   const handleEditAgent = (agent: Agent) => {
     setEditingAgent(agent);
     setIsEditDialogOpen(true);
@@ -358,11 +402,13 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
   const renderMcpTools = (
     isEdit: boolean,
     selectedTools: { [mcpId: string]: string[] },
+    selectedMcps: string[],
     onToolSelection: (
       mcpId: string,
       toolName: string,
       selected: boolean,
     ) => void,
+    onMcpSelection: (mcpId: string, selected: boolean) => void,
   ) => {
     if (loadingMcpConfigs) {
       return (
@@ -415,9 +461,9 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                         <div className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
                           <Checkbox
                             id={`mcp-checkbox-${isEdit ? "edit-" : ""}${id}`}
-                            checked={serverConfig.enabled}
+                            checked={selectedMcps.includes(id)}
                             onCheckedChange={(checked) =>
-                              handleMcpToggle(id, checked === true)
+                              onMcpSelection(id, checked === true)
                             }
                           />
                         </div>
@@ -616,8 +662,10 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
             {renderMcpTools(
               false,
               selectedToolNames,
+              Object.keys(selectedToolNames),
               (mcpId, toolName, selected) =>
                 handleToolSelection(mcpId, toolName, selected, false),
+              (mcpId, selected) => handleMcpSelection(mcpId, selected, false),
             )}
           </div>
 
@@ -811,8 +859,11 @@ export function AgentsTab({ onNavigateToMcp }: AgentsTabProps) {
                 {renderMcpTools(
                   true,
                   editSelectedTools,
+                  Object.keys(editSelectedTools),
                   (mcpId, toolName, selected) =>
                     handleToolSelection(mcpId, toolName, selected, true),
+                  (mcpId, selected) =>
+                    handleMcpSelection(mcpId, selected, true),
                 )}
               </div>
             </div>
