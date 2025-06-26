@@ -1,3 +1,4 @@
+import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
 import { AppSettings } from "@/shared/types/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
@@ -18,6 +19,13 @@ import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";
+
+// Simple tool call result type
+interface ToolCallResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
 
 interface ChatContextType {
   messages: UIMessage[];
@@ -40,6 +48,12 @@ interface ChatContextType {
   // Conversation management
   currentConversationId: string | null;
 
+  // MCP Tools management
+  availableTools: ToolDefinition[];
+  mcpServers: ServerInfo[];
+  toolsLoading: boolean;
+  toolsError: string | null;
+
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
@@ -58,6 +72,21 @@ interface ChatContextType {
   openSettings: () => void;
   openHistoryWindow: () => void;
   isVoiceInputActive: boolean;
+
+  // MCP Tools methods
+  getAvailableTools: () => Promise<void>;
+  executeTool: (
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
+
+  // MCP tool call method (simplified)
+  callTool: (
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<ToolCallResult>;
 }
 
 // Message with optional experimental_attachments
@@ -73,6 +102,7 @@ interface ConversationData {
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
+const mcpLogger = window.logger.getLogger("chat-store-mcp");
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -88,6 +118,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
+
+  // MCP Tools state - moved from separate store for simplicity
+  const [availableTools, setAvailableTools] = useState<ToolDefinition[]>([]);
+  const [mcpServers, setMcpServers] = useState<ServerInfo[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [toolsError, setToolsError] = useState<string | null>(null);
+
+  // MCP logger
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
@@ -153,20 +191,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         headers,
         credentials: "include", // Always include credentials
       });
-    },
-    body: {
-      agent: selectedAgent || undefined,
-      modelId: currentModelIdRef.current || settings?.openai?.modelId,
-      conversationId: currentConversationId,
-      // Pass remote store preference and custom API settings to server
-      useRemoteServer: isUserLoggedIn && useRemoteStore,
-      customApiSettings:
-        !(isUserLoggedIn && useRemoteStore) && settings?.openai
-          ? {
-              endpoint: settings.openai.endpoint,
-              apiKey: settings.openai.apiKey,
-            }
-          : undefined,
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
@@ -256,6 +280,120 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  const getAvailableTools = useCallback(async () => {
+    setToolsLoading(true);
+    setToolsError(null);
+
+    mcpLogger.info("Fetching available MCP tools");
+
+    try {
+      // Get all servers and their capabilities
+      const serversResponse = await window.mcpAPI.getServers();
+
+      if (!serversResponse.success) {
+        throw new Error(serversResponse.error || "Failed to get MCP servers");
+      }
+
+      const servers = serversResponse.data || [];
+      setMcpServers(servers);
+
+      mcpLogger.info("MCP servers fetched", {
+        totalServers: servers.length,
+        connectedServers: servers.filter((s) => s.status === "connected")
+          .length,
+      });
+
+      // Collect all tools from all connected servers
+      const allTools: ToolDefinition[] = [];
+      servers.forEach((server) => {
+        if (server.status === "connected" && server.capabilities.tools) {
+          mcpLogger.debug("Adding tools from server", {
+            serverName: server.name,
+            toolsCount: server.capabilities.tools.length,
+          });
+          allTools.push(...server.capabilities.tools);
+        } else {
+          mcpLogger.warn("Server not available for tools", {
+            serverName: server.name,
+            status: server.status,
+          });
+        }
+      });
+
+      setAvailableTools(allTools);
+      mcpLogger.info("Available tools updated", {
+        totalTools: allTools.length,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      mcpLogger.error("Failed to get available tools", { error: errorMessage });
+      setToolsError(errorMessage);
+    } finally {
+      setToolsLoading(false);
+    }
+  }, [mcpLogger]);
+
+  const executeTool = useCallback(
+    async (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ) => {
+      mcpLogger.info("Executing MCP tool", { serverId, toolName, args });
+
+      try {
+        const result = await window.mcpAPI.callTool(serverId, toolName, args);
+
+        if (!result.success) {
+          throw new Error(result.error || "Tool execution failed");
+        }
+
+        mcpLogger.info("Tool execution successful", {
+          serverId,
+          toolName,
+          resultType: typeof result.data,
+        });
+
+        return result.data;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        mcpLogger.error("Tool execution failed", {
+          serverId,
+          toolName,
+          error: errorMessage,
+        });
+        throw error;
+      }
+    },
+    [mcpLogger],
+  );
+
+  // Load available tools on mount
+  useEffect(() => {
+    getAvailableTools();
+  }, [getAvailableTools]);
+
+  // Simplified MCP tool call (just a wrapper around executeTool)
+  const callTool = useCallback(
+    async (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ): Promise<ToolCallResult> => {
+      try {
+        const data = await executeTool(serverId, toolName, args);
+        return { success: true, data };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        return { success: false, error: errorMessage };
+      }
+    },
+    [executeTool],
+  );
+
   // Helper to convert a File to an Attachment
   const fileToAttachment = useCallback((file: File): Promise<Attachment> => {
     return new Promise((resolve, reject) => {
@@ -312,7 +450,47 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             );
             message.experimental_attachments = fileAttachments;
           }
-          chatAPI.append(message);
+
+          // Get fresh MCP servers data for this request
+          const serversResponse = await window.mcpAPI.getServers();
+          const mcpServers: Array<{ name: string; tools: ToolDefinition[] }> =
+            [];
+
+          if (serversResponse.success && serversResponse.data) {
+            const connectedServers = serversResponse.data.filter(
+              (server) => server.status === "connected",
+            );
+
+            connectedServers.forEach((server) => {
+              if (
+                server.capabilities.tools &&
+                server.capabilities.tools.length > 0
+              ) {
+                mcpServers.push({
+                  name: server.name,
+                  tools: server.capabilities.tools,
+                });
+              }
+            });
+          }
+
+          // Send message with all custom fields
+          chatAPI.append(message, {
+            body: {
+              agent: selectedAgent || undefined,
+              modelId: currentModelIdRef.current || settings?.openai?.modelId,
+              conversationId: currentConversationId || undefined,
+              useRemoteServer: isUserLoggedIn && useRemoteStore,
+              customApiSettings:
+                !(isUserLoggedIn && useRemoteStore) && settings?.openai
+                  ? {
+                      endpoint: settings.openai.endpoint,
+                      apiKey: settings.openai.apiKey,
+                    }
+                  : undefined,
+              mcpServers,
+            },
+          });
           clearAttachments();
         } catch (error) {
           console.error("Error processing file attachments:", error);
@@ -443,6 +621,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     openSettings,
     openHistoryWindow,
     isVoiceInputActive,
+    availableTools,
+    mcpServers,
+    toolsLoading,
+    toolsError,
+    getAvailableTools,
+    executeTool,
+    callTool,
   };
 
   // Show loading state if settings are not loaded yet
