@@ -112,7 +112,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       .executeJavaScript(
         `
       console.log("Redirecting to chat page...");
-      
+
       if (window.router) {
         console.log("Using router API");
         window.router.navigate({ to: "/chat" });
@@ -131,11 +131,17 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   });
 
   // Handle display changes - just reposition, no resizing needed
+  let repositionTimeout: NodeJS.Timeout | null = null;
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      logger.debug("Display metrics changed, repositioning chat window");
-      // Just reposition the window, size stays fixed
-      positionWindowAtCenterBottom(window);
+      // Debounce the repositioning to prevent infinite loops
+      if (repositionTimeout) {
+        clearTimeout(repositionTimeout);
+      }
+      repositionTimeout = setTimeout(() => {
+        positionWindowAtCenterBottom(window);
+        repositionTimeout = null;
+      }, 100);
     }
   });
 

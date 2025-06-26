@@ -12,6 +12,7 @@ import { BrowserWindow, screen } from "electron";
 
 export let expectedPosition: WindowDimensions | null = null;
 let isFixingPosition = false;
+let lastPositionTime = 0;
 /**
  * Position a window at the center bottom of the screen with margin
  * bottomMarginPercent: percentage of screen height to use as bottom margin
@@ -22,7 +23,16 @@ export function positionWindowAtCenterBottom(
   config?: WindowSizeConfig,
   bottomMarginPercent: number = appConfig.window.defaultBottomMarginPercent,
 ) {
-  if (!window) return;
+  if (!window || isFixingPosition) return;
+
+  // Prevent rapid successive calls (debounce)
+  const now = Date.now();
+  if (now - lastPositionTime < 100) {
+    return;
+  }
+  lastPositionTime = now;
+
+  isFixingPosition = true;
 
   // Get primary display
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -99,6 +109,8 @@ export function positionWindowAtCenterBottom(
   console.log(
     `Positioned window at: x=${window.getBounds().x}, y=${window.getBounds().y}, size=${window.getBounds().width}x${window.getBounds().height}, margin=${bottomMargin}px`,
   );
+
+  isFixingPosition = false;
 }
 
 /**

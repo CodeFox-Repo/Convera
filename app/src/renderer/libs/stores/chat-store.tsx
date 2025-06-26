@@ -15,7 +15,7 @@ import { getApiBaseUrl } from "../env";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { getSettings, updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
-import { useChatHistory } from "./chat-history-store";
+import { useChatHistory, useChatHistoryStore } from "./chat-history-store";
 import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -119,6 +119,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     string | null
   >(null);
 
+  // Debug: Log conversation ID changes
+  useEffect(() => {
+    console.log("🔗 Frontend: currentConversationId changed to:", currentConversationId);
+  }, [currentConversationId]);
+
   // MCP Tools state - moved from separate store for simplicity
   const [availableTools, setAvailableTools] = useState<ToolDefinition[]>([]);
   const [mcpServers, setMcpServers] = useState<ServerInfo[]>([]);
@@ -149,22 +154,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     loadSettings();
   }, []);
 
-  // Check login status on mount and periodically
+
+  // Check login status on mount and update remote store accordingly
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
         const loggedIn = await authClient.getSession();
-        setIsUserLoggedIn(loggedIn?.data?.session?.id ? true : false);
+        const isLoggedIn = loggedIn?.data?.session?.id ? true : false;
+        setIsUserLoggedIn(isLoggedIn);
+
+        // If user is not logged in, force disable remote server
+        if (!isLoggedIn && useRemoteStore) {
+          setUseRemoteStore(false);
+          // Also save to settings
+          try {
+            await updateOpenAISettings({ useRemoteStore: false });
+          } catch (error) {
+            console.error("Failed to save remote store preference:", error);
+          }
+        }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         setIsUserLoggedIn(false);
+        // Force disable remote server on auth error
+        if (useRemoteStore) {
+          setUseRemoteStore(false);
+          try {
+            await updateOpenAISettings({ useRemoteStore: false });
+          } catch (error) {
+            console.error("Failed to save remote store preference:", error);
+          }
+        }
       }
     };
 
     checkLoginStatus();
     const interval = setInterval(checkLoginStatus, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [useRemoteStore]);
 
   useEffect(() => {
     currentModelIdRef.current = selectedModelId;
@@ -199,6 +226,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     onToolCall: (toolCall) => {
       console.log("🔍 Tool call:", toolCall);
     },
+    onFinish: async () => {
+      // Temporarily disabled auto-refresh to debug message sending
+      console.log("✅ Frontend: Message completed successfully");
+      console.log("🔗 Frontend: Current conversation ID:", currentConversationId);
+    },
   });
 
   // Auto-expand when there are messages
@@ -210,6 +242,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Integrate the useChatHistory hook
   const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
+  
+  // Get chat history store for refreshing
+  const chatHistoryStore = useChatHistoryStore();
 
   // Handle conversation selection from history
   useEffect(() => {
@@ -219,6 +254,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         const conversation = customEvent.detail
           .conversation as ConversationData;
         setCurrentConversationId(conversation.id);
+        console.log(
+          "📝 Frontend: Set conversation ID from history selection:",
+          conversation.id,
+        );
       }
     };
 
@@ -228,6 +267,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const data = JSON.parse(event.newValue);
           if (data.conversation && data.conversation.id) {
             setCurrentConversationId(data.conversation.id);
+            console.log(
+              "📝 Frontend: Set conversation ID from storage event:",
+              data.conversation.id,
+            );
           }
         } catch (error) {
           console.warn("Error parsing conversation from localStorage:", error);
@@ -273,15 +316,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Handle remote store preference change
-  const handleUseRemoteStoreChange = useCallback(async (useRemote: boolean) => {
-    setUseRemoteStore(useRemote);
-    // Save to settings
-    try {
-      await updateOpenAISettings({ useRemoteStore: useRemote });
-    } catch (error) {
-      console.error("Failed to save remote store preference:", error);
-    }
-  }, []);
+  const handleUseRemoteStoreChange = useCallback(
+    async (useRemote: boolean) => {
+      // Only allow enabling if user is logged in
+      if (useRemote && !isUserLoggedIn) {
+        console.warn("Cannot enable remote server without login");
+        return;
+      }
+
+      setUseRemoteStore(useRemote);
+      // Save to settings
+      try {
+        await updateOpenAISettings({ useRemoteStore: useRemote });
+      } catch (error) {
+        console.error("Failed to save remote store preference:", error);
+      }
+    },
+    [isUserLoggedIn],
+  );
 
   const getAvailableTools = useCallback(async () => {
     setToolsLoading(true);
@@ -415,6 +467,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const sendMessage = useCallback(
     (extraFiles?: File[]) => {
+      console.log("🎯 Frontend: sendMessage called");
+      console.log("🎯 Frontend: chatAPI.input:", chatAPI.input);
+      console.log("🎯 Frontend: copiedContent:", copiedContent);
       const filesToSend = [...attachments];
 
       if (extraFiles && extraFiles.length > 0) {
@@ -425,9 +480,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
 
       // Generate conversation ID if this is the first message
-      if (!currentConversationId) {
-        const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        setCurrentConversationId(newConversationId);
+      let conversationIdToUse = currentConversationId;
+      
+      if (!conversationIdToUse) {
+        conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        setCurrentConversationId(conversationIdToUse);
+        console.log(
+          "🆕 Frontend: Generated new conversation ID:",
+          conversationIdToUse,
+        );
+      } else {
+        console.log(
+          "🔄 Frontend: Using existing conversation ID:",
+          conversationIdToUse,
+        );
       }
 
       let messageText = chatAPI.input.trim();
@@ -482,7 +548,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             body: {
               agent: selectedAgent || undefined,
               modelId: currentModelIdRef.current || settings?.openai?.modelId,
-              conversationId: currentConversationId || undefined,
+              conversationId: conversationIdToUse || undefined,
               useRemoteServer: isUserLoggedIn && useRemoteStore,
               customApiSettings:
                 !(isUserLoggedIn && useRemoteStore) && settings?.openai
@@ -523,7 +589,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const stopGeneration = useCallback(() => {
-    if (chatAPI.isLoading) {
+    if (chatAPI.status === 'streaming' || chatAPI.status === 'submitted') {
       chatAPI.stop();
     }
   }, [chatAPI]);
@@ -555,12 +621,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const regenerateMessage = useCallback(() => {
-    if (!chatAPI.isLoading) {
+    if (chatAPI.status === 'ready' || chatAPI.status === 'error') {
       chatAPI.reload();
     }
   }, [chatAPI]);
 
   const resetChat = useCallback(() => {
+    console.log("🔄 Frontend: resetChat called, clearing conversation ID");
     chatAPI.setMessages([]);
     setCopiedContent(null);
     clearAttachments();
@@ -597,7 +664,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
-    isLoading: chatAPI.isLoading,
+    isLoading: chatAPI.status === 'streaming' || chatAPI.status === 'submitted',
     error: chatAPI.error,
     copiedContent,
     attachments,

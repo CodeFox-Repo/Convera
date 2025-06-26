@@ -420,7 +420,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
       store.initializeStore();
       setHasInitialized(true);
     }
-  }, [store, hasInitialized]);
+  }, [hasInitialized]);
 
   // Handle localStorage changes (cross-window communication)
   useEffect(() => {

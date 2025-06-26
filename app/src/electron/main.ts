@@ -224,28 +224,38 @@ async function installExtensions() {
 
 // Handle screen resize events
 function setupScreenResizeHandlers() {
+  let resizeTimeout: NodeJS.Timeout | null = null;
+
   // Listen for primary display metrics change (resolution or scale factor change)
   screen.on("display-metrics-changed", (event, display, changedMetrics) => {
     if (display.id === screen.getPrimaryDisplay().id) {
       console.log("Primary display metrics changed:", changedMetrics);
 
-      // Update chat window if it exists
-      if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
-        const dimensions = expectedPosition
-          ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
-        getChatWindow().setBounds(dimensions);
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
       }
 
-      // Update settings window if visible
-      const settingsWindow = getSettingsWindow();
+      resizeTimeout = setTimeout(() => {
+        // Update chat window if it exists
+        if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
+          const dimensions = expectedPosition
+            ? expectedPosition
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
+          getChatWindow().setBounds(dimensions);
+        }
 
-      if (settingsWindow && settingsWindow.isVisible()) {
-        const dimensions = expectedPosition
-          ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
-        settingsWindow.setBounds(dimensions);
-      }
+        // Update settings window if visible
+        const settingsWindow = getSettingsWindow();
+
+        if (settingsWindow && settingsWindow.isVisible()) {
+          const dimensions = expectedPosition
+            ? expectedPosition
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
+          settingsWindow.setBounds(dimensions);
+        }
+
+        resizeTimeout = null;
+      }, 150);
     }
   });
 }
