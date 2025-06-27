@@ -1,9 +1,9 @@
-import { MCPConfig, MCPServerConfig } from "@/shared/types/mcp";
+import { MCPConfig, MCPServerConfig, ServerInfo } from "@/shared/types/mcp";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { MCPConnection, ServerInfo } from "./connection";
+import { MCPConnection } from "./connection";
 
 /**
  * MCPHub - Clean MCP connection manager

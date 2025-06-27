@@ -1,5 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { MCPServerConfig, ToolDefinition } from "@/shared/types/mcp";
+import {
+  MCPServerConfig,
+  ToolDefinition,
+  ResourceDefinition,
+  ResourceTemplate,
+  PromptDefinition,
+  ServerInfo,
+  ConnectionError,
+  ConnectionStatus,
+  ConnectionStatusType,
+  CLIENT_CONNECT_TIMEOUT,
+} from "@/shared/types/mcp";
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
@@ -24,63 +35,6 @@ import { app } from "electron";
 import { EventEmitter } from "events";
 import * as path from "path";
 
-// Connection status constants
-export const ConnectionStatus = {
-  CONNECTED: "connected",
-  CONNECTING: "connecting",
-  DISCONNECTED: "disconnected",
-  UNAUTHORIZED: "unauthorized",
-  DISABLED: "disabled",
-  ERROR: "error",
-} as const;
-
-export type ConnectionStatusType =
-  (typeof ConnectionStatus)[keyof typeof ConnectionStatus];
-
-// Connection timeout for initial connection (5 minutes for installs)
-const CLIENT_CONNECT_TIMEOUT = 5 * 60000;
-
-export interface ResourceDefinition {
-  uri: string;
-  name?: string;
-  description?: string;
-  mimeType?: string;
-}
-
-export interface ResourceTemplate {
-  uriTemplate: string;
-  name?: string;
-  description?: string;
-}
-
-export interface PromptDefinition {
-  name: string;
-  description?: string;
-  arguments?: Record<string, unknown>[];
-}
-
-export interface ServerInfo {
-  name: string;
-  displayName: string;
-  description?: string;
-  transportType: string;
-  status: ConnectionStatusType;
-  error?: string;
-  capabilities: {
-    tools: ToolDefinition[];
-    resources: ResourceDefinition[];
-    resourceTemplates: ResourceTemplate[];
-    prompts: PromptDefinition[];
-  };
-  uptime: number;
-  lastStarted?: string;
-  authorizationUrl?: string;
-}
-
-export interface ConnectionError extends Error {
-  code?: string;
-  data?: Record<string, unknown>;
-}
 
 /**
  * MCPConnection manages a single MCP server connection in Electron

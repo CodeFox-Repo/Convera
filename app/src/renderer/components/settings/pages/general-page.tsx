@@ -455,7 +455,7 @@ export function GeneralSettingsPage() {
                     <Badge
                       key={model}
                       variant="outline"
-                      className="flex items-center gap-1 px-2 py-1"
+                      className="flex items-center gap-1 px-2 py-1 border-gray-300 hover:border-gray-400"
                     >
                       {model}
                       <button

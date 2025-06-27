@@ -3,22 +3,24 @@
  */
 
 // Export core classes
-export { ConnectionStatus, MCPConnection } from "./connection";
+export { MCPConnection } from "./connection";
 export { MCPHub } from "./hub";
 
-// Export types
-export type {
-  ConnectionError,
-  ConnectionStatusType,
-  PromptDefinition,
-  ResourceDefinition,
-  ResourceTemplate,
-  ServerInfo,
-} from "./connection";
+// Re-export shared types for convenience
+export {
+  ConnectionStatus,
+  type ConnectionError,
+  type ConnectionStatusType,
+  type PromptDefinition,
+  type ResourceDefinition,
+  type ResourceTemplate,
+  type ServerInfo,
+  type ToolDefinition,
+} from "@/shared/types/mcp";
 
-import { ToolDefinition } from "@/shared/types/mcp";
-// Import for local use
-import type { ServerInfo } from "./connection";
+// Import types for internal use
+import type { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
+import { ConnectionStatus } from "@/shared/types/mcp";
 import { MCPHub } from "./hub";
 
 // Global hub instance
@@ -100,7 +102,7 @@ export function getAllTools(): Array<{
 
   return globalHub
     .getAllServerStatuses()
-    .filter((server: ServerInfo) => server.status === "connected")
+    .filter((server: ServerInfo) => server.status === ConnectionStatus.CONNECTED)
     .map((server: ServerInfo) => ({
       serverName: server.name,
       tools: server.capabilities.tools,
@@ -130,20 +132,20 @@ export function getServerStatusSummary(): {
   const statuses = globalHub.getAllServerStatuses();
   return {
     total: statuses.length,
-    connected: statuses.filter((s: ServerInfo) => s.status === "connected")
+    connected: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.CONNECTED)
       .length,
     disconnected: statuses.filter(
-      (s: ServerInfo) => s.status === "disconnected",
+      (s: ServerInfo) => s.status === ConnectionStatus.DISCONNECTED,
     ).length,
-    error: statuses.filter((s: ServerInfo) => s.status === "error").length,
-    disabled: statuses.filter((s: ServerInfo) => s.status === "disabled")
+    error: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.ERROR).length,
+    disabled: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.DISABLED)
       .length,
   };
 }
 
-// Import types to avoid redefinition
+// Backward compatibility aliases
 export type {
   PromptDefinition as Prompt,
   ResourceDefinition as Resource,
   ServerInfo as Server,
-} from "./connection";
+} from "@/shared/types/mcp";

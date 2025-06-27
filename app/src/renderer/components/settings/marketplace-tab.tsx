@@ -127,10 +127,10 @@ export function MarketplaceSection({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-medium text-foreground">
+            <h1 className="text-2xl font-semibold text-foreground mb-2">
               MCP Servers
-            </h2>
-            <p className="text-muted-foreground mt-1">
+            </h1>
+            <p className="text-muted-foreground">
               Manage your MCP (Model Context Protocol) servers
             </p>
           </div>

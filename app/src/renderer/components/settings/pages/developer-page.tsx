@@ -1,5 +1,101 @@
+import { Badge } from "@/renderer/components/ui/badge";
+import { Button } from "@/renderer/components/ui/button";
+import { Switch } from "@/renderer/components/ui/switch";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import {
+  AlertTriangle,
+  AppWindowIcon,
+  Code2,
+  FlaskConical,
+  Layers,
+  Monitor,
+  MousePointer,
+  PanelBottom,
+  Settings,
+  Terminal,
+} from "lucide-react";
 import React from "react";
+
+interface WindowControlCardProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  onToggle: (e?: React.MouseEvent<HTMLButtonElement>) => void;
+  badge?: string;
+}
+
+const WindowControlCard = ({
+  title,
+  description,
+  icon,
+  onToggle,
+  badge,
+}: WindowControlCardProps) => (
+  <div className="group relative overflow-hidden border border-border/30 rounded-lg p-4 hover:border-primary/30 transition-all duration-200 bg-card">
+    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="relative space-y-3">
+      <div className="flex items-start justify-between">
+        <div className="p-2 bg-muted rounded-lg">{icon}</div>
+        {badge && (
+          <Badge variant="outline" className="text-xs">
+            {badge}
+          </Badge>
+        )}
+      </div>
+      <div>
+        <h3 className="font-medium text-sm text-foreground mb-1">{title}</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <Button
+        onClick={onToggle}
+        size="sm"
+        variant="secondary"
+        className="w-full"
+      >
+        Toggle {title}
+      </Button>
+    </div>
+  </div>
+);
+
+const FeatureToggle = ({
+  title,
+  description,
+  enabled,
+  onToggle,
+  icon,
+  warning,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+  icon?: React.ReactNode;
+  warning?: string;
+}) => (
+  <div className="p-4 border border-border/30 rounded-lg hover:border-border/50 transition-colors">
+    <div className="flex items-center justify-between">
+      <div className="flex items-start gap-3">
+        {icon && <div className="p-2 bg-muted rounded-lg mt-0.5">{icon}</div>}
+        <div className="space-y-1">
+          <h3 className="font-medium text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          {warning && (
+            <div className="flex items-center gap-2 mt-2">
+              <AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+              <p className="text-xs text-yellow-600 dark:text-yellow-500">
+                {warning}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+      <Switch checked={enabled} onCheckedChange={onToggle} className="ml-4" />
+    </div>
+  </div>
+);
 
 export function DeveloperSettingsPage() {
   const {
@@ -9,190 +105,158 @@ export function DeveloperSettingsPage() {
     setExperimentalFeature,
   } = useSettingsStore();
 
+  const windowControls = [
+    {
+      id: "settings",
+      title: "Settings",
+      description: "Configuration window",
+      icon: <Settings className="h-4 w-4 text-muted-foreground" />,
+      onToggle: () => window.electronAPI?.toggleWindow("settings"),
+    },
+    {
+      id: "history",
+      title: "History",
+      description: "Chat history browser",
+      icon: <PanelBottom className="h-4 w-4 text-muted-foreground" />,
+      onToggle: () => window.electronAPI?.toggleWindow("history"),
+    },
+    {
+      id: "agent",
+      title: "Agent Popover",
+      description: "Agent selection overlay",
+      icon: <MousePointer className="h-4 w-4 text-muted-foreground" />,
+      onToggle: () => {
+        // Get the button element from the component
+        const button = document.activeElement as HTMLButtonElement;
+        if (button) {
+          const rect = button.getBoundingClientRect();
+          const x = rect.right + 10;
+          const y = rect.top;
+          window.electronAPI?.toggleAgentPopover(
+            Math.round(x),
+            Math.round(y),
+            280,
+            200,
+          );
+        }
+      },
+      badge: "Popover",
+    },
+    {
+      id: "model",
+      title: "Model Selector",
+      description: "Model selection overlay",
+      icon: <Layers className="h-4 w-4 text-muted-foreground" />,
+      onToggle: () => {
+        // Get the button element from the component
+        const button = document.activeElement as HTMLButtonElement;
+        if (button) {
+          const rect = button.getBoundingClientRect();
+          const x = rect.right + 10;
+          const y = rect.top;
+          window.electronAPI?.toggleModelSelector(
+            Math.round(x),
+            Math.round(y),
+            280,
+            200,
+          );
+        }
+      },
+      badge: "Popover",
+    },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Developer Mode Section */}
-      <div className="space-y-4">
+    <div className="p-6">
+      <div className="space-y-8">
+        {/* Header */}
         <div>
-          <h2 className="text-xl font-semibold text-foreground">
+          <h1 className="text-2xl font-semibold text-foreground mb-2">
             Developer Settings
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Development tools and debugging features
+          </h1>
+          <p className="text-muted-foreground">
+            Development tools and experimental features
           </p>
         </div>
 
-        <div className="border border-border rounded-lg">
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-foreground">Developer Mode</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enable debugging tools and window controls
-                </p>
-              </div>
-              <button
-                onClick={() => setDevModeEnabled(!devModeEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  devModeEnabled ? "bg-primary" : "bg-muted"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    devModeEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
+        {/* Experimental Features Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <FlaskConical className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-medium text-foreground">
+              Experimental Features
+            </h2>
           </div>
 
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg mb-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                Experimental features are in active development and may change,
+                break, or be removed without notice
+              </span>
+            </p>
+          </div>
+
+          <FeatureToggle
+            title="Enable Main Window"
+            description="Show button in chat input to toggle between main and chat views"
+            enabled={experimentalFeatures.enableMainWindow}
+            onToggle={() =>
+              setExperimentalFeature(
+                "enableMainWindow",
+                !experimentalFeatures.enableMainWindow,
+              )
+            }
+            icon={<AppWindowIcon className="h-4 w-4 text-muted-foreground" />}
+            warning="This feature may affect UI stability"
+          />
+        </div>
+
+        {/* Developer Mode Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Terminal className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-medium text-foreground">
+              Developer Mode
+            </h2>
+          </div>
+
+          <FeatureToggle
+            title="Enable Developer Mode"
+            description="Unlock debugging tools and window controls for development"
+            enabled={devModeEnabled}
+            onToggle={() => setDevModeEnabled(!devModeEnabled)}
+            icon={<Code2 className="h-4 w-4 text-muted-foreground" />}
+          />
+
+          {/* Window Controls - Only show when dev mode is enabled */}
           {devModeEnabled && (
-            <div className="p-4 space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-3">
-                  Window Controls
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="border border-border rounded-md p-3">
-                    <h5 className="font-medium text-sm mb-1">
-                      Settings Window
-                    </h5>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Configuration window
-                    </p>
-                    <button
-                      onClick={() =>
-                        window.electronAPI?.toggleWindow("settings")
-                      }
-                      className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                    >
-                      Toggle Settings
-                    </button>
-                  </div>
-
-                  <div className="border border-border rounded-md p-3">
-                    <h5 className="font-medium text-sm mb-1">History Window</h5>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Chat history browser
-                    </p>
-                    <button
-                      onClick={() =>
-                        window.electronAPI?.toggleWindow("history")
-                      }
-                      className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                    >
-                      Toggle History
-                    </button>
-                  </div>
-
-                  <div className="border border-border rounded-md p-3">
-                    <h5 className="font-medium text-sm mb-1">Agent Popover</h5>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Agent selection popover
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        const button = e.currentTarget;
-                        const rect = button.getBoundingClientRect();
-                        const x = rect.right + 10;
-                        const y = rect.top;
-
-                        window.electronAPI?.toggleAgentPopover(
-                          Math.round(x),
-                          Math.round(y),
-                          280,
-                          200,
-                        );
-                      }}
-                      className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                    >
-                      Toggle Agent Popover
-                    </button>
-                  </div>
-
-                  <div className="border border-border rounded-md p-3">
-                    <h5 className="font-medium text-sm mb-1">Model Selector</h5>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Model selection popover
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        const button = e.currentTarget;
-                        const rect = button.getBoundingClientRect();
-                        const x = rect.right + 10;
-                        const y = rect.top;
-
-                        window.electronAPI?.toggleModelSelector(
-                          Math.round(x),
-                          Math.round(y),
-                          280,
-                          200,
-                        );
-                      }}
-                      className="w-full px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-md transition-colors"
-                    >
-                      Toggle Model Selector
-                    </button>
-                  </div>
-                </div>
+            <div className="ml-4 space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Monitor className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-medium text-foreground">Window Controls</h3>
               </div>
-
-              <div className="border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground">
-                  These controls are for development and debugging purposes.
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {windowControls.map((control) => (
+                  <WindowControlCard
+                    key={control.id}
+                    title={control.title}
+                    description={control.description}
+                    icon={control.icon}
+                    onToggle={control.onToggle}
+                    badge={control.badge}
+                  />
+                ))}
+              </div>
+              <div className="p-3 bg-muted/30 border border-border/20 rounded-lg">
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <AlertTriangle className="h-3 w-3" />
+                  These controls are for development and debugging purposes only
                 </p>
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Experimental Features Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">
-            Experimental Features
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Features in development that may change or be removed
-          </p>
-        </div>
-
-        <div className="border border-border rounded-lg">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-foreground">
-                  Enable Main Window
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Show button in chat input to toggle between main and chat
-                  views
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  setExperimentalFeature(
-                    "enableMainWindow",
-                    !experimentalFeatures.enableMainWindow,
-                  )
-                }
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  experimentalFeatures.enableMainWindow
-                    ? "bg-primary"
-                    : "bg-muted"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    experimentalFeatures.enableMainWindow
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

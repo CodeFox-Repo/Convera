@@ -708,30 +708,29 @@ export function AgentsSettingsPage({
 
   return (
     <TooltipProvider delayDuration={200} skipDelayDuration={100}>
-      <div className="min-h-full bg-background">
-        <div className="max-w-4xl mx-auto">
-          <div className="px-8 py-6 border-b border-border/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-foreground">
-                  Agents
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Create and manage AI agents for different tasks
-                </p>
-              </div>
-              <Button
-                onClick={handleCreateAgent}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                New Agent
-              </Button>
+      <div className="p-6">
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground mb-2">
+                Agents
+              </h1>
+              <p className="text-muted-foreground">
+                Create and manage AI agents for different tasks
+              </p>
             </div>
+            <Button
+              onClick={handleCreateAgent}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              New Agent
+            </Button>
           </div>
 
           {mcpServerCount === 0 && (
-            <div className="mx-8 mt-6 p-4 bg-muted/30 border border-border/30 rounded-lg">
+            <div className="p-4 bg-muted/30 border border-border/30 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-foreground">
@@ -748,177 +747,174 @@ export function AgentsSettingsPage({
             </div>
           )}
 
-          <div className="px-8 py-6">
-            {availableAgents.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                  <Bot className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">
-                  No Agents Yet
-                </h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Create your first AI agent to get started
-                </p>
-                <Button onClick={handleCreateAgent}>
-                  <Plus className="h-4 w-4 mr-2 text-foreground" />
-                  Create Agent
-                </Button>
+          {availableAgents.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Bot className="h-8 w-8 text-muted-foreground" />
               </div>
-            ) : (
-              <div className="space-y-0">
-                {availableAgents.map((agent, index) => (
-                  <AgentListItem
-                    key={agent.id}
-                    agent={agent}
-                    enabledToolsCount={getEnabledToolsCount(agent)}
-                    isLast={index === availableAgents.length - 1}
-                    onEdit={handleEditAgent}
-                    onDelete={handleDeleteAgent}
-                  />
-                ))}
+              <h3 className="font-semibold text-foreground mb-2">
+                No Agents Yet
+              </h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Create your first AI agent to get started
+              </p>
+              <Button onClick={handleCreateAgent}>
+                <Plus className="h-4 w-4 mr-2 text-primary-foreground" />
+                Create Agent
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {availableAgents.map((agent, index) => (
+                <AgentListItem
+                  key={agent.id}
+                  agent={agent}
+                  enabledToolsCount={getEnabledToolsCount(agent)}
+                  isLast={index === availableAgents.length - 1}
+                  onEdit={handleEditAgent}
+                  onDelete={handleDeleteAgent}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) {
+            resetCreateForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Create New Agent
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {!selectedTemplate && selectedTemplate !== "custom" && (
+              <div>
+                <h3 className="font-medium mb-4 text-foreground">
+                  Choose a Template
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {AGENT_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleTemplateSelect(template.id)}
+                      className="p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-muted/20 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="text-primary">{template.icon}</div>
+                        <h4 className="font-medium text-foreground">
+                          {template.name}
+                        </h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {template.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(selectedTemplate || selectedTemplate === "custom") && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-foreground">Agent Details</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTemplate(null)}
+                    className="text-foreground"
+                  >
+                    {selectedTemplate === "custom"
+                      ? "Back to Templates"
+                      : "Change Template"}
+                  </Button>
+                </div>
+
+                <AgentFormFields
+                  form={agentForm}
+                  onChange={setAgentForm}
+                  idPrefix=""
+                />
+
+                <div className="space-y-3">
+                  <Label className="text-foreground">MCP Configuration</Label>
+                  {renderMcpConfiguration()}
+                </div>
               </div>
             )}
           </div>
-        </div>
 
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open);
-            if (!open) {
-              resetCreateForm();
-            }
-          }}
-        >
-          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">
-                Create New Agent
-              </DialogTitle>
-            </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(false)}
+              className="text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!selectedTemplate && selectedTemplate !== "custom") {
+                  handleCustomAgentSelect();
+                } else {
+                  handleSaveAgent();
+                }
+              }}
+              disabled={!!selectedTemplate && !agentForm.name.trim()}
+              className="text-primary-foreground"
+            >
+              Create Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="space-y-6 py-4">
-              {!selectedTemplate && selectedTemplate !== "custom" && (
-                <div>
-                  <h3 className="font-medium mb-4 text-foreground">
-                    Choose a Template
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {AGENT_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => handleTemplateSelect(template.id)}
-                        className="p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-muted/20 transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="text-primary">{template.icon}</div>
-                          <h4 className="font-medium text-foreground">
-                            {template.name}
-                          </h4>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {template.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Agent</DialogTitle>
+          </DialogHeader>
 
-              {(selectedTemplate || selectedTemplate === "custom") && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-foreground">
-                      Agent Details
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedTemplate(null)}
-                      className="text-foreground"
-                    >
-                      {selectedTemplate === "custom"
-                        ? "Back to Templates"
-                        : "Change Template"}
-                    </Button>
-                  </div>
+          <div className="space-y-6 py-4">
+            <AgentFormFields
+              form={agentForm}
+              onChange={setAgentForm}
+              idPrefix="edit-"
+            />
 
-                  <AgentFormFields
-                    form={agentForm}
-                    onChange={setAgentForm}
-                    idPrefix=""
-                  />
-
-                  <div className="space-y-3">
-                    <Label className="text-foreground">MCP Configuration</Label>
-                    {renderMcpConfiguration()}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-3">
+              <Label className="text-foreground">MCP Configuration</Label>
+              {renderMcpConfiguration()}
             </div>
+          </div>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-                className="text-foreground"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (!selectedTemplate && selectedTemplate !== "custom") {
-                    handleCustomAgentSelect();
-                  } else {
-                    handleSaveAgent();
-                  }
-                }}
-                disabled={!!selectedTemplate && !agentForm.name.trim()}
-                className="text-foreground"
-              >
-                Create Agent
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">Edit Agent</DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
-              <AgentFormFields
-                form={agentForm}
-                onChange={setAgentForm}
-                idPrefix="edit-"
-              />
-
-              <div className="space-y-3">
-                <Label className="text-foreground">MCP Configuration</Label>
-                {renderMcpConfiguration()}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUpdateAgent}
-                disabled={!agentForm.name.trim()}
-              >
-                Update Agent
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              className="text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateAgent}
+              disabled={!agentForm.name.trim()}
+            >
+              Update Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

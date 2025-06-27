@@ -1,5 +1,21 @@
 // MCP Types
 
+// Connection status constants (from connection.ts)
+export const ConnectionStatus = {
+  CONNECTED: "connected",
+  CONNECTING: "connecting", 
+  DISCONNECTED: "disconnected",
+  UNAUTHORIZED: "unauthorized",
+  DISABLED: "disabled",
+  ERROR: "error",
+} as const;
+
+export type ConnectionStatusType =
+  (typeof ConnectionStatus)[keyof typeof ConnectionStatus];
+
+// Connection timeout for initial connection (5 minutes for installs)
+export const CLIENT_CONNECT_TIMEOUT = 5 * 60000;
+
 export interface MCPServerConfig {
   name?: string;
   enabled?: boolean;
@@ -53,12 +69,17 @@ export interface ServerInfo {
   displayName: string;
   description?: string;
   transportType: string;
-  status: string;
+  status: ConnectionStatusType;
   error?: string;
   capabilities: ServerCapabilities;
   uptime: number;
   lastStarted?: string;
   authorizationUrl?: string;
+}
+
+export interface ConnectionError extends Error {
+  code?: string;
+  data?: Record<string, unknown>;
 }
 
 export interface MCPIPCResponse<T = unknown> {
