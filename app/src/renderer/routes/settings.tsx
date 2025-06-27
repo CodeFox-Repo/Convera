@@ -129,47 +129,58 @@ function SettingsPage() {
   };
 
   return (
-    <div className="h-screen flex bg-background text-foreground">
+    <div className="h-screen flex bg-gradient-to-br from-background via-background to-muted/20">
       {/* Sidebar */}
       <div
-        className={`bg-card border-r border-border transition-all duration-300 flex flex-col ${
-          isSidebarCollapsed ? "w-16" : "w-64"
+        className={`bg-gradient-to-b from-card/95 via-card to-card/95 backdrop-blur-xl border-r border-border/50 transition-all duration-300 flex flex-col ${
+          isSidebarCollapsed ? "w-20" : "w-72"
         }`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-border">
+        <div className="p-6 border-b border-border/30">
           <div className="flex items-center justify-between">
             {!isSidebarCollapsed && (
-              <h1 className="text-lg font-semibold text-foreground">
-                Settings
-              </h1>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <img
+                    src="./images/logo.png"
+                    alt="FoxyChat Logo"
+                    className="w-8 h-8"
+                  />
+                </div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  FoxyChat
+                </h1>
+              </div>
             )}
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2">
               {!isSidebarCollapsed && (
-                <div
-                  className="no-drag-region hover:bg-foreground/10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors mr-2"
+                <button
+                  className="no-drag-region group relative overflow-hidden hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/5 flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 border border-border/30 hover:border-primary/30"
                   onClick={handleToggleTheme}
                   role="button"
                   aria-label="Toggle theme"
                 >
-                  {currentTheme === "dark" ? (
-                    <Sun className="text-foreground/80 h-5 w-5" />
-                  ) : (
-                    <Moon className="text-foreground/80 h-5 w-5" />
-                  )}
-                </div>
+                  <div className="relative z-10">
+                    {currentTheme === "dark" ? (
+                      <Sun className="text-foreground/70 group-hover:text-primary h-4 w-4 transition-colors" />
+                    ) : (
+                      <Moon className="text-foreground/70 group-hover:text-primary h-4 w-4 transition-colors" />
+                    )}
+                  </div>
+                </button>
               )}
               <button
                 onClick={toggleSidebar}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="group hover:bg-gradient-to-r hover:from-muted/50 hover:to-muted/20 p-2 rounded-xl transition-all duration-200 border border-border/30 hover:border-border/50"
                 aria-label={
                   isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
                 }
               >
                 {isSidebarCollapsed ? (
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                 ) : (
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                 )}
               </button>
             </div>
@@ -177,23 +188,37 @@ function SettingsPage() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4">
-          <ul className="space-y-1 px-2">
+        <nav className="flex-1 py-6 px-4">
+          <ul className="space-y-2">
             {navigationItems.map((item) => (
               <li key={item.id}>
                 <button
                   onClick={() => handleTabChange(item.id)}
-                  className={`flex items-center w-full px-3 py-2 rounded-md transition-colors ${
+                  className={`group relative overflow-hidden flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 ${
                     activeTab === item.id
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "hover:bg-foreground/5 text-foreground/80"
+                      ? "bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 text-primary font-semibold border border-primary/20"
+                      : "hover:bg-gradient-to-r hover:from-muted/40 hover:to-muted/20 text-foreground/70 hover:text-foreground border border-transparent hover:border-border/30"
                   } ${isSidebarCollapsed ? "justify-center" : ""}`}
                   title={isSidebarCollapsed ? item.label : undefined}
                 >
-                  <span className={isSidebarCollapsed ? "" : "mr-2"}>
+                  {activeTab === item.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-xl" />
+                  )}
+                  <span
+                    className={`relative z-10 ${isSidebarCollapsed ? "" : "mr-3"} ${
+                      activeTab === item.id ? "text-primary" : ""
+                    }`}
+                  >
                     {item.icon}
                   </span>
-                  {!isSidebarCollapsed && <span>{item.label}</span>}
+                  {!isSidebarCollapsed && (
+                    <span className="relative z-10 font-medium">
+                      {item.label}
+                    </span>
+                  )}
+                  {activeTab === item.id && !isSidebarCollapsed && (
+                    <div className="absolute right-3 w-2 h-2 bg-primary rounded-full" />
+                  )}
                 </button>
               </li>
             ))}
@@ -201,37 +226,43 @@ function SettingsPage() {
         </nav>
 
         {/* Close button */}
-        <div className="border-t border-border/40 p-4">
+        <div className="border-t border-border/30 p-4">
           <button
             onClick={handleCloseSettings}
-            className={`flex items-center text-foreground/80 hover:text-foreground/100 w-full ${
+            className={`group flex items-center text-foreground/60 hover:text-foreground/90 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-500/5 border border-transparent hover:border-red-500/20 transition-all duration-200 ${
               isSidebarCollapsed ? "justify-center" : ""
             }`}
             title={isSidebarCollapsed ? "Close Settings" : undefined}
           >
-            <X className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-2"}`} />
-            {!isSidebarCollapsed && <span>Close Settings</span>}
+            <X
+              className={`h-5 w-5 group-hover:text-red-500 transition-colors ${isSidebarCollapsed ? "" : "mr-3"}`}
+            />
+            {!isSidebarCollapsed && (
+              <span className="font-medium">Close Settings</span>
+            )}
           </button>
         </div>
       </div>
 
       {/* Mobile sidebar toggle */}
-      <div className="md:hidden fixed bottom-4 left-4 z-50">
+      <div className="md:hidden fixed bottom-6 left-6 z-50">
         <button
           onClick={toggleSidebar}
-          className="bg-primary text-primary-foreground w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
+          className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground w-12 h-12 rounded-2xl flex items-center justify-center border border-primary/20 transition-all duration-200"
           aria-label={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
         >
           {isSidebarCollapsed ? (
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-6 w-6" />
           ) : (
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-6 w-6" />
           )}
         </button>
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto">{renderPageContent()}</div>
+      <div className="flex-1 overflow-y-auto bg-gradient-to-br from-background/80 to-background backdrop-blur-sm">
+        {renderPageContent()}
+      </div>
     </div>
   );
 }

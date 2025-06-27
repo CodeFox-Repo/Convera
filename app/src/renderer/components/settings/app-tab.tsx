@@ -1,21 +1,15 @@
-import { Badge } from "@/renderer/components/ui/badge";
 import { Button } from "@/renderer/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/renderer/components/ui/card";
-
 import { Input } from "@/renderer/components/ui/input";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/renderer/components/ui/tabs";
 import { MCPConfig } from "@/shared/types/settings";
-import { Loader2, Plug, Search, Trash2 } from "lucide-react";
+import {
+  CheckCircle,
+  Download,
+  ExternalLink,
+  Loader2,
+  Plug,
+  Search,
+  Trash2,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,24 +33,22 @@ export function AppTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isConnecting, setIsConnecting] = useState<Record<string, boolean>>({});
-
-  const [activeTab, setActiveTab] = useState("apps");
   const [loading, setLoading] = useState(true);
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
   const [availableApps, setAvailableApps] = useState<AvailableApp[]>([]);
 
-  // Helper function to get icon for app type
+  // Helper function to get icon for app
   const getAppIcon = (app: ConnectedApp | AvailableApp) => {
     if (app.logoUrl) {
       return (
         <img
           src={app.logoUrl}
           alt={app.name}
-          className="h-8 w-8 object-contain rounded-sm"
+          className="h-10 w-10 object-contain rounded-md"
         />
       );
     }
-    return <Plug className="h-8 w-8 text-gray-500 flex-shrink-0" />;
+    return <Plug className="h-10 w-10 text-muted-foreground" />;
   };
 
   // Fetch apps from API
@@ -105,7 +97,6 @@ export function AppTab() {
 
       if (result.success) {
         toast.success(result.message);
-        // Refresh the apps list
         await fetchApps();
       } else {
         throw new Error(result.error || "Failed to connect app");
@@ -135,7 +126,6 @@ export function AppTab() {
 
       if (result.success) {
         toast.success(result.message);
-        // Refresh the apps list
         await fetchApps();
       } else {
         throw new Error(result.error || "Failed to disconnect app");
@@ -146,62 +136,30 @@ export function AppTab() {
     }
   };
 
-  // Unified app card component
-  const AppCard = ({
-    app,
-    isConnected,
-  }: {
-    app: ConnectedApp | AvailableApp;
-    isConnected: boolean;
-  }) => (
-    <Card className="relative border-border/20 h-[180px] flex flex-col">
-      <CardHeader className="pb-3 flex-none">
-        <div className="flex flex-col items-center justify-center gap-3 flex-1 min-w-0">
-          <div className="flex-none">{getAppIcon(app)}</div>
-          <div className="min-w-0 text-center w-full">
-            <CardTitle className="text-base truncate">{app.name}</CardTitle>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0 flex-1 flex flex-col justify-end">
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {isConnected ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 border-border/30"
-                onClick={() => handleDisconnectApp(app as ConnectedApp)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Disconnect
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => handleConnectApp(app as AvailableApp)}
-                disabled={isConnecting[app.id]}
-                className="flex-1"
-              >
-                {isConnecting[app.id] && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Connect
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   // Get unique categories from all apps
   const categories = [
     "all",
     ...new Set([...connectedApps, ...availableApps].map((app) => app.category)),
   ];
 
-  const filteredApps = availableApps.filter((app) => {
+  // Filter connected apps
+  const filteredConnectedApps = connectedApps.filter((app) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      app.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "all" || app.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  // Filter available apps (excluding already connected ones)
+  const unconnectedApps = availableApps.filter(
+    (app) => !connectedApps.some((connectedApp) => connectedApp.id === app.id),
+  );
+
+  const filteredAvailableApps = unconnectedApps.filter((app) => {
     const matchesSearch =
       searchQuery === "" ||
       app.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -214,10 +172,42 @@ export function AppTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading apps...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading applications...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show global empty state when no apps exist at all
+  if (connectedApps.length === 0 && availableApps.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground mb-2">
+            Applications
+          </h1>
+          <p className="text-muted-foreground">
+            Connect external applications to enhance your AI assistant&apos;s
+            capabilities
+          </p>
+        </div>
+
+        <div className="text-center py-16 border border-border rounded-lg">
+          <Plug className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-medium mb-2">
+            No applications available
+          </h3>
+          <p className="text-muted-foreground mb-6">
+            Applications will appear here when they become available through
+            your AI provider
+          </p>
+          <Button variant="outline">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Learn more about app integrations
+          </Button>
         </div>
       </div>
     );
@@ -225,99 +215,172 @@ export function AppTab() {
 
   return (
     <div className="space-y-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-medium text-foreground mb-2">Apps</h2>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground mb-2">
+          Applications
+        </h1>
         <p className="text-muted-foreground">
-          Manage your connected applications and browse available apps
+          Connect external applications to enhance your AI assistant&apos;s
+          capabilities
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="dark:bg-background/60 mb-6">
-          <TabsTrigger value="apps">Browse Apps</TabsTrigger>
-          <TabsTrigger value="connected">Connected Apps</TabsTrigger>
-        </TabsList>
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search applications..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {categories.map((category) => (
+            <Button
+              key={category}
+              variant={selectedCategory === category ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(category)}
+              className="capitalize"
+            >
+              {category === "all" ? "All" : category}
+            </Button>
+          ))}
+        </div>
+      </div>
 
-        {/* Connected Apps Section */}
-        <TabsContent value="connected" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Connected Applications</h3>
-            <Badge variant="outline" className="px-2 py-1 border-border/30">
-              {connectedApps.length} connected
-            </Badge>
-          </div>
+      {/* Installed Apps Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium text-foreground">
+            Installed Applications
+          </h2>
+        </div>
 
-          {connectedApps.length === 0 ? (
-            <Card className="border-border/20">
-              <CardContent className="text-center py-8">
-                <Plug className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Connected Apps</h3>
-                <p className="text-muted-foreground mb-4">
-                  Connect your first app to get started with enhanced AI
-                  capabilities
-                </p>
-                <Button onClick={() => setActiveTab("apps")}>
-                  Browse Available Apps
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {connectedApps.map((app) => (
-                <AppCard key={app.id} app={app} isConnected={true} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Available Apps Section */}
-        <TabsContent value="apps" className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search apps..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-border/30"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={
-                    selectedCategory === category ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`capitalize ${selectedCategory !== category ? "border-border/30" : ""}`}
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredApps.map((app) => (
-              <AppCard key={app.id} app={app} isConnected={false} />
+        {filteredConnectedApps.length > 0 ? (
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {filteredConnectedApps.map((app) => (
+              <div
+                key={app.id}
+                className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {getAppIcon(app)}
+                  <div>
+                    <h3 className="font-medium text-foreground">{app.name}</h3>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {app.category}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDisconnectApp(app)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Uninstall
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
+        ) : (
+          <div className="text-center py-6 border border-border rounded-lg bg-muted/20">
+            <CheckCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <h3 className="font-medium mb-1">
+              {searchQuery || selectedCategory !== "all"
+                ? "No installed applications match your search"
+                : "No applications installed"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {searchQuery || selectedCategory !== "all"
+                ? "Try adjusting your search terms or filters"
+                : "Install your first application to get started"}
+            </p>
+          </div>
+        )}
+      </div>
 
-          {filteredApps.length === 0 && (
-            <Card className="border-border/20">
-              <CardContent className="text-center py-8">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Apps Found</h3>
-                <p className="text-muted-foreground">
-                  Try adjusting your search query or category filter
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Available Apps Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium text-foreground">
+            Available Applications
+          </h2>
+        </div>
+
+        {filteredAvailableApps.length > 0 ? (
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {filteredAvailableApps.map((app) => (
+              <div
+                key={app.id}
+                className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {getAppIcon(app)}
+                  <div>
+                    <h3 className="font-medium text-foreground">{app.name}</h3>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {app.category}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    onClick={() => handleConnectApp(app)}
+                    disabled={isConnecting[app.id]}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isConnecting[app.id] ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Install
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 border border-border rounded-lg bg-muted/20">
+            <Download className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <h3 className="font-medium mb-1">
+              {searchQuery || selectedCategory !== "all"
+                ? "No available applications match your search"
+                : "All applications are already installed"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {searchQuery || selectedCategory !== "all"
+                ? "Try adjusting your search terms or filters"
+                : "Check back later for new applications"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Clear Filters Button */}
+      {(searchQuery || selectedCategory !== "all") && (
+        <div className="text-center">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchQuery("");
+              setSelectedCategory("all");
+            }}
+          >
+            Clear all filters
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

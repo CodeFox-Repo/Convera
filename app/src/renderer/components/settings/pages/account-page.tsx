@@ -1,11 +1,9 @@
 import { AuthModal } from "@/renderer/components/auth/auth-modal";
-import { Badge } from "@/renderer/components/ui/badge";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { authClient } from "@/renderer/libs/auth-client";
 import {
   BarChart3,
-  Calendar,
   Camera,
   Check,
   Edit,
@@ -13,7 +11,6 @@ import {
   Upload,
   User,
   X,
-  Zap,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -193,11 +190,22 @@ export function AccountSettingsPage() {
   // Loading state
   if (isPending) {
     return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-foreground mb-8">Account</h2>
+      <div className="min-h-full bg-background">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-border/30">
+            <h2 className="text-2xl font-semibold text-foreground">Account</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage your profile and view usage statistics
+            </p>
+          </div>
 
-        <div className="flex h-24 items-center justify-center">
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
+          <div className="flex items-center justify-center py-24">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent mr-3"></div>
+            <span className="text-muted-foreground">
+              Loading account information...
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -206,300 +214,280 @@ export function AccountSettingsPage() {
   // Not logged in state
   if (!session?.user) {
     return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-foreground mb-8">Account</h2>
-
-        <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-            <User className="h-8 w-8 text-muted-foreground" />
+      <div className="min-h-full bg-background">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-border/30">
+            <h2 className="text-2xl font-semibold text-foreground">Account</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage your profile and view usage statistics
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">
-            Sign In Required
-          </h3>
-          <p className="text-muted-foreground mb-6">
-            Please sign in to access your account
-          </p>
-          <AuthModal />
+
+          <div className="text-center py-24">
+            <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-6">
+              <User className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Sign In Required
+            </h3>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Please sign in to access your account settings and view usage
+              statistics
+            </p>
+            <AuthModal />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <h2 className="text-2xl font-bold text-foreground">Account</h2>
+    <div className="min-h-full bg-background">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="px-8 py-6 border-b border-border/30">
+          <h2 className="text-2xl font-semibold text-foreground">Account</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage your profile and view usage statistics
+          </p>
+        </div>
 
-      {/* Profile Section */}
-      <div className="flex items-center gap-8 pb-6 border-b border-border">
-        {/* Avatar */}
-        <div className="relative">
-          <div className="w-24 h-24 rounded-full overflow-hidden bg-muted border-2 border-border">
-            {user?.image ? (
-              <img
-                src={user.image}
-                alt={user?.name || "User"}
-                className="w-full h-full object-cover"
+        {/* Profile Section */}
+        <div className="px-8 py-6 border-b border-border/20">
+          <div className="flex items-center gap-6">
+            {/* Avatar */}
+            <div className="relative group">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-muted border border-border/30">
+                {user?.image ? (
+                  <img
+                    src={user.image}
+                    alt={user?.name || "User"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-muted">
+                    <User className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+
+              <label
+                htmlFor="avatar-upload"
+                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                {isUploadingAvatar ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                ) : (
+                  <Camera className="h-5 w-5 text-white" />
+                )}
+              </label>
+
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+                disabled={isUploadingAvatar}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="h-12 w-12 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-
-          <label
-            htmlFor="avatar-upload"
-            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-          >
-            {isUploadingAvatar ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              <Camera className="h-5 w-5 text-white" />
-            )}
-          </label>
-
-          <input
-            id="avatar-upload"
-            type="file"
-            accept="image/*"
-            onChange={handleAvatarUpload}
-            className="hidden"
-            disabled={isUploadingAvatar}
-          />
-        </div>
-
-        {/* User Info */}
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            {isEditingName ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="text-xl font-semibold max-w-xs"
-                  disabled={isUpdatingName}
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSaveName}
-                  disabled={isUpdatingName || !editedName.trim()}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCancelEdit}
-                  disabled={isUpdatingName}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-xl font-semibold text-foreground">
-                  {user?.name || "User"}
-                </h3>
-                <Button size="sm" variant="ghost" onClick={handleStartEdit}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-          <p className="text-muted-foreground mb-4">{user?.email}</p>
-
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => document.getElementById("avatar-upload")?.click()}
-              disabled={isUploadingAvatar}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Upload Avatar
-            </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleSignOut}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Usage Statistics */}
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          Usage Statistics
-        </h3>
-
-        {loadingStats ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-3"></div>
-            <span className="text-muted-foreground">
-              Loading usage statistics...
-            </span>
-          </div>
-        ) : usageStats && usageStats.total.requests > 0 ? (
-          <div className="space-y-6">
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    Total Requests
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatNumber(usageStats.total.requests)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatNumber(usageStats.recent.requests)} in last 30 days
-                </p>
-              </div>
-
-              <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    Total Tokens
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-foreground">
-                  {formatNumber(usageStats.total.totalTokens)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatNumber(usageStats.recent.tokens)} in last 30 days
-                </p>
-              </div>
-
-              <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    Models Used
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-foreground">
-                  {usageStats.byModel.length}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Different AI models
-                </p>
-              </div>
             </div>
 
-            {/* Top Models */}
-            {usageStats.byModel.length > 0 && (
-              <div>
-                <h4 className="text-md font-medium text-foreground mb-3">
-                  Top Models
-                </h4>
-                <div className="space-y-2">
-                  {getTopModels(usageStats.byModel).map((model, index) => (
-                    <div
-                      key={model.modelId}
-                      className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/30"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-xs">
-                          #{index + 1}
-                        </Badge>
-                        <span className="font-medium text-foreground">
-                          {model.modelId}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-foreground">
-                          {formatNumber(model.tokens)} tokens
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatNumber(model.requests)} requests
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+            {/* User Info */}
+            <div className="flex-1">
+              {isEditingName ? (
+                <div className="flex items-center gap-3">
+                  <Input
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="text-lg font-semibold max-w-sm"
+                    disabled={isUpdatingName}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSaveName}
+                    disabled={isUpdatingName || !editedName.trim()}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelEdit}
+                    disabled={isUpdatingName}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {user?.name || "User"}
+                  </h3>
+                  <Button size="sm" variant="ghost" onClick={handleStartEdit}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              <p className="text-muted-foreground mt-1">{user?.email}</p>
+
+              <div className="flex gap-3 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    document.getElementById("avatar-upload")?.click()
+                  }
+                  disabled={isUploadingAvatar}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Avatar
+                </Button>
+
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Statistics */}
+        <div className="px-8 py-6">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              Usage Statistics
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Track your API usage and patterns
+            </p>
+          </div>
+
+          {loadingStats ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent mr-3"></div>
+              <span className="text-muted-foreground">
+                Loading usage statistics...
+              </span>
+            </div>
+          ) : usageStats && usageStats.total.requests > 0 ? (
+            <div className="space-y-8">
+              {/* Overview Stats */}
+              <div className="grid grid-cols-3 gap-8">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">
+                    {formatNumber(usageStats.total.requests)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Requests
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {formatNumber(usageStats.recent.requests)} this month
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">
+                    {formatNumber(usageStats.total.totalTokens)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Tokens
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {formatNumber(usageStats.recent.tokens)} this month
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">
+                    {usageStats.byModel.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Models Used
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Different AI models
+                  </div>
                 </div>
               </div>
-            )}
 
-            {/* Token Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                <h4 className="text-sm font-medium text-foreground mb-3">
-                  Token Usage Breakdown
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Prompt Tokens
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatNumber(usageStats.total.promptTokens)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Completion Tokens
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatNumber(usageStats.total.completionTokens)}
-                    </span>
-                  </div>
-                  <div className="border-t border-border pt-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-foreground">
-                        Total
-                      </span>
-                      <span className="text-sm font-bold">
-                        {formatNumber(usageStats.total.totalTokens)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              {usageStats.daily.length > 0 && (
-                <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
-                  <h4 className="text-sm font-medium text-foreground mb-3">
-                    Recent Activity (Last 7 Days)
+              {/* Top Models */}
+              {usageStats.byModel.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-foreground mb-4">
+                    Most Used Models
                   </h4>
-                  <div className="space-y-2">
-                    {usageStats.daily.slice(0, 5).map((day) => (
-                      <div key={day.date} className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          {day.date}
-                        </span>
-                        <span className="text-sm font-medium">
-                          {formatNumber(day.requests)} requests
-                        </span>
+                  <div className="space-y-0">
+                    {getTopModels(usageStats.byModel).map((model, index) => (
+                      <div
+                        key={model.modelId}
+                        className="flex items-center justify-between py-3 border-b border-border/10 last:border-b-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
+                            {index + 1}
+                          </div>
+                          <span className="font-medium text-foreground">
+                            {model.modelId}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-foreground">
+                            {formatNumber(model.tokens)} tokens
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatNumber(model.requests)} requests
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Token Breakdown */}
+              <div>
+                <h4 className="font-semibold text-foreground mb-4">
+                  Token Usage Breakdown
+                </h4>
+                <div className="space-y-0">
+                  <div className="flex justify-between py-3 border-b border-border/10">
+                    <span className="text-muted-foreground">Prompt Tokens</span>
+                    <span className="font-medium text-foreground">
+                      {formatNumber(usageStats.total.promptTokens)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-border/10">
+                    <span className="text-muted-foreground">
+                      Completion Tokens
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {formatNumber(usageStats.total.completionTokens)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-3">
+                    <span className="font-semibold text-foreground">Total</span>
+                    <span className="font-bold text-foreground">
+                      {formatNumber(usageStats.total.totalTokens)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              No usage data available yet.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Start using remote servers to see your usage statistics here.
-            </p>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h4 className="font-semibold text-foreground mb-2">
+                No Usage Data Yet
+              </h4>
+              <p className="text-muted-foreground text-sm">
+                Start using remote servers to see your usage statistics here.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

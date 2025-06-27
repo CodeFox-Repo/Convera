@@ -1,9 +1,34 @@
-import { AIModelSection } from "@/renderer/components/settings/ai-model-section";
-import { ShortcutsSection } from "@/renderer/components/settings/shortcuts-section";
+import { Badge } from "@/renderer/components/ui/badge";
+import { Button } from "@/renderer/components/ui/button";
+import { Input } from "@/renderer/components/ui/input";
+import { Label } from "@/renderer/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/renderer/components/ui/select";
 import { Switch } from "@/renderer/components/ui/switch";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { useModelStore } from "@/renderer/libs/stores/model-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import React, { useCallback, useEffect, useRef } from "react";
+import {
+  loadFuzzyInstance,
+  searchModels,
+} from "@/renderer/libs/utils/model-search-utils";
+import {
+  OFFICIAL_MODELS,
+  fetchOpenRouterModels,
+} from "@/shared/constants/officialModels";
+import { Loader2, RotateCcw, X } from "lucide-react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
@@ -19,8 +44,6 @@ export function GeneralSettingsPage() {
     recordingShortcut,
     initializeSettings,
     handleOpenAIChange,
-    handleAddSupportedModel,
-    handleRemoveSupportedModel,
     handleResetShortcuts,
     setActiveShortcut,
     setRecordingShortcut,
@@ -32,14 +55,87 @@ export function GeneralSettingsPage() {
   const { useRemoteStore, setUseRemoteStore, isUserLoggedIn } =
     useChatContext();
 
+  // Model Store
+  const {
+    supportedModelIds,
+    setSupportedModelIds,
+    setSelectedModelId,
+    subscribeToModelChanges,
+  } = useModelStore();
+
+  // Model management state
+  const [newModelInput, setNewModelInput] = useState("");
+  const [officialModels, setOfficialModels] =
+    useState<string[]>(OFFICIAL_MODELS);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [filteredModels, setFilteredModels] = useState<string[]>([]);
+
   // Initialize stores on component mount
   useEffect(() => {
     initializeSettings();
-    const unsubscribe = subscribeToSettingsChanges();
-    return unsubscribe;
-  }, [initializeSettings, subscribeToSettingsChanges]);
+    const unsubscribeSettings = subscribeToSettingsChanges();
+    const unsubscribeModels = subscribeToModelChanges();
+    return () => {
+      unsubscribeSettings();
+      unsubscribeModels();
+    };
+  }, [initializeSettings, subscribeToSettingsChanges, subscribeToModelChanges]);
 
-  // Callback functions for shortcut recording
+  // Fetch models from OpenRouter API
+  useEffect(() => {
+    fetchOpenRouterModels()
+      .then((models) => {
+        setOfficialModels([...models].sort());
+      })
+      .catch(() => {
+        setOfficialModels([...OFFICIAL_MODELS].sort());
+      });
+  }, []);
+
+  // Available models list
+  const availableModels = useMemo(
+    () => officialModels.filter((m) => !supportedModelIds.includes(m)),
+    [officialModels, supportedModelIds],
+  );
+
+  // Memoize fuzzy instance for model search
+  const fuzzyInstance = useMemo(() => loadFuzzyInstance(), [availableModels]);
+
+  // Update filtered models when input or availableModels changes
+  useEffect(() => {
+    searchModels(
+      newModelInput,
+      availableModels,
+      setFilteredModels,
+      fuzzyInstance,
+    );
+  }, [newModelInput, availableModels, fuzzyInstance]);
+
+  // Model management functions
+  const handleAddModel = (model: string) => {
+    if (!model.trim()) return;
+
+    const newModels = [...supportedModelIds];
+    if (!newModels.includes(model)) {
+      newModels.push(model);
+      setSupportedModelIds(newModels);
+    }
+    setTimeout(() => {
+      handleOpenAIChange("modelId", model);
+      setSelectedModelId(model);
+    }, 0);
+  };
+
+  const handleRemoveModel = (model: string) => {
+    const newModels = supportedModelIds.filter((m) => m !== model);
+    setSupportedModelIds(newModels);
+    if (model === settings?.openai?.modelId) {
+      const newSelectedModel = newModels.length > 0 ? newModels[0] : "";
+      setSelectedModelId(newSelectedModel);
+    }
+  };
+
+  // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
     async (shortcutToSave: string) => {
       await saveRecordedShortcut(shortcutToSave);
@@ -154,7 +250,6 @@ export function GeneralSettingsPage() {
     ],
   );
 
-  // Shortcut Recording Logic
   const startRecording = (id: string) => {
     setActiveShortcut(id);
   };
@@ -222,9 +317,9 @@ export function GeneralSettingsPage() {
   // Early return if settings are still loading
   if (settingsLoading || !settings) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">Loading settings...</p>
         </div>
       </div>
@@ -232,78 +327,259 @@ export function GeneralSettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-8">
-      {/* Remote Server Section */}
-      <div className="space-y-4">
+    <div className="p-6">
+      <div className="space-y-8">
+        {/* Header */}
         <div>
-          <h2 className="text-xl font-semibold text-foreground">
-            API Settings
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Choose between remote server or your custom API
+          <h1 className="text-2xl font-semibold text-foreground mb-2">
+            General
+          </h1>
+          <p className="text-muted-foreground">
+            Configure API settings and keyboard shortcuts
           </p>
         </div>
 
-        {isUserLoggedIn ? (
-          <div className="border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-foreground">
-                  Use Remote Server
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Use our remote server service for AI requests
-                </p>
-              </div>
-              <Switch
-                checked={useRemoteStore}
-                onCheckedChange={(checked) => setUseRemoteStore(checked)}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="border border-border rounded-lg p-4 opacity-60">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-foreground">
-                  Use Remote Server
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Login required to use remote server service
-                </p>
-              </div>
-              <Switch checked={false} disabled={true} />
-            </div>
-            <div className="mt-2 text-xs text-orange-600">
-              Please login to enable remote server. Currently using custom API.
-            </div>
-          </div>
-        )}
-      </div>
+        {/* API Settings Section */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium text-foreground">API Settings</h2>
 
-      {/* Only show AI Model Settings when not using remote server */}
-      {!(isUserLoggedIn && useRemoteStore) && (
-        <div>
-          <AIModelSection
-            settings={settings}
-            onOpenAIChange={handleOpenAIChange}
-            onAddSupportedModel={handleAddSupportedModel}
-            onRemoveSupportedModel={handleRemoveSupportedModel}
-          />
+          {/* Remote Server Toggle */}
+          {isUserLoggedIn ? (
+            <div className="p-4 border border-border rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-foreground">
+                    Use Remote Server
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Use our remote server service for AI requests
+                  </p>
+                </div>
+                <Switch
+                  checked={useRemoteStore}
+                  onCheckedChange={(checked) => setUseRemoteStore(checked)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 border border-border rounded-lg bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-foreground">
+                    Use Remote Server
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Login required to use remote server service
+                  </p>
+                </div>
+                <Switch checked={false} disabled={true} />
+              </div>
+              <div className="mt-2 text-xs text-orange-600">
+                Please login to enable remote server. Currently using custom
+                API.
+              </div>
+            </div>
+          )}
+
+          {/* Custom API Settings - only show when not using remote server */}
+          {!(isUserLoggedIn && useRemoteStore) && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="endpoint"
+                  className="text-sm font-medium text-foreground"
+                >
+                  API Endpoint
+                </Label>
+                <Input
+                  id="endpoint"
+                  value={settings?.openai?.endpoint || ""}
+                  onChange={(e) =>
+                    handleOpenAIChange("endpoint", e.target.value)
+                  }
+                  placeholder="https://api.openai.com/v1"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="apiKey"
+                  className="text-sm font-medium text-foreground"
+                >
+                  API Key
+                </Label>
+                <Input
+                  id="apiKey"
+                  type="password"
+                  value={settings?.openai?.apiKey || ""}
+                  onChange={(e) => handleOpenAIChange("apiKey", e.target.value)}
+                  placeholder="sk-..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="modelId"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Model ID
+                </Label>
+                <Select
+                  value={settings?.openai?.modelId || ""}
+                  onValueChange={(value) => {
+                    setSelectedModelId(value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a model">
+                      {settings?.openai?.modelId || ""}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supportedModelIds.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Model Management */}
+              <div className="pt-4 border-t border-border">
+                <Label className="text-sm font-medium text-foreground mb-3 block">
+                  Manage Models
+                </Label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {supportedModelIds.map((model) => (
+                    <Badge
+                      key={model}
+                      variant="outline"
+                      className="flex items-center gap-1 px-2 py-1"
+                    >
+                      {model}
+                      <button
+                        className="hover:bg-destructive/20 ml-1 rounded-full"
+                        onClick={() => handleRemoveModel(model)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="Add a new model ID"
+                      value={newModelInput}
+                      onChange={(e) => setNewModelInput(e.target.value)}
+                      onFocus={() => setShowDropdown(true)}
+                      onBlur={() => {
+                        setTimeout(() => setShowDropdown(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newModelInput.trim()) {
+                          handleAddModel(newModelInput.trim());
+                          setNewModelInput("");
+                        }
+                      }}
+                      autoComplete="off"
+                    />
+                    {showDropdown && (
+                      <ul className="absolute z-10 mt-1 w-full bg-background rounded-md border border-border max-h-40 overflow-auto py-1">
+                        {filteredModels.length > 0 ? (
+                          filteredModels.map((model) => (
+                            <li
+                              key={model}
+                              onMouseDown={() => {
+                                handleAddModel(model);
+                                setNewModelInput("");
+                              }}
+                              className="relative flex items-center px-3 py-2 text-sm select-none cursor-pointer hover:bg-muted/50 transition-colors"
+                            >
+                              {model}
+                            </li>
+                          ))
+                        ) : (
+                          <li className="px-3 py-2 text-muted-foreground text-xs">
+                            No matching models found
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (newModelInput.trim()) {
+                        handleAddModel(newModelInput.trim());
+                        setNewModelInput("");
+                      }
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      <div>
-        <ShortcutsSection
-          settings={settings}
-          activeShortcut={activeShortcut}
-          recordingShortcut={recordingShortcut}
-          shortcutInputRef={
-            shortcutInputRef as React.RefObject<HTMLButtonElement>
-          }
-          onStartRecording={startRecording}
-          onResetShortcuts={handleResetShortcuts}
-        />
+        {/* Keyboard Shortcuts Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium text-foreground">
+              Keyboard Shortcuts
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetShortcuts}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+          </div>
+
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {settings?.shortcuts
+              ?.filter((s) => ["activate", "open_settings"].includes(s.id))
+              .map((shortcut) => (
+                <div
+                  key={shortcut.id}
+                  className="flex items-center justify-between p-4"
+                >
+                  <div>
+                    <h4 className="font-medium text-foreground">
+                      {shortcut.name}
+                    </h4>
+                  </div>
+                  <button
+                    ref={
+                      activeShortcut === shortcut.id
+                        ? shortcutInputRef
+                        : undefined
+                    }
+                    onClick={() => startRecording(shortcut.id)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded transition-all ${
+                      activeShortcut === shortcut.id
+                        ? "bg-primary/20 text-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                    style={{ minWidth: "120px", textAlign: "center" }}
+                  >
+                    {activeShortcut === shortcut.id ? (
+                      <span className="flex items-center justify-center">
+                        {recordingShortcut || "Press keys..."}
+                      </span>
+                    ) : (
+                      <kbd className="font-mono">{shortcut.shortcut}</kbd>
+                    )}
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
       </div>
     </div>
   );
