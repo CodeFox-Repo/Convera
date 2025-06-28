@@ -32,6 +32,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [editorContent, setEditorContent] = useState("");
     const [isDragging, setIsDragging] = useState(false);
+    const previousInputRef = useRef<string>("");
 
     // Get state and methods from context and stores
     const {
@@ -48,10 +49,41 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       openHistoryWindow,
       attachments,
       addAttachments,
+      speechState,
     } = useChatContext();
 
     const { selectedModelId, setSelectedModelId } = useModelStore();
     const { formatAppName } = usePreviousApp();
+
+    // Watch for speech input changes and update editor directly
+    useEffect(() => {
+      // Check if input has changed and is non-empty
+      if (input !== previousInputRef.current && input.trim()) {
+        const editorCurrentText = editorRef.current?.getText() || "";
+
+        // If the input is different from what's currently in the editor
+        if (input.trim() !== editorCurrentText.trim()) {
+          console.log("🎤 Speech input detected, updating editor:", input);
+
+          // Force editor to update with new content
+          if (editorRef.current) {
+            // Use the setInput method to update the editor
+            const currentRef =
+              ref as React.MutableRefObject<ChatInputRef | null>;
+            if (currentRef?.current) {
+              currentRef.current.setInput(input);
+            } else {
+              // Fallback: directly manipulate the editor
+              editorRef.current.clearContent();
+              setTimeout(() => {
+                setEditorContent(input);
+              }, 10);
+            }
+          }
+        }
+      }
+      previousInputRef.current = input;
+    }, [input, ref]);
 
     // Expose methods to parent components
     useImperativeHandle(ref, () => ({
@@ -62,6 +94,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         return editorRef.current?.getText() || "";
       },
       setInput: (content: string) => {
+        console.log("🎯 setInput called with:", content);
         if (editorRef.current) {
           // Clear content first
           editorRef.current.clearContent();
@@ -71,11 +104,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             // Update parent's input state
             setInput(content);
 
-            // Update local state
-            if (editorRef.current) {
-              setEditorContent(editorRef.current.getText());
-            }
-          }, 0);
+            // Force editor content update by setting editorContent state
+            setEditorContent(content);
+          }, 10);
         }
       },
       editor: editorRef.current,
@@ -84,9 +115,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     // Handle editor content change
     const handleEditorChange = (content: string) => {
       setInput(content);
-      if (editorRef.current) {
-        setEditorContent(editorRef.current.getText());
-      }
+      setEditorContent(content);
     };
 
     // Handle file upload via button
@@ -218,7 +247,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <div className="drag-region mb-2 w-full flex-1 px-2">
               <TiptapEditor
                 ref={editorRef}
-                content={input}
+                content={editorContent || input}
                 onChange={handleEditorChange}
                 placeholder={placeholder}
                 disabled={isLoading}

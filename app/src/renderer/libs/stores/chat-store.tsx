@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   GenericError,
   parseApiError,
 } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
-import { AppSettings } from "@/shared/types/settings";
-import { useChat } from "@ai-sdk/react";
-import { Attachment, Message, UIMessage } from "ai";
+import { Message } from "ai";
+import { useChat } from "ai/react";
 import React, {
   createContext,
   useCallback,
@@ -15,6 +16,7 @@ import React, {
   useState,
 } from "react";
 import { useChatHistory } from "../hooks/use-chat-history";
+import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { useAgentStore } from "./agent-store";
 import { useModelStore } from "./model-store";
 
@@ -51,29 +53,48 @@ interface ChatContextType {
   openSettings: () => void;
   openHistoryWindow: () => void;
   isVoiceInputActive: boolean;
+
+  // Speech-to-text state
+  speechState: {
+    isRecording: boolean;
+    isLoading: boolean;
+    error: string | null;
+  };
 }
 
-// Message with optional experimental_attachments
+interface UIMessage extends Message {
+  experimental_attachments?: Attachment[];
+}
+
+interface Attachment {
+  url: string;
+  name: string;
+  contentType: string;
+}
+
 interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
 }
 
-const ChatContext = createContext<ChatContextType | null>(null);
+const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [copiedContent, setCopiedContent] = useState<string | null>(null);
-  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [copiedContent, setCopiedContent] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
   const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
+
+  // Initialize speech-to-text hook
+  const speechToText = useSpeechToText();
 
   // Load settings asynchronously
   useEffect(() => {
@@ -132,12 +153,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const addAttachments = useCallback((files: File | File[]) => {
+    const fileArray = Array.isArray(files) ? files : [files];
+
     setAttachments((prev) => {
-      if (Array.isArray(files)) {
-        return [...prev, ...files];
-      } else {
-        return [...prev, files];
-      }
+      const newFiles = fileArray.filter((file) => {
+        return !prev.some(
+          (existingFile) =>
+            existingFile.name === file.name &&
+            existingFile.size === file.size &&
+            existingFile.lastModified === file.lastModified,
+        );
+      });
+      return [...prev, ...newFiles];
     });
   }, []);
 
@@ -277,9 +304,48 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setInput("");
   }, [resetChat, setInput]);
 
-  const handleVoiceInput = useCallback(() => {
-    setIsVoiceInputActive((prev) => !prev);
-  }, []);
+  // Enhanced voice input functionality with speech-to-text
+  const handleVoiceInput = useCallback(async () => {
+    try {
+      // Toggle voice input state
+      setIsVoiceInputActive((prev) => !prev);
+
+      if (speechToText.isRecording) {
+        // Stop recording and get transcript
+        const transcript = await speechToText.stopRecording();
+
+        if (transcript.trim()) {
+          // Add transcript to current input (append or replace based on preference)
+          const currentInput = chatAPI.input.trim();
+          const newInput = currentInput
+            ? `${currentInput} ${transcript}`
+            : transcript;
+
+          setInput(newInput);
+        }
+      } else {
+        // Start recording with default configuration
+        const config: SpeechConfig = {
+          languageCode: "en-US",
+          alternativeLanguageCodes: ["cmn-Hans-CN", "es-ES", "fr-FR"],
+          enableSpeakerDiarization: false,
+          model: "latest_long",
+        };
+
+        // Create interim result callback to update input in real-time
+        const onInterimResult = (interimText: string) => {
+          console.log("🎤 Interim result:", interimText);
+          // Update input with interim text (replace current content)
+          setInput(interimText);
+        };
+
+        await speechToText.startRecording(config, onInterimResult);
+      }
+    } catch (error) {
+      console.error("Voice input error:", error);
+      setIsVoiceInputActive(false);
+    }
+  }, [speechToText, setInput]);
 
   const openSettings = useCallback(() => {
     window.electronAPI.toggleWindow("settings").catch((error) => {
@@ -316,7 +382,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     handleVoiceInput,
     openSettings,
     openHistoryWindow,
-    isVoiceInputActive,
+    isVoiceInputActive: speechToText.isRecording || isVoiceInputActive,
+    speechState: {
+      isRecording: speechToText.isRecording,
+      isLoading: speechToText.isLoading,
+      error: speechToText.error,
+    },
   };
 
   // Show loading state if settings are not loaded yet

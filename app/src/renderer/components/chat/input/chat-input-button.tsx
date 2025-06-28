@@ -1,10 +1,12 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import {
   Bot,
   History,
   LucideIcon,
   Mic,
+  MicOff,
   Monitor,
   Send,
   Settings,
@@ -58,6 +60,9 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const hookData = { previousApp, formatAppName };
   const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
     useAgentStore();
+
+  // Get speech state from chat context
+  const { speechState, handleVoiceInput } = useChatContext();
 
   useEffect(() => {
     const unsubscribe = subscribeToAgentChanges();
@@ -130,6 +135,34 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const defaultButtonClassName =
     "no-drag-region text-foreground/70 hover:text-foreground";
 
+  // Determine mic button state and styling
+  const getMicButtonProps = () => {
+    if (speechState.isRecording) {
+      return {
+        Icon: MicOff,
+        className:
+          "no-drag-region bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-600 active:bg-red-500/40 mr-3 rounded-full p-1.5 animate-pulse",
+        title: "Stop recording (click to stop and transcribe)",
+      };
+    } else if (speechState.error) {
+      return {
+        Icon: Mic,
+        className:
+          "no-drag-region bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 mr-3 rounded-full p-1.5",
+        title: `Speech error: ${speechState.error}. Click to try again.`,
+      };
+    } else {
+      return {
+        Icon: Mic,
+        className:
+          "no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5",
+        title: "Start voice input (speech-to-text)",
+      };
+    }
+  };
+
+  const micButtonProps = getMicButtonProps();
+
   return (
     <div className="ml-2 drag-region flex min-h-[30px] items-center justify-between">
       {/* Left icons and elements */}
@@ -176,12 +209,16 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
 
       {/* Right side - Mic and Send buttons */}
       <div className="flex shrink-0 items-center mr-2">
+        {/* Enhanced Mic Button with Speech State */}
         <button
-          onClick={props.onVoiceInput}
-          className="no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5"
+          onClick={handleVoiceInput}
+          className={micButtonProps.className}
+          title={micButtonProps.title}
+          disabled={speechState.isLoading}
         >
-          <Mic size={16} />
+          <micButtonProps.Icon size={16} />
         </button>
+
         {props.isLoading && props.onStopGeneration ? (
           <button
             onClick={props.onStopGeneration}

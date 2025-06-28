@@ -98,19 +98,6 @@ router.post(
         );
       }
 
-      // Test authentication first
-      const authOk = await testSpeechAuth();
-      if (!authOk) {
-        return c.json(
-          {
-            status: "error",
-            message:
-              "Google Cloud Speech authentication failed. Please check your API key configuration.",
-          },
-          401,
-        );
-      }
-
       const sessionId = generateSessionId();
 
       // Initialize Google Cloud Speech client

@@ -1,7 +1,7 @@
-import React, { useEffect, useImperativeHandle, forwardRef } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import React, { forwardRef, useEffect, useImperativeHandle } from "react";
 
 export interface TiptapEditorProps {
   content: string;
