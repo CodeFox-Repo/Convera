@@ -2,6 +2,7 @@
  * Hono server for handling chat API requests with OpenAI
  */
 import { serve } from "@hono/node-server";
+import "dotenv/config"; // Load environment variables from .env file
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { initializeAgents } from "./agents";
@@ -9,6 +10,7 @@ import agentRouter from "./api/agent";
 import appRouter from "./api/app";
 import chatRouter from "./api/chat";
 import mcpRouter from "./api/mcp";
+import speechRouter from "./api/speech";
 import toolsRouter from "./api/tools";
 import { initializeMCP, startMCPServers } from "./mcp";
 
@@ -28,6 +30,7 @@ function startChatServer() {
   app.route("/", appRouter);
   app.route("/", chatRouter);
   app.route("/", mcpRouter);
+  app.route("/", speechRouter);
   app.route("/", toolsRouter);
 
   initializeAgents()
@@ -51,6 +54,7 @@ function startChatServer() {
   const server = serve({ fetch: app.fetch, port: PORT });
   console.log(`Chat server running on port ${PORT}`);
   console.log(`Chat API endpoint: http://localhost:${PORT}/api/chat`);
+  console.log(`Speech API endpoint: http://localhost:${PORT}/api/speech`);
   console.log(`Health check endpoint: http://localhost:${PORT}/api/health`);
 
   return server;
