@@ -15,7 +15,7 @@ import { getApiBaseUrl } from "../env";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { getSettings, updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
-import { useChatHistory, useChatHistoryStore } from "./chat-history-store";
+import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -247,9 +247,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Integrate the useChatHistory hook
   const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
-
-  // Get chat history store for refreshing
-  const chatHistoryStore = useChatHistoryStore();
 
   // Handle conversation selection from history
   useEffect(() => {
