@@ -128,14 +128,17 @@ export function MCPManagement() {
         [formData.serverId || "server-id"]: {
           ...(formData.name && { name: formData.name }),
           ...(formData.command && { command: formData.command }),
-          ...(formData.args && { 
-            args: formData.args.split(",").map(arg => arg.trim()).filter(Boolean)
+          ...(formData.args && {
+            args: formData.args
+              .split(",")
+              .map((arg) => arg.trim())
+              .filter(Boolean),
           }),
           ...(formData.url && { url: formData.url }),
           ...(formData.apiKey && { apiKey: formData.apiKey }),
           ...(formData.description && { description: formData.description }),
-        }
-      }
+        },
+      },
     };
     return JSON.stringify(config, null, 2);
   }, [formData]);
@@ -144,11 +147,11 @@ export function MCPManagement() {
   const parseJsonToForm = (jsonStr: string, silent = false) => {
     try {
       const parsed = JSON.parse(jsonStr);
-      
+
       // Support both formats: direct config or mcpServers wrapper
       let serverConfig;
       let serverId;
-      
+
       if (parsed.mcpServers) {
         // Extract first server from mcpServers format
         const serverKeys = Object.keys(parsed.mcpServers);
@@ -161,15 +164,15 @@ export function MCPManagement() {
         serverConfig = parsed;
         serverId = formData.serverId;
       }
-      
+
       if (serverConfig) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           ...(serverId && { serverId }),
           ...(serverConfig.name && { name: serverConfig.name }),
           ...(serverConfig.command && { command: serverConfig.command }),
-          ...(serverConfig.args && { 
-            args: Array.isArray(serverConfig.args) ? serverConfig.args.join(", ") : ""
+          ...(serverConfig.args && {
+            args: Array.isArray(serverConfig.args) ? serverConfig.args.join(", ") : "",
           }),
           ...(serverConfig.url && { url: serverConfig.url }),
           ...(serverConfig.apiKey && { apiKey: serverConfig.apiKey }),
@@ -198,18 +201,19 @@ export function MCPManagement() {
 
     // Validate file type
     const allowedTypes = [
-      'image/jpeg',
-      'image/jpg', 
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/svg+xml'
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
     ];
-    
-    const isValidImageType = file.type.startsWith("image/") || 
-                           allowedTypes.includes(file.type) ||
-                           file.name.toLowerCase().endsWith('.svg');
-    
+
+    const isValidImageType =
+      file.type.startsWith("image/") ||
+      allowedTypes.includes(file.type) ||
+      file.name.toLowerCase().endsWith(".svg");
+
     if (!isValidImageType) {
       toast({
         title: "Error",
@@ -232,11 +236,11 @@ export function MCPManagement() {
     // Store the file for later upload
     setIconFile(file);
     setHasUnsavedChanges(true);
-    
+
     // Create preview URL
     const previewUrl = URL.createObjectURL(file);
     setFormData((prev) => ({ ...prev, iconUrl: previewUrl }));
-    
+
     toast({
       title: "Success",
       description: "Image selected successfully",
@@ -301,7 +305,7 @@ export function MCPManagement() {
         formDataToSend.append("name", formData.name);
         formDataToSend.append("description", formData.description);
         formDataToSend.append("config", JSON.stringify(config));
-        
+
         // Add icon file if selected
         if (iconFile) {
           formDataToSend.append("icon", iconFile);
@@ -372,7 +376,6 @@ export function MCPManagement() {
       });
     }
   };
-
 
   // Reset form
   const resetForm = () => {
@@ -482,40 +485,101 @@ export function MCPManagement() {
   const importServers = async () => {
     try {
       const parsed = JSON.parse(jsonContent);
-      const mcpServers = parsed.mcpServers || parsed;
 
-      if (typeof mcpServers !== "object") {
-        throw new Error("Invalid JSON format");
+      interface ImportServerPayload {
+        serverId: string;
+        name: string;
+        description: string;
+        iconUrl?: string;
+        config: {
+          name: string;
+          command: string;
+          args: string[];
+          description: string;
+          url?: string;
+          apiKey?: string;
+        };
       }
 
-      const importPromises = Object.entries(mcpServers).map(async ([serverId, configData]) => {
-        const config = configData as {
-          name?: string;
-          description?: string;
-          command?: string;
-          args?: string[];
-          iconUrl?: string;
-        };
-        const payload = {
-          serverId,
-          name: config.name || serverId,
-          description: config.description || "",
-          iconUrl: config.iconUrl,
+      let serversToImport: ImportServerPayload[] = [];
+
+      // Handle array format (new format like the one provided)
+      if (Array.isArray(parsed)) {
+        serversToImport = parsed.map((server) => ({
+          serverId: server.id,
+          name: server.name,
+          description: server.description || "",
+          iconUrl: server.icon, // Note: this is the icon dataURL
           config: {
-            name: config.name || serverId,
-            command: config.command || "",
-            args: config.args || [],
-            description: config.description || "",
+            name: server.name,
+            command: server.config.command || "",
+            args: server.config.args || [],
+            description: server.description || "",
+            ...(server.config.url && { url: server.config.url }),
+            ...(server.config.apiKey && { apiKey: server.config.apiKey }),
           },
-        };
+        }));
+      }
+      // Handle object format (existing mcpServers format)
+      else {
+        const mcpServers = parsed.mcpServers || parsed;
+
+        if (typeof mcpServers !== "object") {
+          throw new Error("Invalid JSON format");
+        }
+
+        serversToImport = Object.entries(mcpServers).map(([serverId, configData]) => {
+          const config = configData as {
+            name?: string;
+            description?: string;
+            command?: string;
+            args?: string[];
+            iconUrl?: string;
+            url?: string;
+            apiKey?: string;
+          };
+
+          return {
+            serverId,
+            name: config.name || serverId,
+            description: config.description || "",
+            iconUrl: config.iconUrl,
+            config: {
+              name: config.name || serverId,
+              command: config.command || "",
+              args: config.args || [],
+              description: config.description || "",
+              ...(config.url && { url: config.url }),
+              ...(config.apiKey && { apiKey: config.apiKey }),
+            },
+          };
+        });
+      }
+
+      const importPromises = serversToImport.map(async (payload) => {
+        // Create FormData for each server (following the same pattern as saveServer)
+        const formDataToSend = new FormData();
+        formDataToSend.append("serverId", payload.serverId);
+        formDataToSend.append("name", payload.name);
+        formDataToSend.append("description", payload.description);
+        formDataToSend.append("config", JSON.stringify(payload.config));
+
+        // Handle base64 icon data if present
+        if (payload.iconUrl && payload.iconUrl.startsWith("data:")) {
+          try {
+            // Convert base64 dataURL to blob
+            const response = await fetch(payload.iconUrl);
+            const blob = await response.blob();
+            formDataToSend.append("icon", blob, "icon.png");
+          } catch (error) {
+            console.warn(`Failed to process icon for ${payload.serverId}:`, error);
+          }
+        }
 
         return fetch(`${baseURL}/api/app`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           credentials: "include",
-          body: JSON.stringify(payload),
+          body: formDataToSend,
         });
       });
 
@@ -690,9 +754,7 @@ export function MCPManagement() {
           <DialogContent className="max-w-6xl">
             <DialogHeader>
               <DialogTitle>{editingServer ? "Edit App MCP" : "Add New App MCP"}</DialogTitle>
-              <DialogDescription>
-                Configure an App MCP for the marketplace
-              </DialogDescription>
+              <DialogDescription>Configure an App MCP for the marketplace</DialogDescription>
             </DialogHeader>
 
             <div className="flex h-[600px] gap-6 py-4">
@@ -889,17 +951,18 @@ export function MCPManagement() {
                     parseJsonToForm(jsonConfigView, true);
                   }}
                   placeholder="Paste JSON configuration here or edit the generated config"
-                  className="h-[500px] font-mono text-sm resize-none"
+                  className="h-[500px] resize-none font-mono text-sm"
                 />
                 <p className="text-xs text-gray-500">
-                  JSON automatically syncs when you click outside. Use "Parse JSON" for manual parsing.
+                  JSON automatically syncs when you click outside. Use "Parse JSON" for manual
+                  parsing.
                 </p>
               </div>
             </div>
 
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   if (hasUnsavedChanges) {
                     setShowConfirmDialog(true);
@@ -922,9 +985,7 @@ export function MCPManagement() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>App MCP Marketplace</CardTitle>
-              <CardDescription>
-                View and manage App MCP available for users
-              </CardDescription>
+              <CardDescription>View and manage App MCP available for users</CardDescription>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Cpu className="h-4 w-4" />
@@ -955,9 +1016,7 @@ export function MCPManagement() {
                         <Cpu className="h-6 w-6 text-gray-400" />
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-medium text-gray-900">
-                          No App MCP configured
-                        </p>
+                        <p className="text-sm font-medium text-gray-900">No App MCP configured</p>
                         <p className="mt-1 text-sm text-gray-500">
                           Get started by adding your first App MCP
                         </p>
