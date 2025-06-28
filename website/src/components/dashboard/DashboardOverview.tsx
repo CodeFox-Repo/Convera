@@ -1,7 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { baseURL } from "@/lib/api-client";
-import { Mail, Shield, TrendingUp, Users } from "lucide-react";
+import { Mail, Shield, TrendingUp, Users, Cpu } from "lucide-react";
 import { useEffect, useState } from "react";
+
+interface MCPServer {
+  id: string;
+  enabled: boolean;
+}
 
 interface DashboardStats {
   totalUsers: number;
@@ -14,6 +19,10 @@ interface DashboardStats {
     date: string;
     count: number;
   }>;
+  mcpServers?: {
+    total: number;
+    enabled: number;
+  };
 }
 
 interface DashboardOverviewProps {
@@ -26,13 +35,27 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${baseURL}/api/users/stats`, {
-        credentials: "include",
-      });
+      const [userResponse, mcpResponse] = await Promise.all([
+        fetch(`${baseURL}/api/users/stats`, {
+          credentials: "include",
+        }),
+        fetch(`${baseURL}/api/app`, {
+          credentials: "include",
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const mcpData = mcpResponse.ok ? await mcpResponse.json() : null;
+        
+        const mcpServers = mcpData?.data?.mcpServers || [];
+        setStats({
+          ...userData.stats,
+          mcpServers: {
+            total: mcpServers.length,
+            enabled: mcpServers.filter((s: MCPServer) => s.enabled).length,
+          },
+        });
       }
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -67,14 +90,13 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
         <p className="mt-1 text-gray-600">
           Welcome to your admin dashboard. Here's what's happening with your system.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -124,6 +146,19 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
             <p className="text-muted-foreground text-xs">Standard access</p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">App MCP</CardTitle>
+            <Cpu className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.mcpServers?.total || 0}</div>
+            <p className="text-muted-foreground text-xs">
+              {stats?.mcpServers?.enabled || 0} available
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quick Actions and Recent Activity */}
@@ -142,6 +177,16 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
               <div>
                 <div className="font-medium">Manage Users</div>
                 <div className="text-sm text-gray-500">View and edit user accounts</div>
+              </div>
+            </div>
+            <div
+              className="flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors hover:bg-gray-50"
+              onClick={() => onSectionChange?.("mcp")}
+            >
+              <Cpu className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="font-medium">App MCP</div>
+                <div className="text-sm text-gray-500">Manage App MCP marketplace</div>
               </div>
             </div>
           </CardContent>
