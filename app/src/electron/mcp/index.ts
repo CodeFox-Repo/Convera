@@ -102,7 +102,9 @@ export function getAllTools(): Array<{
 
   return globalHub
     .getAllServerStatuses()
-    .filter((server: ServerInfo) => server.status === ConnectionStatus.CONNECTED)
+    .filter(
+      (server: ServerInfo) => server.status === ConnectionStatus.CONNECTED,
+    )
     .map((server: ServerInfo) => ({
       serverName: server.name,
       tools: server.capabilities.tools,
@@ -132,14 +134,18 @@ export function getServerStatusSummary(): {
   const statuses = globalHub.getAllServerStatuses();
   return {
     total: statuses.length,
-    connected: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.CONNECTED)
-      .length,
+    connected: statuses.filter(
+      (s: ServerInfo) => s.status === ConnectionStatus.CONNECTED,
+    ).length,
     disconnected: statuses.filter(
       (s: ServerInfo) => s.status === ConnectionStatus.DISCONNECTED,
     ).length,
-    error: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.ERROR).length,
-    disabled: statuses.filter((s: ServerInfo) => s.status === ConnectionStatus.DISABLED)
-      .length,
+    error: statuses.filter(
+      (s: ServerInfo) => s.status === ConnectionStatus.ERROR,
+    ).length,
+    disabled: statuses.filter(
+      (s: ServerInfo) => s.status === ConnectionStatus.DISABLED,
+    ).length,
   };
 }
 

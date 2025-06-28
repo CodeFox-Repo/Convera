@@ -150,11 +150,14 @@ export function AccountSettingsPage() {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const uploadResponse = await fetch(`${getBaseUrl()}/api/users/avatar?uploadOnly=true`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const uploadResponse = await fetch(
+        `${getBaseUrl()}/api/users/avatar?uploadOnly=true`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
 
       if (!uploadResponse.ok) {
         throw new Error("Failed to upload file");

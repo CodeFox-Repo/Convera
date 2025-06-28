@@ -121,7 +121,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Debug: Log conversation ID changes
   useEffect(() => {
-    console.log("🔗 Frontend: currentConversationId changed to:", currentConversationId);
+    console.log(
+      "🔗 Frontend: currentConversationId changed to:",
+      currentConversationId,
+    );
   }, [currentConversationId]);
 
   // MCP Tools state - moved from separate store for simplicity
@@ -153,7 +156,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
     loadSettings();
   }, []);
-
 
   // Check login status on mount and update remote store accordingly
   useEffect(() => {
@@ -229,7 +231,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     onFinish: async () => {
       // Temporarily disabled auto-refresh to debug message sending
       console.log("✅ Frontend: Message completed successfully");
-      console.log("🔗 Frontend: Current conversation ID:", currentConversationId);
+      console.log(
+        "🔗 Frontend: Current conversation ID:",
+        currentConversationId,
+      );
     },
   });
 
@@ -242,7 +247,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Integrate the useChatHistory hook
   const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
-  
+
   // Get chat history store for refreshing
   const chatHistoryStore = useChatHistoryStore();
 
@@ -481,7 +486,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Generate conversation ID if this is the first message
       let conversationIdToUse = currentConversationId;
-      
+
       if (!conversationIdToUse) {
         conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         setCurrentConversationId(conversationIdToUse);
@@ -589,7 +594,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const stopGeneration = useCallback(() => {
-    if (chatAPI.status === 'streaming' || chatAPI.status === 'submitted') {
+    if (chatAPI.status === "streaming" || chatAPI.status === "submitted") {
       chatAPI.stop();
     }
   }, [chatAPI]);
@@ -621,7 +626,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const regenerateMessage = useCallback(() => {
-    if (chatAPI.status === 'ready' || chatAPI.status === 'error') {
+    if (chatAPI.status === "ready" || chatAPI.status === "error") {
       chatAPI.reload();
     }
   }, [chatAPI]);
@@ -664,7 +669,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
-    isLoading: chatAPI.status === 'streaming' || chatAPI.status === 'submitted',
+    isLoading: chatAPI.status === "streaming" || chatAPI.status === "submitted",
     error: chatAPI.error,
     copiedContent,
     attachments,

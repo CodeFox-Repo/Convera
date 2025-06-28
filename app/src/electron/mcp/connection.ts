@@ -35,7 +35,6 @@ import { app } from "electron";
 import { EventEmitter } from "events";
 import * as path from "path";
 
-
 /**
  * MCPConnection manages a single MCP server connection in Electron
  * Handles transport setup, authentication, and capability management
