@@ -96,10 +96,6 @@ export function UserManagement() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="mt-1 text-gray-600">Loading users...</p>
-        </div>
         <Card>
           <CardContent className="p-6">
             <div className="animate-pulse space-y-4">
@@ -115,13 +111,6 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-        <p className="mt-1 text-gray-600">
-          Manage user accounts and permissions across your system.
-        </p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>All Users</CardTitle>
