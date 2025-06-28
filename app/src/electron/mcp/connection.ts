@@ -673,6 +673,7 @@ export class MCPConnection extends EventEmitter {
       uptime: this.getUptime(),
       lastStarted: this.lastStarted || undefined,
       authorizationUrl: this.authorizationUrl,
+      isApp: this.config.isApp, // Include the isApp flag from config
     };
   }
 

@@ -3,7 +3,7 @@
 // Connection status constants (from connection.ts)
 export const ConnectionStatus = {
   CONNECTED: "connected",
-  CONNECTING: "connecting", 
+  CONNECTING: "connecting",
   DISCONNECTED: "disconnected",
   UNAUTHORIZED: "unauthorized",
   DISABLED: "disabled",
@@ -26,6 +26,7 @@ export interface MCPServerConfig {
   url?: string;
   apiKey?: string;
   description?: string;
+  isApp?: boolean;
 }
 
 export interface MCPConfig {
@@ -75,6 +76,7 @@ export interface ServerInfo {
   uptime: number;
   lastStarted?: string;
   authorizationUrl?: string;
+  isApp?: boolean;
 }
 
 export interface ConnectionError extends Error {
