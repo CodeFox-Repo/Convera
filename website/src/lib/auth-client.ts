@@ -1,7 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 
 // Determine the correct base URL based on environment
-const getBaseURL = () => {
+export const getBaseURL = () => {
   // If explicitly set to production-dev, use production API
   if (process.env.NODE_ENV === "production-dev") {
     return "https://api.foxychat.net";
