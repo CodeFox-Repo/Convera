@@ -89,18 +89,17 @@ export class MCPHub extends EventEmitter {
   async initialize(): Promise<void> {
     const servers = Object.entries(this.config.mcpServers);
 
-    for (const [name, serverConfig] of servers) {
-      if (serverConfig.enabled !== false) {
-        try {
-          await this.connectServer(name, serverConfig);
-        } catch (error) {
+    // Start all connections concurrently without waiting for completion
+    // This avoids blocking initialization on slow/failing connections
+    servers
+      .filter(([, serverConfig]) => serverConfig.enabled !== false)
+      .forEach(([name, serverConfig]) => {
+        this.connectServer(name, serverConfig).catch((error) => {
           console.error(`✗ Failed to connect MCP server ${name}:`, error);
-        }
-      }
-    }
+        });
+      });
 
-    // Update tool cache after all servers are initialized
-    this.updateToolCache();
+    console.log(`MCP initialization started for ${servers.length} servers`);
   }
 
   /**
