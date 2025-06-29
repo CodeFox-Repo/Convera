@@ -144,13 +144,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           "no-drag-region bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-600 active:bg-red-500/40 mr-3 rounded-full p-1.5 animate-pulse",
         title: "Stop recording (click to stop and transcribe)",
       };
-    } else if (speechState.error) {
-      return {
-        Icon: Mic,
-        className:
-          "no-drag-region bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 mr-3 rounded-full p-1.5",
-        title: `Speech error: ${speechState.error}. Click to try again.`,
-      };
     } else {
       return {
         Icon: Mic,
