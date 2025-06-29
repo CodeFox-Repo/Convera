@@ -90,6 +90,19 @@ export async function callTool(
 }
 
 /**
+ * Simplified MCP tool call - finds first server with tool name
+ */
+export async function mcpToolCall(
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  if (!globalHub) {
+    throw new Error("MCP Hub not initialized");
+  }
+  return globalHub.mcpToolCall(toolName, args);
+}
+
+/**
  * Get all available tools from all servers
  */
 export function getAllTools(): Array<{

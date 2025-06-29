@@ -225,8 +225,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
     },
-    onToolCall: (toolCall) => {
-      console.log("🔍 Tool call:", toolCall);
+    onToolCall: async ({ toolCall }) => {
+      // Use simplified MCP tool call that finds first server with the tool
+      const result = await window.mcpAPI.mcpToolCall(
+        toolCall.toolName,
+        toolCall.args as Record<string, unknown>,
+      );
+
+      return result.data;
     },
     onFinish: async () => {
       // Temporarily disabled auto-refresh to debug message sending

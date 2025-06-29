@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { MCPConnection } from "./connection";
+import { MCPConnectionAI as MCPConnection } from "./connection-ai";
 
 /**
  * MCPHub - Clean MCP connection manager
@@ -13,6 +13,7 @@ export class MCPHub extends EventEmitter {
   private connections: Map<string, MCPConnection> = new Map();
   private config: MCPConfig;
   private configPath: string;
+  private allToolNames: Set<string> = new Set();
 
   constructor(configPath?: string) {
     super();
@@ -60,24 +61,48 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
+   * Update tool names cache from all connected servers
+   */
+  private updateToolCache(): void {
+    this.allToolNames.clear();
+    
+    for (const connection of this.connections.values()) {
+      const serverInfo = connection.getServerInfo();
+      if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
+        serverInfo.capabilities.tools.forEach(tool => {
+          this.allToolNames.add(tool.name);
+        });
+      }
+    }
+    
+  }
+
+  /**
+   * Check if a tool exists in any connected server
+   */
+  public hasToolAvailable(toolName: string): boolean {
+    return this.allToolNames.has(toolName);
+  }
+
+
+  /**
    * Initialize and start all enabled servers
    */
   async initialize(): Promise<void> {
     const servers = Object.entries(this.config.mcpServers);
-    console.log(`Initializing ${servers.length} MCP servers`);
 
     for (const [name, serverConfig] of servers) {
       if (serverConfig.enabled !== false) {
         try {
           await this.connectServer(name, serverConfig);
-          console.log(`✓ Connected MCP server: ${name}`);
         } catch (error) {
           console.error(`✗ Failed to connect MCP server ${name}:`, error);
         }
-      } else {
-        console.log(`- Skipped disabled MCP server: ${name}`);
       }
     }
+    
+    // Update tool cache after all servers are initialized
+    this.updateToolCache();
   }
 
   /**
@@ -106,6 +131,9 @@ export class MCPHub extends EventEmitter {
     this.connections.set(name, connection);
     await connection.connect();
 
+    // Update tool cache when a server connects
+    this.updateToolCache();
+
     return connection.getServerInfo();
   }
 
@@ -121,6 +149,9 @@ export class MCPHub extends EventEmitter {
         console.error(`Error disconnecting server ${name}:`, error);
       }
       this.connections.delete(name);
+      
+      // Update tool cache when a server disconnects
+      this.updateToolCache();
     }
   }
 
@@ -139,7 +170,12 @@ export class MCPHub extends EventEmitter {
       return await this.connectServer(name, config);
     }
 
-    return await connection.start();
+    const result = await connection.start();
+    
+    // Update tool cache when server starts
+    this.updateToolCache();
+    
+    return result;
   }
 
   /**
@@ -151,7 +187,12 @@ export class MCPHub extends EventEmitter {
       throw new Error(`Server '${name}' not found`);
     }
 
-    return await connection.stop();
+    const result = await connection.stop();
+    
+    // Update tool cache when server stops
+    this.updateToolCache();
+    
+    return result;
   }
 
   /**
@@ -242,6 +283,34 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
+   * Simplified tool call method - finds first server with the tool name
+   * Returns null if tool is not found, so caller can decide what to do
+   */
+  async mcpToolCall(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+    // Quick check: if tool doesn't exist in cache, return null (not an MCP tool)
+    if (!this.hasToolAvailable(toolName)) {
+      return null;
+    }
+
+    // Find the first connected server that has this tool
+    for (const [serverName, connection] of this.connections) {
+      const serverInfo = connection.getServerInfo();
+      if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
+        const hasTool = serverInfo.capabilities.tools.some(tool => tool.name === toolName);
+        if (hasTool) {
+          try {
+            return await connection.callTool(toolName, args);
+          } catch (error) {
+            return `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          }
+        }
+      }
+    }
+    
+    return null; // Tool not found, let caller handle it
+  }
+
+  /**
    * Read resource
    */
   async readResource(serverName: string, uri: string): Promise<unknown> {
@@ -298,9 +367,7 @@ export class MCPHub extends EventEmitter {
    * Clean up resources
    */
   async cleanup(): Promise<void> {
-    console.log("Cleaning up MCP Hub...");
     await this.disconnectAll();
-    console.log("MCP Hub cleanup completed");
   }
 
   /**

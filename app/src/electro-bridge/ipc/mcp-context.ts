@@ -140,6 +140,24 @@ export function setupMCPIPC() {
     },
   );
 
+  // Simplified tool call - finds first server with the tool
+  ipcMain.handle(
+    "mcp:mcpToolCall",
+    async (_, toolName: string, args: Record<string, unknown>) => {
+      try {
+        const hub = getMCPHub();
+        if (!hub) {
+          return { success: false, error: "MCP Hub not initialized" };
+        }
+
+        const result = await hub.mcpToolCall(toolName, args);
+        return { success: true, data: result };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    },
+  );
+
   console.log("MCP IPC handlers registered");
 }
 
@@ -165,5 +183,7 @@ export function exposeMCPContext() {
       toolName: string,
       args: Record<string, unknown>,
     ) => ipcRenderer.invoke("mcp:callTool", serverId, toolName, args),
+    mcpToolCall: (toolName: string, args: Record<string, unknown>) =>
+      ipcRenderer.invoke("mcp:mcpToolCall", toolName, args),
   });
 }

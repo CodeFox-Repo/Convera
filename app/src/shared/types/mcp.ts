@@ -36,7 +36,14 @@ export interface MCPConfig {
 export interface ToolDefinition {
   name: string;
   description?: string;
+  inputSchema?: Record<string, unknown>;
   parameters?: Record<string, unknown>;
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    openWorldHint?: boolean;
+  };
 }
 
 export interface ResourceDefinition {
@@ -112,6 +119,12 @@ export interface IMcpAPI {
   // Tool operations
   callTool(
     serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<MCPIPCResponse<unknown>>;
+
+  // Simplified tool call - finds first server with the tool
+  mcpToolCall(
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<MCPIPCResponse<unknown>>;
