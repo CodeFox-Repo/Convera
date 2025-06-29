@@ -65,19 +65,19 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           // Append voice input to existing content
           if (editorRef.current) {
             const newContent = editorCurrentText.trim()
-              ? `${editorCurrentText.trim()} ${input.trim()}`
+              ? ` ${input.trim()}`
               : input.trim();
 
-            // Use the setInput method to update the editor with combined content
-            const currentRef = ref as React.RefObject<ChatInputRef | null>;
-            if (currentRef?.current) {
-              currentRef.current.setInput(newContent);
+            // If the editor is focused, insert content at the current position
+            if (editorRef.current.isFocused()) {
+              editorRef.current.insertContent(newContent);
             } else {
-              // Fallback: directly manipulate the editor
-              editorRef.current.clearContent();
-              setTimeout(() => {
-                setEditorContent(newContent);
-              }, 10);
+              // Otherwise, use the setInput method to update the editor
+              const currentRef = ref as React.RefObject<ChatInputRef | null>;
+              if (currentRef?.current) {
+                const combinedContent = `${editorCurrentText}${newContent}`;
+                currentRef.current.setInput(combinedContent);
+              }
             }
           }
         }

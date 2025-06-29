@@ -17,6 +17,8 @@ export interface TiptapEditorRef {
   clearContent: () => void;
   getHTML: () => string;
   getText: () => string;
+  insertContent: (text: string) => void;
+  isFocused: () => boolean;
 }
 
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
@@ -80,6 +82,12 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       },
       getText: () => {
         return editor?.getText() || "";
+      },
+      insertContent: (text: string) => {
+        editor?.commands.insertContent(text);
+      },
+      isFocused: () => {
+        return editor?.isFocused || false;
       },
     }));
 
