@@ -62,20 +62,22 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
         // If the input is different from what's currently in the editor
         if (input.trim() !== editorCurrentText.trim()) {
-          console.log("🎤 Speech input detected, updating editor:", input);
-
-          // Force editor to update with new content
+          // Append voice input to existing content
           if (editorRef.current) {
-            // Use the setInput method to update the editor
+            const newContent = editorCurrentText.trim()
+              ? `${editorCurrentText.trim()} ${input.trim()}`
+              : input.trim();
+
+            // Use the setInput method to update the editor with combined content
             const currentRef =
               ref as React.MutableRefObject<ChatInputRef | null>;
             if (currentRef?.current) {
-              currentRef.current.setInput(input);
+              currentRef.current.setInput(newContent);
             } else {
               // Fallback: directly manipulate the editor
               editorRef.current.clearContent();
               setTimeout(() => {
-                setEditorContent(input);
+                setEditorContent(newContent);
               }, 10);
             }
           }
