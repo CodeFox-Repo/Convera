@@ -208,7 +208,9 @@ export function AppSettingsPage() {
       app.name.toLowerCase().includes(searchLower) ||
       app.description.toLowerCase().includes(searchLower) ||
       app.author?.name.toLowerCase().includes(searchLower) ||
-      app.keywords?.some(keyword => keyword.toLowerCase().includes(searchLower));
+      app.keywords?.some((keyword) =>
+        keyword.toLowerCase().includes(searchLower),
+      );
 
     const matchesCategory =
       selectedCategory === "all" || getAppCategory(app) === selectedCategory;

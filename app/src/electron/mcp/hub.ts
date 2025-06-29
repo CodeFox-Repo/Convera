@@ -65,16 +65,15 @@ export class MCPHub extends EventEmitter {
    */
   private updateToolCache(): void {
     this.allToolNames.clear();
-    
+
     for (const connection of this.connections.values()) {
       const serverInfo = connection.getServerInfo();
       if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
-        serverInfo.capabilities.tools.forEach(tool => {
+        serverInfo.capabilities.tools.forEach((tool) => {
           this.allToolNames.add(tool.name);
         });
       }
     }
-    
   }
 
   /**
@@ -83,7 +82,6 @@ export class MCPHub extends EventEmitter {
   public hasToolAvailable(toolName: string): boolean {
     return this.allToolNames.has(toolName);
   }
-
 
   /**
    * Initialize and start all enabled servers
@@ -100,7 +98,7 @@ export class MCPHub extends EventEmitter {
         }
       }
     }
-    
+
     // Update tool cache after all servers are initialized
     this.updateToolCache();
   }
@@ -149,7 +147,7 @@ export class MCPHub extends EventEmitter {
         console.error(`Error disconnecting server ${name}:`, error);
       }
       this.connections.delete(name);
-      
+
       // Update tool cache when a server disconnects
       this.updateToolCache();
     }
@@ -171,10 +169,10 @@ export class MCPHub extends EventEmitter {
     }
 
     const result = await connection.start();
-    
+
     // Update tool cache when server starts
     this.updateToolCache();
-    
+
     return result;
   }
 
@@ -188,10 +186,10 @@ export class MCPHub extends EventEmitter {
     }
 
     const result = await connection.stop();
-    
+
     // Update tool cache when server stops
     this.updateToolCache();
-    
+
     return result;
   }
 
@@ -286,7 +284,10 @@ export class MCPHub extends EventEmitter {
    * Simplified tool call method - finds first server with the tool name
    * Returns null if tool is not found, so caller can decide what to do
    */
-  async mcpToolCall(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+  async mcpToolCall(
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<unknown> {
     // Quick check: if tool doesn't exist in cache, return null (not an MCP tool)
     if (!this.hasToolAvailable(toolName)) {
       return null;
@@ -296,17 +297,19 @@ export class MCPHub extends EventEmitter {
     for (const connection of this.connections.values()) {
       const serverInfo = connection.getServerInfo();
       if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
-        const hasTool = serverInfo.capabilities.tools.some(tool => tool.name === toolName);
+        const hasTool = serverInfo.capabilities.tools.some(
+          (tool) => tool.name === toolName,
+        );
         if (hasTool) {
           try {
             return await connection.callTool(toolName, args);
           } catch (error) {
-            return `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            return `Tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`;
           }
         }
       }
     }
-    
+
     return null; // Tool not found, let caller handle it
   }
 

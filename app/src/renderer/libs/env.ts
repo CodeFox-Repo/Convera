@@ -3,8 +3,8 @@ export const isProduction = () => {
 };
 
 export const getBaseUrl = () => {
-  return "https://api.foxychat.net";
+  return "http://localhost:3001";
 };
 export const getApiBaseUrl = () => {
-  return "https://api.foxychat.net/api";
+  return "http://localhost:3001/api";
 };
