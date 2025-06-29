@@ -272,7 +272,7 @@ app.whenReady().then(async () => {
     initializeLogger();
 
     // Initialize MCP Hub
-    await initializeMCPHub();
+    initializeMCPHub();
     logger.info("MCP Hub initialization completed");
 
     logger.debug("Starting app focus tracking");
