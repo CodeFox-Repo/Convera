@@ -10,6 +10,9 @@ import {
   Plus,
   Search,
   Trash2,
+  Tag,
+  User,
+  Globe,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -20,6 +23,14 @@ interface App {
   description: string;
   iconUrl?: string;
   config: MCPServerConfig;
+  version?: string;
+  keywords?: string[];
+  author?: {
+    name: string;
+    url?: string;
+  };
+  fileType?: string;
+  fileContent?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -191,10 +202,13 @@ export function AppSettingsPage() {
 
   // Filter apps and separate installed/available
   const allFilteredApps = apps.filter((app) => {
+    const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
       searchQuery === "" ||
-      app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.description.toLowerCase().includes(searchQuery.toLowerCase());
+      app.name.toLowerCase().includes(searchLower) ||
+      app.description.toLowerCase().includes(searchLower) ||
+      app.author?.name.toLowerCase().includes(searchLower) ||
+      app.keywords?.some(keyword => keyword.toLowerCase().includes(searchLower));
 
     const matchesCategory =
       selectedCategory === "all" || getAppCategory(app) === selectedCategory;
@@ -335,10 +349,20 @@ export function AppSettingsPage() {
                         <h3 className="font-medium text-foreground truncate">
                           {app.name}
                         </h3>
-                        <span className="text-xs text-muted-foreground">
-                          Anthropic
-                        </span>
+                        {app.version && (
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            v{app.version}
+                          </span>
+                        )}
                       </div>
+                      {app.author?.name && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {app.author.name}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Button
@@ -379,30 +403,70 @@ export function AppSettingsPage() {
                   className="p-4 border border-border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer group"
                   onClick={() => handleInstall(app)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {getAppIcon(app)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-foreground truncate">
-                            {app.name}
-                          </h3>
-                          <span className="text-xs text-muted-foreground">
-                            Anthropic
-                          </span>
+                  <div className="flex flex-col gap-3">
+                    {/* Header with icon, name, and install button */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {getAppIcon(app)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-foreground truncate">
+                              {app.name}
+                            </h3>
+                            {app.version && (
+                              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                v{app.version}
+                              </span>
+                            )}
+                          </div>
+                          {app.author?.name && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground truncate">
+                                {app.author.name}
+                              </span>
+                              {app.author.url && (
+                                <Globe className="h-3 w-3 text-muted-foreground" />
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 leading-5">
-                          {app.description}
-                        </p>
+                      </div>
+                      <div className="flex items-center ml-3">
+                        {installing.has(app.id) ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Plus className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center ml-3">
-                      {installing.has(app.id) ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Plus className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                      )}
-                    </div>
+
+                    {/* Description */}
+                    <p className="text-sm text-muted-foreground line-clamp-2 leading-5">
+                      {app.description}
+                    </p>
+
+                    {/* Keywords */}
+                    {app.keywords && app.keywords.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Tag className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <div className="flex flex-wrap gap-1">
+                          {app.keywords.slice(0, 3).map((keyword, index) => (
+                            <span
+                              key={index}
+                              className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                          {app.keywords.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{app.keywords.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

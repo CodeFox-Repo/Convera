@@ -85,6 +85,11 @@ function SettingsPage() {
       icon: <User className="h-5 w-5" />,
     },
     {
+      id: "app",
+      label: "Apps",
+      icon: <LayoutGrid className="h-5 w-5" />,
+    },
+    {
       id: "agents",
       label: "Agents",
       icon: <Bot className="h-5 w-5" />,
@@ -94,11 +99,7 @@ function SettingsPage() {
       label: "MCP Servers",
       icon: <Server className="h-5 w-5" />,
     },
-    {
-      id: "app",
-      label: "Apps",
-      icon: <LayoutGrid className="h-5 w-5" />,
-    },
+
     {
       id: "developer",
       label: "Developer",
@@ -188,7 +189,7 @@ function SettingsPage() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-6 px-4">
+        <nav className="flex-1 py-2 px-4">
           <ul className="space-y-2">
             {navigationItems.map((item) => (
               <li key={item.id}>
