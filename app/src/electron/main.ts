@@ -81,7 +81,8 @@ async function simulateClipboardCopy(): Promise<void> {
     robot?.keyToggle("control", "up");
     robot?.keyToggle("alt", "up");
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Use setImmediate for minimal delay without blocking
+    await new Promise((resolve) => setImmediate(resolve));
 
     if (process.platform === "darwin") {
       robot?.keyTap("c", "command");
@@ -89,7 +90,8 @@ async function simulateClipboardCopy(): Promise<void> {
       robot?.keyTap("c", "control");
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Minimal delay for copy operation to complete
+    await new Promise((resolve) => setTimeout(resolve, 30));
   } catch (error) {
     logger.error("Error simulating copy command:", error);
     throw error;
@@ -216,31 +218,24 @@ function registerGlobalShortcuts() {
           }
         }
 
-        // Skip if all content is duplicate or no content
-        if (
+        // Skip content processing if all content is duplicate or no content
+        const allContentDuplicate = (
           selectedText &&
           isTextDuplicate &&
           selectedImage &&
           !selectedImage.isEmpty() &&
           isImageDuplicate
-        ) {
-          return;
-        }
-
-        if (!selectedText && (!selectedImage || selectedImage.isEmpty())) {
-          return;
-        }
-
+        );
+        const noContent = !selectedText && (!selectedImage || selectedImage.isEmpty());
+        
         if (getChatWindow()) {
           toggleChatWindowVisibility(getChatWindow());
-          setTimeout(() => {
+          
+          // Process content immediately if we have new content
+          if (!allContentDuplicate && !noContent) {
             const contentToSend: { text?: string; imageData?: string } = {};
 
-            if (
-              selectedImage &&
-              !selectedImage.isEmpty() &&
-              !isImageDuplicate
-            ) {
+            if (selectedImage && !selectedImage.isEmpty() && !isImageDuplicate) {
               const imageBuffer = selectedImage.toPNG();
               const base64Image = imageBuffer.toString("base64");
               contentToSend.imageData = base64Image;
@@ -255,21 +250,18 @@ function registerGlobalShortcuts() {
             if (contentToSend.imageData || contentToSend.text) {
               setInputContent(getChatWindow(), contentToSend);
             }
-
-            setTimeout(() => {
-              restoreClipboard();
-            }, 200);
-          }, 100);
-        } else {
-          restoreClipboard();
+          }
         }
+        
+        // Restore clipboard asynchronously
+        setImmediate(() => {
+          restoreClipboard();
+        });
       } catch (error) {
         logger.error("Clipboard operation failed:", error);
         restoreClipboard();
       } finally {
-        setTimeout(() => {
-          shortcutInProgress = false;
-        }, 500);
+        shortcutInProgress = false;
       }
     });
 
@@ -364,7 +356,7 @@ app.whenReady().then(async () => {
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
-    preCreateMainWindow(getChatWindow() || undefined); // Pre-create main window
+    preCreateMainWindow(); // Pre-create main window
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {

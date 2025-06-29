@@ -314,14 +314,18 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
   } else {
     console.log("Window is currently visible, hiding it");
 
-    // Try to activate previous app
+    // Try to activate previous app asynchronously
     try {
       const prevApp = getPreviousApp();
       if (prevApp) {
-        exec(`osascript -e 'tell application "${prevApp}" to activate'`);
+        exec(`osascript -e 'tell application "${prevApp}" to activate'`, (error) => {
+          if (error) {
+            console.error("Error activating previous app:", error);
+          }
+        });
       }
     } catch (error) {
-      console.error("Error activating previous app:", error);
+      console.error("Error getting previous app:", error);
     }
 
     // Save current position only if it's valid
