@@ -49,7 +49,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       openHistoryWindow,
       attachments,
       addAttachments,
-      speechState,
     } = useChatContext();
 
     const { selectedModelId, setSelectedModelId } = useModelStore();

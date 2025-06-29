@@ -8,6 +8,7 @@ export interface SpeechConfig {
   encoding?: string;
   enableSpeakerDiarization?: boolean;
   model?: string;
+  silenceTimeoutMs?: number; // Auto-stop recording after this many milliseconds of silence
 }
 
 export interface SpeechSession {
@@ -24,6 +25,7 @@ const DEFAULT_CONFIG: SpeechConfig = {
   encoding: "LINEAR16",
   enableSpeakerDiarization: false,
   model: "latest_long",
+  silenceTimeoutMs: 5000, // Auto-stop after 5 seconds of silence
 };
 
 export function useSpeechToText() {
@@ -35,6 +37,8 @@ export function useSpeechToText() {
   const currentSessionRef = useRef<string | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const interimCallbackRef = useRef<((text: string) => void) | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimeoutMsRef = useRef<number>(DEFAULT_CONFIG.silenceTimeoutMs!);
   const baseURL = "http://localhost:3001";
   const wsURL = "ws://localhost:3001";
 
@@ -46,7 +50,88 @@ export function useSpeechToText() {
         websocketRef.current.close();
         websocketRef.current = null;
       }
+      // Clear silence timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
     };
+  }, []);
+
+  // Start silence timeout
+  const startSilenceTimeout = useCallback(() => {
+    // Clear existing timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    silenceTimeoutRef.current = setTimeout(async () => {
+      console.log("🔇 Silence timeout reached, auto-stopping recording");
+      toast.info("⏰ Auto-stopping recording due to silence");
+
+      // Auto-stop recording logic (inline to avoid circular dependency)
+      if (!currentSessionRef.current) {
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+
+        // Clear this timeout since we're stopping now
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
+
+        // Disconnect WebSocket
+        if (websocketRef.current) {
+          websocketRef.current.close();
+          websocketRef.current = null;
+          interimCallbackRef.current = null;
+        }
+
+        const response = await fetch(
+          `${baseURL}/api/speech/stop/${currentSessionRef.current}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("authToken") || "temporary-token"}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const finalTranscript = data.transcript || "";
+          setTranscript(finalTranscript);
+          setIsRecording(false);
+          currentSessionRef.current = null;
+
+          if (finalTranscript.trim()) {
+            toast.success(
+              `✅ Auto-transcription complete: "${finalTranscript.substring(0, 50)}${finalTranscript.length > 50 ? "..." : ""}"`,
+            );
+          } else {
+            toast.warning("🔇 No speech detected before timeout");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to auto-stop recording:", error);
+        setError("Failed to auto-stop recording");
+      } finally {
+        setIsLoading(false);
+      }
+    }, silenceTimeoutMsRef.current);
+  }, [baseURL]);
+
+  // Clear silence timeout
+  const clearSilenceTimeout = useCallback(() => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
   }, []);
 
   // Get auth token from localStorage (same as other API calls)
@@ -111,6 +196,8 @@ export function useSpeechToText() {
               if (interimCallbackRef.current) {
                 interimCallbackRef.current(data.transcript);
               }
+              // Reset silence timeout when we receive speech activity
+              startSilenceTimeout();
               break;
 
             case "final":
@@ -118,6 +205,8 @@ export function useSpeechToText() {
               if (interimCallbackRef.current) {
                 interimCallbackRef.current(data.transcript);
               }
+              // Reset silence timeout when we receive speech activity
+              startSilenceTimeout();
               break;
 
             case "status":
@@ -126,12 +215,17 @@ export function useSpeechToText() {
                 setTranscript(data.interimTranscript);
                 interimCallbackRef.current(data.interimTranscript);
               }
+              // Reset silence timeout when we receive speech activity
+              if (data.interimTranscript) {
+                startSilenceTimeout();
+              }
               break;
 
             case "error":
               console.error("WebSocket error:", data.error);
               setError(data.error);
               toast.error(`❌ ${data.error}`);
+              clearSilenceTimeout();
               break;
           }
         } catch (err) {
@@ -150,11 +244,13 @@ export function useSpeechToText() {
           websocketRef.current = null;
           interimCallbackRef.current = null;
         }
+        // Clear silence timeout when WebSocket closes
+        clearSilenceTimeout();
       };
 
       return ws;
     },
-    [wsURL],
+    [wsURL, startSilenceTimeout, clearSilenceTimeout],
   );
 
   // Disconnect WebSocket
@@ -179,6 +275,10 @@ export function useSpeechToText() {
 
         const requestConfig = { ...DEFAULT_CONFIG, ...config };
 
+        // Store timeout configuration
+        silenceTimeoutMsRef.current =
+          requestConfig.silenceTimeoutMs || DEFAULT_CONFIG.silenceTimeoutMs!;
+
         const response = await makeRequest(`${baseURL}/api/speech/start`, {
           method: "POST",
           body: JSON.stringify({ config: requestConfig }),
@@ -191,6 +291,9 @@ export function useSpeechToText() {
 
           // Connect to WebSocket for real-time updates
           connectWebSocket(response.sessionId, onInterimResult);
+
+          // Start silence timeout
+          startSilenceTimeout();
 
           console.log("Speech recognition started:", {
             sessionId: response.sessionId,
@@ -210,7 +313,7 @@ export function useSpeechToText() {
         setIsLoading(false);
       }
     },
-    [makeRequest, baseURL, connectWebSocket],
+    [makeRequest, baseURL, connectWebSocket, startSilenceTimeout],
   );
 
   // Stop speech recognition and get transcript
@@ -221,6 +324,9 @@ export function useSpeechToText() {
 
     try {
       setIsLoading(true);
+
+      // Clear silence timeout
+      clearSilenceTimeout();
 
       // Disconnect WebSocket
       disconnectWebSocket();
@@ -264,7 +370,7 @@ export function useSpeechToText() {
     } finally {
       setIsLoading(false);
     }
-  }, [makeRequest, baseURL, disconnectWebSocket]);
+  }, [makeRequest, baseURL, disconnectWebSocket, clearSilenceTimeout]);
 
   // Toggle recording (start/stop)
   const toggleRecording = useCallback(
@@ -339,8 +445,9 @@ export function useSpeechToText() {
     setTranscript("");
     setError(null);
     currentSessionRef.current = null;
+    clearSilenceTimeout();
     disconnectWebSocket();
-  }, [disconnectWebSocket]);
+  }, [clearSilenceTimeout, disconnectWebSocket]);
 
   return {
     // State
