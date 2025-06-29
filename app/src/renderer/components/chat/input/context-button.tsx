@@ -1,4 +1,7 @@
-import { useChatContext, ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import {
+  useChatContext,
+  ClipboardContent,
+} from "@/renderer/libs/stores/chat-store";
 import { File, Monitor, Plus, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 

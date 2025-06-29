@@ -68,20 +68,20 @@ const logger = getLogger("main-process");
 
 function createImageHash(imageBuffer: Buffer): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const crypto = require('crypto');
-  return crypto.createHash('md5').update(imageBuffer).digest('hex');
+  const crypto = require("crypto");
+  return crypto.createHash("md5").update(imageBuffer).digest("hex");
 }
 
 async function simulateClipboardCopy(): Promise<void> {
   try {
     originalClipboardContent = clipboard.readText();
     originalClipboardImage = clipboard.readImage();
-    
+
     robot?.keyToggle("shift", "up");
     robot?.keyToggle("control", "up");
     robot?.keyToggle("alt", "up");
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     if (process.platform === "darwin") {
       robot?.keyTap("c", "command");
@@ -89,8 +89,7 @@ async function simulateClipboardCopy(): Promise<void> {
       robot?.keyTap("c", "control");
     }
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+    await new Promise((resolve) => setTimeout(resolve, 100));
   } catch (error) {
     logger.error("Error simulating copy command:", error);
     throw error;
@@ -104,7 +103,7 @@ function restoreClipboard(): void {
     } else if (originalClipboardContent !== undefined) {
       clipboard.writeText(originalClipboardContent);
     }
-    
+
     originalClipboardContent = "";
     originalClipboardImage = null;
   } catch (error) {
@@ -191,7 +190,7 @@ function registerGlobalShortcuts() {
   try {
     const ret = globalShortcut.register(currentShortcut, async () => {
       if (shortcutInProgress) return;
-      
+
       shortcutInProgress = true;
 
       try {
@@ -203,11 +202,11 @@ function registerGlobalShortcuts() {
         // Check for duplicates
         let isTextDuplicate = false;
         let isImageDuplicate = false;
-        
+
         if (selectedText && selectedText === prevClipboardContent) {
           isTextDuplicate = true;
         }
-        
+
         let currentImageHash = "";
         if (selectedImage && !selectedImage.isEmpty()) {
           const imageBuffer = selectedImage.toPNG();
@@ -216,12 +215,18 @@ function registerGlobalShortcuts() {
             isImageDuplicate = true;
           }
         }
-        
+
         // Skip if all content is duplicate or no content
-        if ((selectedText && isTextDuplicate) && (selectedImage && !selectedImage.isEmpty() && isImageDuplicate)) {
+        if (
+          selectedText &&
+          isTextDuplicate &&
+          selectedImage &&
+          !selectedImage.isEmpty() &&
+          isImageDuplicate
+        ) {
           return;
         }
-        
+
         if (!selectedText && (!selectedImage || selectedImage.isEmpty())) {
           return;
         }
@@ -230,23 +235,27 @@ function registerGlobalShortcuts() {
           toggleChatWindowVisibility(getChatWindow());
           setTimeout(() => {
             const contentToSend: { text?: string; imageData?: string } = {};
-            
-            if (selectedImage && !selectedImage.isEmpty() && !isImageDuplicate) {
+
+            if (
+              selectedImage &&
+              !selectedImage.isEmpty() &&
+              !isImageDuplicate
+            ) {
               const imageBuffer = selectedImage.toPNG();
-              const base64Image = imageBuffer.toString('base64');
+              const base64Image = imageBuffer.toString("base64");
               contentToSend.imageData = base64Image;
               prevClipboardImageHash = currentImageHash;
             }
-            
+
             if (selectedText && !isTextDuplicate) {
               contentToSend.text = selectedText;
               prevClipboardContent = selectedText;
             }
-            
+
             if (contentToSend.imageData || contentToSend.text) {
               setInputContent(getChatWindow(), contentToSend);
             }
-            
+
             setTimeout(() => {
               restoreClipboard();
             }, 200);

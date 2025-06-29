@@ -38,8 +38,8 @@ const CopiedContentBlock = memo(
               {content.imageData && content.text
                 ? "Screenshot + Text"
                 : content.imageData
-                ? "Screenshot"
-                : "Copied Content"}
+                  ? "Screenshot"
+                  : "Copied Content"}
             </span>
           </div>
           <span className="flex items-center text-xs transition-colors hover:text-foreground">
@@ -64,9 +64,11 @@ const CopiedContentBlock = memo(
           {content.imageData && (
             <div className="mb-2">
               <img
-                src={content.imageData.startsWith('data:') 
-                  ? content.imageData 
-                  : `data:image/png;base64,${content.imageData}`}
+                src={
+                  content.imageData.startsWith("data:")
+                    ? content.imageData
+                    : `data:image/png;base64,${content.imageData}`
+                }
                 alt="Screenshot"
                 className="max-w-full h-auto rounded border border-border"
                 style={{ maxHeight: "200px" }}

@@ -105,7 +105,9 @@ export interface IElectronAPI {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputContent: (callback: (content: { text?: string; imageData?: string }) => void) => () => void;
+  onSetInputContent: (
+    callback: (content: { text?: string; imageData?: string }) => void,
+  ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 

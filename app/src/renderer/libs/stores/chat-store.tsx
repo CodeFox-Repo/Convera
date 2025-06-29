@@ -25,7 +25,7 @@ export interface ClipboardContent {
   text?: string;
   imageData?: string; // base64 encoded image
   timestamp?: number;
-  source?: 'shortcut' | 'manual'; // track how content was captured
+  source?: "shortcut" | "manual"; // track how content was captured
 }
 
 // Simple tool call result type
@@ -115,7 +115,9 @@ const mcpLogger = window.logger.getLogger("chat-store-mcp");
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(null);
+  const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(
+    null,
+  );
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -516,7 +518,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Handle clipboard content (text and/or image)
       let clipboardImageFile: File | null = null;
-      
+
       if (copiedContent) {
         // Handle text content
         if (copiedContent.text) {
@@ -524,13 +526,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             ? `<copied>\n${copiedContent.text}\n</copied>\n\n${messageText}`
             : `<copied>\n${copiedContent.text}\n</copied>`;
         }
-        
+
         // Handle image content - convert to File object
         if (copiedContent.imageData) {
           try {
             const base64ToFile = (base64: string, filename: string): File => {
-              const arr = base64.split(',');
-              const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+              const arr = base64.split(",");
+              const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
               const bstr = atob(arr.length > 1 ? arr[1] : base64);
               let n = bstr.length;
               const u8arr = new Uint8Array(n);
@@ -539,16 +541,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }
               return new File([u8arr], filename, { type: mime });
             };
-            
-            const imageDataUrl = copiedContent.imageData.startsWith('data:') 
-              ? copiedContent.imageData 
+
+            const imageDataUrl = copiedContent.imageData.startsWith("data:")
+              ? copiedContent.imageData
               : `data:image/png;base64,${copiedContent.imageData}`;
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
             const filename = `screenshot-${timestamp}.png`;
             clipboardImageFile = base64ToFile(imageDataUrl, filename);
           } catch (error) {
-            console.error('Error converting clipboard image:', error);
+            console.error("Error converting clipboard image:", error);
           }
         }
 
@@ -567,7 +569,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           if (clipboardImageFile) {
             allFiles.push(clipboardImageFile);
           }
-          
+
           if (allFiles.length > 0) {
             const fileAttachments = await Promise.all(
               allFiles.map(fileToAttachment),

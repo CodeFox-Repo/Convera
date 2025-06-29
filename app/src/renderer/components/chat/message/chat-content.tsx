@@ -439,7 +439,9 @@ export default function ChatContent({
           message.content,
         );
         // Convert extracted string to ClipboardContent object for backward compatibility
-        copiedContent = extracted ? { text: extracted, source: 'manual' } : null;
+        copiedContent = extracted
+          ? { text: extracted, source: "manual" }
+          : null;
         contentToRender = cleanContent;
       }
 
