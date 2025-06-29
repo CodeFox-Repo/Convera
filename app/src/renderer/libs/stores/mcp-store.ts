@@ -32,7 +32,7 @@ interface McpState {
       | undefined,
   ) => Promise<void>;
   handleSaveMcpConfig: (id: string) => Promise<void>;
-  handleAddServer: (id: string, config: MCPServerConfig) => Promise<void>;
+  // handleAddServer: (id: string, config: MCPServerConfig) => Promise<void>;
   handleManualInstallMcp: (configJson: string) => Promise<void>;
   handleRemoveServer: (id: string) => Promise<void>;
 
@@ -196,30 +196,25 @@ export const useMcpStore = create<McpState>()(
         }
       },
 
-      // Add new server
-      handleAddServer: async (id: string, config: MCPServerConfig) => {
-        try {
-          const response = await window.mcpAPI.addServer(id, config);
+      // // Add new server
+      // handleAddServer: async (id: string, config: MCPServerConfig) => {
+      //   try {
+      //     window.mcpAPI.addServer(id, config);
 
-          if (!response.success) {
-            throw new Error(response.error || "Failed to add server");
-          }
-
-          toast.success(`Server ${config.name || id} added successfully`);
-
-          // Refresh data
-          await Promise.all([
-            get().fetchMcpConfigurations(),
-            get().fetchAllMcpServers(),
-          ]);
-        } catch (error) {
-          console.error(`Error adding server ${id}:`, error);
-          toast.error(
-            `Failed to add server: ${error instanceof Error ? error.message : "Unknown error"}`,
-          );
-          throw error;
-        }
-      },
+      //     // wait for 2000ms and then refresh data
+      //     await new Promise((resolve) => setTimeout(resolve, 2000));
+      //     await Promise.all([
+      //       get().fetchMcpConfigurations(),
+      //       get().fetchAllMcpServers(),
+      //     ]);
+      //   } catch (error) {
+      //     console.error(`Error adding server ${id}:`, error);
+      //     toast.error(
+      //       `Failed to add server: ${error instanceof Error ? error.message : "Unknown error"}`,
+      //     );
+      //     throw error;
+      //   }
+      // },
 
       // Manual MCP installation from JSON configuration
       handleManualInstallMcp: async (configJson: string) => {
@@ -245,13 +240,7 @@ export const useMcpStore = create<McpState>()(
 
           for (const [serverId, serverConfig] of serverEntries) {
             try {
-              const response = await window.mcpAPI.addServer(
-                serverId,
-                serverConfig,
-              );
-              if (!response.success) {
-                throw new Error(response.error || "Failed to add server");
-              }
+              window.mcpAPI.addServer(serverId, serverConfig);
               successes.push(serverId);
             } catch (error) {
               const errorMsg =
@@ -279,10 +268,8 @@ export const useMcpStore = create<McpState>()(
           }
 
           // Refresh data after installation
-          await Promise.all([
-            get().fetchMcpConfigurations(),
-            get().fetchAllMcpServers(),
-          ]);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await get().fetchAllMcpServers();
         } catch (error) {
           console.error("Error in manual MCP installation:", error);
           const errorMessage =

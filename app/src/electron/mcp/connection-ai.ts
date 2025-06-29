@@ -22,17 +22,53 @@ import {
 } from "@/shared/types/mcp";
 import { experimental_createMCPClient, type Tool } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
+// import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { app } from "electron";
 import { EventEmitter } from "events";
+import { z } from "zod";
+import { getLogger } from "../logger";
 
+const logger = getLogger("MCPConnectionAI");
 // Type for the MCP client instance
 type MCPClientInstance = Awaited<
   ReturnType<typeof experimental_createMCPClient>
 >;
 
-// Use the actual ai SDK tool types directly
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MCPTool = Tool<any, any>; // Individual tool type from ai SDK
+// Define proper MCP tool types
+interface MCPToolProperty {
+  type: string;
+  description?: string;
+  default?: unknown;
+  enum?: unknown[];
+  [key: string]: unknown;
+}
+
+interface MCPToolSchema {
+  type: string;
+  properties?: Record<string, MCPToolProperty>;
+  required?: string[];
+  description?: string;
+  additionalProperties?: boolean;
+  [key: string]: unknown;
+}
+
+interface MCPToolDefinition {
+  name: string;
+  description?: string;
+  inputSchema?: MCPToolSchema;
+}
+
+// Define our own tool interface that's compatible with both AI SDK and MCP
+interface UnifiedTool {
+  description: string;
+  parameters: z.ZodTypeAny;
+  execute: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+// Type alias for better readability - currently unused but kept for future compatibility
+// type MCPTool = UnifiedTool;
 
 /**
  * MCPConnection using the ai package's experimental MCP client
@@ -53,9 +89,13 @@ export class MCPConnectionAI extends EventEmitter {
   private description?: string;
   private config: MCPServerConfig;
   private client: MCPClientInstance | null = null;
+  private mcpClient: Client | null = null; // Fallback MCP client for Streamable HTTP
   private transportType: string;
+  private useAiSdk: boolean = false; // Track which client is being used
 
-  private tools: Record<string, MCPTool> = {}; // Store tools as name->tool mapping
+  private tools: Record<string, UnifiedTool> = {}; // Store unified tools
+  private aiSdkTools: Record<string, Tool<z.ZodTypeAny, unknown>> = {}; // Store AI SDK tools separately
+  private mcpTools: MCPToolDefinition[] = []; // Store tools from MCP client
   private toolNames: Set<string> = new Set(); // Cache tool names for quick lookup
   private resources: ResourceDefinition[] = [];
   private prompts: PromptDefinition[] = [];
@@ -149,6 +189,7 @@ export class MCPConnectionAI extends EventEmitter {
       this.transportType = this.determineTransportType(newConfig);
     }
 
+    logger.info("Connecting to MCP server", this.config);
     // Handle disabled state
     if (this.disabled) {
       this.status = ConnectionStatus.DISABLED;
@@ -166,6 +207,7 @@ export class MCPConnectionAI extends EventEmitter {
       // Resolve environment variables
       const resolvedConfig = await this.resolveConfigEnvironment(this.config);
 
+      logger.info("Resolved config", resolvedConfig);
       // Create transport and client
       if (this.transportType === "stdio") {
         const transport = new Experimental_StdioMCPTransport({
@@ -198,28 +240,11 @@ export class MCPConnectionAI extends EventEmitter {
             this.emit("error", { server: this.name, error });
           },
         });
+
+        this.useAiSdk = true;
       } else {
-        // For HTTP/SSE transport
-        this.client = await experimental_createMCPClient({
-          transport: {
-            type: "sse",
-            url: resolvedConfig.url!,
-            headers: {
-              "User-Agent": `FoxyChat/${app.getVersion()} (Electron)`,
-              ...(resolvedConfig.apiKey && {
-                Authorization: `Bearer ${resolvedConfig.apiKey}`,
-              }),
-            },
-          },
-          name: `foxychat-electron`,
-          onUncaughtError: (error) => {
-            console.error(
-              `Uncaught error in MCP client '${this.name}':`,
-              error,
-            );
-            this.emit("error", { server: this.name, error });
-          },
-        });
+        // For HTTP/SSE - try Streamable HTTP first, fallback to SSE
+        await this.connectWithHttpFallback(resolvedConfig);
       }
 
       // Fetch initial capabilities
@@ -254,7 +279,15 @@ export class MCPConnectionAI extends EventEmitter {
       try {
         await this.client.close();
       } catch (error) {
-        console.warn(`Error closing client for ${this.name}:`, error);
+        console.warn(`Error closing AI SDK client for ${this.name}:`, error);
+      }
+    }
+
+    if (this.mcpClient) {
+      try {
+        await this.mcpClient.close();
+      } catch (error) {
+        console.warn(`Error closing MCP client for ${this.name}:`, error);
       }
     }
 
@@ -266,7 +299,11 @@ export class MCPConnectionAI extends EventEmitter {
    */
   private resetState(errorMessage?: string): void {
     this.client = null;
+    this.mcpClient = null;
+    this.useAiSdk = false;
     this.tools = {};
+    this.aiSdkTools = {};
+    this.mcpTools = [];
     this.toolNames.clear();
     this.resources = [];
     this.prompts = [];
@@ -302,18 +339,28 @@ export class MCPConnectionAI extends EventEmitter {
   /**
    * Update server capabilities (tools, resources, prompts)
    */
-  async updateCapabilities(capabilitiesToUpdate?: string[]): Promise<void> {
-    if (!this.client) return;
-
+  async updateCapabilities(): Promise<void> {
     try {
-      // For now, we'll focus on tools as the ai package primarily supports tool conversion
-      // The ai package's MCP client is designed mainly for tool integration
-      const tools = await this.client.tools();
+      if (this.useAiSdk && this.client) {
+        // Use AI SDK client
+        const aiTools = await this.client.tools();
+        this.aiSdkTools = aiTools as unknown as Record<
+          string,
+          Tool<z.ZodTypeAny, unknown>
+        >;
+        this.tools = this.convertAiSdkToolsToUnified(
+          aiTools as unknown as Record<string, Tool<z.ZodTypeAny, unknown>>,
+        );
+        this.toolNames = new Set(Object.keys(aiTools));
+      } else if (this.mcpClient) {
+        // Use MCP client and convert tools
+        const result = await this.mcpClient.listTools();
+        this.mcpTools = (result.tools || []) as MCPToolDefinition[];
 
-      // Store ai SDK tools directly with their names
-      // This keeps us in sync with the ai package types
-      this.tools = tools;
-      this.toolNames = new Set(Object.keys(tools));
+        // Convert MCP tools to unified format
+        this.tools = this.convertMcpToolsToUnified(this.mcpTools);
+        this.toolNames = new Set(this.mcpTools.map((tool) => tool.name));
+      }
 
       // Emit tools changed event with legacy format
       this.emit("toolsChanged", {
@@ -321,20 +368,12 @@ export class MCPConnectionAI extends EventEmitter {
         tools: this.convertToolsToLegacyFormat(),
       });
 
-      // Note: The ai package's MCP client doesn't fully support resources and prompts yet
-      // These features may be added in future versions
-      if (capabilitiesToUpdate?.includes("resources")) {
-        console.debug(
-          `Resources not yet supported by ai package MCP client for '${this.name}'`,
-        );
-      }
-      if (capabilitiesToUpdate?.includes("prompts")) {
-        console.debug(
-          `Prompts not yet supported by ai package MCP client for '${this.name}'`,
-        );
-      }
+      logger.info(`Updated capabilities for ${this.name}`, {
+        toolCount: this.toolNames.size,
+        useAiSdk: this.useAiSdk,
+      });
     } catch (error) {
-      console.warn(
+      logger.warn(
         `Error updating capabilities for server '${this.name}':`,
         error,
       );
@@ -348,7 +387,7 @@ export class MCPConnectionAI extends EventEmitter {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    if (!this.client) {
+    if (!this.client && !this.mcpClient) {
       throw this.createError(
         "SERVER_NOT_INITIALIZED",
         "Server not initialized",
@@ -372,29 +411,16 @@ export class MCPConnectionAI extends EventEmitter {
     }
 
     try {
-      // Get the tools and call the specific tool
-      const tools = await this.client.tools();
-      const mcpTool = tools[toolName];
-
-      if (!mcpTool) {
-        throw this.createError(
-          "TOOL_NOT_FOUND",
-          "Tool not found in MCP client",
-          {
-            tool: toolName,
-            availableTools: Object.keys(tools),
-          },
-        );
+      // Use the unified tool interface
+      const tool = this.tools[toolName];
+      if (!tool) {
+        throw this.createError("TOOL_NOT_FOUND", "Tool not found", {
+          tool: toolName,
+          availableTools: Object.keys(this.tools),
+        });
       }
 
-      // Execute the tool using the ai SDK's Tool interface
-      // The execute function returns the result based on the tool's implementation
-      const result = await mcpTool.execute(args, {
-        toolCallId: `${this.name}-${toolName}-${Date.now()}`,
-        messages: [], // MCP tools don't require message context
-      });
-
-      return result;
+      return await tool.execute(args);
     } catch (error) {
       throw this.createError(
         "TOOL_EXECUTION_ERROR",
@@ -436,15 +462,264 @@ export class MCPConnectionAI extends EventEmitter {
   }
 
   /**
-   * Convert ai SDK tools to legacy ToolDefinition format for backward compatibility
+   * Connect with HTTP fallback strategy
+   */
+  private async connectWithHttpFallback(
+    resolvedConfig: MCPServerConfig,
+  ): Promise<void> {
+    logger.info("Attempting HTTP/SSE connection for", resolvedConfig.url);
+
+    try {
+      // First try: Streamable HTTP with MCP client
+      await this.connectWithStreamableHttp(resolvedConfig);
+      this.useAiSdk = false;
+      logger.info("Connected successfully with Streamable HTTP");
+    } catch (httpError) {
+      logger.warn("Streamable HTTP failed, trying SSE with AI SDK:", httpError);
+
+      try {
+        // Second try: SSE with AI SDK
+        await this.connectWithAiSdkSse(resolvedConfig);
+        this.useAiSdk = true;
+        logger.info("Connected successfully with AI SDK SSE");
+      } catch (sseError) {
+        logger.error("Both HTTP and SSE failed:", { httpError, sseError });
+        throw new Error(
+          `Failed to connect with both transports. HTTP: ${httpError}. SSE: ${sseError}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Connect using MCP SDK Streamable HTTP
+   */
+  private async connectWithStreamableHttp(
+    resolvedConfig: MCPServerConfig,
+  ): Promise<void> {
+    const httpTransport = new StreamableHTTPClientTransport(
+      new URL(resolvedConfig.url!),
+      {
+        requestInit: {
+          headers: {
+            "User-Agent": `FoxyChat/${app.getVersion()} (Electron)`,
+            ...(resolvedConfig.apiKey && {
+              Authorization: `Bearer ${resolvedConfig.apiKey}`,
+            }),
+          },
+        },
+      },
+    );
+
+    this.mcpClient = new Client(
+      {
+        name: "foxychat-electron",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {
+          tools: {},
+          prompts: {},
+          resources: {},
+        },
+      },
+    );
+
+    await this.mcpClient.connect(httpTransport);
+  }
+
+  /**
+   * Connect using AI SDK SSE
+   */
+  private async connectWithAiSdkSse(
+    resolvedConfig: MCPServerConfig,
+  ): Promise<void> {
+    this.client = await experimental_createMCPClient({
+      transport: {
+        type: "sse",
+        url: resolvedConfig.url!,
+        headers: {
+          "User-Agent": `FoxyChat/${app.getVersion()} (Electron)`,
+          ...(resolvedConfig.apiKey && {
+            Authorization: `Bearer ${resolvedConfig.apiKey}`,
+          }),
+        },
+      },
+      name: `foxychat-electron`,
+      onUncaughtError: (error) => {
+        console.error(`Uncaught error in MCP client '${this.name}':`, error);
+        this.emit("error", { server: this.name, error });
+      },
+    });
+  }
+
+  /**
+   * Convert AI SDK tools to unified format
+   */
+  private convertAiSdkToolsToUnified(
+    aiTools: Record<string, Tool<z.ZodTypeAny, unknown>>,
+  ): Record<string, UnifiedTool> {
+    const unifiedTools: Record<string, UnifiedTool> = {};
+
+    for (const [name, tool] of Object.entries(aiTools)) {
+      unifiedTools[name] = {
+        description: tool.description || "",
+        parameters: tool.parameters,
+        execute: async (args: Record<string, unknown>) => {
+          return await tool.execute?.(args, {
+            toolCallId: `${this.name}-${name}-${Date.now()}`,
+            messages: [],
+          });
+        },
+      };
+    }
+
+    return unifiedTools;
+  }
+
+  /**
+   * Convert MCP tools to unified format
+   */
+  private convertMcpToolsToUnified(
+    mcpTools: MCPToolDefinition[],
+  ): Record<string, UnifiedTool> {
+    const unifiedTools: Record<string, UnifiedTool> = {};
+
+    for (const mcpTool of mcpTools) {
+      // Convert MCP tool parameters (JSON Schema) to Zod format
+      const parameters = this.convertJsonSchemaToZod(mcpTool.inputSchema);
+
+      unifiedTools[mcpTool.name] = {
+        description: mcpTool.description || "",
+        parameters,
+        execute: async (args: Record<string, unknown>) => {
+          if (!this.mcpClient) {
+            throw new Error("MCP client not initialized");
+          }
+          return await this.mcpClient.callTool({
+            name: mcpTool.name,
+            arguments: args,
+          });
+        },
+      };
+    }
+
+    return unifiedTools;
+  }
+
+  /**
+   * Convert JSON Schema to Zod schema object
+   */
+  private convertJsonSchemaToZod(schema?: MCPToolSchema): z.ZodTypeAny {
+    if (!schema || !schema.type) {
+      return z.object({});
+    }
+
+    if (schema.type === "object") {
+      const shape: Record<string, z.ZodTypeAny> = {};
+      const properties = schema.properties || {};
+
+      for (const [key, prop] of Object.entries(properties)) {
+        let zodType: z.ZodTypeAny;
+
+        if (prop.type === "string") {
+          zodType = z.string();
+        } else if (prop.type === "number" || prop.type === "integer") {
+          zodType = z.number();
+        } else if (prop.type === "boolean") {
+          zodType = z.boolean();
+        } else if (prop.type === "array") {
+          zodType = z.array(z.any());
+        } else {
+          zodType = z.any();
+        }
+
+        // Handle optional vs required
+        if (!schema.required?.includes(key)) {
+          zodType = zodType.optional();
+        }
+
+        shape[key] = zodType;
+      }
+
+      return z.object(shape);
+    }
+
+    return z.any();
+  }
+
+  /**
+   * Convert Zod schema back to JSON Schema (simplified)
+   */
+  private zodSchemaToJsonSchema(
+    zodSchema: z.ZodTypeAny,
+  ): Record<string, unknown> {
+    try {
+      // For simplified conversion, we'll return a basic object schema
+      // In a real implementation, you might want to use a proper Zod-to-JSON-Schema converter
+      if (zodSchema instanceof z.ZodObject) {
+        const shape = zodSchema.shape;
+        const properties: Record<string, unknown> = {};
+        const required: string[] = [];
+
+        for (const [key, value] of Object.entries(shape)) {
+          const zodType = value as z.ZodTypeAny;
+
+          if (zodType instanceof z.ZodString) {
+            properties[key] = { type: "string" };
+          } else if (zodType instanceof z.ZodNumber) {
+            properties[key] = { type: "number" };
+          } else if (zodType instanceof z.ZodBoolean) {
+            properties[key] = { type: "boolean" };
+          } else if (zodType instanceof z.ZodArray) {
+            properties[key] = { type: "array", items: { type: "any" } };
+          } else {
+            properties[key] = { type: "any" };
+          }
+
+          // Check if required (not optional)
+          if (!(zodType instanceof z.ZodOptional)) {
+            required.push(key);
+          }
+        }
+
+        return {
+          type: "object",
+          properties,
+          required: required.length > 0 ? required : undefined,
+        };
+      }
+
+      return { type: "object", properties: {} };
+    } catch {
+      // Fallback to empty object schema
+      return { type: "object", properties: {} };
+    }
+  }
+
+  /**
+   * Convert tools to legacy ToolDefinition format for backward compatibility
    */
   private convertToolsToLegacyFormat(): ToolDefinition[] {
-    return Object.entries(this.tools).map(([name, tool]) => ({
-      name,
-      description: tool.description,
-      inputSchema: tool.parameters,
-      parameters: tool.parameters,
-    }));
+    if (this.useAiSdk && this.client) {
+      // AI SDK tools
+      return Object.entries(this.tools).map(([name, tool]) => ({
+        name,
+        description: tool.description,
+        inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
+        parameters: this.zodSchemaToJsonSchema(tool.parameters),
+      }));
+    } else if (this.mcpClient && this.mcpTools.length > 0) {
+      // MCP tools
+      return this.mcpTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema || {},
+        parameters: tool.inputSchema || {},
+      }));
+    }
+
+    return [];
   }
 
   /**

@@ -293,7 +293,7 @@ export class MCPHub extends EventEmitter {
     }
 
     // Find the first connected server that has this tool
-    for (const [serverName, connection] of this.connections) {
+    for (const connection of this.connections.values()) {
       const serverInfo = connection.getServerInfo();
       if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
         const hasTool = serverInfo.capabilities.tools.some(tool => tool.name === toolName);
