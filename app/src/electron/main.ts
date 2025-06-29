@@ -53,6 +53,9 @@ const inDevelopment = !app.isPackaged;
 
 let trackingAppFocus = false;
 
+// Clipboard buffer for restoring original content
+let originalClipboardContent = "";
+
 // Initialize logger for main process
 const logger = getLogger("main-process");
 
@@ -60,38 +63,49 @@ const logger = getLogger("main-process");
  * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
  * @returns Promise that resolves when the copy operation is complete
  */
+async function simulateClipboardCopy(): Promise<void> {
+  try {
+    logger.debug("Preserving original clipboard content");
+    originalClipboardContent = clipboard.readText();
+    
+    logger.debug("Simulating copy command with RobotJS");
 
-function simulateClipboardCopy(): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      console.log("Using RobotJS to simulate copy command");
+    // Release modifier keys first to prevent conflicts
+    robot?.keyToggle("shift", "up");
+    robot?.keyToggle("control", "up");
+    robot?.keyToggle("alt", "up");
 
-      // Release modifier keys first to prevent conflicts
-      robot?.keyToggle("shift", "up");
-      robot?.keyToggle("control", "up");
-      robot?.keyToggle("alt", "up");
+    // Small delay to ensure modifiers are released
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Small delay to ensure modifiers are released
-      setTimeout(() => {
-        if (process.platform === "darwin") {
-          // For macOS, use Command+C
-          robot?.keyTap("c", "command");
-        } else {
-          // For Windows/Linux, use Control+C
-          robot?.keyTap("c", "control");
-        }
-
-        // Add a delay to ensure clipboard has been updated
-        setTimeout(() => {
-          resolve();
-        }, 100); // Slightly longer delay to ensure clipboard has been updated
-      }, 50);
-    } catch (error) {
-      console.error("Error simulating copy command with RobotJS:", error);
-      // Even if it fails, we'll resolve to allow the app to continue
-      setTimeout(resolve, 50);
+    // Perform the copy operation
+    if (process.platform === "darwin") {
+      robot?.keyTap("c", "command");
+    } else {
+      robot?.keyTap("c", "control");
     }
-  });
+
+    // Wait for clipboard to be updated
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+  } catch (error) {
+    logger.error("Error simulating copy command:", error);
+    throw error;
+  }
+}
+
+/**
+ * Restore the original clipboard content
+ */
+function restoreClipboard(): void {
+  try {
+    if (originalClipboardContent !== undefined) {
+      clipboard.writeText(originalClipboardContent);
+      logger.debug("Original clipboard content restored");
+    }
+  } catch (error) {
+    logger.error("Error restoring clipboard content:", error);
+  }
 }
 
 // Start background app tracking on macOS and Windows
@@ -172,27 +186,37 @@ function registerGlobalShortcuts() {
   console.log(`Attempting to register global shortcut: ${currentShortcut}`);
   try {
     const ret = globalShortcut.register(currentShortcut, async () => {
-      console.log(`${currentShortcut} pressed globally`);
+      logger.debug(`Global shortcut ${currentShortcut} triggered`);
 
       const prevApp = getPreviousApp();
       if (prevApp) {
-        console.log(`Previously focused application: ${prevApp}`);
+        logger.debug(`Previously focused application: ${prevApp}`);
       }
 
-      await simulateClipboardCopy();
+      try {
+        await simulateClipboardCopy();
 
-      const selectedText = clipboard.readText();
-      console.log(
-        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
-      );
+        const selectedText = clipboard.readText();
+        logger.debug(`Selected text captured: ${selectedText ? "Found" : "None"}`);
 
-      clipboard.writeText("");
-
-      if (getChatWindow()) {
-        toggleChatWindowVisibility(getChatWindow());
-        setTimeout(() => {
-          setInputText(getChatWindow(), selectedText);
-        }, 100);
+        // Show the chat window and set input text
+        if (getChatWindow()) {
+          toggleChatWindowVisibility(getChatWindow());
+          setTimeout(() => {
+            setInputText(getChatWindow(), selectedText);
+            // Restore clipboard after a delay to ensure input is set
+            setTimeout(() => {
+              restoreClipboard();
+            }, 200);
+          }, 100);
+        } else {
+          // If no chat window, restore clipboard immediately
+          restoreClipboard();
+        }
+      } catch (error) {
+        logger.error("Error in clipboard operation:", error);
+        // Always restore clipboard on error
+        restoreClipboard();
       }
     });
 
@@ -227,7 +251,7 @@ function setupScreenResizeHandlers() {
   let resizeTimeout: NodeJS.Timeout | null = null;
 
   // Listen for primary display metrics change (resolution or scale factor change)
-  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+  screen.on("display-metrics-changed", (_event, display, changedMetrics) => {
     if (display.id === screen.getPrimaryDisplay().id) {
       console.log("Primary display metrics changed:", changedMetrics);
 
