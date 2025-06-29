@@ -33,16 +33,18 @@ export function useSpeechToText() {
   const [error, setError] = useState<string | null>(null);
 
   const currentSessionRef = useRef<string | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const baseURL = "http://localhost:38000";
+  const websocketRef = useRef<WebSocket | null>(null);
+  const interimCallbackRef = useRef<((text: string) => void) | null>(null);
+  const baseURL = "http://localhost:3001";
+  const wsURL = "ws://localhost:3001";
 
   // Cleanup effect
   useEffect(() => {
     return () => {
-      // Stop polling when component unmounts
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+      // Close WebSocket when component unmounts
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
       }
     };
   }, []);
@@ -79,36 +81,88 @@ export function useSpeechToText() {
     [getAuthToken],
   );
 
-  // Poll for interim results
-  const startPolling = useCallback(
-    (sessionId: string, onTranscript: (text: string) => void) => {
-      // Clear any existing polling
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+  // Connect to WebSocket for real-time updates
+  const connectWebSocket = useCallback(
+    (sessionId: string, onInterimResult?: (text: string) => void) => {
+      // Close existing connection
+      if (websocketRef.current) {
+        websocketRef.current.close();
       }
 
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const response = await makeRequest(
-            `${baseURL}/api/speech/status/${sessionId}`,
-          );
+      const wsUrl = `${wsURL}/ws/speech?sessionId=${sessionId}`;
+      console.log("🔗 Connecting to WebSocket:", wsUrl);
 
-          if (response.status === "success" && response.interimTranscript) {
-            onTranscript(response.interimTranscript);
+      const ws = new WebSocket(wsUrl);
+      websocketRef.current = ws;
+      interimCallbackRef.current = onInterimResult || null;
+
+      ws.onopen = () => {
+        console.log("✅ WebSocket connected for session:", sessionId);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("📨 WebSocket message:", data);
+
+          switch (data.type) {
+            case "interim":
+              setTranscript(data.transcript);
+              if (interimCallbackRef.current) {
+                interimCallbackRef.current(data.transcript);
+              }
+              break;
+
+            case "final":
+              setTranscript(data.transcript);
+              if (interimCallbackRef.current) {
+                interimCallbackRef.current(data.transcript);
+              }
+              break;
+
+            case "status":
+              setIsRecording(data.isRecording);
+              if (data.interimTranscript && interimCallbackRef.current) {
+                setTranscript(data.interimTranscript);
+                interimCallbackRef.current(data.interimTranscript);
+              }
+              break;
+
+            case "error":
+              console.error("WebSocket error:", data.error);
+              setError(data.error);
+              toast.error(`❌ ${data.error}`);
+              break;
           }
-        } catch (error) {
-          console.error("Error polling for interim results:", error);
+        } catch (err) {
+          console.error("Failed to parse WebSocket message:", err);
         }
-      }, 500); // Poll every 500ms
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setError("WebSocket connection error");
+      };
+
+      ws.onclose = (event) => {
+        console.log("🔌 WebSocket closed:", event.code, event.reason);
+        if (websocketRef.current === ws) {
+          websocketRef.current = null;
+          interimCallbackRef.current = null;
+        }
+      };
+
+      return ws;
     },
-    [makeRequest, baseURL],
+    [wsURL],
   );
 
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+  // Disconnect WebSocket
+  const disconnectWebSocket = useCallback(() => {
+    if (websocketRef.current) {
+      websocketRef.current.close();
+      websocketRef.current = null;
+      interimCallbackRef.current = null;
     }
   }, []);
 
@@ -135,17 +189,13 @@ export function useSpeechToText() {
           setIsRecording(true);
           toast.success("🎤 Started recording... Speak now!");
 
-          // Start polling for interim results if callback provided
-          if (onInterimResult) {
-            startPolling(response.sessionId, (interimText) => {
-              setTranscript(interimText);
-              onInterimResult(interimText);
-            });
-          }
+          // Connect to WebSocket for real-time updates
+          connectWebSocket(response.sessionId, onInterimResult);
 
           console.log("Speech recognition started:", {
             sessionId: response.sessionId,
             config: response.config,
+            websocketUrl: response.websocketUrl,
           });
         } else {
           throw new Error(response.message || "Failed to start recording");
@@ -160,7 +210,7 @@ export function useSpeechToText() {
         setIsLoading(false);
       }
     },
-    [makeRequest, baseURL, startPolling],
+    [makeRequest, baseURL, connectWebSocket],
   );
 
   // Stop speech recognition and get transcript
@@ -172,8 +222,8 @@ export function useSpeechToText() {
     try {
       setIsLoading(true);
 
-      // Stop polling for interim results
-      stopPolling();
+      // Disconnect WebSocket
+      disconnectWebSocket();
 
       const response = await makeRequest(
         `${baseURL}/api/speech/stop/${currentSessionRef.current}`,
@@ -214,7 +264,7 @@ export function useSpeechToText() {
     } finally {
       setIsLoading(false);
     }
-  }, [makeRequest, baseURL, stopPolling]);
+  }, [makeRequest, baseURL, disconnectWebSocket]);
 
   // Toggle recording (start/stop)
   const toggleRecording = useCallback(
@@ -232,7 +282,7 @@ export function useSpeechToText() {
     [isRecording, startRecording, stopRecording],
   );
 
-  // Get session status
+  // Get session status (keeping for compatibility)
   const getSessionStatus = useCallback(async () => {
     if (!currentSessionRef.current) {
       return null;
@@ -249,6 +299,7 @@ export function useSpeechToText() {
           isRecording: response.isRecording,
           currentResults: response.currentResults,
           resultCount: response.resultCount,
+          connectedClients: response.connectedClients,
         };
       }
       return null;
@@ -267,6 +318,7 @@ export function useSpeechToText() {
       return {
         available: response.ok && data.status === "ok",
         googleCloudConfigured: data.googleCloudConfigured,
+        websocketSupported: data.websocketSupported,
         message: data.message,
       };
     } catch (err) {
@@ -274,6 +326,7 @@ export function useSpeechToText() {
       return {
         available: false,
         googleCloudConfigured: false,
+        websocketSupported: false,
         message: "Service unavailable",
       };
     }
@@ -286,7 +339,8 @@ export function useSpeechToText() {
     setTranscript("");
     setError(null);
     currentSessionRef.current = null;
-  }, []);
+    disconnectWebSocket();
+  }, [disconnectWebSocket]);
 
   return {
     // State
@@ -306,5 +360,6 @@ export function useSpeechToText() {
 
     // Utils
     isAvailable: !isLoading,
+    isConnected: websocketRef.current?.readyState === 1,
   };
 }
