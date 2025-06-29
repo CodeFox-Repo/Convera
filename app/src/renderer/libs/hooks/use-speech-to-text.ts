@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useSession } from "./auth-hooks";
 
 export interface SpeechConfig {
   languageCode?: string;
@@ -34,6 +35,9 @@ export function useSpeechToText() {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Get session from better-auth
+  const { data: session, isPending } = useSession();
+
   const currentSessionRef = useRef<string | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const interimCallbackRef = useRef<((text: string) => void) | null>(null);
@@ -57,6 +61,11 @@ export function useSpeechToText() {
       }
     };
   }, []);
+
+  // Check if user is authenticated
+  const isAuthenticated = useCallback(() => {
+    return !isPending && !!session?.user;
+  }, [isPending, session]);
 
   // Start silence timeout
   const startSilenceTimeout = useCallback(() => {
@@ -95,8 +104,8 @@ export function useSpeechToText() {
           `${baseURL}/api/speech/stop/${currentSessionRef.current}`,
           {
             method: "POST",
+            credentials: "include", // Send session cookies
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("authToken") || "temporary-token"}`,
               "Content-Type": "application/json",
             },
           },
@@ -116,10 +125,17 @@ export function useSpeechToText() {
           } else {
             toast.warning("🔇 No speech detected before timeout");
           }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message ||
+              `HTTP ${response.status}: ${response.statusText}`,
+          );
         }
       } catch (error) {
         console.error("Failed to auto-stop recording:", error);
         setError("Failed to auto-stop recording");
+        toast.error(`❌ Failed to auto-stop recording`);
       } finally {
         setIsLoading(false);
       }
@@ -134,21 +150,19 @@ export function useSpeechToText() {
     }
   }, []);
 
-  // Get auth token from localStorage (same as other API calls)
-  const getAuthToken = useCallback(() => {
-    return localStorage.getItem("authToken") || "temporary-token";
-  }, []);
-
-  // Make authenticated API request
+  // Make authenticated API request using session
   const makeRequest = useCallback(
     async (url: string, options: RequestInit = {}) => {
-      const token = getAuthToken();
+      // Check if user is authenticated
+      if (!isAuthenticated()) {
+        throw new Error("User not authenticated. Please sign in.");
+      }
 
       const response = await fetch(url, {
         ...options,
+        credentials: "include", // Send session cookies automatically
         headers: {
           ...options.headers,
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
@@ -163,7 +177,7 @@ export function useSpeechToText() {
 
       return response.json();
     },
-    [getAuthToken],
+    [isAuthenticated],
   );
 
   // Connect to WebSocket for real-time updates
