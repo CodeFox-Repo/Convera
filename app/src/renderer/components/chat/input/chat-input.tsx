@@ -69,8 +69,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               : input.trim();
 
             // Use the setInput method to update the editor with combined content
-            const currentRef =
-              ref as React.MutableRefObject<ChatInputRef | null>;
+            const currentRef = ref as React.RefObject<ChatInputRef | null>;
             if (currentRef?.current) {
               currentRef.current.setInput(newContent);
             } else {
