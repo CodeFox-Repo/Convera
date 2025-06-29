@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { baseURL } from "@/lib/api-client";
-import { Mail, Shield, TrendingUp, Users, Cpu } from "lucide-react";
+import { Mail, Server, Shield, TrendingUp, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface MCPServer {
@@ -47,7 +47,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const mcpData = mcpResponse.ok ? await mcpResponse.json() : null;
-        
+
         const mcpServers = mcpData?.data?.mcpServers || [];
         setStats({
           ...userData.stats,
@@ -150,7 +150,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">App MCP</CardTitle>
-            <Cpu className="text-muted-foreground h-4 w-4" />
+            <Server className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.mcpServers?.total || 0}</div>
@@ -183,7 +183,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
               className="flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors hover:bg-gray-50"
               onClick={() => onSectionChange?.("mcp")}
             >
-              <Cpu className="h-5 w-5 text-purple-500" />
+              <Server className="h-5 w-5 text-purple-500" />
               <div>
                 <div className="font-medium">App MCP</div>
                 <div className="text-sm text-gray-500">Manage App MCP marketplace</div>

@@ -34,7 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { baseURL } from "@/lib/api-client";
-import { Copy, Cpu, Download, Edit, FileJson, Plus, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Edit, FileJson, Plus, Server, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface MCPServerConfig {
@@ -47,6 +47,17 @@ interface MCPServerConfig {
   url?: string;
   apiKey?: string;
   description?: string;
+  isSSE?: boolean;
+}
+
+interface MCPAuthor {
+  name: string;
+  url?: string;
+}
+
+interface MCPFile {
+  type: 'dataUrl' | 'url' | 'path';
+  content: string;
 }
 
 interface MCPServer {
@@ -55,6 +66,11 @@ interface MCPServer {
   description: string;
   iconUrl: string;
   config: MCPServerConfig;
+  version: string;
+  keywords: string[];
+  author: MCPAuthor;
+  fileType: string | null;
+  fileContent: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +84,10 @@ interface MCPFormData {
   args: string;
   url: string;
   apiKey: string;
+  version: string;
+  keywords: string;
+  authorName: string;
+  authorUrl: string;
 }
 
 export function MCPManagement() {
@@ -84,6 +104,10 @@ export function MCPManagement() {
     args: "",
     url: "",
     apiKey: "",
+    version: "1.0.0",
+    keywords: "",
+    authorName: "",
+    authorUrl: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [jsonImportOpen, setJsonImportOpen] = useState(false);
@@ -92,6 +116,14 @@ export function MCPManagement() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [jsonConfigView, setJsonConfigView] = useState("");
+  
+  // Keywords management
+  const [keywordsList, setKeywordsList] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
+  
+  // Arguments management
+  const [argumentsList, setArgumentsList] = useState<string[]>([]);
+  const [argumentInput, setArgumentInput] = useState("");
 
   // Fetch MCP servers
   const fetchServers = async () => {
@@ -121,65 +153,142 @@ export function MCPManagement() {
   // State for icon file
   const [iconFile, setIconFile] = useState<File | null>(null);
 
+  // Keywords management functions
+  const addKeyword = () => {
+    if (keywordInput.trim() && !keywordsList.includes(keywordInput.trim())) {
+      const newKeywords = [...keywordsList, keywordInput.trim()];
+      setKeywordsList(newKeywords);
+      setFormData((prev) => ({ ...prev, keywords: newKeywords.join(", ") }));
+      setKeywordInput("");
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const removeKeyword = (keyword: string) => {
+    const newKeywords = keywordsList.filter(k => k !== keyword);
+    setKeywordsList(newKeywords);
+    setFormData((prev) => ({ ...prev, keywords: newKeywords.join(", ") }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleKeywordInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addKeyword();
+    }
+  };
+
+  // Arguments management functions
+  const addArgument = () => {
+    if (argumentInput.trim() && !argumentsList.includes(argumentInput.trim())) {
+      const newArguments = [...argumentsList, argumentInput.trim()];
+      setArgumentsList(newArguments);
+      setFormData((prev) => ({ ...prev, args: newArguments.join(", ") }));
+      setArgumentInput("");
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const removeArgument = (argument: string) => {
+    const newArguments = argumentsList.filter(arg => arg !== argument);
+    setArgumentsList(newArguments);
+    setFormData((prev) => ({ ...prev, args: newArguments.join(", ") }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleArgumentInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addArgument();
+    }
+  };
+
   // Generate JSON view from form data
   const generateJsonFromForm = useCallback(() => {
-    const config = {
-      mcpServers: {
-        [formData.serverId || "server-id"]: {
-          ...(formData.name && { name: formData.name }),
-          ...(formData.command && { command: formData.command }),
-          ...(formData.args && {
-            args: formData.args
-              .split(",")
-              .map((arg) => arg.trim())
-              .filter(Boolean),
-          }),
-          ...(formData.url && { url: formData.url }),
-          ...(formData.apiKey && { apiKey: formData.apiKey }),
-          ...(formData.description && { description: formData.description }),
-        },
-      },
+    const mcpconfig = {
+      ...(formData.name && { name: formData.name }),
+      ...(formData.command && { command: formData.command }),
+      ...(argumentsList.length > 0 && { args: argumentsList }),
+      ...(formData.url && { url: formData.url }),
+      ...(formData.apiKey && { apiKey: formData.apiKey }),
+      ...(formData.description && { description: formData.description }),
     };
-    return JSON.stringify(config, null, 2);
-  }, [formData]);
+
+    const server = {
+      id: formData.serverId || "server-id",
+      version: formData.version || "1.0.0",
+      name: formData.name,
+      description: formData.description,
+      mcpconfig: mcpconfig,
+      keywords: keywordsList,
+      author: {
+        name: formData.authorName,
+        url: formData.authorUrl,
+      },
+      file: formData.iconUrl
+        ? { type: "dataUrl", content: formData.iconUrl }
+        : null,
+    };
+    return JSON.stringify(server, null, 2);
+  }, [formData, keywordsList, argumentsList]);
 
   // Parse JSON and update form data (silent mode for auto-parsing)
   const parseJsonToForm = (jsonStr: string, silent = false) => {
     try {
       const parsed = JSON.parse(jsonStr);
 
-      // Support both formats: direct config or mcpServers wrapper
-      let serverConfig;
-      let serverId;
-
-      if (parsed.mcpServers) {
-        // Extract first server from mcpServers format
-        const serverKeys = Object.keys(parsed.mcpServers);
-        if (serverKeys.length > 0) {
-          serverId = serverKeys[0];
-          serverConfig = parsed.mcpServers[serverId];
-        }
-      } else {
-        // Direct config format
-        serverConfig = parsed;
-        serverId = formData.serverId;
-      }
-
-      if (serverConfig) {
+      // Support new format with mcpconfig
+      if (parsed.id && parsed.mcpconfig) {
+        const keywords = Array.isArray(parsed.keywords) ? parsed.keywords : [];
+        const args = Array.isArray(parsed.mcpconfig?.args) ? parsed.mcpconfig.args : [];
+        setKeywordsList(keywords);
+        setArgumentsList(args);
         setFormData((prev) => ({
           ...prev,
-          ...(serverId && { serverId }),
-          ...(serverConfig.name && { name: serverConfig.name }),
-          ...(serverConfig.command && { command: serverConfig.command }),
-          ...(serverConfig.args && {
-            args: Array.isArray(serverConfig.args) ? serverConfig.args.join(", ") : "",
-          }),
-          ...(serverConfig.url && { url: serverConfig.url }),
-          ...(serverConfig.apiKey && { apiKey: serverConfig.apiKey }),
-          ...(serverConfig.description && { description: serverConfig.description }),
+          serverId: parsed.id,
+          name: parsed.name || "",
+          description: parsed.description || "",
+          version: parsed.version || "1.0.0",
+          keywords: keywords.join(", "),
+          authorName: parsed.author?.name || "",
+          authorUrl: parsed.author?.url || "",
+          iconUrl: parsed.file?.content || "",
+          command: parsed.mcpconfig?.command || "",
+          args: args.join(", "),
+          url: parsed.mcpconfig?.url || "",
+          apiKey: parsed.mcpconfig?.apiKey || "",
         }));
         setHasUnsavedChanges(true);
         return true;
+      }
+      // Support old mcpServers format
+      else if (parsed.mcpServers) {
+        // Extract first server from mcpServers format
+        const serverKeys = Object.keys(parsed.mcpServers);
+        if (serverKeys.length > 0) {
+          const serverId = serverKeys[0];
+          const serverConfig = parsed.mcpServers[serverId];
+          
+          const oldArgs = Array.isArray(serverConfig.args) ? serverConfig.args : [];
+          setKeywordsList([]);
+          setArgumentsList(oldArgs);
+          setFormData((prev) => ({
+            ...prev,
+            serverId,
+            name: serverConfig.name || "",
+            command: serverConfig.command || "",
+            args: oldArgs.join(", "),
+            url: serverConfig.url || "",
+            apiKey: serverConfig.apiKey || "",
+            description: serverConfig.description || "",
+            version: "1.0.0",
+            keywords: "",
+            authorName: "",
+            authorUrl: "",
+          }));
+          setHasUnsavedChanges(true);
+          return true;
+        }
       }
     } catch (error) {
       // Silent fail for auto-parsing, only log for manual parsing
@@ -253,22 +362,27 @@ export function MCPManagement() {
       const config: MCPServerConfig = {
         name: formData.name,
         command: formData.command,
-        args: formData.args
-          .split(",")
-          .map((arg) => arg.trim())
-          .filter(Boolean),
+        args: argumentsList,
         url: formData.url || undefined,
         apiKey: formData.apiKey || undefined,
         description: formData.description,
       };
 
+      const author: MCPAuthor = {
+        name: formData.authorName,
+        url: formData.authorUrl || undefined,
+      };
+
       if (editingServer) {
-        // For updates, still use JSON (existing functionality)
+        // For updates, include new fields
         const payload = {
           name: formData.name,
           description: formData.description,
           iconUrl: formData.iconUrl || undefined,
           config,
+          version: formData.version,
+          keywords: keywordsList,
+          author,
         };
 
         const response = await fetch(`${baseURL}/api/app/${editingServer.id}`, {
@@ -305,6 +419,9 @@ export function MCPManagement() {
         formDataToSend.append("name", formData.name);
         formDataToSend.append("description", formData.description);
         formDataToSend.append("config", JSON.stringify(config));
+        formDataToSend.append("version", formData.version);
+        formDataToSend.append("keywords", JSON.stringify(keywordsList));
+        formDataToSend.append("author", JSON.stringify(author));
 
         // Add icon file if selected
         if (iconFile) {
@@ -388,7 +505,15 @@ export function MCPManagement() {
       args: "",
       url: "",
       apiKey: "",
+      version: "1.0.0",
+      keywords: "",
+      authorName: "",
+      authorUrl: "",
     });
+    setKeywordsList([]);
+    setKeywordInput("");
+    setArgumentsList([]);
+    setArgumentInput("");
     setEditingServer(null);
     setHasUnsavedChanges(false);
     setIconFile(null);
@@ -397,15 +522,25 @@ export function MCPManagement() {
   // Open edit dialog
   const openEditDialog = (server: MCPServer) => {
     setEditingServer(server);
+    const keywords = server.keywords || [];
+    const args = server.config.args || [];
+    setKeywordsList(keywords);
+    setKeywordInput("");
+    setArgumentsList(args);
+    setArgumentInput("");
     setFormData({
       serverId: server.id,
       name: server.name,
       description: server.description,
       iconUrl: server.iconUrl || "",
       command: server.config.command || "",
-      args: server.config.args?.join(", ") || "",
+      args: args.join(", "),
       url: server.config.url || "",
       apiKey: server.config.apiKey || "",
+      version: server.version || "1.0.0",
+      keywords: keywords.join(", "),
+      authorName: server.author?.name || "",
+      authorUrl: server.author?.url || "",
     });
     setDialogOpen(true);
   };
@@ -491,6 +626,9 @@ export function MCPManagement() {
         name: string;
         description: string;
         iconUrl?: string;
+        version: string;
+        keywords: string[];
+        author: MCPAuthor;
         config: {
           name: string;
           command: string;
@@ -509,14 +647,19 @@ export function MCPManagement() {
           serverId: server.id,
           name: server.name,
           description: server.description || "",
-          iconUrl: server.icon, // Note: this is the icon dataURL
+          iconUrl: server.file?.content || server.icon, // Support both new and old formats
+          version: server.version || "1.0.0",
+          keywords: server.keywords || [],
+          author: server.author || { name: "", url: "" },
           config: {
-            name: server.name,
-            command: server.config.command || "",
-            args: server.config.args || [],
-            description: server.description || "",
-            ...(server.config.url && { url: server.config.url }),
-            ...(server.config.apiKey && { apiKey: server.config.apiKey }),
+            name: server.mcpconfig?.name || server.config?.name || server.name,
+            command: server.mcpconfig?.command || server.config?.command || "",
+            args: server.mcpconfig?.args || server.config?.args || [],
+            description: server.mcpconfig?.description || server.config?.description || server.description || "",
+            ...(server.mcpconfig?.url && { url: server.mcpconfig.url }),
+            ...(server.config?.url && { url: server.config.url }),
+            ...(server.mcpconfig?.apiKey && { apiKey: server.mcpconfig.apiKey }),
+            ...(server.config?.apiKey && { apiKey: server.config.apiKey }),
           },
         }));
       }
@@ -544,6 +687,9 @@ export function MCPManagement() {
             name: config.name || serverId,
             description: config.description || "",
             iconUrl: config.iconUrl,
+            version: "1.0.0",
+            keywords: [],
+            author: { name: "", url: "" },
             config: {
               name: config.name || serverId,
               command: config.command || "",
@@ -563,6 +709,9 @@ export function MCPManagement() {
         formDataToSend.append("name", payload.name);
         formDataToSend.append("description", payload.description);
         formDataToSend.append("config", JSON.stringify(payload.config));
+        formDataToSend.append("version", payload.version);
+        formDataToSend.append("keywords", JSON.stringify(payload.keywords));
+        formDataToSend.append("author", JSON.stringify(payload.author));
 
         // Handle base64 icon data if present
         if (payload.iconUrl && payload.iconUrl.startsWith("data:")) {
@@ -802,6 +951,91 @@ export function MCPManagement() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="version">Version</Label>
+                  <Input
+                    id="version"
+                    value={formData.version}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, version: e.target.value }));
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="1.0.0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="keywords">Keywords</Label>
+                  <div className="space-y-2">
+                    {keywordsList.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {keywordsList.map((keyword, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="flex items-center gap-1 pr-1"
+                          >
+                            <span>{keyword}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeKeyword(keyword)}
+                              className="ml-1 rounded-sm hover:bg-gray-300"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Input
+                        id="keywords"
+                        value={keywordInput}
+                        onChange={(e) => setKeywordInput(e.target.value)}
+                        onKeyDown={handleKeywordInputKeyDown}
+                        placeholder="Add keyword and press Enter"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={addKeyword}
+                        disabled={!keywordInput.trim()}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">Press Enter or click + to add keywords</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="authorName">Author Name</Label>
+                  <Input
+                    id="authorName"
+                    value={formData.authorName}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, authorName: e.target.value }));
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="authorUrl">Author URL</Label>
+                  <Input
+                    id="authorUrl"
+                    value={formData.authorUrl}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, authorUrl: e.target.value }));
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="https://github.com/johndoe"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label>Icon</Label>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -856,15 +1090,48 @@ export function MCPManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="args">Arguments</Label>
-                  <Input
-                    id="args"
-                    value={formData.args}
-                    onChange={(e) => {
-                      setFormData((prev) => ({ ...prev, args: e.target.value }));
-                      setHasUnsavedChanges(true);
-                    }}
-                    placeholder="-y, @foxychat-mcp/apple-imessages"
-                  />
+                  <div className="space-y-2">
+                    {argumentsList.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {argumentsList.map((argument, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="flex items-center gap-1 pr-1"
+                          >
+                            <span>{argument}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeArgument(argument)}
+                              className="ml-1 rounded-sm hover:bg-gray-300"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Input
+                        id="args"
+                        value={argumentInput}
+                        onChange={(e) => setArgumentInput(e.target.value)}
+                        onKeyDown={handleArgumentInputKeyDown}
+                        placeholder="Add argument and press Enter (e.g., -y)"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={addArgument}
+                        disabled={!argumentInput.trim()}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">Press Enter or click + to add command arguments</p>
                 </div>
 
                 <div className="space-y-2">
@@ -988,7 +1255,7 @@ export function MCPManagement() {
               <CardDescription>View and manage App MCP available for users</CardDescription>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Cpu className="h-4 w-4" />
+              <Server className="h-4 w-4" />
               <span>{servers.length} total</span>
               <span className="text-gray-400">•</span>
               <span>{servers.length} available</span>
@@ -1001,6 +1268,7 @@ export function MCPManagement() {
               <TableRow>
                 <TableHead>App MCP</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead>Author</TableHead>
                 <TableHead>Config</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -1010,10 +1278,10 @@ export function MCPManagement() {
             <TableBody>
               {servers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32">
+                  <TableCell colSpan={7} className="h-32">
                     <div className="flex flex-col items-center justify-center gap-3 py-8">
                       <div className="rounded-full bg-gray-100 p-3">
-                        <Cpu className="h-6 w-6 text-gray-400" />
+                        <Server className="h-6 w-6 text-gray-400" />
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-medium text-gray-900">No App MCP configured</p>
@@ -1058,13 +1326,59 @@ export function MCPManagement() {
                         )}
                         <div>
                           <div className="font-medium text-gray-900">{server.name}</div>
-                          <div className="font-mono text-xs text-gray-500">{server.id}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-gray-500">{server.id}</span>
+                            {server.version && (
+                              <span className="text-xs text-gray-400">v{server.version}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="max-w-xs">
                         <p className="line-clamp-2 text-sm text-gray-600">{server.description}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {server.author && server.author.name && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm font-medium text-gray-900">{server.author.name}</span>
+                          </div>
+                        )}
+                        {server.author && server.author.url && (
+                          <div>
+                            <a
+                              href={server.author.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {server.author.url}
+                            </a>
+                          </div>
+                        )}
+                        {server.keywords && server.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {server.keywords.slice(0, 3).map((keyword, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center rounded-md bg-gray-50 px-1.5 py-0.5 text-xs font-medium text-gray-600"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                            {server.keywords.length > 3 && (
+                              <span className="text-xs text-gray-400">
+                                +{server.keywords.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {(!server.author || !server.author.name) && (!server.keywords || server.keywords.length === 0) && (
+                          <span className="text-xs text-gray-400">No author info</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
