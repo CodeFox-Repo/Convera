@@ -23,7 +23,7 @@ import {
   pasteModifiedContent,
   resizeAndCenterWindow,
   resizeWindow,
-  setInputText,
+  setInputContent,
   setTheme,
   toggleAgentPopoverWindow,
   toggleModelSelectorWindow,
@@ -42,7 +42,7 @@ interface ElectronAPI extends IPCServer {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputText: (callback: (text: string) => void) => () => void;
+  onSetInputContent: (callback: (content: { text?: string; imageData?: string }) => void) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
@@ -91,11 +91,11 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onSetInputText = (callback: (text: string) => void) => {
-    const handler = (_: any, text: string) => callback(text);
-    ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
+  api.onSetInputContent = (callback: (content: { text?: string; imageData?: string }) => void) => {
+    const handler = (_: any, content: { text?: string; imageData?: string }) => callback(content);
+    ipcRenderer.on(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     return () => {
-      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
+      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     };
   };
 
@@ -167,9 +167,9 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     return getClipboardText();
   });
 
-  ipcMain.handle(CHANNELS.APP.SET_INPUT_TEXT, (_event, text: string) => {
+  ipcMain.handle(CHANNELS.APP.SET_INPUT_CONTENT, (_event, content: { text?: string; imageData?: string }) => {
     const window = chatWindow?.() || null;
-    return setInputText(window, text);
+    return setInputContent(window, content);
   });
 
   ipcMain.handle(

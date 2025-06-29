@@ -18,8 +18,7 @@ import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import {
   getCurrentShortcut,
-  getPreviousApp,
-  setInputText,
+  setInputContent,
   setPreviousApp,
 } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -55,37 +54,41 @@ let trackingAppFocus = false;
 
 // Clipboard buffer for restoring original content
 let originalClipboardContent = "";
+let originalClipboardImage: Electron.NativeImage | null = null;
+
+// Previous clipboard buffer to avoid duplicates
+let prevClipboardContent = "";
+let prevClipboardImageHash = "";
+
+// Prevent duplicate shortcut processing
+let shortcutInProgress = false;
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
 
-/**
- * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
- * @returns Promise that resolves when the copy operation is complete
- */
+function createImageHash(imageBuffer: Buffer): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require('crypto');
+  return crypto.createHash('md5').update(imageBuffer).digest('hex');
+}
+
 async function simulateClipboardCopy(): Promise<void> {
   try {
-    logger.debug("Preserving original clipboard content");
     originalClipboardContent = clipboard.readText();
+    originalClipboardImage = clipboard.readImage();
     
-    logger.debug("Simulating copy command with RobotJS");
-
-    // Release modifier keys first to prevent conflicts
     robot?.keyToggle("shift", "up");
     robot?.keyToggle("control", "up");
     robot?.keyToggle("alt", "up");
 
-    // Small delay to ensure modifiers are released
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    // Perform the copy operation
     if (process.platform === "darwin") {
       robot?.keyTap("c", "command");
     } else {
       robot?.keyTap("c", "control");
     }
 
-    // Wait for clipboard to be updated
     await new Promise(resolve => setTimeout(resolve, 100));
     
   } catch (error) {
@@ -94,17 +97,18 @@ async function simulateClipboardCopy(): Promise<void> {
   }
 }
 
-/**
- * Restore the original clipboard content
- */
 function restoreClipboard(): void {
   try {
-    if (originalClipboardContent !== undefined) {
+    if (originalClipboardImage && !originalClipboardImage.isEmpty()) {
+      clipboard.writeImage(originalClipboardImage);
+    } else if (originalClipboardContent !== undefined) {
       clipboard.writeText(originalClipboardContent);
-      logger.debug("Original clipboard content restored");
     }
+    
+    originalClipboardContent = "";
+    originalClipboardImage = null;
   } catch (error) {
-    logger.error("Error restoring clipboard content:", error);
+    logger.error("Error restoring clipboard:", error);
   }
 }
 
@@ -186,37 +190,77 @@ function registerGlobalShortcuts() {
   console.log(`Attempting to register global shortcut: ${currentShortcut}`);
   try {
     const ret = globalShortcut.register(currentShortcut, async () => {
-      logger.debug(`Global shortcut ${currentShortcut} triggered`);
-
-      const prevApp = getPreviousApp();
-      if (prevApp) {
-        logger.debug(`Previously focused application: ${prevApp}`);
-      }
+      if (shortcutInProgress) return;
+      
+      shortcutInProgress = true;
 
       try {
         await simulateClipboardCopy();
 
         const selectedText = clipboard.readText();
-        logger.debug(`Selected text captured: ${selectedText ? "Found" : "None"}`);
+        const selectedImage = clipboard.readImage();
 
-        // Show the chat window and set input text
+        // Check for duplicates
+        let isTextDuplicate = false;
+        let isImageDuplicate = false;
+        
+        if (selectedText && selectedText === prevClipboardContent) {
+          isTextDuplicate = true;
+        }
+        
+        let currentImageHash = "";
+        if (selectedImage && !selectedImage.isEmpty()) {
+          const imageBuffer = selectedImage.toPNG();
+          currentImageHash = createImageHash(imageBuffer);
+          if (currentImageHash === prevClipboardImageHash) {
+            isImageDuplicate = true;
+          }
+        }
+        
+        // Skip if all content is duplicate or no content
+        if ((selectedText && isTextDuplicate) && (selectedImage && !selectedImage.isEmpty() && isImageDuplicate)) {
+          return;
+        }
+        
+        if (!selectedText && (!selectedImage || selectedImage.isEmpty())) {
+          return;
+        }
+
         if (getChatWindow()) {
           toggleChatWindowVisibility(getChatWindow());
           setTimeout(() => {
-            setInputText(getChatWindow(), selectedText);
-            // Restore clipboard after a delay to ensure input is set
+            const contentToSend: { text?: string; imageData?: string } = {};
+            
+            if (selectedImage && !selectedImage.isEmpty() && !isImageDuplicate) {
+              const imageBuffer = selectedImage.toPNG();
+              const base64Image = imageBuffer.toString('base64');
+              contentToSend.imageData = base64Image;
+              prevClipboardImageHash = currentImageHash;
+            }
+            
+            if (selectedText && !isTextDuplicate) {
+              contentToSend.text = selectedText;
+              prevClipboardContent = selectedText;
+            }
+            
+            if (contentToSend.imageData || contentToSend.text) {
+              setInputContent(getChatWindow(), contentToSend);
+            }
+            
             setTimeout(() => {
               restoreClipboard();
             }, 200);
           }, 100);
         } else {
-          // If no chat window, restore clipboard immediately
           restoreClipboard();
         }
       } catch (error) {
-        logger.error("Error in clipboard operation:", error);
-        // Always restore clipboard on error
+        logger.error("Clipboard operation failed:", error);
         restoreClipboard();
+      } finally {
+        setTimeout(() => {
+          shortcutInProgress = false;
+        }, 500);
       }
     });
 

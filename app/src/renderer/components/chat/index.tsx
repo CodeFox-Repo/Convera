@@ -4,7 +4,7 @@ import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import CompactChatView from "./core/compact-chat-view";
 import ExpandedChatView from "./core/expanded-chat-view";
 import { ChatInputRef } from "./input/chat-input";
@@ -17,6 +17,16 @@ export default function Chat() {
 
   const [initializing, setInitializing] = useState(true);
   const [mounted, setMounted] = useState(false);
+
+  // Helper function to create clipboard content with deduplication
+  const createClipboardContent = useCallback((content: { text?: string; imageData?: string }) => {
+    const timestamp = Date.now();
+    return {
+      ...content,
+      timestamp,
+      source: 'shortcut' as const
+    };
+  }, []);
 
   // Listen for theme changes from settings
   useThemeSync();
@@ -87,18 +97,32 @@ export default function Chat() {
   }, [viewMode, hasExpandedOnce, setHasExpandedOnce]);
 
   useEffect(() => {
-    if (window.electronAPI?.onSetInputText) {
-      const unsubscribe = window.electronAPI.onSetInputText((text: string) => {
-        if (!text || !text.trim()) {
-          setCopiedContent(null);
+    let mounted = true;
+    
+    if (window.electronAPI?.onSetInputContent) {
+      const unsubscribe = window.electronAPI.onSetInputContent((content: { text?: string; imageData?: string }) => {
+        // Prevent processing after unmount to avoid stale closure issues
+        if (!mounted) return;
+        
+        // Create clipboard content with both text and image data
+        if (content.imageData || (content.text && content.text.trim())) {
+          const clipboardContent = createClipboardContent({
+            text: content.text && content.text.trim() ? content.text : undefined,
+            imageData: content.imageData || undefined
+          });
+          
+          setCopiedContent(clipboardContent);
         } else {
-          setCopiedContent(text);
+          setCopiedContent(null);
         }
       });
 
-      return unsubscribe;
+      return () => {
+        mounted = false;
+        unsubscribe?.();
+      };
     }
-  }, [setCopiedContent]);
+  }, [setCopiedContent, createClipboardContent]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {

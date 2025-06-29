@@ -18,7 +18,7 @@ export interface IPCServer {
   getPreviousApp(): string;
   getPreviousAppID(): number;
   getClipboardText(): string;
-  setInputText(text: string): void;
+  setInputContent(content: { text?: string; imageData?: string }): void;
   pasteModifiedContent(content: string): void;
 
   // Platform detection
@@ -86,7 +86,7 @@ export const CHANNELS = {
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
-    SET_INPUT_TEXT: "app:set-input-text",
+    SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
   },
   CLIPBOARD: {
@@ -132,7 +132,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
-  setInputText: CHANNELS.APP.SET_INPUT_TEXT,
+  setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
 
   // Platform detection

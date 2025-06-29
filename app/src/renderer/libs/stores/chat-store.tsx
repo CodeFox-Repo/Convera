@@ -20,6 +20,14 @@ import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";
 
+// Clipboard content structure
+export interface ClipboardContent {
+  text?: string;
+  imageData?: string; // base64 encoded image
+  timestamp?: number;
+  source?: 'shortcut' | 'manual'; // track how content was captured
+}
+
 // Simple tool call result type
 interface ToolCallResult {
   success: boolean;
@@ -32,7 +40,7 @@ interface ChatContextType {
   input: string;
   isLoading: boolean;
   error: Error | undefined;
-  copiedContent: string | null;
+  copiedContent: ClipboardContent | null;
   attachments: File[];
 
   // View mode management
@@ -60,7 +68,7 @@ interface ChatContextType {
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
   resetChat: () => void;
-  setCopiedContent: (content: string | null) => void;
+  setCopiedContent: (content: ClipboardContent | null) => void;
   rejectCopiedContent: () => void;
   addAttachments: (files: File | File[]) => void;
   removeAttachment: (index: number) => void;
@@ -107,7 +115,7 @@ const mcpLogger = window.logger.getLogger("chat-store-mcp");
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [copiedContent, setCopiedContent] = useState<string | null>(null);
+  const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(null);
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -506,10 +514,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       let messageText = chatAPI.input.trim();
 
+      // Handle clipboard content (text and/or image)
+      let clipboardImageFile: File | null = null;
+      
       if (copiedContent) {
-        messageText = messageText
-          ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
-          : `<copied>\n${copiedContent}\n</copied>`;
+        // Handle text content
+        if (copiedContent.text) {
+          messageText = messageText
+            ? `<copied>\n${copiedContent.text}\n</copied>\n\n${messageText}`
+            : `<copied>\n${copiedContent.text}\n</copied>`;
+        }
+        
+        // Handle image content - convert to File object
+        if (copiedContent.imageData) {
+          try {
+            const base64ToFile = (base64: string, filename: string): File => {
+              const arr = base64.split(',');
+              const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+              const bstr = atob(arr.length > 1 ? arr[1] : base64);
+              let n = bstr.length;
+              const u8arr = new Uint8Array(n);
+              while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+              }
+              return new File([u8arr], filename, { type: mime });
+            };
+            
+            const imageDataUrl = copiedContent.imageData.startsWith('data:') 
+              ? copiedContent.imageData 
+              : `data:image/png;base64,${copiedContent.imageData}`;
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `screenshot-${timestamp}.png`;
+            clipboardImageFile = base64ToFile(imageDataUrl, filename);
+          } catch (error) {
+            console.error('Error converting clipboard image:', error);
+          }
+        }
 
         setCopiedContent(null);
       }
@@ -521,9 +562,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const sendMessageWithAttachments = async () => {
         try {
-          if (filesToSend.length > 0) {
+          // Combine regular attachments with clipboard image
+          const allFiles = [...filesToSend];
+          if (clipboardImageFile) {
+            allFiles.push(clipboardImageFile);
+          }
+          
+          if (allFiles.length > 0) {
             const fileAttachments = await Promise.all(
-              filesToSend.map(fileToAttachment),
+              allFiles.map(fileToAttachment),
             );
             message.experimental_attachments = fileAttachments;
           }

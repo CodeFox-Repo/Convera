@@ -429,13 +429,13 @@ export function getClipboardText(): string {
   return clipboard.readText();
 }
 
-export function setInputText(
+export function setInputContent(
   mainWindow: BrowserWindow | null,
-  text: string,
+  content: { text?: string; imageData?: string },
 ): void {
   if (mainWindow) {
-    // Send the text to the renderer to set as input
-    mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_TEXT, text);
+    // Send the content to the renderer to set as input
+    mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_CONTENT, content);
   }
 }
 

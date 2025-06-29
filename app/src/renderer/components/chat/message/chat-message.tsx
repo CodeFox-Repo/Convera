@@ -3,17 +3,16 @@ import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
-  ChevronDown,
-  ChevronUp,
-  Clipboard,
   Copy,
   Edit,
   File,
   RefreshCw,
   User,
 } from "lucide-react";
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import CopiedContentBlock from "../clipboard/copied-content-block";
 
 /**
  * Simple markdown renderer component
@@ -53,7 +52,7 @@ export interface ChatMessageProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
-  copiedContent?: string | null;
+  copiedContent?: ClipboardContent | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -247,25 +246,6 @@ const ChatMessage = memo(
       return "U";
     };
 
-    // State for copied content expansion
-    const [copiedContentExpanded, setCopiedContentExpanded] = useState(false);
-    const copiedContentRef = useRef<HTMLDivElement>(null);
-    const [copiedContentHeight, setCopiedContentHeight] = useState<
-      number | undefined
-    >(undefined);
-
-    // Get the full height of the copied content when mounted or content changes
-    useEffect(() => {
-      if (copiedContentRef.current && copiedContent) {
-        const height = copiedContentRef.current.scrollHeight;
-        setCopiedContentHeight(height);
-      }
-    }, [copiedContent]);
-
-    const toggleCopiedContent = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setCopiedContentExpanded(!copiedContentExpanded);
-    };
 
     const userInitials = session?.user
       ? getUserInitials(session.user.name, session.user.email)
@@ -352,46 +332,7 @@ const ChatMessage = memo(
 
               {/* Copied content section - below attachments, above message content */}
               {copiedContent && (
-                <div>
-                  <div className="group relative rounded-lg border border-border bg-background/50 p-3">
-                    <div
-                      className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                      onClick={toggleCopiedContent}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Clipboard size={12} />
-                        <span>Copied Content</span>
-                      </div>
-                      <span className="flex items-center gap-1">
-                        {copiedContentExpanded ? (
-                          <>
-                            <span className="mr-1">Collapse</span>
-                            <ChevronUp size={14} />
-                          </>
-                        ) : (
-                          <>
-                            <span className="mr-1">Expand</span>
-                            <ChevronDown size={14} />
-                          </>
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      ref={copiedContentRef}
-                      className="text-foreground/90 text-sm whitespace-pre-wrap relative overflow-hidden transition-all duration-300"
-                      style={{
-                        maxHeight: copiedContentExpanded
-                          ? `${copiedContentHeight}px`
-                          : "60px",
-                      }}
-                    >
-                      {copiedContent}
-                      {!copiedContentExpanded && (
-                        <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-background/50 to-transparent" />
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <CopiedContentBlock content={copiedContent} />
               )}
 
               {/* Message content */}
