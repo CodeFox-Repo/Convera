@@ -318,11 +318,14 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     try {
       const prevApp = getPreviousApp();
       if (prevApp) {
-        exec(`osascript -e 'tell application "${prevApp}" to activate'`, (error) => {
-          if (error) {
-            console.error("Error activating previous app:", error);
-          }
-        });
+        exec(
+          `osascript -e 'tell application "${prevApp}" to activate'`,
+          (error) => {
+            if (error) {
+              console.error("Error activating previous app:", error);
+            }
+          },
+        );
       }
     } catch (error) {
       console.error("Error getting previous app:", error);

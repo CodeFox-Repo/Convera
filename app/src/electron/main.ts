@@ -219,23 +219,27 @@ function registerGlobalShortcuts() {
         }
 
         // Skip content processing if all content is duplicate or no content
-        const allContentDuplicate = (
+        const allContentDuplicate =
           selectedText &&
           isTextDuplicate &&
           selectedImage &&
           !selectedImage.isEmpty() &&
-          isImageDuplicate
-        );
-        const noContent = !selectedText && (!selectedImage || selectedImage.isEmpty());
-        
+          isImageDuplicate;
+        const noContent =
+          !selectedText && (!selectedImage || selectedImage.isEmpty());
+
         if (getChatWindow()) {
           toggleChatWindowVisibility(getChatWindow());
-          
+
           // Process content immediately if we have new content
           if (!allContentDuplicate && !noContent) {
             const contentToSend: { text?: string; imageData?: string } = {};
 
-            if (selectedImage && !selectedImage.isEmpty() && !isImageDuplicate) {
+            if (
+              selectedImage &&
+              !selectedImage.isEmpty() &&
+              !isImageDuplicate
+            ) {
               const imageBuffer = selectedImage.toPNG();
               const base64Image = imageBuffer.toString("base64");
               contentToSend.imageData = base64Image;
@@ -252,7 +256,7 @@ function registerGlobalShortcuts() {
             }
           }
         }
-        
+
         // Restore clipboard asynchronously
         setImmediate(() => {
           restoreClipboard();
