@@ -14,6 +14,8 @@ interface McpState {
   loadingMcpConfigs: boolean;
   mcpServers: ServerInfo[];
   loadingMcpServers: boolean;
+  lastFetchTime: number | null;
+  isFetching: boolean;
 
   // Actions
   fetchMcpConfigurations: () => Promise<void>;
@@ -37,6 +39,7 @@ interface McpState {
   handleRemoveServer: (id: string) => Promise<void>;
 
   refreshAll: () => Promise<void>;
+  subscribeMcpChanges: () => () => void;
 }
 
 export const useMcpStore = create<McpState>()(
@@ -47,6 +50,8 @@ export const useMcpStore = create<McpState>()(
       loadingMcpConfigs: false,
       mcpServers: [],
       loadingMcpServers: false,
+      lastFetchTime: null,
+      isFetching: false,
 
       // Fetch MCP configurations via IPC
       fetchMcpConfigurations: async () => {
@@ -55,6 +60,13 @@ export const useMcpStore = create<McpState>()(
           const response = await window.mcpAPI.getConfigurations();
           if (response.success && response.data) {
             set({ mcpServerConfigs: response.data });
+            localStorage.setItem(
+              "mcpServerConfigs",
+              JSON.stringify(response.data),
+            );
+            window.dispatchEvent(
+              new CustomEvent("mcp-configs-updated", { detail: response.data }),
+            );
           } else {
             throw new Error(
               response.error || "Failed to fetch MCP configurations",
@@ -76,6 +88,10 @@ export const useMcpStore = create<McpState>()(
           const response = await window.mcpAPI.getServers();
           if (response.success && response.data) {
             set({ mcpServers: response.data });
+            localStorage.setItem("mcpServers", JSON.stringify(response.data));
+            window.dispatchEvent(
+              new CustomEvent("mcp-servers-updated", { detail: response.data }),
+            );
           } else {
             throw new Error(response.error || "Failed to fetch MCP servers");
           }
@@ -124,7 +140,7 @@ export const useMcpStore = create<McpState>()(
         set({ mcpServerConfigs: updatedConfigs });
 
         // Auto-save configuration (without starting/stopping servers)
-        if (field === "enabled") {
+        if (field === "disabled") {
           try {
             const currentConfig = updatedConfigs.mcpServers[id];
             const response = await window.mcpAPI.updateServer(
@@ -269,7 +285,13 @@ export const useMcpStore = create<McpState>()(
 
           // Refresh data after installation
           await new Promise((resolve) => setTimeout(resolve, 2000));
-          await get().fetchAllMcpServers();
+          await Promise.all([
+            get().fetchMcpConfigurations(),
+            get().fetchAllMcpServers(),
+          ]);
+
+          // Emit event to notify other components
+          window.dispatchEvent(new CustomEvent("mcp-servers-modified"));
         } catch (error) {
           console.error("Error in manual MCP installation:", error);
           const errorMessage =
@@ -295,6 +317,9 @@ export const useMcpStore = create<McpState>()(
             get().fetchMcpConfigurations(),
             get().fetchAllMcpServers(),
           ]);
+
+          // Emit event to notify other components
+          window.dispatchEvent(new CustomEvent("mcp-servers-modified"));
         } catch (error) {
           console.error(`Error removing server ${id}:`, error);
           toast.error(
@@ -304,20 +329,87 @@ export const useMcpStore = create<McpState>()(
         }
       },
 
-      // Refresh all data
+      // Refresh all data with debouncing
       refreshAll: async () => {
-        await Promise.all([
-          get().fetchMcpConfigurations(),
-          get().fetchAllMcpServers(),
-        ]);
+        const { isFetching, lastFetchTime } = get();
+        const now = Date.now();
+
+        // Prevent concurrent fetches
+        if (isFetching) {
+          console.log("MCP refresh already in progress, skipping...");
+          return;
+        }
+
+        // Debounce rapid calls (within 1 second)
+        if (lastFetchTime && now - lastFetchTime < 1000) {
+          console.log("MCP refresh called too soon, skipping...");
+          return;
+        }
+
+        set({ isFetching: true });
+        try {
+          await Promise.all([
+            get().fetchMcpConfigurations(),
+            get().fetchAllMcpServers(),
+          ]);
+          set({ lastFetchTime: now });
+        } finally {
+          set({ isFetching: false });
+        }
+      },
+
+      subscribeMcpChanges: () => {
+        const customEventHandler = (() => {
+          // Just trigger a re-render, actual data is already updated
+        }) as EventListener;
+
+        const storageEventHandler = ((event: StorageEvent) => {
+          if (event.key === "mcpServerConfigs" && event.newValue) {
+            try {
+              const parsedConfigs = JSON.parse(event.newValue);
+              set({ mcpServerConfigs: parsedConfigs });
+            } catch (error) {
+              console.error(
+                "Error parsing mcpServerConfigs from storage:",
+                error,
+              );
+            }
+          }
+
+          if (event.key === "mcpServers" && event.newValue) {
+            try {
+              const parsedServers = JSON.parse(event.newValue);
+              set({ mcpServers: parsedServers });
+            } catch (error) {
+              console.error("Error parsing mcpServers from storage:", error);
+            }
+          }
+        }) as EventListener;
+
+        window.addEventListener("mcp-configs-updated", customEventHandler);
+        window.addEventListener("mcp-servers-updated", customEventHandler);
+        window.addEventListener("mcp-servers-modified", customEventHandler);
+        window.addEventListener("storage", storageEventHandler);
+
+        return () => {
+          window.removeEventListener("mcp-configs-updated", customEventHandler);
+          window.removeEventListener("mcp-servers-updated", customEventHandler);
+          window.removeEventListener(
+            "mcp-servers-modified",
+            customEventHandler,
+          );
+          window.removeEventListener("storage", storageEventHandler);
+        };
       },
     }),
     {
       name: "mcp-storage",
-      partialize: (state) => ({
-        mcpServerConfigs: state.mcpServerConfigs,
-        mcpServers: state.mcpServers,
-      }),
+      partialize: () => {
+        // Don't persist server data to avoid stale data issues
+        // Data should be fetched fresh on each app start
+        return {};
+      },
+      version: 2, // Increment version to clear old persisted data
     },
   ),
 );

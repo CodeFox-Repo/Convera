@@ -1,7 +1,11 @@
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
-import { MCPServerConfig, ToolDefinition } from "@/shared/types/mcp";
+import {
+  ConnectionStatus,
+  MCPServerConfig,
+  ToolDefinition,
+} from "@/shared/types/mcp";
 import React, { useEffect, useRef, useState } from "react";
 
 interface Tool {
@@ -60,39 +64,32 @@ export default function AgentPopover() {
     updateAgent: saveAgent,
   } = useAgentStore();
 
-  const {
-    mcpServerConfigs,
-    loadingMcpConfigs,
-    mcpServers,
-    fetchMcpConfigurations,
-    fetchAllMcpServers,
-  } = useMcpStore();
+  const mcpServerConfigs = useMcpStore((state) => state.mcpServerConfigs);
+  const loadingMcpConfigs = useMcpStore((state) => state.loadingMcpConfigs);
+  const mcpServers = useMcpStore((state) => state.mcpServers);
+  const subscribeMcpChanges = useMcpStore((state) => state.subscribeMcpChanges);
+  const refreshMcpData = useMcpStore((state) => state.refreshAll);
   useThemeSync();
 
-  // Initialize MCP configs and calculate tool states
-  const initializeMcpData = async () => {
-    await fetchMcpConfigurations();
-    // Also fetch server data to get tools
-    await fetchAllMcpServers();
-    calculateMcpToolsState();
-  };
-
-  // Get tools for a specific server - try both ID and name matching
-  const getServerTools = (serverId: string) => {
-    // First try to find by name, then by ID
+  // Get server info by ID
+  const getServerInfo = (serverId: string) => {
     let server = mcpServers.find((s) => s.name === serverId);
     if (!server) {
-      // If not found by name, try to find by matching the ID in configs
       const configId = Object.keys(mcpServerConfigs?.mcpServers || {}).find(
         (id) => id === serverId,
       );
       if (configId) {
-        // Find server that matches this config
         server = mcpServers.find(
           (s) => s.name === configId || s.displayName === configId,
         );
       }
     }
+    return server;
+  };
+
+  // Get tools for a specific server - try both ID and name matching
+  const getServerTools = (serverId: string) => {
+    const server = getServerInfo(serverId);
     const tools = server?.capabilities?.tools || [];
     console.log(
       `getServerTools(${serverId}): found ${tools.length} tools`,
@@ -114,7 +111,16 @@ export default function AgentPopover() {
     Object.entries(mcpServerConfigs.mcpServers).forEach(
       ([serverId, config]) => {
         const serverConfig = config as MCPServerConfig;
-        if (!serverConfig.enabled) return;
+        if (serverConfig.disabled) return;
+
+        // Filter MCP servers based on agent type
+        if (!selectedAgent.predefined) {
+          // For custom agents, only show selected MCP servers
+          if (!selectedAgent.selectedMCPs?.includes(serverId)) {
+            return;
+          }
+        }
+        // For predefined agents (predefined: true), show all enabled servers
 
         const tools = getServerTools(serverId);
         const enabledStatus: Record<string, boolean> = {};
@@ -139,13 +145,19 @@ export default function AgentPopover() {
   // Initialize component
   useEffect(() => {
     fetchAgents();
-    initializeMcpData();
+
+    // Fetch latest MCP data when component initializes
+    refreshMcpData();
 
     // Subscribe to agent changes for auto-sync
-    const unsubscribe = subscribeToAgentChanges();
+    const unsubscribeAgent = subscribeToAgentChanges();
+
+    // Subscribe to MCP data changes for real-time sync
+    const unsubscribeMcp = subscribeMcpChanges();
 
     return () => {
-      unsubscribe();
+      unsubscribeAgent();
+      unsubscribeMcp();
     };
   }, []);
 
@@ -164,6 +176,14 @@ export default function AgentPopover() {
 
   // Recalculate MCP tools enabled state when selected agent changes
   useEffect(() => {
+    window.logger
+      .getLogger("agent-popover")
+      .info("MCP data changed in effect:", {
+        configsCount: Object.keys(mcpServerConfigs?.mcpServers || {}).length,
+        serversCount: mcpServers.length,
+        configsKeys: Object.keys(mcpServerConfigs?.mcpServers || {}),
+        serversNames: mcpServers.map((s) => s.name),
+      });
     calculateMcpToolsState();
   }, [selectedAgent, mcpServerConfigs, mcpServers]);
 
@@ -220,7 +240,7 @@ export default function AgentPopover() {
       Object.entries(mcpServerConfigs.mcpServers).forEach(
         ([serverId, config]) => {
           const serverConfig = config as MCPServerConfig;
-          if (!serverConfig.enabled) return;
+          if (serverConfig.disabled) return;
 
           const tools = getServerTools(serverId);
           const enabledStatus: Record<string, boolean> = {};
@@ -824,22 +844,41 @@ export default function AgentPopover() {
               ) : (
                 <div className="mt-3 space-y-3">
                   {Object.entries(mcpServerConfigs.mcpServers)
+                    .filter(([serverId, config]) => {
+                      const serverConfig = config as MCPServerConfig;
+                      // Skip disabled servers
+                      if (serverConfig.disabled) return false;
+
+                      // Filter based on agent type
+                      if (selectedAgent && !selectedAgent.predefined) {
+                        // For custom agents, only show selected MCP servers
+                        return (
+                          selectedAgent.selectedMCPs?.includes(serverId) ||
+                          false
+                        );
+                      }
+                      // For predefined agents, show all enabled servers
+                      return true;
+                    })
                     .sort(([, a], [, b]) => {
                       const configA = a as MCPServerConfig;
                       const configB = b as MCPServerConfig;
-                      if (configA.enabled && !configB.enabled) return -1;
-                      if (!configA.enabled && configB.enabled) return 1;
+                      if (!configA.disabled && configB.disabled) return -1;
+                      if (configA.disabled && !configB.disabled) return 1;
                       return (configA.name || "").localeCompare(
                         configB.name || "",
                       );
                     })
                     .map(([id, config]) => {
-                      const serverConfig = config as MCPServerConfig;
+                      const serverInfo = getServerInfo(id);
                       const { enabled, total } = getEnabledToolsCount(id);
                       const serverTools = getServerTools(id);
                       const isServerExpanded =
-                        expandedMcpServers[id] ??
-                        (serverConfig.enabled && serverTools.length > 0);
+                        expandedMcpServers[id] ?? serverTools.length > 0;
+                      const isConnected =
+                        serverInfo?.status === ConnectionStatus.CONNECTED;
+                      const serverStatus =
+                        serverInfo?.status || ConnectionStatus.DISCONNECTED;
 
                       return (
                         <div
@@ -850,27 +889,47 @@ export default function AgentPopover() {
                           <div
                             className="flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors duration-150"
                             onClick={() =>
-                              config.enabled &&
+                              isConnected &&
                               serverTools.length > 0 &&
                               toggleMcpServer(id)
                             }
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className={`w-2 h-2 rounded-full ${config.enabled ? "bg-emerald-500 dark:bg-emerald-400" : "bg-gray-400 dark:bg-gray-500"}`}
+                                className={`w-2 h-2 rounded-full ${
+                                  serverStatus === ConnectionStatus.CONNECTED
+                                    ? "bg-emerald-500 dark:bg-emerald-400"
+                                    : serverStatus ===
+                                        ConnectionStatus.CONNECTING
+                                      ? "bg-yellow-500 dark:bg-yellow-400 animate-pulse"
+                                      : serverStatus === ConnectionStatus.ERROR
+                                        ? "bg-red-500 dark:bg-red-400"
+                                        : serverStatus ===
+                                            ConnectionStatus.DISABLED
+                                          ? "bg-gray-400 dark:bg-gray-500"
+                                          : "bg-gray-400 dark:bg-gray-500"
+                                }`}
                               ></div>
                               <div>
                                 <div className="font-medium text-sm text-foreground">
                                   {config.name || id}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {config.enabled
+                                  {serverStatus === ConnectionStatus.CONNECTED
                                     ? `${enabled}/${total} tools enabled`
-                                    : "Disabled"}
+                                    : serverStatus ===
+                                        ConnectionStatus.CONNECTING
+                                      ? "Connecting..."
+                                      : serverStatus === ConnectionStatus.ERROR
+                                        ? "Connection error"
+                                        : serverStatus ===
+                                            ConnectionStatus.DISABLED
+                                          ? "Disabled"
+                                          : "Disconnected"}
                                 </div>
                               </div>
                             </div>
-                            {config.enabled && serverTools.length > 0 && (
+                            {isConnected && serverTools.length > 0 && (
                               <svg
                                 className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ease-in-out ${
                                   isServerExpanded ? "rotate-90" : "rotate-0"
@@ -890,7 +949,7 @@ export default function AgentPopover() {
                           </div>
 
                           {/* Server Tools */}
-                          {config.enabled && serverTools.length > 0 && (
+                          {isConnected && serverTools.length > 0 && (
                             <div
                               className={`transition-all duration-250 ease-in-out overflow-hidden ${
                                 isServerExpanded

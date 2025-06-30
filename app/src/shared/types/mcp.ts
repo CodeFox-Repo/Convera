@@ -18,7 +18,7 @@ export const CLIENT_CONNECT_TIMEOUT = 5 * 60000;
 
 export interface MCPServerConfig {
   name?: string;
-  enabled?: boolean;
+  disabled?: boolean;
   command?: string;
   args?: string[];
   cwd?: string;

@@ -37,6 +37,7 @@ export function McpSettingsPage() {
     handleManualInstallMcp,
     handleRemoveServer,
     refreshAll: refreshMcpData,
+    subscribeMcpChanges,
   } = useMcpStore();
 
   const [showManualConfigDialog, setShowManualConfigDialog] = useState(false);
@@ -52,6 +53,13 @@ export function McpSettingsPage() {
   useEffect(() => {
     const mcpStore = useMcpStore.getState();
     mcpStore.refreshAll();
+
+    // Subscribe to MCP data changes for real-time sync
+    const unsubscribe = subscribeMcpChanges();
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleOpenManualDialog = () => {
@@ -104,9 +112,8 @@ export function McpSettingsPage() {
   const handleRestartServer = async (serverId: string) => {
     setRestartingServers((prev) => new Set([...prev, serverId]));
     try {
-      // 假设有重启 MCP 服务器的 API
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // 模拟重启过程
-      refreshMcpData(); // 刷新数据以获取最新状态
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      refreshMcpData();
     } catch (error) {
       console.error("Failed to restart server:", error);
     } finally {
@@ -247,9 +254,6 @@ export function McpSettingsPage() {
             <div className="space-y-3">
               {mcpServers.map((server) => {
                 const isRestarting = restartingServers.has(server.name);
-                window.logger
-                  .getLogger("mcp")
-                  .info(JSON.stringify(server.status));
                 return (
                   <div
                     key={server.name}
