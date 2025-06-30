@@ -207,7 +207,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           onClick={handleVoiceInput}
           className={micButtonProps.className}
           title={micButtonProps.title}
-          disabled={speechState.isLoading}
         >
           <micButtonProps.Icon size={16} />
         </button>
