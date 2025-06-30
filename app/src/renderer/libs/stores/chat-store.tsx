@@ -5,7 +5,7 @@ import {
   parseApiError,
 } from "@/renderer/libs/utils/error-handler";
 import { getSettings } from "@/renderer/libs/utils/settings";
-import { Message } from "ai";
+import { Attachment, Message, UIMessage } from "ai";
 import { useChat } from "ai/react";
 import React, {
   createContext,
@@ -60,16 +60,6 @@ interface ChatContextType {
     isLoading: boolean;
     error: string | null;
   };
-}
-
-interface UIMessage extends Message {
-  experimental_attachments?: Attachment[];
-}
-
-interface Attachment {
-  url: string;
-  name: string;
-  contentType: string;
 }
 
 interface ChatMessage extends Omit<Message, "id"> {
@@ -132,7 +122,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       agentId: currentAgentIdRef.current,
       modelId: currentModelIdRef.current || settings?.openai?.modelId,
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
     },
@@ -153,18 +143,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const addAttachments = useCallback((files: File | File[]) => {
-    const fileArray = Array.isArray(files) ? files : [files];
-
     setAttachments((prev) => {
-      const newFiles = fileArray.filter((file) => {
-        return !prev.some(
-          (existingFile) =>
-            existingFile.name === file.name &&
-            existingFile.size === file.size &&
-            existingFile.lastModified === file.lastModified,
-        );
-      });
-      return [...prev, ...newFiles];
+      if (Array.isArray(files)) {
+        return [...prev, ...files];
+      } else {
+        return [...prev, files];
+      }
     });
   }, []);
 
@@ -330,6 +314,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           alternativeLanguageCodes: ["cmn-Hans-CN", "es-ES", "fr-FR"],
           enableSpeakerDiarization: false,
           model: "latest_long",
+          silenceTimeoutMs: 8000, // Auto-stop after 8 seconds of silence in chat
         };
 
         // Create interim result callback to update input in real-time
