@@ -57,7 +57,6 @@ interface ChatContextType {
   // Speech-to-text state
   speechState: {
     isRecording: boolean;
-    isLoading: boolean;
     error: string | null;
   };
 }
@@ -311,7 +310,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         // Start recording with default configuration
         const config: SpeechConfig = {
           languageCode: "en-US",
-          alternativeLanguageCodes: ["cmn-Hans-CN", "es-ES", "fr-FR"],
+          alternativeLanguageCodes: ["cmn-Hans-CN", "es-ES"],
           enableSpeakerDiarization: false,
           model: "latest_long",
           silenceTimeoutMs: 8000, // Auto-stop after 8 seconds of silence in chat
@@ -370,7 +369,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     isVoiceInputActive: speechToText.isRecording || isVoiceInputActive,
     speechState: {
       isRecording: speechToText.isRecording,
-      isLoading: speechToText.isLoading,
       error: speechToText.error,
     },
   };
