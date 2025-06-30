@@ -3,7 +3,6 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import type { IMcpAPI } from "./mcp";
 
-
 // Enum for window types
 export type WindowType = "settings" | "history" | "main" | "chat";
 
@@ -110,7 +109,6 @@ export interface IElectronAPI {
     callback: (content: { text?: string; imageData?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
-  
 }
 
 // Define the Environment API interface

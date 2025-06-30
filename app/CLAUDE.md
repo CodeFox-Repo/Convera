@@ -167,13 +167,17 @@ Servers are configured in the app settings with support for:
 ## Cross-Window State Synchronization
 
 ### Problem
+
 Electron creates separate JavaScript contexts for each window, meaning Zustand stores are independent instances that don't automatically sync between windows.
 
 ### Solution: localStorage + storage Events Pattern
+
 Use the same pattern as `model-store` for elegant cross-window synchronization:
 
 #### 1. Data Persistence
+
 Always write state changes to localStorage:
+
 ```typescript
 // In store actions
 set({ data: newData });
@@ -181,7 +185,9 @@ localStorage.setItem("storeKey", JSON.stringify(newData));
 ```
 
 #### 2. Storage Event Listener
+
 Create a subscription method that listens for storage changes:
+
 ```typescript
 subscribeToChanges: () => {
   const storageEventHandler = ((event: StorageEvent) => {
@@ -190,17 +196,19 @@ subscribeToChanges: () => {
       set({ data: parsedData });
     }
   }) as EventListener;
-  
+
   window.addEventListener("storage", storageEventHandler);
-  
+
   return () => {
     window.removeEventListener("storage", storageEventHandler);
   };
-}
+};
 ```
 
 #### 3. Component Integration
+
 Subscribe to changes in useEffect:
+
 ```typescript
 useEffect(() => {
   const unsubscribe = store.subscribeToChanges();
@@ -209,29 +217,34 @@ useEffect(() => {
 ```
 
 ### Why This Works
+
 - Browser automatically sends `storage` events to all same-origin windows when localStorage changes
 - No need for complex IPC event forwarding in main process
 - Leverages native browser functionality
 - Consistent pattern across all stores
 
 ### When to Use
+
 - Any Zustand store that needs cross-window synchronization
 - Prefer this over custom IPC solutions for window-to-window state sync
 - Reference `model-store.ts` and `mcp-store.ts` for implementation examples
 
 ### Window Initialization Pattern
+
 For popover/modal windows that may be opened at any time:
+
 1. **Fetch fresh data** on component mount to ensure latest state
 2. **Subscribe to changes** for real-time updates while open
 3. **Example pattern**:
+
 ```typescript
 useEffect(() => {
   // Always fetch fresh data when window opens
   refreshData();
-  
+
   // Subscribe for real-time updates
   const unsubscribe = subscribeToChanges();
-  
+
   return unsubscribe;
 }, []);
 ```
