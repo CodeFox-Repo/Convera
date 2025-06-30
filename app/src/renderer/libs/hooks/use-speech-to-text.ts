@@ -7,8 +7,6 @@ export interface SpeechConfig {
   alternativeLanguageCodes?: string[];
   sampleRateHertz?: number;
   encoding?: string;
-  enableSpeakerDiarization?: boolean;
-  model?: string;
   silenceTimeoutMs?: number; // Auto-stop recording after this many milliseconds of silence
 }
 
@@ -21,11 +19,8 @@ export interface SpeechSession {
 
 const DEFAULT_CONFIG: SpeechConfig = {
   languageCode: "en-US",
-  alternativeLanguageCodes: ["cmn-Hans-CN"],
   sampleRateHertz: 16000,
   encoding: "LINEAR16",
-  enableSpeakerDiarization: false,
-  model: "latest_long",
   silenceTimeoutMs: 5000, // Auto-stop after 5 seconds of silence
 };
 
