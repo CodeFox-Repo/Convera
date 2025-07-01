@@ -19,6 +19,7 @@ export interface SpeechSession {
 
 const DEFAULT_CONFIG: SpeechConfig = {
   languageCode: "en-US",
+  alternativeLanguageCodes: ["en-US", "cmn-Hans-CN"],
   sampleRateHertz: 16000,
   encoding: "LINEAR16",
   silenceTimeoutMs: 5000, // Auto-stop after 5 seconds of silence
@@ -71,7 +72,6 @@ export function useSpeechToText() {
 
     // Set new timeout
     silenceTimeoutRef.current = setTimeout(async () => {
-      console.log("🔇 Silence timeout reached, auto-stopping recording");
       toast.info("⏰ Auto-stopping recording due to silence");
 
       // Auto-stop recording logic (inline to avoid circular dependency)
@@ -112,14 +112,6 @@ export function useSpeechToText() {
           setTranscript(finalTranscript);
           setIsRecording(false);
           currentSessionRef.current = null;
-
-          if (finalTranscript.trim()) {
-            toast.success(
-              `✅ Auto-transcription complete: "${finalTranscript.substring(0, 50)}${finalTranscript.length > 50 ? "..." : ""}"`,
-            );
-          } else {
-            toast.warning("🔇 No speech detected before timeout");
-          }
         } else {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
@@ -303,12 +295,6 @@ export function useSpeechToText() {
 
           // Start silence timeout
           startSilenceTimeout();
-
-          console.log("Speech recognition started:", {
-            sessionId: response.sessionId,
-            config: response.config,
-            websocketUrl: response.websocketUrl,
-          });
         } else {
           throw new Error(response.message || "Failed to start recording");
         }
