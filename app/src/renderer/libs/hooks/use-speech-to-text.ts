@@ -192,15 +192,6 @@ export function useSpeechToText() {
           console.log("📨 WebSocket message:", data);
 
           switch (data.type) {
-            case "interim":
-              setTranscript(data.transcript);
-              if (interimCallbackRef.current) {
-                interimCallbackRef.current(data.transcript);
-              }
-              // Reset silence timeout when we receive speech activity
-              startSilenceTimeout();
-              break;
-
             case "final":
               setTranscript(data.transcript);
               if (interimCallbackRef.current) {
