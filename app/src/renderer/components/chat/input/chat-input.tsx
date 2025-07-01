@@ -56,28 +56,20 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Watch for speech input changes and update editor directly
     useEffect(() => {
-      // Check if input has changed and is non-empty
-      if (input !== previousInputRef.current && input.trim()) {
+      // Check if input has changed
+      if (input !== previousInputRef.current) {
         const editorCurrentText = editorRef.current?.getText() || "";
 
         // If the input is different from what's currently in the editor
         if (input.trim() !== editorCurrentText.trim()) {
-          // Append voice input to existing content
+          // Update editor content to match the input state
           if (editorRef.current) {
-            const newContent = editorCurrentText.trim()
-              ? ` ${input.trim()}`
-              : input.trim();
+            // Set the editor content to match the input (which now contains the combined text)
+            editorRef.current.clearContent();
 
-            // If the editor is focused, insert content at the current position
-            if (editorRef.current.isFocused()) {
-              editorRef.current.insertContent(newContent);
-            } else {
-              // Otherwise, use the setInput method to update the editor
-              const currentRef = ref as React.RefObject<ChatInputRef | null>;
-              if (currentRef?.current) {
-                const combinedContent = `${editorCurrentText}${newContent}`;
-                currentRef.current.setInput(combinedContent);
-              }
+            // If there's content to set, set it
+            if (input.trim()) {
+              editorRef.current.insertContent(input.trim());
             }
           }
         }

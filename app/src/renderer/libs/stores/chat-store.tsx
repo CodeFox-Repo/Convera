@@ -81,6 +81,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { selectedModelId } = useModelStore();
   const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
+  const currentInputRef = useRef<string>("");
 
   // Initialize speech-to-text hook
   const speechToText = useSpeechToText();
@@ -133,6 +134,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       setViewMode("expanded");
     }
   }, [chatAPI.messages.length, viewMode]);
+
+  // Update input ref for speech callbacks
+  useEffect(() => {
+    currentInputRef.current = chatAPI.input;
+  }, [chatAPI.input]);
 
   // Integrate the useChatHistory hook
   const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
@@ -294,33 +300,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsVoiceInputActive((prev) => !prev);
 
       if (speechToText.isRecording) {
-        // Stop recording and get transcript
-        const transcript = await speechToText.stopRecording();
-
-        if (transcript.trim()) {
-          // Add transcript to current input (append or replace based on preference)
-          const currentInput = chatAPI.input.trim();
-          const newInput = currentInput
-            ? `${currentInput} ${transcript}`
-            : transcript;
-
-          setInput(newInput);
-        }
+        // Stop recording - no need to append transcript since it's already added in real-time
+        await speechToText.stopRecording();
       } else {
-        // Start recording with default configuration
+        // Start recording with default configuration and real-time callback
         const config: SpeechConfig = {
           languageCode: "en-US",
-          alternativeLanguageCodes: ["cmn-Hans-CN", "es-ES"],
-          enableSpeakerDiarization: false,
-          model: "latest_long",
           silenceTimeoutMs: 8000, // Auto-stop after 8 seconds of silence in chat
         };
 
-        // Create interim result callback to update input in real-time
-        const onInterimResult = (interimText: string) => {
-          console.log("🎤 Interim result:", interimText);
-          // Update input with interim text (replace current content)
-          setInput(interimText);
+        // Callback to handle real-time final transcripts
+        const onInterimResult = (transcript: string) => {
+          if (transcript.trim()) {
+            // Get the current input dynamically using ref to avoid stale closures
+            const currentInput = currentInputRef.current.trim();
+            console.log("Real-time transcript received:", transcript);
+            console.log("Current input for real-time update:", currentInput);
+
+            // Append the new transcript to existing input
+            const newInput = currentInput
+              ? `${currentInput} ${transcript}`
+              : transcript;
+
+            setInput(newInput);
+          }
         };
 
         await speechToText.startRecording(config, onInterimResult);
