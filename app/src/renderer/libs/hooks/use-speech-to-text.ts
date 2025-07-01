@@ -19,7 +19,7 @@ export interface SpeechSession {
 
 const DEFAULT_CONFIG: SpeechConfig = {
   languageCode: "en-US",
-  alternativeLanguageCodes: ["en-US", "cmn-Hans-CN"],
+  // alternativeLanguageCodes: ["en-US", "cmn-Hans-CN"],
   sampleRateHertz: 16000,
   encoding: "LINEAR16",
   silenceTimeoutMs: 5000, // Auto-stop after 5 seconds of silence
@@ -170,6 +170,13 @@ export function useSpeechToText() {
   // Connect to WebSocket for real-time updates
   const connectWebSocket = useCallback(
     (sessionId: string, onInterimResult?: (text: string) => void) => {
+      // Check if user is authenticated before connecting
+      if (!isAuthenticated()) {
+        console.error("❌ Cannot connect to WebSocket: User not authenticated");
+        setError("User not authenticated. Please sign in.");
+        return null;
+      }
+
       // Close existing connection
       if (websocketRef.current) {
         websocketRef.current.close();
@@ -178,6 +185,8 @@ export function useSpeechToText() {
       const wsUrl = `${wsURL}/ws/speech?sessionId=${sessionId}`;
       console.log("🔗 Connecting to WebSocket:", wsUrl);
 
+      // Create WebSocket with credentials for authentication
+      // Note: For WebSocket authentication, cookies are automatically included for same-origin requests
       const ws = new WebSocket(wsUrl);
       websocketRef.current = ws;
       interimCallbackRef.current = onInterimResult || null;
@@ -232,6 +241,23 @@ export function useSpeechToText() {
 
       ws.onclose = (event) => {
         console.log("🔌 WebSocket closed:", event.code, event.reason);
+
+        // Handle authentication errors
+        if (event.code === 1008 || event.code === 1011) {
+          const authError = "Authentication failed. Please sign in again.";
+          console.error("❌ WebSocket authentication error:", authError);
+          setError(authError);
+          toast.error(`❌ ${authError}`);
+        } else if (
+          event.code === 1000 &&
+          event.reason === "Session ID required"
+        ) {
+          const sessionError = "Session ID required for WebSocket connection";
+          console.error("❌ WebSocket session error:", sessionError);
+          setError(sessionError);
+          toast.error(`❌ ${sessionError}`);
+        }
+
         if (websocketRef.current === ws) {
           websocketRef.current = null;
           interimCallbackRef.current = null;
@@ -242,7 +268,7 @@ export function useSpeechToText() {
 
       return ws;
     },
-    [wsURL, startSilenceTimeout, clearSilenceTimeout],
+    [wsURL, startSilenceTimeout, clearSilenceTimeout, isAuthenticated],
   );
 
   // Disconnect WebSocket
@@ -261,6 +287,11 @@ export function useSpeechToText() {
       onInterimResult?: (text: string) => void,
     ) => {
       try {
+        // Check authentication first
+        if (!isAuthenticated()) {
+          throw new Error("User not authenticated. Please sign in.");
+        }
+
         setIsLoading(true);
         setError(null);
         setTranscript("");
