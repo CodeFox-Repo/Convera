@@ -1,5 +1,6 @@
 import { useSession } from "@/lib/auth-client";
 import { useState } from "react";
+import { AgentMarketManagement } from "./AgentMarketManagement";
 import { DashboardOverview } from "./DashboardOverview";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { MCPManagement } from "./MCPManagement";
@@ -17,6 +18,8 @@ const AdminDashboard = () => {
         return <UserManagement />;
       case "mcp":
         return <MCPManagement />;
+      case "agentMarket":
+        return <AgentMarketManagement />;
       default:
         return <DashboardOverview onSectionChange={setActiveSection} />;
     }
@@ -30,6 +33,8 @@ const AdminDashboard = () => {
         return "User Management";
       case "mcp":
         return "App MCP Management";
+      case "agentMarket":
+        return "Agent Market Management";
       default:
         return "Dashboard Overview";
     }
@@ -43,7 +48,7 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white px-6 py-4 border-b border-gray-200">
+        <div className="border-b border-gray-200 bg-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">{getSectionTitle()}</h1>
