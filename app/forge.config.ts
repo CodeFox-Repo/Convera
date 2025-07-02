@@ -11,9 +11,9 @@ const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
-    icon: "./images/icon",
+    icon: "./public/images/icon",
     // Include images directory in the packaged app
-    extraResource: ["./images"],
+    extraResource: ["./public/images"],
     // Force unpack robotjs using different syntax
     asar: {
       unpack: "**/@hurdlegroup/**",
@@ -26,13 +26,13 @@ const config: ForgeConfig = {
     new MakerRpm({}),
     new MakerDeb({
       options: {
-        icon: "./images/icon.icns",
+        icon: "./public/images/icon.icns",
       },
     }),
     {
       name: "@electron-forge/maker-dmg",
       config: {
-        icon: "./images/icon.icns",
+        icon: "./public/images/icon.icns",
         format: "ULFO",
         overwrite: true,
       },

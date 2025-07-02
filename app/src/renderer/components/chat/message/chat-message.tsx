@@ -1,10 +1,10 @@
 import { authClient } from "@/renderer/libs/auth-client";
+import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, Edit, File, RefreshCw, User } from "lucide-react";
 import React, { memo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
-import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
 import CopiedContentBlock from "../clipboard/copied-content-block";
 
 /**
@@ -55,7 +55,7 @@ export interface ChatMessageProps {
   renderContent: React.ReactNode;
 }
 
-const avatar = "../../images/icon.png";
+const avatar = "./images/icon.png";
 
 // Attachment preview component - simplified for file display above content
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {

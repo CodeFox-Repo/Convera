@@ -12,8 +12,8 @@ import remarkMath from "remark-math";
 // Import highlight.js styles
 import "highlight.js/styles/github-dark.css";
 // Import KaTeX styles
-import "katex/dist/katex.min.css";
 import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import "katex/dist/katex.min.css";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
@@ -304,7 +304,7 @@ export default function ChatContent({
 
   // Renders regenerating indicator
   function renderLoadingIndicator() {
-    const avatar = "../../images/icon.png";
+    const avatar = "./images/icon.png";
 
     return (
       <div className="w-full py-2">
@@ -382,7 +382,7 @@ export default function ChatContent({
   }, [messages.length]);
 
   if (messages.length === 0) {
-    const avatar = "../../images/icon.png";
+    const avatar = "./images/icon.png";
 
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
