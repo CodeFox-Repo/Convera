@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
-import { AppSettings } from "@/shared/types/settings";
-import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
+import { useChat } from "ai/react";
 import React, {
   createContext,
   useCallback,
@@ -12,6 +13,7 @@ import React, {
 } from "react";
 import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
+import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { getSettings, updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
@@ -95,9 +97,14 @@ interface ChatContextType {
     toolName: string,
     args: Record<string, unknown>,
   ) => Promise<ToolCallResult>;
+
+  // Speech-to-text state
+  speechState: {
+    isRecording: boolean;
+    error: string | null;
+  };
 }
 
-// Message with optional experimental_attachments
 interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
 }
@@ -115,14 +122,14 @@ const mcpLogger = window.logger.getLogger("chat-store-mcp");
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const [settings, setSettings] = useState<any>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(
     null,
   );
-  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [useRemoteStore, setUseRemoteStore] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -148,6 +155,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
   const currentModelIdRef = useRef<string>(selectedModelId);
+  const currentInputRef = useRef<string>("");
+
+  // Initialize speech-to-text hook
+  const speechToText = useSpeechToText();
 
   // Load settings asynchronously
   useEffect(() => {
@@ -260,6 +271,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       setViewMode("expanded");
     }
   }, [chatAPI.messages.length, viewMode]);
+
+  // Update input ref for speech callbacks
+  useEffect(() => {
+    currentInputRef.current = chatAPI.input;
+  }, [chatAPI.input]);
 
   // Integrate the useChatHistory hook
   const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
@@ -704,9 +720,46 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setInput("");
   }, [resetChat, setInput]);
 
-  const handleVoiceInput = useCallback(() => {
-    setIsVoiceInputActive((prev) => !prev);
-  }, []);
+  // Enhanced voice input functionality with speech-to-text
+  const handleVoiceInput = useCallback(async () => {
+    try {
+      // Toggle voice input state
+      setIsVoiceInputActive((prev) => !prev);
+
+      if (speechToText.isRecording) {
+        // Stop recording - no need to append transcript since it's already added in real-time
+        await speechToText.stopRecording();
+      } else {
+        // Start recording with default configuration and real-time callback
+        const config: SpeechConfig = {
+          languageCode: "en-US",
+          silenceTimeoutMs: 8000, // Auto-stop after 8 seconds of silence in chat
+        };
+
+        // Callback to handle real-time final transcripts
+        const onInterimResult = (transcript: string) => {
+          if (transcript.trim()) {
+            // Get the current input dynamically using ref to avoid stale closures
+            const currentInput = currentInputRef.current.trim();
+            console.log("Real-time transcript received:", transcript);
+            console.log("Current input for real-time update:", currentInput);
+
+            // Append the new transcript to existing input
+            const newInput = currentInput
+              ? `${currentInput} ${transcript}`
+              : transcript;
+
+            setInput(newInput);
+          }
+        };
+
+        await speechToText.startRecording(config, onInterimResult);
+      }
+    } catch (error) {
+      console.error("Voice input error:", error);
+      setIsVoiceInputActive(false);
+    }
+  }, [speechToText, setInput]);
 
   const openSettings = useCallback(() => {
     window.electronAPI.toggleWindow("settings").catch((error) => {
@@ -747,7 +800,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     handleVoiceInput,
     openSettings,
     openHistoryWindow,
-    isVoiceInputActive,
+    isVoiceInputActive: speechToText.isRecording || isVoiceInputActive,
+    speechState: {
+      isRecording: speechToText.isRecording,
+      error: speechToText.error,
+    },
     availableTools,
     mcpServers,
     toolsLoading,

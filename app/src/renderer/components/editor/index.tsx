@@ -1,7 +1,7 @@
-import React, { useEffect, useImperativeHandle, forwardRef } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import React, { forwardRef, useEffect, useImperativeHandle } from "react";
 
 export interface TiptapEditorProps {
   content: string;
@@ -17,6 +17,8 @@ export interface TiptapEditorRef {
   clearContent: () => void;
   getHTML: () => string;
   getText: () => string;
+  insertContent: (text: string) => void;
+  isFocused: () => boolean;
 }
 
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
@@ -80,6 +82,12 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       },
       getText: () => {
         return editor?.getText() || "";
+      },
+      insertContent: (text: string) => {
+        editor?.commands.insertContent(text);
+      },
+      isFocused: () => {
+        return editor?.isFocused || false;
       },
     }));
 
