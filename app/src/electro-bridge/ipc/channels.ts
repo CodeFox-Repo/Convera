@@ -18,7 +18,7 @@ export interface IPCServer {
   getPreviousApp(): string;
   getPreviousAppID(): number;
   getClipboardText(): string;
-  setInputText(text: string): void;
+  setInputContent(content: { text?: string; imageData?: string }): void;
   pasteModifiedContent(content: string): void;
 
   // Platform detection
@@ -32,6 +32,7 @@ export interface IPCServer {
   minimizeWindow(): void;
   maximizeWindow(): void;
   resizeWindow(width: number, height: number, preserveX?: boolean): void;
+  resizeAndCenterWindow(width: number, height: number): void;
   getCurrentWindowPosition(): { x: number; y: number };
   getCurrentWindowSize(window: WindowSizeConfig): {
     width: number;
@@ -71,6 +72,7 @@ export const CHANNELS = {
     MINIMIZE: "window:minimize",
     MAXIMIZE: "window:maximize",
     RESIZE: "window:resize",
+    RESIZE_AND_CENTER: "window:resize-and-center",
     GET_POSITION: "window:get-position",
     GET_CURRENT_SIZE: "window:get-current-size",
   },
@@ -84,7 +86,7 @@ export const CHANNELS = {
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     APP_CHANGED: "app:changed",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
-    SET_INPUT_TEXT: "app:set-input-text",
+    SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
   },
   CLIPBOARD: {
@@ -130,7 +132,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
-  setInputText: CHANNELS.APP.SET_INPUT_TEXT,
+  setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
 
   // Platform detection
@@ -144,6 +146,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   minimizeWindow: CHANNELS.WINDOW.MINIMIZE,
   maximizeWindow: CHANNELS.WINDOW.MAXIMIZE,
   resizeWindow: CHANNELS.WINDOW.RESIZE,
+  resizeAndCenterWindow: CHANNELS.WINDOW.RESIZE_AND_CENTER,
   getCurrentWindowPosition: CHANNELS.WINDOW.GET_POSITION,
   getCurrentWindowSize: CHANNELS.WINDOW.GET_CURRENT_SIZE,
 

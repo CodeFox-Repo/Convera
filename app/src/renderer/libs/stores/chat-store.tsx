@@ -1,8 +1,4 @@
-import {
-  GenericError,
-  parseApiError,
-} from "@/renderer/libs/utils/error-handler";
-import { getSettings } from "@/renderer/libs/utils/settings";
+import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
 import { AppSettings } from "@/shared/types/settings";
 import { useChat } from "@ai-sdk/react";
 import { Attachment, Message, UIMessage } from "ai";
@@ -14,18 +10,37 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useChatHistory } from "../hooks/use-chat-history";
+import { authClient } from "../auth-client";
+import { getApiBaseUrl } from "../env";
+import { parseApiError, type GenericError } from "../utils/error-handler";
+import { getSettings, updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
+import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
 
 export type ChatViewMode = "compact" | "expanded";
+
+// Clipboard content structure
+export interface ClipboardContent {
+  text?: string;
+  imageData?: string; // base64 encoded image
+  timestamp?: number;
+  source?: "shortcut" | "manual"; // track how content was captured
+}
+
+// Simple tool call result type
+interface ToolCallResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
 
 interface ChatContextType {
   messages: UIMessage[];
   input: string;
   isLoading: boolean;
   error: Error | undefined;
-  copiedContent: string | null;
+  copiedContent: ClipboardContent | null;
   attachments: File[];
 
   // View mode management
@@ -33,13 +48,27 @@ interface ChatContextType {
   setViewMode: (mode: ChatViewMode) => void;
   toggleViewMode: () => void;
 
+  // Remote store management
+  useRemoteStore: boolean;
+  setUseRemoteStore: (useRemote: boolean) => void;
+  isUserLoggedIn: boolean;
+
+  // Conversation management
+  currentConversationId: string | null;
+
+  // MCP Tools management
+  availableTools: ToolDefinition[];
+  mcpServers: ServerInfo[];
+  toolsLoading: boolean;
+  toolsError: string | null;
+
   setInput: (input: string) => void;
   sendMessage: (files?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
   resetChat: () => void;
-  setCopiedContent: (content: string | null) => void;
+  setCopiedContent: (content: ClipboardContent | null) => void;
   rejectCopiedContent: () => void;
   addAttachments: (files: File | File[]) => void;
   removeAttachment: (index: number) => void;
@@ -51,6 +80,21 @@ interface ChatContextType {
   openSettings: () => void;
   openHistoryWindow: () => void;
   isVoiceInputActive: boolean;
+
+  // MCP Tools methods
+  getAvailableTools: () => Promise<void>;
+  executeTool: (
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
+
+  // MCP tool call method (simplified)
+  callTool: (
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<ToolCallResult>;
 }
 
 // Message with optional experimental_attachments
@@ -58,21 +102,51 @@ interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
 }
 
+// Conversation data interface for history selection
+interface ConversationData {
+  id: string;
+  title: string | null;
+  messages: Message[];
+}
+
 const ChatContext = createContext<ChatContextType | null>(null);
+const mcpLogger = window.logger.getLogger("chat-store-mcp");
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [copiedContent, setCopiedContent] = useState<string | null>(null);
+  const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(
+    null,
+  );
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
+  const [useRemoteStore, setUseRemoteStore] = useState(false);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
+
+  // Debug: Log conversation ID changes
+  useEffect(() => {
+    console.log(
+      "🔗 Frontend: currentConversationId changed to:",
+      currentConversationId,
+    );
+  }, [currentConversationId]);
+
+  // MCP Tools state - moved from separate store for simplicity
+  const [availableTools, setAvailableTools] = useState<ToolDefinition[]>([]);
+  const [mcpServers, setMcpServers] = useState<ServerInfo[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [toolsError, setToolsError] = useState<string | null>(null);
+
+  // MCP logger
 
   const { selectedAgent } = useAgentStore();
   const { selectedModelId } = useModelStore();
-  const currentAgentIdRef = useRef<string | undefined>(selectedAgent?.id);
   const currentModelIdRef = useRef<string>(selectedModelId);
 
   // Load settings asynchronously
@@ -81,6 +155,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const settingsData = await getSettings();
         setSettings(settingsData);
+        // Initialize remote store setting from settings
+        setUseRemoteStore(settingsData.openai.useRemoteStore);
       } catch (error) {
         console.error("Failed to load settings:", error);
       } finally {
@@ -91,29 +167,90 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     loadSettings();
   }, []);
 
+  // Check login status on mount and update remote store accordingly
   useEffect(() => {
-    currentAgentIdRef.current = selectedAgent?.id;
-  }, [selectedAgent?.id]);
+    const checkLoginStatus = async () => {
+      try {
+        const loggedIn = await authClient.getSession();
+        const isLoggedIn = loggedIn?.data?.session?.id ? true : false;
+        setIsUserLoggedIn(isLoggedIn);
+
+        // If user is not logged in, force disable remote server
+        if (!isLoggedIn && useRemoteStore) {
+          setUseRemoteStore(false);
+          // Also save to settings
+          try {
+            await updateOpenAISettings({ useRemoteStore: false });
+          } catch (error) {
+            console.error("Failed to save remote store preference:", error);
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (err) {
+        setIsUserLoggedIn(false);
+        // Force disable remote server on auth error
+        if (useRemoteStore) {
+          setUseRemoteStore(false);
+          try {
+            await updateOpenAISettings({ useRemoteStore: false });
+          } catch (error) {
+            console.error("Failed to save remote store preference:", error);
+          }
+        }
+      }
+    };
+
+    checkLoginStatus();
+    const interval = setInterval(checkLoginStatus, 30000);
+    return () => clearInterval(interval);
+  }, [useRemoteStore]);
 
   useEffect(() => {
     currentModelIdRef.current = selectedModelId;
   }, [selectedModelId]);
 
-  // TODO(Sma1lboy): change api to use the api from the backend
   const chatAPI = useChat({
-    api: "http://localhost:38000/api/chat",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${settings?.openai?.apiKey || ""}`,
-    },
-    body: {
-      config: settings,
-      agentId: currentAgentIdRef.current,
-      modelId: currentModelIdRef.current || settings?.openai?.modelId,
+    api: getApiBaseUrl() + "/chat/completion",
+    fetch: async (url, options = {}) => {
+      // Get session from better-auth
+      const session = await authClient.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(options.headers as Record<string, string>),
+      };
+
+      // Always include session if available
+      if (session?.data?.session?.id) {
+        headers["X-Session-ID"] = session.data.session.id;
+      }
+
+      return fetch(url, {
+        ...options,
+        headers,
+        credentials: "include", // Always include credentials
+      });
     },
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
+    },
+    onToolCall: async ({ toolCall }) => {
+      // Use simplified MCP tool call that finds first server with the tool
+      const result = await window.mcpAPI.mcpToolCall(
+        toolCall.toolName,
+        toolCall.args as Record<string, unknown>,
+      );
+
+      return result.data;
+    },
+    onFinish: async () => {
+      // Temporarily disabled auto-refresh to debug message sending
+      console.log("✅ Frontend: Message completed successfully");
+      console.log(
+        "🔗 Frontend: Current conversation ID:",
+        currentConversationId,
+      );
     },
   });
 
@@ -125,7 +262,54 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [chatAPI.messages.length, viewMode]);
 
   // Integrate the useChatHistory hook
-  const { triggerHistoryWindow } = useChatHistory(chatAPI.setMessages);
+  const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
+
+  // Handle conversation selection from history
+  useEffect(() => {
+    const handleConversationSelected = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.conversation) {
+        const conversation = customEvent.detail
+          .conversation as ConversationData;
+        setCurrentConversationId(conversation.id);
+        console.log(
+          "📝 Frontend: Set conversation ID from history selection:",
+          conversation.id,
+        );
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "selectedConversation" && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.conversation && data.conversation.id) {
+            setCurrentConversationId(data.conversation.id);
+            console.log(
+              "📝 Frontend: Set conversation ID from storage event:",
+              data.conversation.id,
+            );
+          }
+        } catch (error) {
+          console.warn("Error parsing conversation from localStorage:", error);
+        }
+      }
+    };
+
+    window.addEventListener(
+      "conversation-selected",
+      handleConversationSelected,
+    );
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener(
+        "conversation-selected",
+        handleConversationSelected,
+      );
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
@@ -149,6 +333,140 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setAttachments([]);
   }, []);
 
+  // Handle remote store preference change
+  const handleUseRemoteStoreChange = useCallback(
+    async (useRemote: boolean) => {
+      // Only allow enabling if user is logged in
+      if (useRemote && !isUserLoggedIn) {
+        console.warn("Cannot enable remote server without login");
+        return;
+      }
+
+      setUseRemoteStore(useRemote);
+      // Save to settings
+      try {
+        await updateOpenAISettings({ useRemoteStore: useRemote });
+      } catch (error) {
+        console.error("Failed to save remote store preference:", error);
+      }
+    },
+    [isUserLoggedIn],
+  );
+
+  const getAvailableTools = useCallback(async () => {
+    setToolsLoading(true);
+    setToolsError(null);
+
+    mcpLogger.info("Fetching available MCP tools");
+
+    try {
+      // Get all servers and their capabilities
+      const serversResponse = await window.mcpAPI.getServers();
+
+      if (!serversResponse.success) {
+        throw new Error(serversResponse.error || "Failed to get MCP servers");
+      }
+
+      const servers = serversResponse.data || [];
+      setMcpServers(servers);
+
+      mcpLogger.info("MCP servers fetched", {
+        totalServers: servers.length,
+        connectedServers: servers.filter((s) => s.status === "connected")
+          .length,
+      });
+
+      // Collect all tools from all connected servers
+      const allTools: ToolDefinition[] = [];
+      servers.forEach((server) => {
+        if (server.status === "connected" && server.capabilities.tools) {
+          mcpLogger.debug("Adding tools from server", {
+            serverName: server.name,
+            toolsCount: server.capabilities.tools.length,
+          });
+          allTools.push(...server.capabilities.tools);
+        } else {
+          mcpLogger.warn("Server not available for tools", {
+            serverName: server.name,
+            status: server.status,
+          });
+        }
+      });
+
+      setAvailableTools(allTools);
+      mcpLogger.info("Available tools updated", {
+        totalTools: allTools.length,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      mcpLogger.error("Failed to get available tools", { error: errorMessage });
+      setToolsError(errorMessage);
+    } finally {
+      setToolsLoading(false);
+    }
+  }, [mcpLogger]);
+
+  const executeTool = useCallback(
+    async (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ) => {
+      mcpLogger.info("Executing MCP tool", { serverId, toolName, args });
+
+      try {
+        const result = await window.mcpAPI.callTool(serverId, toolName, args);
+
+        if (!result.success) {
+          throw new Error(result.error || "Tool execution failed");
+        }
+
+        mcpLogger.info("Tool execution successful", {
+          serverId,
+          toolName,
+          resultType: typeof result.data,
+        });
+
+        return result.data;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        mcpLogger.error("Tool execution failed", {
+          serverId,
+          toolName,
+          error: errorMessage,
+        });
+        throw error;
+      }
+    },
+    [mcpLogger],
+  );
+
+  // Load available tools on mount
+  useEffect(() => {
+    getAvailableTools();
+  }, [getAvailableTools]);
+
+  // Simplified MCP tool call (just a wrapper around executeTool)
+  const callTool = useCallback(
+    async (
+      serverId: string,
+      toolName: string,
+      args: Record<string, unknown>,
+    ): Promise<ToolCallResult> => {
+      try {
+        const data = await executeTool(serverId, toolName, args);
+        return { success: true, data };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        return { success: false, error: errorMessage };
+      }
+    },
+    [executeTool],
+  );
+
   // Helper to convert a File to an Attachment
   const fileToAttachment = useCallback((file: File): Promise<Attachment> => {
     return new Promise((resolve, reject) => {
@@ -167,6 +485,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const sendMessage = useCallback(
     (extraFiles?: File[]) => {
+      console.log("🎯 Frontend: sendMessage called");
+      console.log("🎯 Frontend: chatAPI.input:", chatAPI.input);
+      console.log("🎯 Frontend: copiedContent:", copiedContent);
       const filesToSend = [...attachments];
 
       if (extraFiles && extraFiles.length > 0) {
@@ -176,12 +497,62 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0)
         return;
 
+      // Generate conversation ID if this is the first message
+      let conversationIdToUse = currentConversationId;
+
+      if (!conversationIdToUse) {
+        conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        setCurrentConversationId(conversationIdToUse);
+        console.log(
+          "🆕 Frontend: Generated new conversation ID:",
+          conversationIdToUse,
+        );
+      } else {
+        console.log(
+          "🔄 Frontend: Using existing conversation ID:",
+          conversationIdToUse,
+        );
+      }
+
       let messageText = chatAPI.input.trim();
 
+      // Handle clipboard content (text and/or image)
+      let clipboardImageFile: File | null = null;
+
       if (copiedContent) {
-        messageText = messageText
-          ? `<copied>\n${copiedContent}\n</copied>\n\n${messageText}`
-          : `<copied>\n${copiedContent}\n</copied>`;
+        // Handle text content
+        if (copiedContent.text) {
+          messageText = messageText
+            ? `<copied>\n${copiedContent.text}\n</copied>\n\n${messageText}`
+            : `<copied>\n${copiedContent.text}\n</copied>`;
+        }
+
+        // Handle image content - convert to File object
+        if (copiedContent.imageData) {
+          try {
+            const base64ToFile = (base64: string, filename: string): File => {
+              const arr = base64.split(",");
+              const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
+              const bstr = atob(arr.length > 1 ? arr[1] : base64);
+              let n = bstr.length;
+              const u8arr = new Uint8Array(n);
+              while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+              }
+              return new File([u8arr], filename, { type: mime });
+            };
+
+            const imageDataUrl = copiedContent.imageData.startsWith("data:")
+              ? copiedContent.imageData
+              : `data:image/png;base64,${copiedContent.imageData}`;
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            const filename = `screenshot-${timestamp}.png`;
+            clipboardImageFile = base64ToFile(imageDataUrl, filename);
+          } catch (error) {
+            console.error("Error converting clipboard image:", error);
+          }
+        }
 
         setCopiedContent(null);
       }
@@ -193,13 +564,59 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const sendMessageWithAttachments = async () => {
         try {
-          if (filesToSend.length > 0) {
+          // Combine regular attachments with clipboard image
+          const allFiles = [...filesToSend];
+          if (clipboardImageFile) {
+            allFiles.push(clipboardImageFile);
+          }
+
+          if (allFiles.length > 0) {
             const fileAttachments = await Promise.all(
-              filesToSend.map(fileToAttachment),
+              allFiles.map(fileToAttachment),
             );
             message.experimental_attachments = fileAttachments;
           }
-          chatAPI.append(message);
+
+          // Get fresh MCP servers data for this request
+          const serversResponse = await window.mcpAPI.getServers();
+          const mcpServers: Array<{ name: string; tools: ToolDefinition[] }> =
+            [];
+
+          if (serversResponse.success && serversResponse.data) {
+            const connectedServers = serversResponse.data.filter(
+              (server) => server.status === "connected",
+            );
+
+            connectedServers.forEach((server) => {
+              if (
+                server.capabilities.tools &&
+                server.capabilities.tools.length > 0
+              ) {
+                mcpServers.push({
+                  name: server.name,
+                  tools: server.capabilities.tools,
+                });
+              }
+            });
+          }
+
+          // Send message with all custom fields
+          chatAPI.append(message, {
+            body: {
+              agent: selectedAgent || undefined,
+              modelId: currentModelIdRef.current || settings?.openai?.modelId,
+              conversationId: conversationIdToUse || undefined,
+              useRemoteServer: isUserLoggedIn && useRemoteStore,
+              customApiSettings:
+                !(isUserLoggedIn && useRemoteStore) && settings?.openai
+                  ? {
+                      endpoint: settings.openai.endpoint,
+                      apiKey: settings.openai.apiKey,
+                    }
+                  : undefined,
+              mcpServers,
+            },
+          });
           clearAttachments();
         } catch (error) {
           console.error("Error processing file attachments:", error);
@@ -208,7 +625,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       sendMessageWithAttachments();
     },
-    [chatAPI, copiedContent, attachments, clearAttachments, fileToAttachment],
+    [
+      chatAPI,
+      copiedContent,
+      attachments,
+      clearAttachments,
+      fileToAttachment,
+      currentConversationId,
+      setCurrentConversationId,
+    ],
   );
 
   const setInput = useCallback(
@@ -221,7 +646,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const stopGeneration = useCallback(() => {
-    if (chatAPI.isLoading) {
+    if (chatAPI.status === "streaming" || chatAPI.status === "submitted") {
       chatAPI.stop();
     }
   }, [chatAPI]);
@@ -253,15 +678,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const regenerateMessage = useCallback(() => {
-    if (!chatAPI.isLoading) {
+    if (chatAPI.status === "ready" || chatAPI.status === "error") {
       chatAPI.reload();
     }
   }, [chatAPI]);
 
   const resetChat = useCallback(() => {
+    console.log("🔄 Frontend: resetChat called, clearing conversation ID");
     chatAPI.setMessages([]);
     setCopiedContent(null);
     clearAttachments();
+    setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
     setViewMode("compact");
   }, [chatAPI, clearAttachments]);
@@ -288,19 +715,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const openHistoryWindow = useCallback(() => {
-    triggerHistoryWindow();
-  }, [triggerHistoryWindow]);
+    toggleHistoryWindow();
+  }, [toggleHistoryWindow]);
 
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
-    isLoading: chatAPI.isLoading,
+    isLoading: chatAPI.status === "streaming" || chatAPI.status === "submitted",
     error: chatAPI.error,
     copiedContent,
     attachments,
     viewMode,
     setViewMode,
     toggleViewMode,
+    useRemoteStore,
+    setUseRemoteStore: handleUseRemoteStoreChange,
+    isUserLoggedIn,
+    currentConversationId,
     setInput,
     sendMessage,
     stopGeneration,
@@ -317,6 +748,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     openSettings,
     openHistoryWindow,
     isVoiceInputActive,
+    availableTools,
+    mcpServers,
+    toolsLoading,
+    toolsError,
+    getAvailableTools,
+    executeTool,
+    callTool,
   };
 
   // Show loading state if settings are not loaded yet

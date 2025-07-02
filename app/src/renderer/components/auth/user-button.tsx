@@ -59,13 +59,13 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
       <button
         disabled
         className={`${
-          collapsed ? "p-2" : "w-full p-2"
+          collapsed ? "p-2" : "w-full px-3 py-2.5"
         } rounded-lg text-muted-foreground bg-muted hover:bg-muted/80 transition-colors flex items-center ${
-          collapsed ? "justify-center" : "gap-3"
+          collapsed ? "justify-center" : "gap-3 text-sm"
         }`}
       >
-        <div className="w-4 h-4 animate-pulse bg-muted-foreground/20 rounded-full" />
-        {!collapsed && <span className="text-sm">Loading...</span>}
+        <div className="w-4 h-4 animate-pulse bg-muted-foreground/20 rounded-full flex-shrink-0" />
+        {!collapsed && <span>Loading...</span>}
       </button>
     );
   }
@@ -82,9 +82,9 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
           <PopoverTrigger asChild>
             <button
               className={`${
-                collapsed ? "p-2" : "w-full p-2"
+                collapsed ? "p-2" : "w-full px-3 py-2.5"
               } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
-                collapsed ? "justify-center" : "gap-3"
+                collapsed ? "justify-center" : "gap-3 text-sm"
               }`}
             >
               <Avatar className="h-4 w-4 flex-shrink-0">
@@ -100,20 +100,24 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
               </Avatar>
               {!collapsed && (
                 <>
-                  <span className="text-sm truncate flex-1 text-left">
+                  <span className="truncate flex-1 text-left">
                     {session.user.name ||
                       session.user.email?.split("@")[0] ||
                       "User"}
                   </span>
-                  <ChevronUp size={12} className="opacity-60" />
+                  <ChevronUp size={12} className="opacity-60 flex-shrink-0" />
                 </>
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-2" align="start" side="top">
+          <PopoverContent
+            className="w-56 p-2 bg-popover border border-border/60 rounded-lg shadow-lg"
+            align="start"
+            side="top"
+          >
             <div className="space-y-1">
               {/* User Info */}
-              <div className="px-3 py-2 border-b border-border">
+              <div className="px-3 py-2 border-b border-border/30">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     {session.user.image && (
@@ -138,7 +142,7 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
               </div>
 
               {/* Menu Items */}
-              <div className="space-y-1">
+              <div className="space-y-1 pt-1">
                 <button
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
@@ -155,13 +159,13 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
         <button
           onClick={handleClick}
           className={`${
-            collapsed ? "p-2" : "w-full p-2"
+            collapsed ? "p-2" : "w-full px-3 py-2.5"
           } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
-            collapsed ? "justify-center" : "gap-3"
+            collapsed ? "justify-center" : "gap-3 text-sm"
           }`}
         >
           <User size={16} className="flex-shrink-0" />
-          {!collapsed && <span className="text-sm">Account</span>}
+          {!collapsed && <span>Account</span>}
         </button>
       )}
 

@@ -6,6 +6,10 @@ import {
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for settings window
+const logger = getLogger("settings-window");
 
 // Global reference to the settings window
 let settingsWindow: BrowserWindow | null = null;
@@ -105,7 +109,6 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
 
     if (inDevelopment && window) {
-      console.log("Opening DevTools for settings window");
       window.webContents.openDevTools({ mode: "detach" });
     }
   });
@@ -136,7 +139,7 @@ export function preCreateSettingsWindow(
 ): BrowserWindow | null {
   if (settingsWindow) return settingsWindow;
 
-  console.log("Pre-creating settings window");
+  logger.info("Pre-creating settings window");
 
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.SETTINGS,
@@ -145,9 +148,13 @@ export function preCreateSettingsWindow(
     true,
   );
 
+  logger.debug("Settings window dimensions calculated", { dimensions });
+
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig(dimensions, mainWindow);
   settingsWindow = new BrowserWindow(config);
+
+  logger.debug("Settings window created with platform-specific config");
 
   // Configure appearance and properties
   configurePlatformAppearance(settingsWindow);
@@ -159,24 +166,31 @@ export function preCreateSettingsWindow(
   // Setup event handlers
   setupWindowEventHandlers(settingsWindow);
 
+  logger.info("Settings window pre-creation completed");
+
   return settingsWindow;
 }
 
 // Create and show settings window
 export function createSettingsWindow(): void {
   if (!settingsWindow) {
+    logger.warn("Settings window not pre-created, creating now");
     preCreateSettingsWindow();
   }
 
   if (settingsWindow) {
+    logger.info("Showing settings window");
     settingsWindow.show();
     settingsWindow.focus();
+  } else {
+    logger.error("Failed to create settings window");
   }
 }
 
 // Close settings window
 export function closeSettingsWindow(): void {
   if (settingsWindow) {
+    logger.info("Hiding settings window");
     // Make sure to just hide the window, not close it
     // This prevents triggering the 'closed' event
     settingsWindow.hide();
@@ -187,7 +201,9 @@ export function closeSettingsWindow(): void {
       settingsWindow.blur();
     }
 
-    console.log("Settings window hidden");
+    logger.debug("Settings window hidden successfully");
+  } else {
+    logger.warn("Attempted to close settings window but it doesn't exist");
   }
 }
 

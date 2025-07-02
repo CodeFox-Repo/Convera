@@ -13,28 +13,17 @@ export function setMainWindowResizable(
   window: BrowserWindow,
 ): void {
   isExpandedView = expanded;
-
-  // Set resizable property
   window.setResizable(expanded);
-
-  // If switching to expanded mode, adjust other properties
   if (expanded) {
-    // Allow maximizing in expanded mode
     window.setMaximizable(true);
-    // Remove resize event prevention
     window.removeAllListeners("will-resize");
-    console.log("Window set to resizable mode");
   } else {
-    // Disable maximizing in compact mode
     window.setMaximizable(false);
-    // Prevent resizing in compact mode
     window.on("will-resize", (event) => {
-      // Only prevent if we're in compact mode
       if (!isExpandedView) {
         event.preventDefault();
       }
     });
-    console.log("Window set to fixed size mode");
   }
 }
 

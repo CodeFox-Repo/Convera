@@ -1,16 +1,21 @@
-// app/src/renderer/stores/agent-store.ts
-import { ToolReference } from "@/server/agents/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getApiBaseUrl } from "../env";
 
 export interface Agent {
   id: string;
   name: string;
   description: string;
-  category: string;
-  iconUrl?: string;
-  toolReferences?: ToolReference[];
-  predefined?: boolean;
+  systemPrompt: string;
+  disableToolReferences: Array<{
+    mcpName: string;
+    toolName: string;
+    reason?: string;
+  }>;
+  predefined: boolean;
+  selectedMCPs?: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AgentState {
@@ -24,7 +29,9 @@ interface AgentState {
   fetchAgents: () => Promise<void>;
   updateSelectedAgent: (updatedAgent: Agent) => void;
   updateAvailableAgent: (updatedAgent: Agent) => void;
-  saveAgent: (agent: Agent) => Promise<void>;
+  updateAgent: (agent: Agent) => Promise<void>;
+  createAgent: (agent: Agent) => Promise<Agent>;
+  deleteAgent: (agentId: string) => Promise<boolean>;
   triggerAgentSelect: (
     e: React.MouseEvent<HTMLButtonElement>,
     selectedAgent: Agent | null | undefined,
@@ -39,6 +46,7 @@ export const useAgentStore = create<AgentState>()(
       const savedAgent = localStorage.getItem("selectedAgent");
       const savedAgents = localStorage.getItem("availableAgents");
 
+      const baseUrl = getApiBaseUrl();
       return {
         selectedAgent: savedAgent ? JSON.parse(savedAgent) : null,
         agentChanged: false,
@@ -75,39 +83,54 @@ export const useAgentStore = create<AgentState>()(
 
           set({ availableAgents: agents });
           localStorage.setItem("availableAgents", JSON.stringify(agents));
-          // Remove event dispatch to prevent infinite loop when called from fetchAgents
-          // window.dispatchEvent(new Event("agent-list-updated"));
         },
 
         fetchAgents: async () => {
-          console.log("Fetching available agents from store...");
-          const response = await fetch("http://localhost:38000/api/agents");
-          if (response.ok) {
-            const data = await response.json();
-            if (data.status === "success" && Array.isArray(data.agents)) {
-              console.log(`Store loaded ${data.agents.length} agents`);
-              get().setAvailableAgents(data.agents);
+          try {
+            console.log("Fetching available agents from foxychat-server...");
+            const response = await fetch(`${baseUrl}/agents`, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include", // Include cookies for authentication
+            });
 
-              // Update selected agent if it exists in the new list
-              const currentSelected = get().selectedAgent;
-              if (currentSelected) {
-                const updatedSelectedAgent = data.agents.find(
-                  (agent: Agent) => agent.id === currentSelected.id,
-                );
-                if (updatedSelectedAgent) {
-                  set({ selectedAgent: updatedSelectedAgent });
-                  localStorage.setItem(
-                    "selectedAgent",
-                    JSON.stringify(updatedSelectedAgent),
+            if (response.ok) {
+              const agents = await response.json();
+              console.log("Agents:", agents);
+
+              if (Array.isArray(agents)) {
+                console.log(`Store loaded ${agents.length} agents`);
+                get().setAvailableAgents(agents);
+
+                // Update selected agent if it exists in the new list
+                const currentSelected = get().selectedAgent;
+                if (currentSelected) {
+                  const updatedSelectedAgent = agents.find(
+                    (agent: Agent) => agent.id === currentSelected.id,
                   );
+                  if (updatedSelectedAgent) {
+                    set({ selectedAgent: updatedSelectedAgent });
+                    localStorage.setItem(
+                      "selectedAgent",
+                      JSON.stringify(updatedSelectedAgent),
+                    );
+                  }
                 }
+              } else {
+                console.error(
+                  "Invalid response format: expected array of agents",
+                );
               }
-
-              // Remove the event dispatch to prevent infinite loop
-              // window.dispatchEvent(new CustomEvent("agent-list-updated"));
+            } else {
+              console.error(
+                "Error fetching agents:",
+                response.status,
+                response.statusText,
+              );
             }
-          } else {
-            console.error("Error fetching agents from store:", response.status);
+          } catch (error) {
+            console.error("Error fetching agents:", error);
           }
         },
 
@@ -134,25 +157,106 @@ export const useAgentStore = create<AgentState>()(
           console.log("Updated available agent:", updatedAgent.name);
         },
 
-        saveAgent: async (agent: Agent) => {
-          const response = await fetch(
-            `http://localhost:38000/api/agents/${agent.id}`,
-            {
+        updateAgent: async (agent: Agent) => {
+          try {
+            const response = await fetch(`${baseUrl}/agents/${agent.id}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(agent),
-            },
-          );
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({
+                name: agent.name,
+                description: agent.description,
+                systemPrompt: agent.systemPrompt,
+                disableToolReferences: agent.disableToolReferences,
+                selectedMCPs: agent.selectedMCPs,
+              }),
+            });
 
-          if (!response.ok) {
-            const text = await response.text();
-            throw new Error(
-              `Failed to update agent: ${response.status} ${text}`,
-            );
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => null);
+              throw new Error(
+                `Failed to update agent: ${response.status} ${errorData?.error || response.statusText}`,
+              );
+            }
+
+            const updatedAgent = await response.json();
+            get().updateSelectedAgent(updatedAgent);
+            get().updateAvailableAgent(updatedAgent);
+          } catch (error) {
+            console.error("Error saving agent:", error);
+            throw error;
           }
+        },
 
-          get().updateSelectedAgent(agent);
-          get().updateAvailableAgent(agent);
+        createAgent: async (agentData) => {
+          try {
+            const response = await fetch(`${baseUrl}/agents`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify(agentData),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => null);
+              throw new Error(
+                `Failed to create agent: ${response.status} ${errorData?.error || response.statusText}`,
+              );
+            }
+
+            const newAgent = await response.json();
+
+            // Add to available agents
+            const currentAgents = get().availableAgents;
+            const updatedAgents = [...currentAgents, newAgent];
+            get().setAvailableAgents(updatedAgents);
+
+            return newAgent;
+          } catch (error) {
+            console.error("Error creating agent:", error);
+            throw error;
+          }
+        },
+
+        deleteAgent: async (agentId: string) => {
+          try {
+            const response = await fetch(`${baseUrl}/agents/${agentId}`, {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => null);
+              throw new Error(
+                `Failed to delete agent: ${response.status} ${errorData?.error || response.statusText}`,
+              );
+            }
+
+            // Remove from available agents
+            const currentAgents = get().availableAgents;
+            const updatedAgents = currentAgents.filter(
+              (agent) => agent.id !== agentId,
+            );
+            get().setAvailableAgents(updatedAgents);
+
+            // Clear selected agent if it was deleted
+            const selectedAgent = get().selectedAgent;
+            if (selectedAgent?.id === agentId) {
+              get().setSelectedAgent(null);
+            }
+
+            return true;
+          } catch (error) {
+            console.error("Error deleting agent:", error);
+            return false;
+          }
         },
 
         triggerAgentSelect: async (

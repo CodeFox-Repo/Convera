@@ -1,9 +1,10 @@
 // src/types/electron.d.ts
 
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import type { IMcpAPI } from "./mcp";
 
 // Enum for window types
-export type WindowType = "settings" | "history" | "main";
+export type WindowType = "settings" | "history" | "main" | "chat";
 
 // Enum for theme modes
 export type ThemeMode = "light" | "dark" | "system";
@@ -14,6 +15,20 @@ export interface WindowControlOptions {
   y?: number;
   width?: number;
   height?: number;
+}
+
+// Simple Logger types
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+export interface Logger {
+  debug: (message: string, data?: unknown) => Promise<void>;
+  info: (message: string, data?: unknown) => Promise<void>;
+  warn: (message: string, data?: unknown) => Promise<void>;
+  error: (message: string, data?: unknown) => Promise<void>;
+}
+
+export interface WindowLogger {
+  getLogger: (name?: string) => Logger;
 }
 
 // Define the structure of the API exposed via contextBridge
@@ -51,6 +66,7 @@ export interface IElectronAPI {
     height: number,
     preserveX?: boolean,
   ) => Promise<void>;
+  resizeAndCenterWindow: (width: number, height: number) => Promise<void>;
   getCurrentWindowPosition: () => Promise<{ x: number; y: number }>;
   getCurrentWindowSize: (window: WindowSizeConfig) => Promise<{
     width: number;
@@ -89,13 +105,23 @@ export interface IElectronAPI {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputText: (callback: (text: string) => void) => () => void;
+  onSetInputContent: (
+    callback: (content: { text?: string; imageData?: string }) => void,
+  ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
+}
+
+// Define the Environment API interface
+export interface IEnvAPI {
+  isProduction: () => boolean;
 }
 
 // Extend the global Window interface
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
+    mcpAPI: IMcpAPI;
+    envApi: IEnvAPI;
+    logger: WindowLogger;
   }
 }

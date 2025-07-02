@@ -11,6 +11,10 @@ import {
   screen,
 } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for chat window
+const logger = getLogger("chat-window");
 
 const CHAT_WINDOW_DIMENSIONS = {
   width: 600,
@@ -93,21 +97,22 @@ function loadWindowContent(window: BrowserWindow) {
 function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle ready-to-show event
   window.once("ready-to-show", () => {
-    console.log("Chat window ready, positioning and hiding.");
+    logger.info("Chat window ready, positioning and hiding");
     // Position the window at center bottom without changing size
     positionWindowAtCenterBottom(window);
     setWindowHidden(window);
+    logger.debug("Chat window positioned and hidden");
   });
 
   // Navigate to chat page after loading
   window.webContents.on("did-finish-load", () => {
-    console.log("Chat window loaded, redirecting to chat page...");
+    logger.info("Chat window content loaded, redirecting to chat page");
 
     window.webContents
       .executeJavaScript(
         `
       console.log("Redirecting to chat page...");
-      
+
       if (window.router) {
         console.log("Using router API");
         window.router.navigate({ to: "/chat" });
@@ -117,16 +122,26 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       }
     `,
       )
+      .then(() => {
+        logger.debug("Navigation script executed successfully");
+      })
       .catch((err) => {
-        console.error("Failed to execute navigation script:", err);
+        logger.error("Failed to execute navigation script", err);
       });
   });
 
   // Handle display changes - just reposition, no resizing needed
+  let repositionTimeout: NodeJS.Timeout | null = null;
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
-      // Just reposition the window, size stays fixed
-      positionWindowAtCenterBottom(window);
+      // Debounce the repositioning to prevent infinite loops
+      if (repositionTimeout) {
+        clearTimeout(repositionTimeout);
+      }
+      repositionTimeout = setTimeout(() => {
+        positionWindowAtCenterBottom(window);
+        repositionTimeout = null;
+      }, 100);
     }
   });
 
@@ -135,31 +150,28 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 
   // Open dev tools in development
   if (inDevelopment) {
+    logger.debug("Opening DevTools for chat window (development mode)");
     window.webContents.openDevTools({ mode: "detach" });
   }
 }
 
 // Create chat window (quick popup chat interface)
-export function createChatWindow(): BrowserWindow | null {
-  const { width, height } = CHAT_WINDOW_DIMENSIONS;
-
-  console.log(
-    `Creating chat window with fixed transparent bounds: w=${width}, h=${height}`,
-  );
-
+export function createChatWindow(): BrowserWindow {
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig();
   const chatWindow = new BrowserWindow(config);
-
-  // Configure appearance and properties
   configurePlatformAppearance(chatWindow);
   configureWindowProperties(chatWindow);
-
-  // Load content
   loadWindowContent(chatWindow);
-
-  // Setup event handlers
   setupWindowEventHandlers(chatWindow);
+  return chatWindow;
+}
 
+let chatWindow: BrowserWindow | null = null;
+
+export function getChatWindow(): BrowserWindow {
+  if (!chatWindow) {
+    chatWindow = createChatWindow();
+  }
   return chatWindow;
 }

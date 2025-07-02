@@ -1,8 +1,11 @@
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
-import { ToolReference } from "@/server/agents/types";
-import { MCPServerConfig, ToolDefinition } from "@/server/mcp/types";
+import {
+  ConnectionStatus,
+  MCPServerConfig,
+  ToolDefinition,
+} from "@/shared/types/mcp";
 import React, { useEffect, useRef, useState } from "react";
 
 interface Tool {
@@ -34,18 +37,8 @@ const mockBasicToolsData: Tool[] = [
 export default function AgentPopover() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [basicTools, setBasicTools] = useState<Tool[]>(mockBasicToolsData);
-  const [mcpServerConfigs, setMcpServerConfigs] = useState<
-    Record<string, MCPServerConfig>
-  >({});
-  const [mcpServerTools, setMcpServerTools] = useState<
-    Record<string, ToolDefinition[]>
-  >({});
   const [mcpToolsEnabled, setMcpToolsEnabled] = useState<
     Record<string, Record<string, boolean>>
-  >({});
-  const [loadingMcpConfigs, setLoadingMcpConfigs] = useState(true);
-  const [loadingMcpTools, setLoadingMcpTools] = useState<
-    Record<string, boolean>
   >({});
 
   // Expandable sections state
@@ -68,64 +61,103 @@ export default function AgentPopover() {
     availableAgents,
     fetchAgents,
     subscribeToAgentChanges,
-    saveAgent,
+    updateAgent: saveAgent,
   } = useAgentStore();
-  const { fetchMcpConfigurations, getMcpServerTools } = useMcpStore();
+
+  const mcpServerConfigs = useMcpStore((state) => state.mcpServerConfigs);
+  const loadingMcpConfigs = useMcpStore((state) => state.loadingMcpConfigs);
+  const mcpServers = useMcpStore((state) => state.mcpServers);
+  const subscribeMcpChanges = useMcpStore((state) => state.subscribeMcpChanges);
+  const refreshMcpData = useMcpStore((state) => state.refreshAll);
   useThemeSync();
-  // Fetch agents from server
-  const fetchMcpConfigs = async () => {
-    setLoadingMcpConfigs(true);
-    await fetchMcpConfigurations();
-    const configs = useMcpStore.getState().mcpServerConfigs;
-    setMcpServerConfigs(configs);
-    Object.entries(configs)
-      .filter(([, config]) => config.enabled)
-      .forEach(([id]) => {
-        fetchMcpServerTools(id);
-      });
-    setLoadingMcpConfigs(false);
+
+  // Get server info by ID
+  const getServerInfo = (serverId: string) => {
+    let server = mcpServers.find((s) => s.name === serverId);
+    if (!server) {
+      const configId = Object.keys(mcpServerConfigs?.mcpServers || {}).find(
+        (id) => id === serverId,
+      );
+      if (configId) {
+        server = mcpServers.find(
+          (s) => s.name === configId || s.displayName === configId,
+        );
+      }
+    }
+    return server;
   };
 
-  // Fetch tools for specific MCP server
-  const fetchMcpServerTools = async (id: string) => {
-    setLoadingMcpTools((prev) => ({ ...prev, [id]: true }));
-    try {
-      const tools = await getMcpServerTools(id);
-      setMcpServerTools((prev) => {
-        const newServerTools = { ...prev, [id]: tools };
-        if (selectedAgent) {
-          const enabledStatus: Record<string, boolean> = {};
-          tools.forEach((tool: ToolDefinition) => {
-            const isEnabled =
-              selectedAgent.toolReferences?.some(
-                (ref) => ref.mcpName === id && ref.toolName === tool.name,
-              ) ?? false;
-            enabledStatus[tool.name] = isEnabled;
-          });
-          setMcpToolsEnabled((prevEnabled) => ({
-            ...prevEnabled,
-            [id]: enabledStatus,
-          }));
-        }
-        return newServerTools;
-      });
-    } catch (err) {
-      console.error(`Failed to fetch tools for server ${id}:`, err);
-    } finally {
-      setLoadingMcpTools((prev) => ({ ...prev, [id]: false }));
+  // Get tools for a specific server - try both ID and name matching
+  const getServerTools = (serverId: string) => {
+    const server = getServerInfo(serverId);
+    const tools = server?.capabilities?.tools || [];
+    console.log(
+      `getServerTools(${serverId}): found ${tools.length} tools`,
+      tools,
+    );
+    return tools;
+  };
+
+  // Calculate MCP tools enabled state based on current agent
+  const calculateMcpToolsState = () => {
+    if (!selectedAgent || !mcpServerConfigs?.mcpServers) {
+      setMcpToolsEnabled({});
+      return;
     }
+
+    const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
+
+    // Use mcpServerConfigs as the source of truth for server IDs
+    Object.entries(mcpServerConfigs.mcpServers).forEach(
+      ([serverId, config]) => {
+        const serverConfig = config as MCPServerConfig;
+        if (serverConfig.disabled) return;
+
+        // Filter MCP servers based on agent type
+        if (!selectedAgent.predefined) {
+          // For custom agents, only show selected MCP servers
+          if (!selectedAgent.selectedMCPs?.includes(serverId)) {
+            return;
+          }
+        }
+        // For predefined agents (predefined: true), show all enabled servers
+
+        const tools = getServerTools(serverId);
+        const enabledStatus: Record<string, boolean> = {};
+
+        tools.forEach((tool) => {
+          // Tool is enabled if NOT in disableToolReferences
+          const isEnabled = !selectedAgent.disableToolReferences?.some(
+            (disabled) =>
+              disabled.mcpName === serverId && disabled.toolName === tool.name,
+          );
+          enabledStatus[tool.name] = isEnabled;
+        });
+
+        newMcpToolsEnabled[serverId] = enabledStatus;
+      },
+    );
+
+    console.log("Calculated MCP tools enabled state:", newMcpToolsEnabled);
+    setMcpToolsEnabled(newMcpToolsEnabled);
   };
 
   // Initialize component
   useEffect(() => {
     fetchAgents();
-    fetchMcpConfigs();
+
+    // Fetch latest MCP data when component initializes
+    refreshMcpData();
 
     // Subscribe to agent changes for auto-sync
-    const unsubscribe = subscribeToAgentChanges();
+    const unsubscribeAgent = subscribeToAgentChanges();
+
+    // Subscribe to MCP data changes for real-time sync
+    const unsubscribeMcp = subscribeMcpChanges();
 
     return () => {
-      unsubscribe();
+      unsubscribeAgent();
+      unsubscribeMcp();
     };
   }, []);
 
@@ -144,36 +176,16 @@ export default function AgentPopover() {
 
   // Recalculate MCP tools enabled state when selected agent changes
   useEffect(() => {
-    if (selectedAgent && Object.keys(mcpServerTools).length > 0) {
-      console.log(
-        "Recalculating MCP tools enabled state for agent:",
-        selectedAgent.name,
-      );
-      console.log("Agent tool references:", selectedAgent.toolReferences);
-
-      const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
-
-      Object.entries(mcpServerTools).forEach(([serverId, tools]) => {
-        const enabledStatus: Record<string, boolean> = {};
-        tools.forEach((tool: ToolDefinition) => {
-          const isEnabled =
-            selectedAgent.toolReferences?.some(
-              (ref) => ref.mcpName === serverId && ref.toolName === tool.name,
-            ) ?? false;
-          enabledStatus[tool.name] = isEnabled;
-          console.log(`Tool ${serverId}:${tool.name} enabled: ${isEnabled}`);
-        });
-        newMcpToolsEnabled[serverId] = enabledStatus;
+    window.logger
+      .getLogger("agent-popover")
+      .info("MCP data changed in effect:", {
+        configsCount: Object.keys(mcpServerConfigs?.mcpServers || {}).length,
+        serversCount: mcpServers.length,
+        configsKeys: Object.keys(mcpServerConfigs?.mcpServers || {}),
+        serversNames: mcpServers.map((s) => s.name),
       });
-
-      setMcpToolsEnabled(newMcpToolsEnabled);
-      console.log("Updated MCP tools enabled state:", newMcpToolsEnabled);
-    } else if (!selectedAgent) {
-      // Clear all tool states if no agent is selected
-      setMcpToolsEnabled({});
-      console.log("Cleared MCP tools state - no agent selected");
-    }
-  }, [selectedAgent, mcpServerTools]);
+    calculateMcpToolsState();
+  }, [selectedAgent, mcpServerConfigs, mcpServers]);
 
   // Update built-in tools state based on selected agent
   useEffect(() => {
@@ -182,13 +194,13 @@ export default function AgentPopover() {
         "Updating built-in tools state for agent:",
         selectedAgent.name,
       );
-      // Use toolReferences instead of toolNames
+      // Check if tools are NOT in disableToolReferences
       setBasicTools((prev) =>
         prev.map((tool) => {
-          const isEnabled =
-            selectedAgent.toolReferences?.some(
-              (ref) => ref.toolName === tool.id && ref.mcpName === "built-in",
-            ) ?? false;
+          const isEnabled = !selectedAgent.disableToolReferences?.some(
+            (disabled) =>
+              disabled.toolName === tool.id && disabled.mcpName === "built-in",
+          );
           return { ...tool, enabled: isEnabled };
         }),
       );
@@ -201,7 +213,7 @@ export default function AgentPopover() {
   // Handle agent selection
   const handleAgentSelect = (agent: Agent) => {
     console.log(`Agent selected: ${agent.name}`);
-    console.log("Agent tool references:", agent.toolReferences);
+    console.log("Agent disable tool references:", agent.disableToolReferences);
 
     setSelectedAgent(agent);
     localStorage.setItem("selectedAgent", JSON.stringify(agent));
@@ -209,33 +221,40 @@ export default function AgentPopover() {
     // Force immediate recalculation of built-in tools state for the new agent
     setBasicTools((prev) =>
       prev.map((tool) => {
-        const isEnabled =
-          agent.toolReferences?.some(
-            (ref) => ref.toolName === tool.id && ref.mcpName === "built-in",
-          ) ?? false;
+        const isEnabled = !agent.disableToolReferences?.some(
+          (disabled) =>
+            disabled.toolName === tool.id && disabled.mcpName === "built-in",
+        );
         return { ...tool, enabled: isEnabled };
       }),
     );
 
     // Force immediate recalculation of MCP tool states for the new agent
-    if (Object.keys(mcpServerTools).length > 0) {
+    if (mcpServerConfigs?.mcpServers) {
       console.log(
         "Immediately recalculating MCP tools for new agent:",
         agent.name,
       );
       const newMcpToolsEnabled: Record<string, Record<string, boolean>> = {};
 
-      Object.entries(mcpServerTools).forEach(([serverId, tools]) => {
-        const enabledStatus: Record<string, boolean> = {};
-        tools.forEach((tool: ToolDefinition) => {
-          const isEnabled =
-            agent.toolReferences?.some(
-              (ref) => ref.mcpName === serverId && ref.toolName === tool.name,
-            ) ?? false;
-          enabledStatus[tool.name] = isEnabled;
-        });
-        newMcpToolsEnabled[serverId] = enabledStatus;
-      });
+      Object.entries(mcpServerConfigs.mcpServers).forEach(
+        ([serverId, config]) => {
+          const serverConfig = config as MCPServerConfig;
+          if (serverConfig.disabled) return;
+
+          const tools = getServerTools(serverId);
+          const enabledStatus: Record<string, boolean> = {};
+          tools.forEach((tool: ToolDefinition) => {
+            const isEnabled = !agent.disableToolReferences?.some(
+              (disabled) =>
+                disabled.mcpName === serverId &&
+                disabled.toolName === tool.name,
+            );
+            enabledStatus[tool.name] = isEnabled;
+          });
+          newMcpToolsEnabled[serverId] = enabledStatus;
+        },
+      );
 
       setMcpToolsEnabled(newMcpToolsEnabled);
       console.log("Immediately updated MCP tools state:", newMcpToolsEnabled);
@@ -244,9 +263,13 @@ export default function AgentPopover() {
     window.electronAPI.toggleAgentPopover();
   };
 
-  // Common function to update agent with tool references
-  const updateAgentWithToolReferences = async (
-    updatedToolReferences: ToolReference[],
+  // Common function to update agent with disabled tool references
+  const updateAgentWithDisabledTools = async (
+    updatedDisableToolReferences: Array<{
+      mcpName: string;
+      toolName: string;
+      reason?: string;
+    }>,
     onSuccess?: () => void,
     successMessage?: string,
   ) => {
@@ -256,13 +279,9 @@ export default function AgentPopover() {
       return false;
     }
 
-    const agentData = {
-      id: currentAgent.id,
-      name: currentAgent.name,
-      description: currentAgent.description,
-      category: currentAgent.category,
-      predefined: currentAgent.predefined,
-      toolReferences: updatedToolReferences,
+    const agentData: Agent = {
+      ...currentAgent,
+      disableToolReferences: updatedDisableToolReferences,
     };
 
     try {
@@ -286,34 +305,40 @@ export default function AgentPopover() {
       return;
     }
 
-    const currentToolReferences = currentAgent.toolReferences || [];
-    const isCurrentlyEnabled = currentToolReferences.some(
-      (ref) => ref.toolName === toolId && ref.mcpName === "built-in",
+    const currentDisabledTools = currentAgent.disableToolReferences || [];
+    const isCurrentlyDisabled = currentDisabledTools.some(
+      (disabled) =>
+        disabled.toolName === toolId && disabled.mcpName === "built-in",
     );
-    const newEnabled = !isCurrentlyEnabled;
+    const newEnabled = isCurrentlyDisabled; // If currently disabled, we want to enable it
 
     console.log(
-      `Toggling basic tool ${toolId} from ${isCurrentlyEnabled} to ${newEnabled}`,
+      `Toggling basic tool ${toolId} from ${!isCurrentlyDisabled} to ${newEnabled}`,
     );
 
-    let updatedToolReferences: ToolReference[];
+    let updatedDisabledTools: Array<{
+      mcpName: string;
+      toolName: string;
+      reason?: string;
+    }>;
     if (newEnabled) {
-      // Add the basic tool reference with special built-in identifier
-      const newToolRef: ToolReference = {
+      // Remove from disabled list to enable the tool
+      updatedDisabledTools = currentDisabledTools.filter(
+        (disabled) =>
+          !(disabled.toolName === toolId && disabled.mcpName === "built-in"),
+      );
+    } else {
+      // Add to disabled list to disable the tool
+      const newDisabledRef = {
         mcpName: "built-in",
         toolName: toolId,
-        isBuiltIn: true,
+        reason: "Manually disabled",
       };
-      updatedToolReferences = [...currentToolReferences, newToolRef];
-    } else {
-      // Remove the basic tool reference
-      updatedToolReferences = currentToolReferences.filter(
-        (ref) => !(ref.toolName === toolId && ref.mcpName === "built-in"),
-      );
+      updatedDisabledTools = [...currentDisabledTools, newDisabledRef];
     }
 
-    const success = await updateAgentWithToolReferences(
-      updatedToolReferences,
+    const success = await updateAgentWithDisabledTools(
+      updatedDisabledTools,
       () => {
         // Update local state immediately
         setBasicTools((prev) =>
@@ -340,28 +365,36 @@ export default function AgentPopover() {
     const newEnabled = !currentEnabled;
 
     console.log(
-      `Toggling tool ${toolName} for server ${serverId} to ${newEnabled ? "enabled" : "disabled"}`,
+      `Toggling tool ${toolName} for server ${serverId} from ${currentEnabled} to ${newEnabled}`,
     );
+    console.log("Current mcpToolsEnabled state:", mcpToolsEnabled);
 
-    const currentToolReferences = currentAgent.toolReferences || [];
+    const currentDisabledTools = currentAgent.disableToolReferences || [];
 
-    let updatedToolReferences: ToolReference[];
+    let updatedDisabledTools: Array<{
+      mcpName: string;
+      toolName: string;
+      reason?: string;
+    }>;
 
     if (newEnabled) {
-      const newToolRef: ToolReference = {
+      // Remove from disabled list to enable the tool
+      updatedDisabledTools = currentDisabledTools.filter(
+        (disabled) =>
+          !(disabled.mcpName === serverId && disabled.toolName === toolName),
+      );
+    } else {
+      // Add to disabled list to disable the tool
+      const newDisabledRef = {
         mcpName: serverId,
         toolName: toolName,
-        isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
+        reason: "Manually disabled",
       };
-      updatedToolReferences = [...currentToolReferences, newToolRef];
-    } else {
-      updatedToolReferences = currentToolReferences.filter(
-        (ref) => !(ref.mcpName === serverId && ref.toolName === toolName),
-      );
+      updatedDisabledTools = [...currentDisabledTools, newDisabledRef];
     }
 
-    const success = await updateAgentWithToolReferences(
-      updatedToolReferences,
+    const success = await updateAgentWithDisabledTools(
+      updatedDisabledTools,
       () => {
         setMcpToolsEnabled((prev) => ({
           ...prev,
@@ -386,23 +419,31 @@ export default function AgentPopover() {
       return;
     }
 
-    const serverTools = mcpServerTools[serverId] || [];
+    const serverTools = getServerTools(serverId);
     if (serverTools.length === 0) return;
 
     console.log(`Disabling all tools for server ${serverId}`);
 
-    const currentToolReferences = currentAgent.toolReferences || [];
+    const currentDisabledTools = currentAgent.disableToolReferences || [];
 
-    // Remove all tools from this server
-    const updatedToolReferences = currentToolReferences.filter(
-      (ref) => ref.mcpName !== serverId,
+    // Add all server tools to disabled list
+    const newDisabledRefs = serverTools.map((tool: ToolDefinition) => ({
+      mcpName: serverId,
+      toolName: tool.name,
+      reason: "Bulk disabled",
+    }));
+
+    // Filter out existing disabled tools for this server and add new ones
+    const otherDisabledTools = currentDisabledTools.filter(
+      (disabled) => disabled.mcpName !== serverId,
     );
+    const updatedDisabledTools = [...otherDisabledTools, ...newDisabledRefs];
 
-    const success = await updateAgentWithToolReferences(
-      updatedToolReferences,
+    const success = await updateAgentWithDisabledTools(
+      updatedDisabledTools,
       () => {
         const newEnabledState: Record<string, boolean> = {};
-        serverTools.forEach((tool) => {
+        serverTools.forEach((tool: ToolDefinition) => {
           newEnabledState[tool.name] = false;
         });
         setMcpToolsEnabled((prev) => ({
@@ -425,33 +466,23 @@ export default function AgentPopover() {
       return;
     }
 
-    const serverTools = mcpServerTools[serverId] || [];
+    const serverTools = getServerTools(serverId);
     if (serverTools.length === 0) return;
 
     console.log(`Enabling all tools for server ${serverId}`);
 
-    const currentToolReferences = currentAgent.toolReferences || [];
+    const currentDisabledTools = currentAgent.disableToolReferences || [];
 
-    // Add all tools from this server that aren't already added
-    const existingServerTools = currentToolReferences
-      .filter((ref) => ref.mcpName === serverId)
-      .map((ref) => ref.toolName);
+    // Remove all tools from this server from the disabled list
+    const updatedDisabledTools = currentDisabledTools.filter(
+      (disabled) => disabled.mcpName !== serverId,
+    );
 
-    const newToolRefs = serverTools
-      .filter((tool) => !existingServerTools.includes(tool.name))
-      .map((tool) => ({
-        mcpName: serverId,
-        toolName: tool.name,
-        isBuiltIn: serverId === "Dev-MCP" || serverId === "codefox-mcp",
-      }));
-
-    const updatedToolReferences = [...currentToolReferences, ...newToolRefs];
-
-    const success = await updateAgentWithToolReferences(
-      updatedToolReferences,
+    const success = await updateAgentWithDisabledTools(
+      updatedDisabledTools,
       () => {
         const newEnabledState: Record<string, boolean> = {};
-        serverTools.forEach((tool) => {
+        serverTools.forEach((tool: ToolDefinition) => {
           newEnabledState[tool.name] = true;
         });
         setMcpToolsEnabled((prev) => ({
@@ -502,7 +533,7 @@ export default function AgentPopover() {
 
   // Count enabled tools for MCP server
   const getEnabledToolsCount = (serverId: string) => {
-    const tools = mcpServerTools[serverId] || [];
+    const tools = getServerTools(serverId);
     const enabledCount = Object.values(mcpToolsEnabled[serverId] || {}).filter(
       Boolean,
     ).length;
@@ -805,24 +836,49 @@ export default function AgentPopover() {
                 <div className="flex justify-center py-4">
                   <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
                 </div>
-              ) : Object.keys(mcpServerConfigs).length === 0 ? (
+              ) : !mcpServerConfigs?.mcpServers ||
+                Object.keys(mcpServerConfigs.mcpServers).length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   No MCP servers configured
                 </div>
               ) : (
                 <div className="mt-3 space-y-3">
-                  {Object.entries(mcpServerConfigs)
+                  {Object.entries(mcpServerConfigs.mcpServers)
+                    .filter(([serverId, config]) => {
+                      const serverConfig = config as MCPServerConfig;
+                      // Skip disabled servers
+                      if (serverConfig.disabled) return false;
+
+                      // Filter based on agent type
+                      if (selectedAgent && !selectedAgent.predefined) {
+                        // For custom agents, only show selected MCP servers
+                        return (
+                          selectedAgent.selectedMCPs?.includes(serverId) ||
+                          false
+                        );
+                      }
+                      // For predefined agents, show all enabled servers
+                      return true;
+                    })
                     .sort(([, a], [, b]) => {
-                      if (a.enabled && !b.enabled) return -1;
-                      if (!a.enabled && b.enabled) return 1;
-                      return (a.name || "").localeCompare(b.name || "");
+                      const configA = a as MCPServerConfig;
+                      const configB = b as MCPServerConfig;
+                      if (!configA.disabled && configB.disabled) return -1;
+                      if (configA.disabled && !configB.disabled) return 1;
+                      return (configA.name || "").localeCompare(
+                        configB.name || "",
+                      );
                     })
                     .map(([id, config]) => {
+                      const serverInfo = getServerInfo(id);
                       const { enabled, total } = getEnabledToolsCount(id);
-                      const serverTools = mcpServerTools[id] || [];
+                      const serverTools = getServerTools(id);
                       const isServerExpanded =
-                        expandedMcpServers[id] ??
-                        (config.enabled && serverTools.length > 0);
+                        expandedMcpServers[id] ?? serverTools.length > 0;
+                      const isConnected =
+                        serverInfo?.status === ConnectionStatus.CONNECTED;
+                      const serverStatus =
+                        serverInfo?.status || ConnectionStatus.DISCONNECTED;
 
                       return (
                         <div
@@ -833,27 +889,47 @@ export default function AgentPopover() {
                           <div
                             className="flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors duration-150"
                             onClick={() =>
-                              config.enabled &&
+                              isConnected &&
                               serverTools.length > 0 &&
                               toggleMcpServer(id)
                             }
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className={`w-2 h-2 rounded-full ${config.enabled ? "bg-emerald-500 dark:bg-emerald-400" : "bg-gray-400 dark:bg-gray-500"}`}
+                                className={`w-2 h-2 rounded-full ${
+                                  serverStatus === ConnectionStatus.CONNECTED
+                                    ? "bg-emerald-500 dark:bg-emerald-400"
+                                    : serverStatus ===
+                                        ConnectionStatus.CONNECTING
+                                      ? "bg-yellow-500 dark:bg-yellow-400 animate-pulse"
+                                      : serverStatus === ConnectionStatus.ERROR
+                                        ? "bg-red-500 dark:bg-red-400"
+                                        : serverStatus ===
+                                            ConnectionStatus.DISABLED
+                                          ? "bg-gray-400 dark:bg-gray-500"
+                                          : "bg-gray-400 dark:bg-gray-500"
+                                }`}
                               ></div>
                               <div>
                                 <div className="font-medium text-sm text-foreground">
                                   {config.name || id}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {config.enabled
+                                  {serverStatus === ConnectionStatus.CONNECTED
                                     ? `${enabled}/${total} tools enabled`
-                                    : "Disabled"}
+                                    : serverStatus ===
+                                        ConnectionStatus.CONNECTING
+                                      ? "Connecting..."
+                                      : serverStatus === ConnectionStatus.ERROR
+                                        ? "Connection error"
+                                        : serverStatus ===
+                                            ConnectionStatus.DISABLED
+                                          ? "Disabled"
+                                          : "Disconnected"}
                                 </div>
                               </div>
                             </div>
-                            {config.enabled && serverTools.length > 0 && (
+                            {isConnected && serverTools.length > 0 && (
                               <svg
                                 className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ease-in-out ${
                                   isServerExpanded ? "rotate-90" : "rotate-0"
@@ -873,7 +949,7 @@ export default function AgentPopover() {
                           </div>
 
                           {/* Server Tools */}
-                          {config.enabled && serverTools.length > 0 && (
+                          {isConnected && serverTools.length > 0 && (
                             <div
                               className={`transition-all duration-250 ease-in-out overflow-hidden ${
                                 isServerExpanded
@@ -882,9 +958,11 @@ export default function AgentPopover() {
                               }`}
                             >
                               <div className="p-2 space-y-1">
-                                {loadingMcpTools[id] ? (
+                                {serverTools.length === 0 ? (
                                   <div className="flex justify-center py-2">
-                                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                                    <div className="text-sm text-muted-foreground">
+                                      No tools available
+                                    </div>
                                   </div>
                                 ) : (
                                   <>

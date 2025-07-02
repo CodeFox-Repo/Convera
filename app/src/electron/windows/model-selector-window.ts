@@ -6,6 +6,10 @@ import {
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for model selector window
+const logger = getLogger("model-selector");
 
 // Global reference to the model selector window
 let modelSelectorWindow: BrowserWindow | null = null;
@@ -13,10 +17,15 @@ let modelSelectorWindow: BrowserWindow | null = null;
 // Create platform-specific configuration for model selector window
 function createPlatformSpecificConfig(
   dimensions: WindowDimensions,
+  x: number,
+  y: number,
+  mainWindow: BrowserWindow | null,
 ): BrowserWindowConstructorOptions {
   const baseConfig: BrowserWindowConstructorOptions = {
     width: dimensions.width,
     height: dimensions.height,
+    x: x || dimensions.x,
+    y: y || dimensions.y,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -37,6 +46,7 @@ function createPlatformSpecificConfig(
     hasShadow: true,
     type: "popover",
     backgroundColor: "#00000000",
+    parent: mainWindow || undefined,
   };
 
   return baseConfig;
@@ -87,22 +97,33 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 export function preCreateModelSelectorWindow(): BrowserWindow | null {
   if (modelSelectorWindow) return modelSelectorWindow;
 
-  console.log("Pre-creating model selector window");
+  logger.info("Pre-creating model selector window");
 
   // Get dimensions from presets
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.MODEL_SELECTOR,
   );
 
+  logger.debug("Model selector dimensions calculated", { dimensions });
+
   // Create window with platform-specific configuration
-  const config = createPlatformSpecificConfig(dimensions);
+  const config = createPlatformSpecificConfig(
+    dimensions,
+    dimensions.x,
+    dimensions.y,
+    null,
+  );
   modelSelectorWindow = new BrowserWindow(config);
+
+  logger.debug("Model selector window created with platform-specific config");
 
   // Load content
   loadWindowContent(modelSelectorWindow);
 
   // Setup event handlers
   setupWindowEventHandlers(modelSelectorWindow);
+
+  logger.info("Model selector window pre-creation completed");
 
   return modelSelectorWindow;
 }
@@ -114,9 +135,10 @@ export function createModelSelectorWindow(
   width = 0,
   height = 0,
 ): BrowserWindow | null {
-  console.log("Showing model selector window");
+  logger.info("Showing model selector window", { x, y, width, height });
+
   if (!modelSelectorWindow) {
-    // Create if it doesn't exist
+    logger.warn("Model selector window not pre-created, creating now");
     preCreateModelSelectorWindow();
   }
 
@@ -128,13 +150,17 @@ export function createModelSelectorWindow(
     width = presetDimensions.width;
     height = presetDimensions.height;
 
-    // Reposition and show
-    console.log(
-      `Repositioning model selector to: x=${x}, y=${y}, width=${width}, height=${height}`,
-    );
+    logger.debug("Repositioning model selector window", {
+      x,
+      y,
+      width,
+      height,
+    });
     modelSelectorWindow.setBounds({ x, y, width, height });
     modelSelectorWindow.show();
     modelSelectorWindow.focus();
+  } else {
+    logger.error("Failed to create model selector window");
   }
 
   return modelSelectorWindow;

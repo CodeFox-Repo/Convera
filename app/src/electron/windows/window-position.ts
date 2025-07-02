@@ -12,6 +12,7 @@ import { BrowserWindow, screen } from "electron";
 
 export let expectedPosition: WindowDimensions | null = null;
 let isFixingPosition = false;
+let lastPositionTime = 0;
 /**
  * Position a window at the center bottom of the screen with margin
  * bottomMarginPercent: percentage of screen height to use as bottom margin
@@ -22,7 +23,16 @@ export function positionWindowAtCenterBottom(
   config?: WindowSizeConfig,
   bottomMarginPercent: number = appConfig.window.defaultBottomMarginPercent,
 ) {
-  if (!window) return;
+  if (!window || isFixingPosition) return;
+
+  // Prevent rapid successive calls (debounce)
+  const now = Date.now();
+  if (now - lastPositionTime < 100) {
+    return;
+  }
+  lastPositionTime = now;
+
+  isFixingPosition = true;
 
   // Get primary display
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -99,6 +109,8 @@ export function positionWindowAtCenterBottom(
   console.log(
     `Positioned window at: x=${window.getBounds().x}, y=${window.getBounds().y}, size=${window.getBounds().width}x${window.getBounds().height}, margin=${bottomMargin}px`,
   );
+
+  isFixingPosition = false;
 }
 
 /**
@@ -130,9 +142,6 @@ function updateExpectedPosition(window: BrowserWindow) {
   // Only update if the current position is valid
   if (bounds.x >= 0 && bounds.y >= 0) {
     expectedPosition = bounds;
-    console.log(
-      `Updated expected position to: ${JSON.stringify(expectedPosition)}`,
-    );
   }
 }
 
@@ -183,10 +192,6 @@ export function resizeWindowAndMaintainPosition(
     width = dimensions.width;
     height = dimensions.height;
   }
-
-  console.log(
-    `resizeWindowAndMaintainPosition called with size ${width}x${height}, preserveX: ${preserveX}`,
-  );
 
   const bounds = window.getBounds();
 
@@ -291,7 +296,7 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     // If all else fails, use default position
     if (!restored) {
       const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.MAIN,
+        WINDOW_SIZE_PRESETS.COMPACT_CHAT,
         undefined,
         true,
       );
@@ -309,14 +314,21 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
   } else {
     console.log("Window is currently visible, hiding it");
 
-    // Try to activate previous app
+    // Try to activate previous app asynchronously
     try {
       const prevApp = getPreviousApp();
       if (prevApp) {
-        exec(`osascript -e 'tell application "${prevApp}" to activate'`);
+        exec(
+          `osascript -e 'tell application "${prevApp}" to activate'`,
+          (error) => {
+            if (error) {
+              console.error("Error activating previous app:", error);
+            }
+          },
+        );
       }
     } catch (error) {
-      console.error("Error activating previous app:", error);
+      console.error("Error getting previous app:", error);
     }
 
     // Save current position only if it's valid

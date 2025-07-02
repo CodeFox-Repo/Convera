@@ -1,16 +1,29 @@
 import { createAuthClient } from "better-auth/react";
-
-// Determine base URL based on environment
-const getBaseURL = () => {
-  // // In development, use local server
-  // if (process.env.NODE_ENV === "development" || !process.env.NODE_ENV) {
-  //   return "http://localhost:3001";
-  // }
-  // In production, use production API
-  return "https://api.foxychat.net";
-};
+import { getBaseUrl } from "./env";
 
 // Create auth client with environment-aware configuration
 export const authClient = createAuthClient({
-  baseURL: getBaseURL(),
+  baseURL: getBaseUrl(),
 });
+
+// Check if user is currently logged in
+export async function isLoggedIn(): Promise<boolean> {
+  try {
+    const session = await authClient.getSession();
+    return session?.data?.session?.id ? true : false;
+  } catch (error) {
+    console.error("Error checking auth status:", error);
+    return false;
+  }
+}
+
+// Get current user session
+export async function getCurrentSession() {
+  try {
+    const session = await authClient.getSession();
+    return session?.data || null;
+  } catch (error) {
+    console.error("Error getting session:", error);
+    return null;
+  }
+}

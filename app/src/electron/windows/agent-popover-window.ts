@@ -6,6 +6,10 @@ import {
 import { inDevelopment } from "@/shared/constants/dev";
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "path";
+import { getLogger } from "../logger";
+
+// Initialize logger for agent popover window
+const logger = getLogger("agent-popover");
 
 // Global reference to the agent popover window
 let agentPopoverWindow: BrowserWindow | null = null;
@@ -93,22 +97,27 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 export function preCreateAgentPopoverWindow(): BrowserWindow | null {
   if (agentPopoverWindow) return agentPopoverWindow;
 
-  console.log("Pre-creating agent popover window");
+  logger.info("Pre-creating agent popover window");
 
-  // Get dimensions from presets
   const dimensions = calculateWindowDimensions(
     WINDOW_SIZE_PRESETS.AGENT_POPOVER,
   );
 
+  logger.debug("Agent popover dimensions calculated", { dimensions });
+
   // Create window with platform-specific configuration
   const config = createPlatformSpecificConfig(dimensions);
   agentPopoverWindow = new BrowserWindow(config);
+
+  logger.debug("Agent popover window created with platform-specific config");
 
   // Load content
   loadWindowContent(agentPopoverWindow);
 
   // Setup event handlers
   setupWindowEventHandlers(agentPopoverWindow);
+
+  logger.info("Agent popover window pre-creation completed");
 
   return agentPopoverWindow;
 }

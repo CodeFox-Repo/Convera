@@ -7,7 +7,7 @@
     --popover: rgb(255 255 255);
     --popover-foreground: rgb(46 46 46);
     --primary: rgb(255 140 0);
-    --primary-foreground: rgb(255 255 255);
+    --primary-foreground: rgb(255, 255, 255);
     --secondary: rgb(245 245 240);
     --secondary-foreground: rgb(64 64 64);
     --muted: rgb(245 245 245);
@@ -57,56 +57,56 @@
   }
 
   .dark {
-    --background: rgb(0 0 0);
-    --foreground: rgb(255 255 255);
-    --card: rgb(20 20 20);
-    --card-foreground: rgb(255 255 255);
-    --popover: rgb(20 20 20);
-    --popover-foreground: rgb(255 255 255);
+    --background: rgb(16 18 22);
+    --foreground: rgb(244 244 245);
+    --card: rgb(24 27 33);
+    --card-foreground: rgb(244 244 245);
+    --popover: rgb(20 23 28);
+    --popover-foreground: rgb(244 244 245);
     --primary: rgb(255 140 0);
-    --primary-foreground: rgb(0 0 0);
-    --secondary: rgb(51 51 51);
-    --secondary-foreground: rgb(255 255 255);
-    --muted: rgb(51 51 51);
-    --muted-foreground: rgb(191 191 191);
+    --primary-foreground: rgb(254, 254, 254);
+    --secondary: rgb(39 42 48);
+    --secondary-foreground: rgb(228 228 231);
+    --muted: rgb(39 42 48);
+    --muted-foreground: rgb(161 161 170);
     --accent: rgb(255 140 0);
-    --accent-foreground: rgb(0 0 0);
-    --destructive: rgb(220 38 38);
-    --destructive-foreground: rgb(255 255 255);
-    --border: rgb(64 64 64);
-    --input: rgb(64 64 64);
+    --accent-foreground: rgb(16 18 22);
+    --destructive: rgb(239 68 68);
+    --destructive-foreground: rgb(244 244 245);
+    --border: rgb(52 56 65);
+    --input: rgb(52 56 65);
     --ring: rgb(238 127 0);
     --chart-1: rgb(255 140 0);
     --chart-2: rgb(255 165 0);
     --chart-3: rgb(255 193 7);
     --chart-4: rgb(255 111 0);
     --chart-5: rgb(230 81 0);
-    --sidebar: rgb(20 20 20);
-    --sidebar-foreground: rgb(255 255 255);
+    --sidebar: rgb(20 23 28);
+    --sidebar-foreground: rgb(244 244 245);
     --sidebar-primary: rgb(255 140 0);
-    --sidebar-primary-foreground: rgb(0 0 0);
-    --sidebar-accent: rgb(51 51 51);
-    --sidebar-accent-foreground: rgb(255 255 255);
-    --sidebar-border: rgb(64 64 64);
+    --sidebar-primary-foreground: rgb(16 18 22);
+    --sidebar-accent: rgb(39 42 48);
+    --sidebar-accent-foreground: rgb(228 228 231);
+    --sidebar-border: rgb(52 56 65);
     --sidebar-ring: rgb(238 127 0);
 
-    --shadow-2xs: 0 1px 3px 0px rgb(0 0 0 / 0.05);
-    --shadow-xs: 0 1px 3px 0px rgb(0 0 0 / 0.05);
+    --shadow-2xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
+    --shadow-xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
     --shadow-sm:
-      0 1px 3px 0px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --shadow: 0 1px 3px 0px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      0 1px 3px 0px rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
+    --shadow: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
     --shadow-md:
-      0 1px 3px 0px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.1);
+      0 1px 3px 0px rgb(0 0 0 / 0.2), 0 2px 4px -1px rgb(0 0 0 / 0.2);
     --shadow-lg:
-      0 1px 3px 0px rgb(0 0 0 / 0.1), 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      0 1px 3px 0px rgb(0 0 0 / 0.2), 0 4px 6px -1px rgb(0 0 0 / 0.2);
     --shadow-xl:
-      0 1px 3px 0px rgb(0 0 0 / 0.1), 0 8px 10px -1px rgb(0 0 0 / 0.1);
-    --shadow-2xl: 0 1px 3px 0px rgb(0 0 0 / 0.25);
+      0 1px 3px 0px rgb(0 0 0 / 0.2), 0 8px 10px -1px rgb(0 0 0 / 0.2);
+    --shadow-2xl: 0 1px 3px 0px rgb(0 0 0 / 0.3);
 
-    --chat-bg-color: rgba(0, 0, 0, 0.7);
-    --chat-input-bg-color: rgba(20, 20, 20, 0.7);
-    --user-message-bg-color: rgba(40, 30, 10, 0.6);
-    --assistant-message-bg-color: rgba(60, 40, 20, 0.6);
+    --chat-bg-color: rgba(16, 18, 22, 0.85);
+    --chat-input-bg-color: rgba(24, 27, 33, 0.85);
+    --user-message-bg-color: rgba(45, 35, 25, 0.7);
+    --assistant-message-bg-color: rgba(35, 40, 48, 0.7);
   }
 }
 
