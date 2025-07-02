@@ -242,7 +242,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         credentials: "include", // Always include credentials
       });
     },
-    onError: (error: unknown) => {
+    onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
     },
