@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { MCPConnectionAI as MCPConnection } from "./connection-ai";
+import { MCPConnection } from "./connection";
 
 /**
  * MCPHub - Clean MCP connection manager
@@ -92,7 +92,7 @@ export class MCPHub extends EventEmitter {
     // Start all connections concurrently without waiting for completion
     // This avoids blocking initialization on slow/failing connections
     servers
-      .filter(([, serverConfig]) => serverConfig.enabled !== false)
+      .filter(([, serverConfig]) => serverConfig.disabled === false)
       .forEach(([name, serverConfig]) => {
         this.connectServer(name, serverConfig).catch((error) => {
           console.error(`✗ Failed to connect MCP server ${name}:`, error);
@@ -199,7 +199,7 @@ export class MCPHub extends EventEmitter {
     this.config.mcpServers[name] = config;
     this.saveConfig();
 
-    if (config.enabled !== false) {
+    if (config.disabled === false) {
       return await this.connectServer(name, config);
     } else {
       // Create connection but don't start
@@ -233,7 +233,7 @@ export class MCPHub extends EventEmitter {
       return connection.getServerInfo();
     } else {
       // If no connection exists, create one if enabled
-      if (config.enabled !== false) {
+      if (config.disabled === false) {
         return await this.connectServer(name, config);
       } else {
         // Create connection but don't start

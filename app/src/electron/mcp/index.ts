@@ -3,7 +3,6 @@
  */
 
 // Export core classes
-export { MCPConnection } from "./connection";
 export { MCPHub } from "./hub";
 
 // Re-export shared types for convenience
