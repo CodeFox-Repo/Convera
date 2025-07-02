@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useChatHistory } from "../libs/hooks/use-chat-history";
 import { useThemeSync } from "../libs/hooks/use-theme-sync";
 import { useWindowClose } from "../libs/hooks/use-window-close";
+import { useChatHistory } from "../libs/stores/chat-history-store";
 import { cleanTitle } from "../libs/utils/tag";
 
 export const Route = createFileRoute("/history")({
@@ -22,7 +22,7 @@ function ChatHistoryPage() {
     fetchChatHistory,
     selectChat,
     deleteChat,
-    triggerHistoryWindow,
+    toggleHistoryWindow,
   } = useChatHistory(() => {});
 
   // Listen for theme changes from settings
@@ -57,7 +57,7 @@ function ChatHistoryPage() {
 
   // Filter chats based on search query
   const filteredHistory = chatHistory.filter((chat) =>
-    chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    (chat.title || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Handle selecting a chat
@@ -73,7 +73,7 @@ function ChatHistoryPage() {
 
   // Handle closing the history window
   const handleCloseHistory = () => {
-    triggerHistoryWindow();
+    toggleHistoryWindow();
   };
 
   // Handle refreshing chat list manually
@@ -173,14 +173,16 @@ function ChatHistoryPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium text-lg truncate">
-                      {cleanTitle(chat.title)}
+                      {cleanTitle(chat.title || "")}
                     </h3>
                     <span className="text-sm text-gray-500 whitespace-nowrap ml-2">
-                      {formatDate(chat.lastUpdated)}
+                      {formatDate(chat.updatedAt)}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-400">
-                    <span className="mr-2">{chat.messageCount} messages</span>
+                    <span className="mr-2">
+                      {chat.messages.length} messages
+                    </span>
                     <span className="mr-2">•</span>
                     <span>{formatDate(chat.createdAt)}</span>
                   </div>

@@ -25,7 +25,7 @@ export interface WindowDimensions {
  * Window size presets for different window types
  */
 export const WINDOW_SIZE_PRESETS = {
-  MAIN: {
+  COMPACT_CHAT: {
     widthProportion: 0.3,
     heightProportion: 0.15,
     minWidth: 500,
@@ -35,6 +35,14 @@ export const WINDOW_SIZE_PRESETS = {
   EXPANDED_CHAT: {
     widthProportion: 0.3,
     heightProportion: 0.6,
+    minWidth: 500,
+    minHeight: 400,
+    maxWidth: 800,
+    maxHeight: 800,
+  },
+  CHAT_PAGE: {
+    widthProportion: 0.4,
+    heightProportion: 0.7,
     minWidth: 500,
     minHeight: 400,
     maxWidth: 800,

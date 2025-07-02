@@ -11,8 +11,6 @@ export default function ModelSelector() {
     supportedModelIds,
   } = useModelStore();
 
-  console.log("selectedModelId", selectedModelId);
-
   // Listen for theme changes from settings
   useThemeSync();
 

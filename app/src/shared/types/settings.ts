@@ -3,6 +3,7 @@ export interface OpenAISettings {
   apiKey: string;
   modelId: string;
   supportedModels: string[];
+  useRemoteStore: boolean;
 }
 
 export interface ShortcutSettings {

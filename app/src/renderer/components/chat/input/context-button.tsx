@@ -1,9 +1,12 @@
-import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import {
+  ClipboardContent,
+  useChatContext,
+} from "@/renderer/libs/stores/chat-store";
 import { File, Monitor, Plus, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface ContextButtonsProps {
-  copiedContent: string | null;
+  copiedContent: ClipboardContent | null;
   formatAppName: (name: string) => string;
   onRejectCopiedContent: () => void;
   onAddFile?: () => void;
@@ -91,13 +94,13 @@ export function ContextButtons({
           <button
             className={`h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
                 bg-background/30 text-xs font-medium hover:bg-background/50 transition-colors
-                ${hasContexts ? "px-2 py-1 aspect-square" : "px-3 py-1 max-w-[36ch]"}`}
+                ${hasContexts ? "px-1 py-1 aspect-square" : "px-3 py-1 max-w-[36ch]"}`}
             onClick={onAddFile}
             title="Add context"
           >
             <Plus size={14} className="flex-shrink-0" />
             {!hasContexts && (
-              <span className="ml-1">{formatAppName("Add context")}</span>
+              <span className="ml-1 mt-1">{formatAppName("Add context")}</span>
             )}
           </button>
 
@@ -107,7 +110,7 @@ export function ContextButtons({
                 bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />
-              <span className="truncate -mr-1">
+              <span className="truncate -mr-1 mt-1">
                 {formatAppName("clipboard")}
               </span>
               <button

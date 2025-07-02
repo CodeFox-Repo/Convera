@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, screen } from "electron";
 
-import { initializeChatServer } from "@/electron/chat-server";
+import { getLogger, initializeLogger } from "@/electron/logger";
+import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
   isHiddenOffscreen,
@@ -17,8 +18,7 @@ import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import {
   getCurrentShortcut,
-  getPreviousApp,
-  setInputText,
+  setInputContent,
   setPreviousApp,
 } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -31,7 +31,7 @@ import {
 } from "@/electro-bridge/ipc/listeners-register";
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
-import { createChatWindow } from "./windows/chat-window";
+import { getChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
@@ -52,44 +52,65 @@ const inDevelopment = !app.isPackaged;
 
 let trackingAppFocus = false;
 
-let chatWindow: BrowserWindow | null = null;
+// Clipboard buffer for restoring original content
+let originalClipboardContent = "";
+let originalClipboardImage: Electron.NativeImage | null = null;
 
-/**
- * Simulate a copy command (Ctrl+C or Command+C) to capture selected text
- * @returns Promise that resolves when the copy operation is complete
- */
+// Previous clipboard buffer to avoid duplicates
+let prevClipboardContent = "";
+let prevClipboardImageHash = "";
 
-function simulateClipboardCopy(): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      console.log("Using RobotJS to simulate copy command");
+// Prevent duplicate shortcut processing
+let shortcutInProgress = false;
 
-      // Release modifier keys first to prevent conflicts
-      robot?.keyToggle("shift", "up");
-      robot?.keyToggle("control", "up");
-      robot?.keyToggle("alt", "up");
+// Initialize logger for main process
+const logger = getLogger("main-process");
 
-      // Small delay to ensure modifiers are released
-      setTimeout(() => {
-        if (process.platform === "darwin") {
-          // For macOS, use Command+C
-          robot?.keyTap("c", "command");
-        } else {
-          // For Windows/Linux, use Control+C
-          robot?.keyTap("c", "control");
-        }
+function createImageHash(imageBuffer: Buffer): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require("crypto");
+  return crypto.createHash("md5").update(imageBuffer).digest("hex");
+}
 
-        // Add a delay to ensure clipboard has been updated
-        setTimeout(() => {
-          resolve();
-        }, 100); // Slightly longer delay to ensure clipboard has been updated
-      }, 50);
-    } catch (error) {
-      console.error("Error simulating copy command with RobotJS:", error);
-      // Even if it fails, we'll resolve to allow the app to continue
-      setTimeout(resolve, 50);
+async function simulateClipboardCopy(): Promise<void> {
+  try {
+    originalClipboardContent = clipboard.readText();
+    originalClipboardImage = clipboard.readImage();
+
+    robot?.keyToggle("shift", "up");
+    robot?.keyToggle("control", "up");
+    robot?.keyToggle("alt", "up");
+
+    // Use setImmediate for minimal delay without blocking
+    await new Promise((resolve) => setImmediate(resolve));
+
+    if (process.platform === "darwin") {
+      robot?.keyTap("c", "command");
+    } else {
+      robot?.keyTap("c", "control");
     }
-  });
+
+    // Minimal delay for copy operation to complete
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  } catch (error) {
+    logger.error("Error simulating copy command:", error);
+    throw error;
+  }
+}
+
+function restoreClipboard(): void {
+  try {
+    if (originalClipboardImage && !originalClipboardImage.isEmpty()) {
+      clipboard.writeImage(originalClipboardImage);
+    } else if (originalClipboardContent !== undefined) {
+      clipboard.writeText(originalClipboardContent);
+    }
+
+    originalClipboardContent = "";
+    originalClipboardImage = null;
+  } catch (error) {
+    logger.error("Error restoring clipboard:", error);
+  }
 }
 
 // Start background app tracking on macOS and Windows
@@ -170,27 +191,81 @@ function registerGlobalShortcuts() {
   console.log(`Attempting to register global shortcut: ${currentShortcut}`);
   try {
     const ret = globalShortcut.register(currentShortcut, async () => {
-      console.log(`${currentShortcut} pressed globally`);
+      if (shortcutInProgress) return;
 
-      const prevApp = getPreviousApp();
-      if (prevApp) {
-        console.log(`Previously focused application: ${prevApp}`);
-      }
+      shortcutInProgress = true;
 
-      await simulateClipboardCopy();
+      try {
+        await simulateClipboardCopy();
 
-      const selectedText = clipboard.readText();
-      console.log(
-        `Selected text from clipboard: ${selectedText ? "Found" : "None"}`,
-      );
+        const selectedText = clipboard.readText();
+        const selectedImage = clipboard.readImage();
 
-      clipboard.writeText("");
+        // Check for duplicates
+        let isTextDuplicate = false;
+        let isImageDuplicate = false;
 
-      if (chatWindow) {
-        toggleChatWindowVisibility(chatWindow);
-        setTimeout(() => {
-          setInputText(chatWindow, selectedText);
-        }, 100);
+        if (selectedText && selectedText === prevClipboardContent) {
+          isTextDuplicate = true;
+        }
+
+        let currentImageHash = "";
+        if (selectedImage && !selectedImage.isEmpty()) {
+          const imageBuffer = selectedImage.toPNG();
+          currentImageHash = createImageHash(imageBuffer);
+          if (currentImageHash === prevClipboardImageHash) {
+            isImageDuplicate = true;
+          }
+        }
+
+        // Skip content processing if all content is duplicate or no content
+        const allContentDuplicate =
+          selectedText &&
+          isTextDuplicate &&
+          selectedImage &&
+          !selectedImage.isEmpty() &&
+          isImageDuplicate;
+        const noContent =
+          !selectedText && (!selectedImage || selectedImage.isEmpty());
+
+        if (getChatWindow()) {
+          toggleChatWindowVisibility(getChatWindow());
+
+          // Process content immediately if we have new content
+          if (!allContentDuplicate && !noContent) {
+            const contentToSend: { text?: string; imageData?: string } = {};
+
+            if (
+              selectedImage &&
+              !selectedImage.isEmpty() &&
+              !isImageDuplicate
+            ) {
+              const imageBuffer = selectedImage.toPNG();
+              const base64Image = imageBuffer.toString("base64");
+              contentToSend.imageData = base64Image;
+              prevClipboardImageHash = currentImageHash;
+            }
+
+            if (selectedText && !isTextDuplicate) {
+              contentToSend.text = selectedText;
+              prevClipboardContent = selectedText;
+            }
+
+            if (contentToSend.imageData || contentToSend.text) {
+              setInputContent(getChatWindow(), contentToSend);
+            }
+          }
+        }
+
+        // Restore clipboard asynchronously
+        setImmediate(() => {
+          restoreClipboard();
+        });
+      } catch (error) {
+        logger.error("Clipboard operation failed:", error);
+        restoreClipboard();
+      } finally {
+        shortcutInProgress = false;
       }
     });
 
@@ -222,80 +297,105 @@ async function installExtensions() {
 
 // Handle screen resize events
 function setupScreenResizeHandlers() {
+  let resizeTimeout: NodeJS.Timeout | null = null;
+
   // Listen for primary display metrics change (resolution or scale factor change)
-  screen.on("display-metrics-changed", (event, display, changedMetrics) => {
+  screen.on("display-metrics-changed", (_event, display, changedMetrics) => {
     if (display.id === screen.getPrimaryDisplay().id) {
       console.log("Primary display metrics changed:", changedMetrics);
 
-      // Update chat window if it exists
-      if (chatWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
-        const dimensions = expectedPosition
-          ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.MAIN);
-        chatWindow.setBounds(dimensions);
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
       }
 
-      // Update settings window if visible
-      const settingsWindow = getSettingsWindow();
+      resizeTimeout = setTimeout(() => {
+        // Update chat window if it exists
+        if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
+          const dimensions = expectedPosition
+            ? expectedPosition
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
+          getChatWindow().setBounds(dimensions);
+        }
 
-      if (settingsWindow && settingsWindow.isVisible()) {
-        const dimensions = expectedPosition
-          ? expectedPosition
-          : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
-        settingsWindow.setBounds(dimensions);
-      }
+        // Update settings window if visible
+        const settingsWindow = getSettingsWindow();
+
+        if (settingsWindow && settingsWindow.isVisible()) {
+          const dimensions = expectedPosition
+            ? expectedPosition
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
+          settingsWindow.setBounds(dimensions);
+        }
+
+        resizeTimeout = null;
+      }, 150);
     }
   });
 }
 
 app.whenReady().then(async () => {
   try {
+    logger.info("Application ready, starting initialization");
+
     if (inDevelopment) {
       await installExtensions();
     }
 
-    await initializeChatServer();
-    console.log("Chat server is fully initialized");
+    // Initialize Simple Logger
+    initializeLogger();
 
+    // Initialize MCP Hub
+    initializeMCPHub();
+    logger.info("MCP Hub initialization completed");
+
+    logger.debug("Starting app focus tracking");
     startAppFocusTracking();
+
+    logger.debug("Registering global shortcuts");
     registerGlobalShortcuts();
+
+    logger.debug("Pre-creating windows");
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
     preCreateModelSelectorWindow(); // Pre-create model selector window
     preCreateHistoryWindow(); // Pre-create history window
     setupScreenResizeHandlers(); // Setup screen resize handlers
-    chatWindow = createChatWindow();
-    preCreateMainWindow(chatWindow || undefined); // Pre-create main window
+    preCreateMainWindow(); // Pre-create main window
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => chatWindow,
+      chatWindow: () => getChatWindow(),
       registerGlobalShortcuts,
     };
 
+    logger.debug("Registering IPC listeners");
     // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0)
-        chatWindow = createChatWindow();
+      if (BrowserWindow.getAllWindows().length === 0) {
+        logger.info("App activated, creating chat window");
+      }
     });
 
-    createSystemTray(chatWindow);
+    createSystemTray(getChatWindow());
   } catch (error) {
-    console.error("Error during app initialization", error);
+    logger.error("Error during app initialization", error);
   }
 });
 
 app.on("will-quit", () => {
-  console.log("Unregistering all global shortcuts.");
   globalShortcut.unregisterAll();
   destroySystemTray();
+  const hub = getMCPHub();
+  if (hub) {
+    hub.cleanup();
+    console.log("MCP Hub cleaned up");
+  }
 });
 
 app.on("window-all-closed", () => {
-  // Only quit the app if chatWindow is closed and we're not on macOS
-  if (process.platform !== "darwin" && chatWindow === null) {
+  if (process.platform !== "darwin" && getChatWindow() === null) {
     app.quit();
   }
 });

@@ -3,6 +3,7 @@ import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
+import { setupEnvIPC } from "./env-context";
 import {
   closeWindow,
   getClipboardText,
@@ -20,7 +21,9 @@ import {
   modelSelected,
   openPath,
   pasteModifiedContent,
+  resizeAndCenterWindow,
   resizeWindow,
+  setInputContent,
   setTheme,
   toggleAgentPopoverWindow,
   toggleModelSelectorWindow,
@@ -28,6 +31,8 @@ import {
   toggleWindow,
   updateGlobalShortcut,
 } from "./ipc-handlers";
+import { setupLoggerIPC } from "./logger-context";
+import { setupMCPIPC } from "./mcp-context";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -37,7 +42,9 @@ interface ElectronAPI extends IPCServer {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputText: (callback: (text: string) => void) => () => void;
+  onSetInputContent: (
+    callback: (content: { text?: string; imageData?: string }) => void,
+  ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
@@ -86,11 +93,14 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onSetInputText = (callback: (text: string) => void) => {
-    const handler = (_: any, text: string) => callback(text);
-    ipcRenderer.on(CHANNELS.APP.SET_INPUT_TEXT, handler);
+  api.onSetInputContent = (
+    callback: (content: { text?: string; imageData?: string }) => void,
+  ) => {
+    const handler = (_: any, content: { text?: string; imageData?: string }) =>
+      callback(content);
+    ipcRenderer.on(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     return () => {
-      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_TEXT, handler);
+      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     };
   };
 
@@ -111,8 +121,11 @@ export interface ListenerOptions {
   registerGlobalShortcuts?: () => void;
 }
 
-// Register all IPC listeners for main process
-export function registerListeners(options: ListenerOptions = {}) {
+/**
+ * Setup Electron API IPC handlers
+ * This is a cleaner way to register standard Electron API handlers
+ */
+export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   const { chatWindow, registerGlobalShortcuts } = options;
 
   // Unified Window Control
@@ -128,7 +141,9 @@ export function registerListeners(options: ListenerOptions = {}) {
   // Global Shortcuts
   ipcMain.handle(CHANNELS.SHORTCUTS.UPDATE, (_event, shortcut: string) => {
     if (!registerGlobalShortcuts) {
-      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      console.warn(
+        "registerGlobalShortcuts not provided to setupElectronAPIIPC",
+      );
       return false;
     }
     return updateGlobalShortcut(shortcut, registerGlobalShortcuts);
@@ -136,7 +151,9 @@ export function registerListeners(options: ListenerOptions = {}) {
 
   ipcMain.handle(CHANNELS.SHORTCUTS.INIT, (_event, shortcut: string) => {
     if (!registerGlobalShortcuts) {
-      console.warn("registerGlobalShortcuts not provided to registerListeners");
+      console.warn(
+        "registerGlobalShortcuts not provided to setupElectronAPIIPC",
+      );
       return false;
     }
     return initGlobalShortcut(shortcut, registerGlobalShortcuts);
@@ -155,10 +172,13 @@ export function registerListeners(options: ListenerOptions = {}) {
     return getClipboardText();
   });
 
-  ipcMain.handle(CHANNELS.APP.SET_INPUT_TEXT, (_event, text: string) => {
-    const window = chatWindow?.() || null;
-    return setInputText(window, text);
-  });
+  ipcMain.handle(
+    CHANNELS.APP.SET_INPUT_CONTENT,
+    (_event, content: { text?: string; imageData?: string }) => {
+      const window = chatWindow?.() || null;
+      return setInputContent(window, content);
+    },
+  );
 
   ipcMain.handle(
     CHANNELS.APP.PASTE_MODIFIED_CONTENT,
@@ -197,6 +217,14 @@ export function registerListeners(options: ListenerOptions = {}) {
     (_event, width: number, height: number, preserveX?: boolean) => {
       const window = chatWindow?.() || null;
       return resizeWindow(window, width, height, preserveX);
+    },
+  );
+
+  ipcMain.handle(
+    CHANNELS.WINDOW.RESIZE_AND_CENTER,
+    (_event, width: number, height: number) => {
+      const window = chatWindow?.() || null;
+      return resizeAndCenterWindow(window, width, height);
     },
   );
 
@@ -257,8 +285,14 @@ export function registerListeners(options: ListenerOptions = {}) {
     return hideAgentPopoverWindow();
   });
 
-  console.log("All IPC listeners registered successfully");
+  console.log("Electron API IPC handlers registered successfully");
 }
 
-// Legacy import for setInputText handler
-import { setInputText } from "./ipc-handlers";
+// Register all IPC listeners for main process
+export function registerListeners(options: ListenerOptions = {}) {
+  setupMCPIPC();
+  setupLoggerIPC();
+  setupElectronAPIIPC(options);
+  setupEnvIPC();
+  console.log("All IPC listeners registered successfully");
+}

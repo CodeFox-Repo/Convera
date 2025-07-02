@@ -88,40 +88,33 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setInput: (content: string) => {
         console.log("🎯 setInput called with:", content);
         if (editorRef.current) {
-          // Clear content first
           editorRef.current.clearContent();
 
-          // Set new content with a small delay to ensure clearContent completes
           setTimeout(() => {
-            // Update parent's input state
             setInput(content);
-
-            // Force editor content update by setting editorContent state
-            setEditorContent(content);
-          }, 10);
+            if (editorRef.current) {
+              setEditorContent(editorRef.current.getText());
+            }
+          }, 0);
         }
       },
       editor: editorRef.current,
     }));
 
-    // Handle editor content change
     const handleEditorChange = (content: string) => {
       setInput(content);
       setEditorContent(content);
     };
 
-    // Handle file upload via button
     const handleFileUpload = useCallback(() => {
       fileInputRef.current?.click();
     }, []);
 
-    // Handle file selection from input
     const handleFileSelect = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
           addAttachments(Array.from(e.target.files));
         }
-        // Reset the input value to allow selecting the same file again
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -129,7 +122,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [addAttachments],
     );
 
-    // Handle drag events
     const handleDragEnter = useCallback((e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();

@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@daveyplate/better-auth-ui";
-import { Home, Shield, Users } from "lucide-react";
+import { Home, Server, Users } from "lucide-react";
 
 interface DashboardSidebarProps {
   activeSection: string;
@@ -22,26 +22,20 @@ const sidebarItems = [
     icon: Users,
     description: "Manage users and roles",
   },
+  {
+    id: "mcp",
+    label: "App MCP",
+    icon: Server,
+    description: "Manage App MCP marketplace",
+  },
 ];
 
 export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSidebarProps) {
   return (
-    <div className="flex h-full w-64 flex-col border-r border-gray-200 bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 p-6">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-pink-500">
-            <Shield className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900">Admin Panel</h2>
-            <p className="text-sm text-gray-500">Management Dashboard</p>
-          </div>
-        </div>
-      </div>
+    <div className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
 
       {/* Navigation - flex-1 to take up remaining space */}
-      <nav className="flex-1 space-y-2 p-4">
+      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
         {sidebarItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;

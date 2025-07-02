@@ -1,17 +1,11 @@
+import { authClient } from "@/renderer/libs/auth-client";
+import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Clipboard,
-  Copy,
-  Edit,
-  File,
-  RefreshCw,
-  User,
-} from "lucide-react";
-import React, { memo, useEffect, useRef, useState } from "react";
+import { Check, Copy, Edit, File, RefreshCw, User } from "lucide-react";
+import React, { memo, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import CopiedContentBlock from "../clipboard/copied-content-block";
 
 /**
  * Simple markdown renderer component
@@ -51,7 +45,7 @@ export interface ChatMessageProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
-  copiedContent?: string | null;
+  copiedContent?: ClipboardContent | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -61,7 +55,7 @@ export interface ChatMessageProps {
   renderContent: React.ReactNode;
 }
 
-const avatar = "../../images/icon.png";
+const avatar = "./images/icon.png";
 
 // Attachment preview component - simplified for file display above content
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
@@ -226,25 +220,28 @@ const ChatMessage = memo(
       message.experimental_attachments &&
       message.experimental_attachments.length > 0;
 
-    // State for copied content expansion
-    const [copiedContentExpanded, setCopiedContentExpanded] = useState(false);
-    const copiedContentRef = useRef<HTMLDivElement>(null);
-    const [copiedContentHeight, setCopiedContentHeight] = useState<
-      number | undefined
-    >(undefined);
+    // Get user session for avatar
+    const { data: session } = authClient.useSession();
 
-    // Get the full height of the copied content when mounted or content changes
-    useEffect(() => {
-      if (copiedContentRef.current && copiedContent) {
-        const height = copiedContentRef.current.scrollHeight;
-        setCopiedContentHeight(height);
+    // Get user initials for fallback
+    const getUserInitials = (name?: string, email?: string) => {
+      if (name) {
+        return name
+          .split(" ")
+          .map((word) => word.charAt(0))
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
       }
-    }, [copiedContent]);
-
-    const toggleCopiedContent = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setCopiedContentExpanded(!copiedContentExpanded);
+      if (email) {
+        return email.charAt(0).toUpperCase();
+      }
+      return "U";
     };
+
+    const userInitials = session?.user
+      ? getUserInitials(session.user.name, session.user.email)
+      : "U";
 
     return (
       <motion.div
@@ -260,7 +257,21 @@ const ChatMessage = memo(
             <div className="flex-shrink-0">
               <div className="size-9 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
                 {isUser ? (
-                  <User size={16} className="text-muted-foreground" />
+                  session?.user ? (
+                    <Avatar className="h-9 w-9">
+                      {session.user.image && (
+                        <AvatarImage
+                          src={session.user.image}
+                          alt={session.user.name || "User"}
+                        />
+                      )}
+                      <AvatarFallback className="bg-gradient-to-br from-orange-400 to-pink-500 text-white text-sm font-semibold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <User size={16} className="text-muted-foreground" />
+                  )
                 ) : (
                   <img
                     src={avatar}
@@ -287,7 +298,13 @@ const ChatMessage = memo(
               {/* Header with role and timestamp - inline with avatar */}
               <div className="flex items-center gap-3 -mt-0.5">
                 <span className="text-sm font-semibold text-foreground">
-                  {isUser ? "You" : "FoxyChat"}
+                  {isUser
+                    ? session?.user
+                      ? session.user.name ||
+                        session.user.email?.split("@")[0] ||
+                        "You"
+                      : "You"
+                    : "FoxyChat"}
                 </span>
                 <span className="text-xs text-muted-foreground/80">
                   {formatTimestamp(message.createdAt)}
@@ -306,48 +323,7 @@ const ChatMessage = memo(
               )}
 
               {/* Copied content section - below attachments, above message content */}
-              {copiedContent && (
-                <div>
-                  <div className="group relative rounded-lg border border-border bg-background/50 p-3">
-                    <div
-                      className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                      onClick={toggleCopiedContent}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Clipboard size={12} />
-                        <span>Copied Content</span>
-                      </div>
-                      <span className="flex items-center gap-1">
-                        {copiedContentExpanded ? (
-                          <>
-                            <span className="mr-1">Collapse</span>
-                            <ChevronUp size={14} />
-                          </>
-                        ) : (
-                          <>
-                            <span className="mr-1">Expand</span>
-                            <ChevronDown size={14} />
-                          </>
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      ref={copiedContentRef}
-                      className="text-foreground/90 text-sm whitespace-pre-wrap relative overflow-hidden transition-all duration-300"
-                      style={{
-                        maxHeight: copiedContentExpanded
-                          ? `${copiedContentHeight}px`
-                          : "60px",
-                      }}
-                    >
-                      {copiedContent}
-                      {!copiedContentExpanded && (
-                        <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-background/50 to-transparent" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {copiedContent && <CopiedContentBlock content={copiedContent} />}
 
               {/* Message content */}
               <div className="text-foreground leading-relaxed">

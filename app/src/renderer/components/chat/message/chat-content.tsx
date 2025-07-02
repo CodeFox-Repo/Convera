@@ -12,6 +12,7 @@ import remarkMath from "remark-math";
 // Import highlight.js styles
 import "highlight.js/styles/github-dark.css";
 // Import KaTeX styles
+import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
 import "katex/dist/katex.min.css";
 import ModifiedContentBlock from "../clipboard/modified-content-block";
 import ChatMessage from "./chat-message";
@@ -303,7 +304,7 @@ export default function ChatContent({
 
   // Renders regenerating indicator
   function renderLoadingIndicator() {
-    const avatar = "../../images/icon.png";
+    const avatar = "./images/icon.png";
 
     return (
       <div className="w-full py-2">
@@ -381,7 +382,7 @@ export default function ChatContent({
   }, [messages.length]);
 
   if (messages.length === 0) {
-    const avatar = "../../images/icon.png";
+    const avatar = "./images/icon.png";
 
     return (
       <div className="drag-region flex h-full w-full items-center justify-center">
@@ -430,14 +431,17 @@ export default function ChatContent({
       const isCopied = copiedMessageId === message.id ? true : false;
 
       // Extract copied content for user messages
-      let copiedContent: string | null = null;
+      let copiedContent: ClipboardContent | null = null;
       let contentToRender = message.content;
 
       if (message.role === "user" && message.content) {
         const { copiedContent: extracted, cleanContent } = extractCopiedContent(
           message.content,
         );
-        copiedContent = extracted;
+        // Convert extracted string to ClipboardContent object for backward compatibility
+        copiedContent = extracted
+          ? { text: extracted, source: "manual" }
+          : null;
         contentToRender = cleanContent;
       }
 
