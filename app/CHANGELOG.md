@@ -1,5 +1,27 @@
 # @foxychat/app
 
+## 0.0.12
+
+### Patch Changes
+
+- 23e6edc: adding remark markdown render support with css styling
+- Refactor MCP and agent architecture to use remote server
+
+  - Migrated all server-side logic to remote server, removing local chat-server, agents, and API modules
+  - Updated MCP integration to use AI SDK experimental client for better compatibility
+  - Implemented cross-window state synchronization using localStorage and storage events
+  - Enhanced MCP connection management with concurrent initialization and better error handling
+  - Added centralized logging system for improved debugging and monitoring
+  - Improved clipboard management with image support
+  - Migrated chat history from custom hook to Zustand store for better state management
+  - Enhanced UI with new MCP tools panel and tab-based settings structure
+  - Optimized window management with dynamic resizing and centering capabilities
+
+- e7d7ae2: dont show prev app icon when no prev app
+- 8bba784: adding tray with icon
+- 07d8624: refactor mcp and agent, using remote server
+- 4e0c253: refactor: streamline window control and add Command+W handling
+
 ## 0.0.11
 
 ### Patch Changes
