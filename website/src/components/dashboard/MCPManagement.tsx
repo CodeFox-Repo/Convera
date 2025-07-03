@@ -34,68 +34,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { baseURL } from "@/lib/api-client";
+import { MCPAuthor, MCPManagementFormData, MCPServer, MCPServerConfig } from "@/types/market";
 import { Copy, Download, Edit, FileJson, Plus, Server, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-interface MCPServerConfig {
-  name?: string;
-  enabled?: boolean;
-  command?: string;
-  args?: string[];
-  cwd?: string;
-  env?: Record<string, string>;
-  url?: string;
-  apiKey?: string;
-  description?: string;
-  isSSE?: boolean;
-}
-
-interface MCPAuthor {
-  name: string;
-  url?: string;
-}
-
-interface MCPFile {
-  type: 'dataUrl' | 'url' | 'path';
-  content: string;
-}
-
-interface MCPServer {
-  id: string;
-  name: string;
-  description: string;
-  iconUrl: string;
-  config: MCPServerConfig;
-  version: string;
-  keywords: string[];
-  author: MCPAuthor;
-  fileType: string | null;
-  fileContent: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface MCPFormData {
-  serverId: string;
-  name: string;
-  description: string;
-  iconUrl: string;
-  command: string;
-  args: string;
-  url: string;
-  apiKey: string;
-  version: string;
-  keywords: string;
-  authorName: string;
-  authorUrl: string;
-}
 
 export function MCPManagement() {
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<MCPServer | null>(null);
-  const [formData, setFormData] = useState<MCPFormData>({
+  const [formData, setFormData] = useState<MCPManagementFormData>({
     serverId: "",
     name: "",
     description: "",
@@ -116,11 +64,11 @@ export function MCPManagement() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [jsonConfigView, setJsonConfigView] = useState("");
-  
+
   // Keywords management
   const [keywordsList, setKeywordsList] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
-  
+
   // Arguments management
   const [argumentsList, setArgumentsList] = useState<string[]>([]);
   const [argumentInput, setArgumentInput] = useState("");
@@ -165,14 +113,14 @@ export function MCPManagement() {
   };
 
   const removeKeyword = (keyword: string) => {
-    const newKeywords = keywordsList.filter(k => k !== keyword);
+    const newKeywords = keywordsList.filter((k) => k !== keyword);
     setKeywordsList(newKeywords);
     setFormData((prev) => ({ ...prev, keywords: newKeywords.join(", ") }));
     setHasUnsavedChanges(true);
   };
 
   const handleKeywordInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addKeyword();
     }
@@ -190,14 +138,14 @@ export function MCPManagement() {
   };
 
   const removeArgument = (argument: string) => {
-    const newArguments = argumentsList.filter(arg => arg !== argument);
+    const newArguments = argumentsList.filter((arg) => arg !== argument);
     setArgumentsList(newArguments);
     setFormData((prev) => ({ ...prev, args: newArguments.join(", ") }));
     setHasUnsavedChanges(true);
   };
 
   const handleArgumentInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addArgument();
     }
@@ -225,9 +173,7 @@ export function MCPManagement() {
         name: formData.authorName,
         url: formData.authorUrl,
       },
-      file: formData.iconUrl
-        ? { type: "dataUrl", content: formData.iconUrl }
-        : null,
+      file: formData.iconUrl ? { type: "dataUrl", content: formData.iconUrl } : null,
     };
     return JSON.stringify(server, null, 2);
   }, [formData, keywordsList, argumentsList]);
@@ -268,7 +214,7 @@ export function MCPManagement() {
         if (serverKeys.length > 0) {
           const serverId = serverKeys[0];
           const serverConfig = parsed.mcpServers[serverId];
-          
+
           const oldArgs = Array.isArray(serverConfig.args) ? serverConfig.args : [];
           setKeywordsList([]);
           setArgumentsList(oldArgs);
@@ -655,7 +601,11 @@ export function MCPManagement() {
             name: server.mcpconfig?.name || server.config?.name || server.name,
             command: server.mcpconfig?.command || server.config?.command || "",
             args: server.mcpconfig?.args || server.config?.args || [],
-            description: server.mcpconfig?.description || server.config?.description || server.description || "",
+            description:
+              server.mcpconfig?.description ||
+              server.config?.description ||
+              server.description ||
+              "",
             ...(server.mcpconfig?.url && { url: server.mcpconfig.url }),
             ...(server.config?.url && { url: server.config.url }),
             ...(server.mcpconfig?.apiKey && { apiKey: server.mcpconfig.apiKey }),
@@ -1131,7 +1081,9 @@ export function MCPManagement() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">Press Enter or click + to add command arguments</p>
+                  <p className="text-xs text-gray-500">
+                    Press Enter or click + to add command arguments
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -1344,7 +1296,9 @@ export function MCPManagement() {
                       <div className="space-y-1">
                         {server.author && server.author.name && (
                           <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium text-gray-900">{server.author.name}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {server.author.name}
+                            </span>
                           </div>
                         )}
                         {server.author && server.author.url && (
@@ -1360,7 +1314,7 @@ export function MCPManagement() {
                           </div>
                         )}
                         {server.keywords && server.keywords.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="mt-1 flex flex-wrap gap-1">
                             {server.keywords.slice(0, 3).map((keyword, index) => (
                               <span
                                 key={index}
@@ -1376,9 +1330,10 @@ export function MCPManagement() {
                             )}
                           </div>
                         )}
-                        {(!server.author || !server.author.name) && (!server.keywords || server.keywords.length === 0) && (
-                          <span className="text-xs text-gray-400">No author info</span>
-                        )}
+                        {(!server.author || !server.author.name) &&
+                          (!server.keywords || server.keywords.length === 0) && (
+                            <span className="text-xs text-gray-400">No author info</span>
+                          )}
                       </div>
                     </TableCell>
                     <TableCell>

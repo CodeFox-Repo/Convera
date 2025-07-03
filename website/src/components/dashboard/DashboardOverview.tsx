@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { baseURL } from "@/lib/api-client";
-import { Mail, Server, Shield, TrendingUp, Users } from "lucide-react";
+import { Bot, Mail, Server, Shield, TrendingUp, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface MCPServer {
@@ -23,6 +23,9 @@ interface DashboardStats {
     total: number;
     enabled: number;
   };
+  agentMarket?: {
+    total: number;
+  };
 }
 
 interface DashboardOverviewProps {
@@ -35,11 +38,14 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
 
   const fetchStats = async () => {
     try {
-      const [userResponse, mcpResponse] = await Promise.all([
+      const [userResponse, mcpResponse, agentMarketResponse] = await Promise.all([
         fetch(`${baseURL}/api/users/stats`, {
           credentials: "include",
         }),
         fetch(`${baseURL}/api/app`, {
+          credentials: "include",
+        }),
+        fetch(`${baseURL}/api/agent-market`, {
           credentials: "include",
         }),
       ]);
@@ -47,13 +53,19 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const mcpData = mcpResponse.ok ? await mcpResponse.json() : null;
+        const agentMarketData = agentMarketResponse.ok ? await agentMarketResponse.json() : null;
 
         const mcpServers = mcpData?.data?.mcpServers || [];
+        const agentMarketAgents = Array.isArray(agentMarketData) ? agentMarketData : [];
+        
         setStats({
           ...userData.stats,
           mcpServers: {
             total: mcpServers.length,
             enabled: mcpServers.filter((s: MCPServer) => s.enabled).length,
+          },
+          agentMarket: {
+            total: agentMarketAgents.length,
           },
         });
       }
@@ -96,7 +108,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -159,6 +171,19 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Agent Market</CardTitle>
+            <Bot className="text-muted-foreground h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.agentMarket?.total || 0}</div>
+            <p className="text-muted-foreground text-xs">
+              Published agents
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quick Actions and Recent Activity */}
@@ -187,6 +212,16 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
               <div>
                 <div className="font-medium">App MCP</div>
                 <div className="text-sm text-gray-500">Manage App MCP marketplace</div>
+              </div>
+            </div>
+            <div
+              className="flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors hover:bg-gray-50"
+              onClick={() => onSectionChange?.("agent-market")}
+            >
+              <Bot className="h-5 w-5 text-green-500" />
+              <div>
+                <div className="font-medium">Agent Market</div>
+                <div className="text-sm text-gray-500">Manage published agents</div>
               </div>
             </div>
           </CardContent>
