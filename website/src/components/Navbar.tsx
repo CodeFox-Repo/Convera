@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, ExternalLink, FileText, Menu, Play, X } from "lucide-react";
 import React, { useState } from "react";
 import Logo from "./Logo";
+import { UserButton } from "./UserButton";
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -74,6 +75,8 @@ const Navbar: React.FC = () => {
                 Download
               </Link>
             </Button>
+
+            <UserButton />
           </div>
 
           {/* Mobile Menu Button */}
@@ -121,16 +124,23 @@ const Navbar: React.FC = () => {
                   </Badge>
                 </div>
 
-                <Button
-                  className="w-full bg-linear-to-r from-orange-500 to-orange-400 text-white shadow-lg hover:from-orange-600 hover:to-orange-500"
-                  asChild
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Link to="/download">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Foxychat
-                  </Link>
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Link to="/download">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Foxychat
+                    </Link>
+                  </Button>
+
+                  <div className="flex justify-center">
+                    <UserButton />
+                  </div>
+                </div>
               </div>
             </nav>
           </div>

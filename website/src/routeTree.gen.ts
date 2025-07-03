@@ -10,15 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as UserRouteImport } from './routes/_user'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthPathnameRouteImport } from './routes/auth.$pathname'
+import { Route as UserSettingsRouteImport } from './routes/_user/settings'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
 
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UserRoute = UserRouteImport.update({
+  id: '/_user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -40,6 +46,11 @@ const AuthPathnameRoute = AuthPathnameRouteImport.update({
   path: '/auth/$pathname',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UserSettingsRoute = UserSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => UserRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -51,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/download': typeof DownloadRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 export interface FileRoutesByTo {
@@ -58,6 +70,7 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/download': typeof DownloadRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 export interface FileRoutesById {
@@ -65,22 +78,32 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/_admin': typeof AdminRouteWithChildren
+  '/_user': typeof UserRouteWithChildren
   '/download': typeof DownloadRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
+  '/_user/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$' | '/download' | '/dashboard' | '/auth/$pathname'
+  fullPaths:
+    | '/'
+    | '/$'
+    | '/download'
+    | '/dashboard'
+    | '/settings'
+    | '/auth/$pathname'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$' | '/download' | '/dashboard' | '/auth/$pathname'
+  to: '/' | '/$' | '/download' | '/dashboard' | '/settings' | '/auth/$pathname'
   id:
     | '__root__'
     | '/'
     | '/$'
     | '/_admin'
+    | '/_user'
     | '/download'
     | '/_admin/dashboard'
+    | '/_user/settings'
     | '/auth/$pathname'
   fileRoutesById: FileRoutesById
 }
@@ -88,6 +111,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
   AdminRoute: typeof AdminRouteWithChildren
+  UserRoute: typeof UserRouteWithChildren
   DownloadRoute: typeof DownloadRoute
   AuthPathnameRoute: typeof AuthPathnameRoute
 }
@@ -99,6 +123,13 @@ declare module '@tanstack/react-router' {
       path: '/download'
       fullPath: '/download'
       preLoaderRoute: typeof DownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_user': {
+      id: '/_user'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof UserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_admin': {
@@ -129,6 +160,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthPathnameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_user/settings': {
+      id: '/_user/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof UserSettingsRouteImport
+      parentRoute: typeof UserRoute
+    }
     '/_admin/dashboard': {
       id: '/_admin/dashboard'
       path: '/dashboard'
@@ -149,10 +187,21 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface UserRouteChildren {
+  UserSettingsRoute: typeof UserSettingsRoute
+}
+
+const UserRouteChildren: UserRouteChildren = {
+  UserSettingsRoute: UserSettingsRoute,
+}
+
+const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
   AdminRoute: AdminRouteWithChildren,
+  UserRoute: UserRouteWithChildren,
   DownloadRoute: DownloadRoute,
   AuthPathnameRoute: AuthPathnameRoute,
 }
