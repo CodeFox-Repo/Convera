@@ -155,7 +155,7 @@ importers:
         version: 1.120.18(react-dom@19.1.0)(react@19.1.0)
       '@tanstack/router-devtools':
         specifier: ^1.120.18
-        version: 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.120.17)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
+        version: 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.124.0)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
       '@tiptap/extension-placeholder':
         specifier: ^2.11.7
         version: 2.12.0(@tiptap/core@2.14.0)(@tiptap/pm@2.12.0)
@@ -694,6 +694,9 @@ importers:
       '@eslint/js':
         specifier: ^9.9.0
         version: 9.26.0
+      '@tailwindcss/postcss':
+        specifier: ^4.1.5
+        version: 4.1.6
       '@types/node':
         specifier: ^22.5.5
         version: 22.15.3
@@ -7340,7 +7343,7 @@ packages:
       react: 19.1.0
     dev: false
 
-  /@tanstack/react-router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.120.17)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
+  /@tanstack/react-router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.124.0)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-iYz1jp2AJG0a+FiyxKqpg44RM9KiVzChD57RsZTQylbwjPBF+dpP1GHhSwKPS99JgA10VhsB2moo3wc7wAsmvg==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7349,7 +7352,7 @@ packages:
       react-dom: '>=18.0.0 || >=19.0.0'
     dependencies:
       '@tanstack/react-router': 1.120.18(react-dom@19.1.0)(react@19.1.0)
-      '@tanstack/router-devtools-core': 1.120.17(@tanstack/router-core@1.120.17)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
+      '@tanstack/router-devtools-core': 1.120.17(@tanstack/router-core@1.124.0)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       solid-js: 1.9.7
@@ -7467,7 +7470,7 @@ packages:
       tiny-warning: 1.0.3
     dev: false
 
-  /@tanstack/router-devtools-core@1.120.17(@tanstack/router-core@1.120.17)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools-core@1.120.17(@tanstack/router-core@1.124.0)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-Ci2OV/hecsKy/ZXqK3gLS/h1Qg7OEl2Gy9c76iSYWIzroQ9nhKgsQ+qj+LxucImztWujNINXf23wkq5fVlR0EQ==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7479,7 +7482,7 @@ packages:
       csstype:
         optional: true
     dependencies:
-      '@tanstack/router-core': 1.120.17
+      '@tanstack/router-core': 1.124.0
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -7507,7 +7510,7 @@ packages:
       tiny-invariant: 1.3.3
     dev: false
 
-  /@tanstack/router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.120.17)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.124.0)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-9P74erkZQprhMIJftzein35WS0Fi2J+jOvNaaylX59k+2wjahYdSImIkICAEGmj2K5C51QsPFUrikYVTT591LA==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7520,7 +7523,7 @@ packages:
         optional: true
     dependencies:
       '@tanstack/react-router': 1.120.18(react-dom@19.1.0)(react@19.1.0)
-      '@tanstack/react-router-devtools': 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.120.17)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
+      '@tanstack/react-router-devtools': 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.124.0)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -9978,7 +9981,7 @@ packages:
       '@radix-ui/react-compose-refs': 1.1.2(@types/react@19.1.4)(react@19.1.0)
       '@radix-ui/react-dialog': 1.1.13(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       '@radix-ui/react-id': 1.1.1(@types/react@19.1.4)(react@19.1.0)
-      '@radix-ui/react-primitive': 2.1.2(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
+      '@radix-ui/react-primitive': 2.1.3(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
     transitivePeerDependencies:
