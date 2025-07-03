@@ -1,84 +1,33 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { baseURL } from "@/lib/api-client";
 import { Bot, Mail, Server, Shield, TrendingUp, Users } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface MCPServer {
-  id: string;
-  enabled: boolean;
-}
-
-interface DashboardStats {
-  totalUsers: number;
-  emailVerified: number;
-  usersByRole: {
-    user: number;
-    admin: number;
-  };
-  recentRegistrations: Array<{
-    date: string;
-    count: number;
-  }>;
-  mcpServers?: {
-    total: number;
-    enabled: number;
-  };
-  agentMarket?: {
-    total: number;
-  };
-}
+import { useDashboardStats } from "@/hooks/useRequest";
 
 interface DashboardOverviewProps {
   onSectionChange?: (section: string) => void;
 }
 
 export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading, error } = useDashboardStats();
 
-  const fetchStats = async () => {
-    try {
-      const [userResponse, mcpResponse, agentMarketResponse] = await Promise.all([
-        fetch(`${baseURL}/api/users/stats`, {
-          credentials: "include",
-        }),
-        fetch(`${baseURL}/api/app`, {
-          credentials: "include",
-        }),
-        fetch(`${baseURL}/api/agent-market`, {
-          credentials: "include",
-        }),
-      ]);
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        const mcpData = mcpResponse.ok ? await mcpResponse.json() : null;
-        const agentMarketData = agentMarketResponse.ok ? await agentMarketResponse.json() : null;
-
-        const mcpServers = mcpData?.data?.mcpServers || [];
-        const agentMarketAgents = Array.isArray(agentMarketData) ? agentMarketData : [];
-        
-        setStats({
-          ...userData.stats,
-          mcpServers: {
-            total: mcpServers.length,
-            enabled: mcpServers.filter((s: MCPServer) => s.enabled).length,
-          },
-          agentMarket: {
-            total: agentMarketAgents.length,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Shield className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading dashboard stats</h3>
+              <div className="mt-2 text-sm text-red-700">
+                Failed to load dashboard statistics. Please try refreshing the page.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -117,7 +66,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
             <p className="text-muted-foreground text-xs">
-              +{stats?.recentRegistrations?.reduce((sum, day) => sum + day.count, 0) || 0} this
+              +{stats?.recentRegistrations?.reduce((sum: number, day: { count: number }) => sum + day.count, 0) || 0} this
               month
             </p>
           </CardContent>

@@ -33,21 +33,33 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { getBaseURL, useSession } from "@/lib/auth-client";
 import {
   AgentFormData,
   MarketAgent,
-  MarketAgentApi,
   MCPInstallationConfig,
   MCPServerConfig,
 } from "@/types/market";
 import { Copy, Download, Edit, Plus, Search, Trash2, Upload, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { 
+  useAgents, 
+  useApps, 
+  useCreateAgent, 
+  useUpdateAgent, 
+  useDeleteAgent, 
+  useDownloadAgent, 
+  useImportAgent 
+} from "@/hooks/useRequest";
 
 export function AgentMarketManagement() {
-  const { data: session } = useSession();
-  const [agents, setAgents] = useState<MarketAgent[]>([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks
+  const { data: agents = [], isLoading: agentsLoading, error: agentsError } = useAgents();
+  const { data: availableApps = [], isLoading: appsLoading, refetch: refetchApps } = useApps();
+  const createAgentMutation = useCreateAgent();
+  const updateAgentMutation = useUpdateAgent();
+  const deleteAgentMutation = useDeleteAgent();
+  const downloadAgentMutation = useDownloadAgent();
+  const importAgentMutation = useImportAgent();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<MarketAgent | null>(null);
   const [formData, setFormData] = useState<AgentFormData>({
@@ -74,48 +86,8 @@ export function AgentMarketManagement() {
 
   // App search dialog state
   const [appSearchOpen, setAppSearchOpen] = useState(false);
-  const [availableApps, setAvailableApps] = useState<
-    Array<{
-      id: string;
-      name: string;
-      description: string;
-      iconUrl?: string;
-      config?: MCPServerConfig;
-      version?: string;
-      keywords?: string[];
-      author?: { name: string; url?: string };
-    }>
-  >([]);
-  const [appSearchLoading, setAppSearchLoading] = useState(false);
   const [appSearchQuery, setAppSearchQuery] = useState("");
 
-  const fetchAgents = async () => {
-    try {
-      const res = await fetch(`${getBaseURL()}/api/agent-market`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch agents");
-      const data: MarketAgentApi[] = await res.json();
-      console.log("agent-market data", data);
-      const transformed = data.map((item) => ({
-        id: item.agentId,
-        name: item.agentJson.name,
-        description: item.agentJson.description,
-        systemPrompt: item.agentJson.systemPrompt,
-        predefined: item.agentJson.predefined,
-        selectedMCPs: item.agentJson.selectedMCPs,
-        disableToolReferences: item.agentJson.disableToolReferences,
-        createdAt: item.agentJson.createdAt ?? item.createdAt,
-        updatedAt: item.agentJson.updatedAt ?? item.updatedAt,
-        mcpInstallations: item.mcpInstallations,
-      }));
-      setAgents(transformed);
-    } catch (error) {
-      toast({ title: "Error", description: "Unable to load agents", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Convert MCP installations to the new config format
   const convertToMcpInstallationConfig = (
@@ -144,7 +116,7 @@ export function AgentMarketManagement() {
   };
 
   // Update JSON editor when MCP config changes
-  const updateJsonEditor = () => {
+  const updateJsonEditor = useCallback(() => {
     try {
       const jsonString = JSON.stringify(mcpInstallationConfig, null, 2);
       setJsonEditorContent(jsonString);
@@ -153,7 +125,7 @@ export function AgentMarketManagement() {
       console.error("Failed to stringify MCP config:", error);
       setIsJsonValid(false);
     }
-  };
+  }, [mcpInstallationConfig]);
 
   // Parse JSON from editor and update MCP config
   const parseJsonFromEditor = (jsonString: string) => {
@@ -234,33 +206,10 @@ export function AgentMarketManagement() {
     toast({ title: "Success", description: "Custom MCP added to configuration" });
   };
 
-  // Fetch available apps for search
-  const fetchAvailableApps = async () => {
-    setAppSearchLoading(true);
-    try {
-      const res = await fetch(`${getBaseURL()}/api/app`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch apps");
-      const data = await res.json();
-      if (data.success) {
-        setAvailableApps(data.data.mcpServers);
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch available apps",
-        variant: "destructive",
-      });
-    } finally {
-      setAppSearchLoading(false);
-    }
-  };
-
   // Open app search dialog
   const openAppSearch = () => {
     setAppSearchOpen(true);
-    fetchAvailableApps();
+    refetchApps(); // Manually trigger apps fetch when opening search
   };
 
   // Add app to MCP configuration
@@ -316,7 +265,11 @@ export function AgentMarketManagement() {
 
   // Filter apps based on search query
   const filteredApps = availableApps.filter(
-    (app) =>
+    (app: {
+      name?: string;
+      description?: string;
+      keywords?: string[];
+    }) =>
       app.name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
       app.description?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
       app.keywords?.some((keyword: string) =>
@@ -352,14 +305,11 @@ export function AgentMarketManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchAgents();
-  }, []);
 
   // Update JSON editor whenever MCP config changes
   useEffect(() => {
     updateJsonEditor();
-  }, [mcpInstallationConfig]);
+  }, [mcpInstallationConfig, updateJsonEditor]);
 
   const resetForm = () => {
     setFormData({
@@ -402,126 +352,98 @@ export function AgentMarketManagement() {
   };
 
   const saveAgent = async () => {
-    try {
-      const method = editingAgent ? "PUT" : "POST";
-      const url = editingAgent
-        ? `${getBaseURL()}/api/agent-market/${editingAgent.id}`
-        : `${getBaseURL()}/api/agent-market`;
+    // Prepare agentJson
+    const agentJson = {
+      name: formData.name,
+      description: formData.description,
+      systemPrompt: formData.systemPrompt,
+      predefined: formData.predefined,
+      selectedMCPs: formData.selectedMCPs,
+      disableToolReferences: formData.disableToolsStr
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-      // Prepare agentJson
-      const agentJson = {
-        name: formData.name,
-        description: formData.description,
-        systemPrompt: formData.systemPrompt,
-        predefined: formData.predefined,
-        selectedMCPs: formData.selectedMCPs,
-        disableToolReferences: formData.disableToolsStr
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+    // Convert MCP config back to installations format
+    const mcpInstallations: Record<string, unknown> = {};
+    Object.entries(mcpInstallationConfig.mcpServers).forEach(([key, config]) => {
+      mcpInstallations[key] = {
+        command: config.command,
+        args: config.args,
+        env: config.env,
+        url: config.url,
       };
+    });
 
-      // Convert MCP config back to installations format
-      const mcpInstallations: Record<string, unknown> = {};
-      Object.entries(mcpInstallationConfig.mcpServers).forEach(([key, config]) => {
-        mcpInstallations[key] = {
-          command: config.command,
-          args: config.args,
-          env: config.env,
-          url: config.url,
-        };
-      });
+    const data = {
+      agentJson: JSON.stringify(agentJson),
+      mcpInstallations: JSON.stringify(mcpInstallations),
+    };
 
-      const res = await fetch(url, {
-        method,
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+    if (editingAgent) {
+      updateAgentMutation.mutate(
+        { agentId: editingAgent.id, data },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            resetForm();
+          },
+        }
+      );
+    } else {
+      createAgentMutation.mutate(data, {
+        onSuccess: () => {
+          setDialogOpen(false);
+          resetForm();
         },
-        body: JSON.stringify({
-          agentJson: JSON.stringify(agentJson),
-          mcpInstallations: JSON.stringify(mcpInstallations),
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Save error:", errorData);
-        throw new Error(errorData.error?.message || "Failed to save agent");
-      }
-
-      toast({ title: "Success", description: `Agent ${editingAgent ? "updated" : "created"}` });
-      setDialogOpen(false);
-      resetForm();
-      fetchAgents();
-    } catch (error) {
-      console.error("Save agent error:", error);
-      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
-    }
-  };
-
-  const deleteAgent = async (agentId: string | number) => {
-    try {
-      const res = await fetch(`${getBaseURL()}/api/agent-market/${agentId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to delete agent");
-      toast({ title: "Success", description: "Agent deleted" });
-      fetchAgents();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to delete agent", variant: "destructive" });
-    }
-  };
-
-  const downloadAgent = async (agentId: string | number) => {
-    try {
-      const res = await fetch(`${getBaseURL()}/api/agent-market/${agentId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to download agent");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${agentId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      toast({ title: "Error", description: "Download failed", variant: "destructive" });
-    }
-  };
-
-  const importJsonFile = async (file: File) => {
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const res = await fetch(`${getBaseURL()}/api/agent-market`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(json),
-      });
-      if (!res.ok) throw new Error("Import failed");
-      toast({ title: "Success", description: "Agent imported" });
-      fetchAgents();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Invalid JSON or import failed",
-        variant: "destructive",
       });
     }
   };
+
+  const deleteAgent = (agentId: string | number) => {
+    deleteAgentMutation.mutate(agentId);
+  };
+
+  const downloadAgent = (agentId: string | number) => {
+    downloadAgentMutation.mutate(agentId);
+  };
+
+  const importJsonFile = (file: File) => {
+    importAgentMutation.mutate(file);
+  };
+
+  // Show error state if agents failed to load
+  if (agentsError) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <X className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading agents</h3>
+              <div className="mt-2 text-sm text-red-700">
+                Failed to load agents. Please try refreshing the page.
+              </div>
+            </div>
+            <div className="ml-auto pl-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -562,7 +484,7 @@ export function AgentMarketManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {agentsLoading ? (
               <TableRow>
                 <TableCell colSpan={6}>Loading...</TableCell>
               </TableRow>
@@ -580,7 +502,7 @@ export function AgentMarketManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(agent.selectedMCPs || []).slice(0, 3).map((mcp) => (
+                      {(agent.selectedMCPs || []).slice(0, 3).map((mcp: string) => (
                         <Badge key={mcp} variant="secondary" className="text-xs">
                           {mcp}
                         </Badge>
@@ -595,7 +517,7 @@ export function AgentMarketManagement() {
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="space-y-1">
-                                {(agent.selectedMCPs || []).slice(3).map((mcp) => (
+                                {(agent.selectedMCPs || []).slice(3).map((mcp: string) => (
                                   <div key={mcp}>{mcp}</div>
                                 ))}
                               </div>
@@ -827,8 +749,11 @@ export function AgentMarketManagement() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={saveAgent} disabled={!isJsonValid}>
-              {editingAgent ? "Update" : "Create"} Agent
+            <Button 
+              onClick={saveAgent} 
+              disabled={!isJsonValid || createAgentMutation.isPending || updateAgentMutation.isPending}
+            >
+              {(createAgentMutation.isPending || updateAgentMutation.isPending) ? "Saving..." : (editingAgent ? "Update" : "Create")} Agent
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -857,7 +782,7 @@ export function AgentMarketManagement() {
 
             {/* Apps List */}
             <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border">
-              {appSearchLoading ? (
+              {appsLoading ? (
                 <div className="flex h-32 items-center justify-center">
                   <p>Loading apps...</p>
                 </div>
@@ -869,7 +794,7 @@ export function AgentMarketManagement() {
                 </div>
               ) : (
                 <div className="space-y-3 p-4">
-                  {filteredApps.map((app) => (
+                  {filteredApps.map((app: any) => (
                     <Card key={app.id} className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">

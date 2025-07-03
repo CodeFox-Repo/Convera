@@ -122,7 +122,7 @@ export interface MarketAgent {
   disableToolReferences?: string[];
   createdAt: string;
   updatedAt: string;
-  mcpInstallations?: Record<string, MCPInstallation>;
+  mcpInstallations?: Record<string, unknown>;
 }
 
 // Form Data Types
