@@ -34,22 +34,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import {
-  AgentFormData,
-  MarketAgent,
-  MCPInstallationConfig,
-  MCPServerConfig,
-} from "@/types/market";
+  useAgents,
+  useApps,
+  useCreateAgent,
+  useDeleteAgent,
+  useDownloadAgent,
+  useImportAgent,
+  useUpdateAgent,
+} from "@/hooks/use-request";
+import { AgentFormData, MarketAgent, MCPInstallationConfig, MCPServerConfig } from "@/types/market";
 import { Copy, Download, Edit, Plus, Search, Trash2, Upload, X } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
-import { 
-  useAgents, 
-  useApps, 
-  useCreateAgent, 
-  useUpdateAgent, 
-  useDeleteAgent, 
-  useDownloadAgent, 
-  useImportAgent 
-} from "@/hooks/useRequest";
+import { useCallback, useEffect, useState } from "react";
 
 export function AgentMarketManagement() {
   // React Query hooks
@@ -87,7 +82,6 @@ export function AgentMarketManagement() {
   // App search dialog state
   const [appSearchOpen, setAppSearchOpen] = useState(false);
   const [appSearchQuery, setAppSearchQuery] = useState("");
-
 
   // Convert MCP installations to the new config format
   const convertToMcpInstallationConfig = (
@@ -265,11 +259,7 @@ export function AgentMarketManagement() {
 
   // Filter apps based on search query
   const filteredApps = availableApps.filter(
-    (app: {
-      name?: string;
-      description?: string;
-      keywords?: string[];
-    }) =>
+    (app: { name?: string; description?: string; keywords?: string[] }) =>
       app.name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
       app.description?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
       app.keywords?.some((keyword: string) =>
@@ -304,7 +294,6 @@ export function AgentMarketManagement() {
       addDisabledTool();
     }
   };
-
 
   // Update JSON editor whenever MCP config changes
   useEffect(() => {
@@ -391,7 +380,7 @@ export function AgentMarketManagement() {
             setDialogOpen(false);
             resetForm();
           },
-        }
+        },
       );
     } else {
       createAgentMutation.mutate(data, {
@@ -431,11 +420,7 @@ export function AgentMarketManagement() {
               </div>
             </div>
             <div className="ml-auto pl-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.reload()}
-              >
+              <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
                 Refresh
               </Button>
             </div>
@@ -749,11 +734,18 @@ export function AgentMarketManagement() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={saveAgent} 
-              disabled={!isJsonValid || createAgentMutation.isPending || updateAgentMutation.isPending}
+            <Button
+              onClick={saveAgent}
+              disabled={
+                !isJsonValid || createAgentMutation.isPending || updateAgentMutation.isPending
+              }
             >
-              {(createAgentMutation.isPending || updateAgentMutation.isPending) ? "Saving..." : (editingAgent ? "Update" : "Create")} Agent
+              {createAgentMutation.isPending || updateAgentMutation.isPending
+                ? "Saving..."
+                : editingAgent
+                  ? "Update"
+                  : "Create"}{" "}
+              Agent
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -794,59 +786,61 @@ export function AgentMarketManagement() {
                 </div>
               ) : (
                 <div className="space-y-3 p-4">
-                  {filteredApps.map((app: {
-                    id: string;
-                    name: string;
-                    description: string;
-                    iconUrl?: string;
-                    version?: string;
-                    keywords?: string[];
-                    author?: { name: string; url?: string };
-                  }) => (
-                    <Card key={app.id} className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            {app.iconUrl && (
-                              <img src={app.iconUrl} alt={app.name} className="h-8 w-8 rounded" />
-                            )}
-                            <div>
-                              <h3 className="font-semibold">{app.name}</h3>
-                              <p className="text-muted-foreground text-sm">{app.description}</p>
-                            </div>
-                          </div>
-
-                          {app.keywords && app.keywords.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {app.keywords.slice(0, 5).map((keyword: string) => (
-                                <Badge key={keyword} variant="secondary" className="text-xs">
-                                  {keyword}
-                                </Badge>
-                              ))}
-                              {app.keywords.length > 5 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{app.keywords.length - 5} more
-                                </Badge>
+                  {filteredApps.map(
+                    (app: {
+                      id: string;
+                      name: string;
+                      description: string;
+                      iconUrl?: string;
+                      version?: string;
+                      keywords?: string[];
+                      author?: { name: string; url?: string };
+                    }) => (
+                      <Card key={app.id} className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              {app.iconUrl && (
+                                <img src={app.iconUrl} alt={app.name} className="h-8 w-8 rounded" />
                               )}
+                              <div>
+                                <h3 className="font-semibold">{app.name}</h3>
+                                <p className="text-muted-foreground text-sm">{app.description}</p>
+                              </div>
                             </div>
-                          )}
 
-                          <div className="text-muted-foreground mt-2 text-xs">
-                            Version: {app.version || "1.0.0"}
-                            {app.author?.name && ` • By: ${app.author.name}`}
+                            {app.keywords && app.keywords.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {app.keywords.slice(0, 5).map((keyword: string) => (
+                                  <Badge key={keyword} variant="secondary" className="text-xs">
+                                    {keyword}
+                                  </Badge>
+                                ))}
+                                {app.keywords.length > 5 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{app.keywords.length - 5} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="text-muted-foreground mt-2 text-xs">
+                              Version: {app.version || "1.0.0"}
+                              {app.author?.name && ` • By: ${app.author.name}`}
+                            </div>
                           </div>
-                        </div>
 
-                        <Button
-                          size="sm"
-                          onClick={() => addAppToMcp(app)}
-                          disabled={!!mcpInstallationConfig.mcpServers[app.id || app.name]}
-                        >
-                          {mcpInstallationConfig.mcpServers[app.id || app.name] ? "Added" : "Add"}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+                          <Button
+                            size="sm"
+                            onClick={() => addAppToMcp(app)}
+                            disabled={!!mcpInstallationConfig.mcpServers[app.id || app.name]}
+                          >
+                            {mcpInstallationConfig.mcpServers[app.id || app.name] ? "Added" : "Add"}
+                          </Button>
+                        </div>
+                      </Card>
+                    ),
+                  )}
                 </div>
               )}
             </div>
