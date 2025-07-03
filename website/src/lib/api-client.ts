@@ -1,8 +1,8 @@
 // Simple API client using fetch for admin check
 
 // Base URL configuration - use local development server
-export const baseURL = "https://api.foxychat.net";
-// export const baseURL = "http://localhost:3001";
+// export const baseURL = "https://api.foxychat.net";
+export const baseURL = "http://localhost:3001";
 
 export interface AdminCheckResponse {
   isAdmin: boolean;
