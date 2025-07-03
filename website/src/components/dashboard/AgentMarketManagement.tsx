@@ -1,3 +1,15 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
-import { Download, Edit, Info, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Edit, Info, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface MarketAgentApi {
@@ -103,6 +116,31 @@ interface MCPDetailedConfig {
 
 type UnknownServer = { serverId?: string; id?: string; name?: string };
 
+// MCP Server configuration structure
+export interface MCPServerConfig {
+  name?: string;
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  url?: string;
+  apiKey?: string;
+  description?: string;
+  isSSE?: boolean;
+}
+
+interface MCPFormData {
+  name: string;
+  command: string;
+  args: string;
+  url: string;
+  apiKey: string;
+  description: string;
+  cwd: string;
+  env: string;
+  isSSE: boolean;
+}
+
 export function AgentMarketManagement() {
   const { data: session } = useSession();
   const [agents, setAgents] = useState<MarketAgent[]>([]);
@@ -121,6 +159,44 @@ export function AgentMarketManagement() {
   const [mcpOptions, setMcpOptions] = useState<MCPServerOption[]>([]);
   const [mcpDetails, setMcpDetails] = useState<Record<string, MCPDetailedConfig>>({});
   const [loadingMcpDetails, setLoadingMcpDetails] = useState<Set<string>>(new Set());
+  const [customizedMcpConfigs, setCustomizedMcpConfigs] = useState<
+    Record<string, MCPDetailedConfig>
+  >({});
+  const [selectedMcpForEdit, setSelectedMcpForEdit] = useState<string>("");
+
+  // Add MCP form data state
+  const [mcpFormData, setMcpFormData] = useState<MCPFormData>({
+    name: "",
+    command: "",
+    args: "",
+    url: "",
+    apiKey: "",
+    description: "",
+    cwd: "",
+    env: "",
+    isSSE: false,
+  });
+
+  // Keywords and arguments management for MCP form
+  const [keywordsList, setKeywordsList] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [argumentsList, setArgumentsList] = useState<string[]>([]);
+  const [argumentInput, setArgumentInput] = useState("");
+  const [envList, setEnvList] = useState<Array<{ key: string; value: string }>>([]);
+  const [envKeyInput, setEnvKeyInput] = useState("");
+  const [envValueInput, setEnvValueInput] = useState("");
+
+  // Disabled tools management for agent form
+  const [disabledToolsList, setDisabledToolsList] = useState<string[]>([]);
+  const [disabledToolInput, setDisabledToolInput] = useState("");
+
+  // Add buffer for tracking MCPs to be deleted after save
+  const [mcpsToDelete, setMcpsToDelete] = useState<Set<string>>(new Set());
+  const [allAvailableMcps, setAllAvailableMcps] = useState<Set<string>>(new Set());
+
+  // Add custom MCP functionality
+  const [customMcpName, setCustomMcpName] = useState("");
+  const [isAddingCustomMcp, setIsAddingCustomMcp] = useState(false);
 
   const fetchAgents = async () => {
     try {
@@ -190,6 +266,11 @@ export function AgentMarketManagement() {
 
   // Fetch detailed MCP configuration from the main list
   const fetchMcpDetail = async (serverId: string) => {
+    // Skip fetching for custom MCPs
+    if (serverId.startsWith("custom-")) {
+      return;
+    }
+
     if (mcpDetails[serverId] || loadingMcpDetails.has(serverId)) return;
 
     setLoadingMcpDetails((prev) => new Set([...prev, serverId]));
@@ -207,7 +288,8 @@ export function AgentMarketManagement() {
       console.log(`MCP list data:`, data);
 
       // Find the specific server from the list
-      let foundServer = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let foundServer: any = null;
 
       // Check different possible response formats
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -227,19 +309,20 @@ export function AgentMarketManagement() {
         setMcpDetails((prev) => ({
           ...prev,
           [serverId]: {
-            id: foundServer.id || serverId,
-
-            name: foundServer.name || serverId,
-
-            description: foundServer.description || "",
-
-            config: foundServer.config || {},
-
-            version: foundServer.version,
-
-            keywords: foundServer.keywords,
-
-            author: foundServer.author,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            id: (foundServer as any).id || serverId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: (foundServer as any).name || serverId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            description: (foundServer as any).description || "",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            config: (foundServer as any).config || {},
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            version: (foundServer as any).version,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            keywords: (foundServer as any).keywords,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            author: (foundServer as any).author,
           },
         }));
         console.log(`MCP detail for ${serverId}:`, foundServer);
@@ -267,21 +350,372 @@ export function AgentMarketManagement() {
     }
   };
 
-  // Handle MCP selection change
+  // Get all MCPs (both available and installed) and sort by selection status
+  const getAllMcpOptions = () => {
+    // Always include all available MCPs from market
+    const availableMcps = mcpOptions.map((opt) => opt.serverId);
+
+    // Include MCPs that were initially installed (from agent.mcpInstallations)
+    const installedMcps = initialAgentMcpIds;
+
+    // Include ALL custom MCPs that have been created (don't filter by mcpsToDelete here)
+    const customMcps = Object.keys(customizedMcpConfigs).filter((id) => id.startsWith("custom-"));
+
+    // Include any additional MCPs from the buffer (for cases where they might not be in other lists)
+    const allFromBuffer = Array.from(allAvailableMcps);
+
+    // Combine ALL MCP IDs and remove duplicates
+    // For custom MCPs, we keep them visible even if marked for deletion (they disappear only after save)
+    // For regular MCPs, we never mark them for deletion anyway
+    const allMcpIds = [
+      ...new Set([...availableMcps, ...installedMcps, ...customMcps, ...allFromBuffer]),
+    ];
+
+    // Sort by selection status: selected MCPs first, then unselected
+    return allMcpIds.sort((a, b) => {
+      const aSelected = formData.selectedMCPs.includes(a);
+      const bSelected = formData.selectedMCPs.includes(b);
+
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0;
+    });
+  };
+
+  // Load MCP form data when selected MCP changes
+  const loadMcpFormData = (serverId: string) => {
+    const effectiveConfig = getEffectiveMcpConfig(serverId);
+
+    if (effectiveConfig) {
+      // Parse args
+      const args = Array.isArray(effectiveConfig.config?.args) ? effectiveConfig.config.args : [];
+
+      // Parse keywords
+      const keywords = Array.isArray(effectiveConfig.keywords) ? effectiveConfig.keywords : [];
+
+      // Parse env
+      const env = effectiveConfig.config?.env || {};
+
+      setKeywordsList(keywords);
+      setArgumentsList(args);
+      setEnvList(Object.entries(env).map(([key, value]) => ({ key, value })));
+
+      setMcpFormData({
+        name: effectiveConfig.name || "",
+        command: effectiveConfig.config?.command || "",
+        args: args.join(", "),
+        url: effectiveConfig.config?.url || "",
+        apiKey: effectiveConfig.config?.apiKey || "",
+        description: effectiveConfig.description || "",
+        cwd: effectiveConfig.config?.cwd || "",
+        env: Object.entries(env)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(", "),
+        isSSE: effectiveConfig.config?.isSSE || false,
+      });
+    } else {
+      // Reset form for new MCP
+      setMcpFormData({
+        name: serverId,
+        command: "",
+        args: "",
+        url: "",
+        apiKey: "",
+        description: "",
+        cwd: "",
+        env: "",
+        isSSE: false,
+      });
+      setKeywordsList([]);
+      setArgumentsList([]);
+      setEnvList([]);
+    }
+  };
+
+  // Update MCP config from form
+  const updateMcpFromForm = () => {
+    if (!selectedMcpForEdit) return;
+
+    // Parse env string into object
+    const envObj: Record<string, string> = {};
+    if (mcpFormData.env) {
+      mcpFormData.env.split(",").forEach((pair) => {
+        const [key, value] = pair.split("=").map((s) => s.trim());
+        if (key && value) {
+          envObj[key] = value;
+        }
+      });
+    }
+
+    // Parse args string into array
+    const argumentsList = mcpFormData.args
+      ? mcpFormData.args
+          .split(",")
+          .map((arg) => arg.trim())
+          .filter((arg) => arg)
+      : [];
+
+    const updatedConfig: MCPDetailedConfig = {
+      id: mcpFormData.name,
+      name: mcpFormData.name,
+      description: mcpFormData.description,
+      config: {
+        command: mcpFormData.command || undefined,
+        args: argumentsList.length > 0 ? argumentsList : undefined,
+        url: mcpFormData.url || undefined,
+        apiKey: mcpFormData.apiKey || undefined,
+        cwd: mcpFormData.cwd || undefined,
+        env: Object.keys(envObj).length > 0 ? envObj : undefined,
+        isSSE: mcpFormData.isSSE,
+      },
+      version: "1.0.0", // Default version
+      keywords: [], // Empty keywords for now
+      author: {
+        name: "", // Default empty author
+        url: "",
+      },
+    };
+
+    setCustomizedMcpConfigs((prev) => ({
+      ...prev,
+      [selectedMcpForEdit]: updatedConfig,
+    }));
+  };
+
+  // Keyword management functions
+  const addKeyword = () => {
+    if (keywordInput.trim() && !keywordsList.includes(keywordInput.trim())) {
+      setKeywordsList([...keywordsList, keywordInput.trim()]);
+      setKeywordInput("");
+      updateMcpFromForm();
+    }
+  };
+
+  const removeKeyword = (keyword: string) => {
+    setKeywordsList(keywordsList.filter((k) => k !== keyword));
+    updateMcpFromForm();
+  };
+
+  const handleKeywordInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addKeyword();
+    }
+  };
+
+  // Argument management functions
+  const addArgument = () => {
+    if (argumentInput.trim() && !argumentsList.includes(argumentInput.trim())) {
+      setArgumentsList([...argumentsList, argumentInput.trim()]);
+      setArgumentInput("");
+      updateMcpFromForm();
+    }
+  };
+
+  const removeArgument = (arg: string) => {
+    setArgumentsList(argumentsList.filter((a) => a !== arg));
+    updateMcpFromForm();
+  };
+
+  const handleArgumentInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addArgument();
+    }
+  };
+
+  // Environment variable management functions
+  const addEnvVar = () => {
+    if (envKeyInput.trim() && envValueInput.trim()) {
+      const exists = envList.some((env) => env.key === envKeyInput.trim());
+      if (!exists) {
+        setEnvList([...envList, { key: envKeyInput.trim(), value: envValueInput.trim() }]);
+        setEnvKeyInput("");
+        setEnvValueInput("");
+        updateMcpFromForm();
+      }
+    }
+  };
+
+  const removeEnvVar = (index: number) => {
+    setEnvList(envList.filter((_, i) => i !== index));
+    updateMcpFromForm();
+  };
+
+  // Disabled tools management functions
+  const addDisabledTool = () => {
+    if (disabledToolInput.trim() && !disabledToolsList.includes(disabledToolInput.trim())) {
+      setDisabledToolsList([...disabledToolsList, disabledToolInput.trim()]);
+      setDisabledToolInput("");
+      // Update form data
+      setFormData({
+        ...formData,
+        disableToolsStr: [...disabledToolsList, disabledToolInput.trim()].join(", "),
+      });
+    }
+  };
+
+  const removeDisabledTool = (tool: string) => {
+    const newList = disabledToolsList.filter((t) => t !== tool);
+    setDisabledToolsList(newList);
+    // Update form data
+    setFormData({
+      ...formData,
+      disableToolsStr: newList.join(", "),
+    });
+  };
+
+  const handleDisabledToolInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addDisabledTool();
+    }
+  };
+
+  // Update the handleMcpSelectionChange function
   const handleMcpSelectionChange = (serverId: string, isChecked: boolean) => {
     if (isChecked) {
+      // Add to selected MCPs
       setFormData({
         ...formData,
         selectedMCPs: [...formData.selectedMCPs, serverId],
       });
-      // Fetch detailed config when MCP is selected
+      // Remove from delete buffer if it was marked for deletion (only for custom MCPs)
+      setMcpsToDelete((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(serverId);
+        return newSet;
+      });
+      // Fetch detailed config when MCP is selected (skip for custom MCPs)
       fetchMcpDetail(serverId);
+      // Set first selected MCP for editing if none selected
+      if (!selectedMcpForEdit) {
+        setSelectedMcpForEdit(serverId);
+        loadMcpFormData(serverId);
+      }
     } else {
+      // Remove from selected MCPs - but MCP stays visible in the list
       setFormData({
         ...formData,
         selectedMCPs: formData.selectedMCPs.filter((id) => id !== serverId),
       });
+      // Only mark custom MCPs for deletion - market MCPs should always remain visible
+      if (serverId.startsWith("custom-")) {
+        setMcpsToDelete((prev) => new Set([...prev, serverId]));
+      }
+      // Change selected MCP if the current one was unselected
+      if (selectedMcpForEdit === serverId) {
+        const remaining = formData.selectedMCPs.filter((id) => id !== serverId);
+        const newSelected = remaining.length > 0 ? remaining[0] : "";
+        setSelectedMcpForEdit(newSelected);
+        if (newSelected) {
+          loadMcpFormData(newSelected);
+        }
+      }
     }
+  };
+
+  // Update the selected MCP change handler
+  const handleSelectedMcpChange = (serverId: string) => {
+    setSelectedMcpForEdit(serverId);
+    loadMcpFormData(serverId);
+  };
+
+  // Get effective MCP config (customized or original)
+  const getEffectiveMcpConfig = (serverId: string): MCPDetailedConfig | null => {
+    return customizedMcpConfigs[serverId] || mcpDetails[serverId] || null;
+  };
+
+  // Generate JSON string for selected MCP
+  const generateMcpJsonString = (serverId: string): string => {
+    const config = getEffectiveMcpConfig(serverId);
+    if (!config) return "{}";
+
+    return JSON.stringify(
+      {
+        id: config.id,
+        name: config.name,
+        description: config.description,
+        version: config.version,
+        keywords: config.keywords || [],
+        author: config.author || { name: "", url: "" },
+        config: config.config,
+      },
+      null,
+      2,
+    );
+  };
+
+  // Update MCP config from JSON
+  const updateMcpFromJson = (serverId: string, jsonString: string) => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const updatedConfig: MCPDetailedConfig = {
+        id: parsed.id || serverId,
+        name: parsed.name || serverId,
+        description: parsed.description || "",
+        config: parsed.config || {},
+        version: parsed.version,
+        keywords: parsed.keywords,
+        author: parsed.author,
+      };
+
+      setCustomizedMcpConfigs((prev) => ({
+        ...prev,
+        [serverId]: updatedConfig,
+      }));
+
+      return true;
+    } catch (error) {
+      console.error("Failed to parse MCP JSON:", error);
+      return false;
+    }
+  };
+
+  // Add custom MCP functionality
+  const addCustomMcp = () => {
+    if (!customMcpName.trim()) return;
+
+    const customId = `custom-${customMcpName.trim()}`;
+
+    // Add to selected MCPs
+    setFormData({
+      ...formData,
+      selectedMCPs: [...formData.selectedMCPs, customId],
+    });
+
+    // Create default config for custom MCP
+    const defaultConfig: MCPDetailedConfig = {
+      id: customId,
+      name: customMcpName.trim(),
+      description: "",
+      config: {
+        command: "",
+        args: [],
+        url: "",
+        apiKey: "",
+        cwd: "",
+        env: {},
+        isSSE: false,
+      },
+      version: "1.0.0",
+      keywords: [],
+      author: { name: "", url: "" },
+    };
+
+    // Add to customized configs
+    setCustomizedMcpConfigs((prev) => ({
+      ...prev,
+      [customId]: defaultConfig,
+    }));
+
+    // Select for editing
+    setSelectedMcpForEdit(customId);
+    loadMcpFormData(customId);
+
+    // Reset states
+    setCustomMcpName("");
+    setIsAddingCustomMcp(false);
   };
 
   useEffect(() => {
@@ -299,28 +733,79 @@ export function AgentMarketManagement() {
       disableToolsStr: "",
     });
     setEditingAgent(null);
+    setCustomizedMcpConfigs({});
+    setSelectedMcpForEdit("");
+    setDisabledToolsList([]);
+    setDisabledToolInput("");
+    // Reset buffer data
+    setMcpsToDelete(new Set());
+    setAllAvailableMcps(new Set());
   };
 
   const openCreateDialog = () => {
     resetForm();
     setInitialAgentMcpIds([]);
+    // Initialize buffer with available MCPs for create mode
+    const availableMcps = mcpOptions.map((opt) => opt.serverId);
+    setAllAvailableMcps(new Set(availableMcps));
     setDialogOpen(true);
   };
 
   const openEditDialog = (agent: MarketAgent) => {
     setInitialAgentMcpIds(agent.selectedMCPs || []);
+    const disabledTools = agent.disableToolReferences || [];
     setFormData({
       name: agent.name,
       description: agent.description,
       systemPrompt: agent.systemPrompt,
       predefined: agent.predefined,
       selectedMCPs: agent.selectedMCPs || [],
-      disableToolsStr: agent.disableToolReferences?.join(", ") || "",
+      disableToolsStr: disabledTools.join(", "),
     });
+    setDisabledToolsList(disabledTools);
     setEditingAgent(agent);
+
+    // Initialize buffer with all MCPs that will be available
+    const availableMcps = mcpOptions.map((opt) => opt.serverId);
+    const installedMcps = agent.selectedMCPs || [];
+    const allMcps = [...new Set([...availableMcps, ...installedMcps])];
+    setAllAvailableMcps(new Set(allMcps));
+
+    // Reset delete buffer
+    setMcpsToDelete(new Set());
+
+    // Load existing customized MCP configurations from the agent's mcpInstallations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingCustomizations: Record<string, any> = {};
+    if (agent.mcpInstallations) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.entries(agent.mcpInstallations as any).forEach(
+        ([mcpId, installation]: [string, any]) => {
+          // Convert MCPInstallation to MCPDetailedConfig format
+          existingCustomizations[mcpId] = {
+            id: mcpId,
+            name: installation.name || mcpId,
+            description: installation.description || "",
+            config: installation.config || {
+              command: installation.command,
+              args: installation.args,
+              url: installation.url,
+              apiKey: installation.apiKey,
+              cwd: installation.cwd,
+              env: installation.env,
+            },
+            version: installation.version,
+            keywords: installation.keywords || [],
+            author: installation.author || { name: "" },
+          };
+        },
+      );
+    }
+    setCustomizedMcpConfigs(existingCustomizations);
+
     setDialogOpen(true);
 
-    // Pre-fetch details for selected MCPs
+    // Pre-fetch details for selected MCPs to get complete metadata
     (agent.selectedMCPs || []).forEach((mcpId) => {
       fetchMcpDetail(mcpId);
     });
@@ -348,29 +833,33 @@ export function AgentMarketManagement() {
         updatedAt: new Date().toISOString(),
       };
 
-      // Prepare complete MCP installations with full configs
-      const mcpInstallations: Record<string, any> = {};
+      // Create mcpInstallations object with only selected MCPs
+      const mcpInstallations: Record<string, MCPInstallation> = {};
       formData.selectedMCPs.forEach((mcpId) => {
-        const detail = mcpDetails[mcpId];
-        if (detail) {
-          // Include complete MCP server definition
+        const config = getEffectiveMcpConfig(mcpId);
+        if (config) {
+          // Use the simplified MCPInstallation format
           mcpInstallations[mcpId] = {
-            id: detail.id,
-            name: detail.name,
-            description: detail.description,
-            version: detail.version,
-            keywords: detail.keywords || [],
-            author: detail.author || { name: "", url: "" },
-            config: detail.config,
-            command: detail.config.command,
-            args: detail.config.args || [],
-            url: detail.config.url,
-            apiKey: detail.config.apiKey,
-            cwd: detail.config.cwd,
-            env: detail.config.env,
+            command: config.config.command,
+            args: config.config.args,
+            cwd: config.config.cwd,
+            env: config.config.env,
+            url: config.config.url,
+            apiKey: config.config.apiKey,
+            description: config.description,
           };
         }
       });
+
+      // Apply buffered deletions - remove MCPs marked for deletion from customizedMcpConfigs
+      const cleanedCustomizedConfigs = { ...customizedMcpConfigs };
+      mcpsToDelete.forEach((mcpId) => {
+        delete cleanedCustomizedConfigs[mcpId];
+      });
+      setCustomizedMcpConfigs(cleanedCustomizedConfigs);
+
+      // Clear the delete buffer after save
+      setMcpsToDelete(new Set());
 
       const res = await fetch(url, {
         method,
@@ -400,8 +889,8 @@ export function AgentMarketManagement() {
     }
   };
 
+  // Delete agent with confirmation
   const deleteAgent = async (agentId: string | number) => {
-    if (!confirm("Are you sure you want to delete this agent?")) return;
     try {
       const res = await fetch(
         `${getBaseURL()}/api/agent-market/delete-agent-in-market/${agentId}`,
@@ -533,16 +1022,57 @@ export function AgentMarketManagement() {
                         : "-"}
                   </TableCell>
                   <TableCell>{agent.predefined ? "Yes" : "No"}</TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button size="icon" variant="outline" onClick={() => openEditDialog(agent)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="outline" onClick={() => downloadAgent(agent.id)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="destructive" onClick={() => deleteAgent(agent.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadAgent(agent.id)}
+                        className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                        title="Download agent"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditDialog(agent)}
+                        className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                        title="Edit agent"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                            title="Delete agent"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{agent.name}"? This action cannot be
+                              undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteAgent(agent.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -553,47 +1083,100 @@ export function AgentMarketManagement() {
 
       {/* Dialog for create/edit */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-7xl">
           <DialogHeader>
             <DialogTitle>{editingAgent ? "Edit Agent" : "Create Agent"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="name">
-                Name
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="description">
-                Description
-              </label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="systemPrompt">
-                System Prompt
-              </label>
-              <Textarea
-                id="systemPrompt"
-                value={formData.systemPrompt}
-                onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select MCPs</label>
-              <div className="grid max-h-40 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-2">
-                <TooltipProvider>
-                  {[...new Set([...mcpOptions.map((o) => o.serverId), ...initialAgentMcpIds])].map(
-                    (opt) => (
+          <div className="flex h-[600px] gap-6 py-4">
+            {/* Left Panel - Form Fields */}
+            <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="name">
+                  Name
+                </label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="description">
+                  Description
+                </label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="systemPrompt">
+                  System Prompt
+                </label>
+                <Textarea
+                  id="systemPrompt"
+                  value={formData.systemPrompt}
+                  onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Select MCPs</label>
+                  {/* All available MCPs are always shown here, regardless of selection status */}
+                  {isAddingCustomMcp ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={customMcpName}
+                        onChange={(e) => setCustomMcpName(e.target.value)}
+                        placeholder="Enter custom MCP name"
+                        className="h-8 w-40 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomMcp();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={addCustomMcp}
+                        disabled={!customMcpName.trim()}
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCustomMcp(false);
+                          setCustomMcpName("");
+                        }}
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => setIsAddingCustomMcp(true)}
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Custom
+                    </Button>
+                  )}
+                </div>
+                <div className="grid max-h-40 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-2">
+                  <TooltipProvider>
+                    {getAllMcpOptions().map((opt) => (
                       <div key={opt} className="flex items-center space-x-2 text-sm">
                         <input
                           type="checkbox"
@@ -601,8 +1184,24 @@ export function AgentMarketManagement() {
                           checked={formData.selectedMCPs.includes(opt)}
                           onChange={(e) => handleMcpSelectionChange(opt, e.target.checked)}
                         />
-                        <span className="flex-1">
-                          {mcpOptions.find((m) => m.serverId === opt)?.name || opt}
+                        <span
+                          className={`flex-1 cursor-pointer ${selectedMcpForEdit === opt ? "font-medium text-blue-600" : ""} ${mcpsToDelete.has(opt) ? "text-gray-400 line-through" : ""}`}
+                          onClick={() =>
+                            formData.selectedMCPs.includes(opt) && handleSelectedMcpChange(opt)
+                          }
+                        >
+                          {/* Display custom MCP name or find from options */}
+                          {opt.startsWith("custom-")
+                            ? customizedMcpConfigs[opt]?.name || opt.replace("custom-", "")
+                            : mcpOptions.find((m) => m.serverId === opt)?.name || opt}
+                          {customizedMcpConfigs[opt] && (
+                            <span className="ml-1 text-orange-500">*</span>
+                          )}
+                          {mcpsToDelete.has(opt) && (
+                            <span className="ml-1 text-red-500" title="Will be deleted on save">
+                              (×)
+                            </span>
+                          )}
                         </span>
                         {formData.selectedMCPs.includes(opt) && (
                           <Tooltip>
@@ -651,35 +1250,298 @@ export function AgentMarketManagement() {
                           </Tooltip>
                         )}
                       </div>
-                    ),
+                    ))}
+                  </TooltipProvider>
+                  {mcpOptions.length === 0 && (
+                    <span className="text-muted-foreground">No MCPs found</span>
                   )}
-                </TooltipProvider>
-                {mcpOptions.length === 0 && (
-                  <span className="text-muted-foreground">No MCPs found</span>
-                )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Disabled Tools</label>
+                <div className="space-y-2">
+                  {disabledToolsList.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {disabledToolsList.map((tool, index) => (
+                        <Badge key={index} variant="destructive" className="gap-1">
+                          {tool}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => removeDisabledTool(tool)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      value={disabledToolInput}
+                      onChange={(e) => setDisabledToolInput(e.target.value)}
+                      onKeyDown={handleDisabledToolInputKeyDown}
+                      placeholder="Add disabled tool and press Enter"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addDisabledTool}
+                      disabled={!disabledToolInput.trim()}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">Tools that will be disabled for this agent</p>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="predefined"
+                  className="h-4 w-4"
+                  checked={formData.predefined}
+                  onChange={(e) => setFormData({ ...formData, predefined: e.target.checked })}
+                />
+                <label htmlFor="predefined" className="text-sm">
+                  Predefined (system agent)
+                </label>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="disableTools">
-                Disabled Tools (comma separated)
-              </label>
-              <Input
-                id="disableTools"
-                value={formData.disableToolsStr}
-                onChange={(e) => setFormData({ ...formData, disableToolsStr: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <input
-                type="checkbox"
-                id="predefined"
-                className="h-4 w-4"
-                checked={formData.predefined}
-                onChange={(e) => setFormData({ ...formData, predefined: e.target.checked })}
-              />
-              <label htmlFor="predefined" className="text-sm">
-                Predefined (system agent)
-              </label>
+            {/* Right Panel - MCP Configuration */}
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-base font-medium">MCP Configuration</label>
+                {selectedMcpForEdit && (
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedMcpForEdit}
+                      onChange={(e) => handleSelectedMcpChange(e.target.value)}
+                      className="rounded border px-2 py-1 text-sm"
+                    >
+                      {getAllMcpOptions().map((mcpId) => (
+                        <option key={mcpId} value={mcpId}>
+                          {mcpId.startsWith("custom-")
+                            ? customizedMcpConfigs[mcpId]?.name || mcpId.replace("custom-", "")
+                            : mcpOptions.find((m) => m.serverId === mcpId)?.name || mcpId}
+                          {customizedMcpConfigs[mcpId] ? " *" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generateMcpJsonString(selectedMcpForEdit));
+                        toast({
+                          title: "Success",
+                          description: "MCP configuration copied to clipboard",
+                        });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {selectedMcpForEdit && formData.selectedMCPs.includes(selectedMcpForEdit) ? (
+                <div className="h-[500px] space-y-4 overflow-y-auto pr-2">
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={mcpFormData.name}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, name: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="MCP name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={mcpFormData.description}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, description: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="MCP description"
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Command</Label>
+                    <Input
+                      value={mcpFormData.command}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, command: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="Command to run (e.g., npx, node)"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Arguments</Label>
+                    <div className="space-y-2">
+                      {argumentsList.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {argumentsList.map((arg, index) => (
+                            <Badge key={index} variant="secondary" className="gap-1">
+                              {arg}
+                              <X
+                                className="h-3 w-3 cursor-pointer"
+                                onClick={() => removeArgument(arg)}
+                              />
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          value={argumentInput}
+                          onChange={(e) => setArgumentInput(e.target.value)}
+                          onKeyDown={handleArgumentInputKeyDown}
+                          placeholder="Add argument and press Enter"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={addArgument}
+                          disabled={!argumentInput.trim()}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>URL</Label>
+                    <Input
+                      value={mcpFormData.url}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, url: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="Server URL (for remote MCPs)"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <Input
+                      type="password"
+                      value={mcpFormData.apiKey}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, apiKey: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="API key (if required)"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Working Directory</Label>
+                    <Input
+                      value={mcpFormData.cwd}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, cwd: e.target.value });
+                        updateMcpFromForm();
+                      }}
+                      placeholder="Working directory path"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Environment Variables</Label>
+                    <div className="space-y-2">
+                      {envList.length > 0 && (
+                        <div className="space-y-1">
+                          {envList.map((env, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <div className="flex-1 rounded border bg-gray-50 p-2">
+                                <span className="font-mono text-sm">
+                                  {env.key}={env.value}
+                                </span>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={() => removeEnvVar(index)}
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          value={envKeyInput}
+                          onChange={(e) => setEnvKeyInput(e.target.value)}
+                          placeholder="Key"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={envValueInput}
+                          onChange={(e) => setEnvValueInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addEnvVar();
+                            }
+                          }}
+                          placeholder="Value"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={addEnvVar}
+                          disabled={!envKeyInput.trim() || !envValueInput.trim()}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="isSSE"
+                      className="h-4 w-4"
+                      checked={mcpFormData.isSSE}
+                      onChange={(e) => {
+                        setMcpFormData({ ...mcpFormData, isSSE: e.target.checked });
+                        updateMcpFromForm();
+                      }}
+                    />
+                    <Label htmlFor="isSSE" className="text-sm">
+                      Server-Sent Events (SSE)
+                    </Label>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-[500px] items-center justify-center rounded border text-gray-500">
+                  {formData.selectedMCPs.length === 0
+                    ? "Select MCPs to view their configuration"
+                    : "Select an MCP from the dropdown above"}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500">
+                View-only MCP configuration details. Select different MCPs from the dropdown above.
+              </p>
             </div>
           </div>
           <DialogFooter>
