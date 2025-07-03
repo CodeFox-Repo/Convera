@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@daveyplate/better-auth-ui";
-import { Home, Server, Users } from "lucide-react";
+import { Home, Server, ShoppingCart, Users } from "lucide-react";
 
 interface DashboardSidebarProps {
   activeSection: string;
@@ -28,12 +28,17 @@ const sidebarItems = [
     icon: Server,
     description: "Manage App MCP marketplace",
   },
+  {
+    id: "agentMarket",
+    label: "Agent Market",
+    icon: ShoppingCart,
+    description: "Manage Agent marketplace",
+  },
 ];
 
 export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSidebarProps) {
   return (
     <div className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-
       {/* Navigation - flex-1 to take up remaining space */}
       <nav className="flex-1 space-y-2 overflow-y-auto p-4">
         {sidebarItems.map((item) => {
