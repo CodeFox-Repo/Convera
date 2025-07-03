@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @plugin 'tailwindcss-animate';
 
@@ -42,6 +42,16 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* Brand colors for theme support */
+  --color-brand-50: hsl(var(--brand-50));
+  --color-brand-100: hsl(var(--brand-100));
+  --color-brand-200: hsl(var(--brand-200));
+  --color-brand-300: hsl(var(--brand-300));
+  --color-brand-400: hsl(var(--brand-400));
+  --color-brand-500: hsl(var(--brand-500));
+  --color-brand-600: hsl(var(--brand-600));
+  --color-brand-700: hsl(var(--brand-700));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -138,7 +148,7 @@
 
     --radius: 0.5rem;
 
-    /* Orange brand colors */
+    /* Orange brand colors (default) */
     --orange-50: 25 100% 97%;
     --orange-100: 24 100% 93%;
     --orange-200: 24 100% 86%;
@@ -147,6 +157,16 @@
     --orange-500: 24 100% 60%;
     --orange-600: 24 100% 54%;
     --orange-700: 22 100% 48%;
+
+    /* Dynamic brand colors (set by theme provider) */
+    --brand-50: var(--orange-50);
+    --brand-100: var(--orange-100);
+    --brand-200: var(--orange-200);
+    --brand-300: var(--orange-300);
+    --brand-400: var(--orange-400);
+    --brand-500: var(--orange-500);
+    --brand-600: var(--orange-600);
+    --brand-700: var(--orange-700);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 20%;
@@ -187,7 +207,7 @@
     --input: 0 0% 20%;
     --ring: 0 0% 100%;
 
-    /* Orange brand colors for dark mode */
+    /* Orange brand colors for dark mode (default) */
     --orange-50: 22 100% 8%;
     --orange-100: 22 100% 12%;
     --orange-200: 22 100% 20%;
@@ -196,6 +216,16 @@
     --orange-500: 24 100% 60%;
     --orange-600: 24 100% 65%;
     --orange-700: 25 100% 70%;
+
+    /* Dynamic brand colors for dark mode (set by theme provider) */
+    --brand-50: var(--orange-50);
+    --brand-100: var(--orange-100);
+    --brand-200: var(--orange-200);
+    --brand-300: var(--orange-300);
+    --brand-400: var(--orange-400);
+    --brand-500: var(--orange-500);
+    --brand-600: var(--orange-600);
+    --brand-700: var(--orange-700);
 
     --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 95%;
