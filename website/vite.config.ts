@@ -21,4 +21,19 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+    exclude: ['@tanstack/react-router-devtools'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router': ['@tanstack/react-router', '@tanstack/router-core'],
+          'query': ['@tanstack/react-query', '@tanstack/query-core'],
+        },
+      },
+    },
+  },
 }));
