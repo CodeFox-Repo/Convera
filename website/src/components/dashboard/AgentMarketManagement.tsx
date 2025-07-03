@@ -794,7 +794,15 @@ export function AgentMarketManagement() {
                 </div>
               ) : (
                 <div className="space-y-3 p-4">
-                  {filteredApps.map((app: any) => (
+                  {filteredApps.map((app: {
+                    id: string;
+                    name: string;
+                    description: string;
+                    iconUrl?: string;
+                    version?: string;
+                    keywords?: string[];
+                    author?: { name: string; url?: string };
+                  }) => (
                     <Card key={app.id} className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
