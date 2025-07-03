@@ -1,6 +1,6 @@
 packages:
   - "app"
-  - "!website"
+  - "website"
   - "market"
   - "docs"
   - "mcps/**"
