@@ -11,11 +11,13 @@ import {
   Sun,
   User,
   X,
+  Store,
 } from "lucide-react";
 
 // Import page components
 import { AccountSettingsPage } from "@/renderer/components/settings/pages/account-page";
 import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
+import { AgentMarketPage } from "@/renderer/components/settings/pages/agent-market-page";
 import { AppSettingsPage } from "@/renderer/components/settings/pages/app-page";
 import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
 import { GeneralSettingsPage } from "@/renderer/components/settings/pages/general-page";
@@ -95,6 +97,11 @@ function SettingsPage() {
       icon: <Bot className="h-5 w-5" />,
     },
     {
+      id: "agent-market",
+      label: "Agent Market",
+      icon: <Store className="h-5 w-5" />,
+    },
+    {
       id: "mcp",
       label: "MCP Servers",
       icon: <Server className="h-5 w-5" />,
@@ -118,6 +125,8 @@ function SettingsPage() {
         return (
           <AgentsSettingsPage onNavigateToMcp={() => handleTabChange("mcp")} />
         );
+      case "agent-market":
+        return <AgentMarketPage />;
       case "mcp":
         return <McpSettingsPage />;
       case "app":
