@@ -92,7 +92,7 @@ export class MCPHub extends EventEmitter {
     // Start all connections concurrently without waiting for completion
     // This avoids blocking initialization on slow/failing connections
     servers
-      .filter(([, serverConfig]) => serverConfig.disabled === false)
+      .filter(([, serverConfig]) => serverConfig.disabled !== true)
       .forEach(([name, serverConfig]) => {
         this.connectServer(name, serverConfig).catch((error) => {
           console.error(`✗ Failed to connect MCP server ${name}:`, error);
@@ -199,7 +199,7 @@ export class MCPHub extends EventEmitter {
     this.config.mcpServers[name] = config;
     this.saveConfig();
 
-    if (config.disabled === false) {
+    if (config.disabled !== true) {
       return await this.connectServer(name, config);
     } else {
       // Create connection but don't start
@@ -233,7 +233,7 @@ export class MCPHub extends EventEmitter {
       return connection.getServerInfo();
     } else {
       // If no connection exists, create one if enabled
-      if (config.disabled === false) {
+      if (config.disabled !== true) {
         return await this.connectServer(name, config);
       } else {
         // Create connection but don't start

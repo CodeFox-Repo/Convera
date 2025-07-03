@@ -11,14 +11,14 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
       title: "From Idea to Website in Minutes",
       description:
         "Watch how Foxychat transforms your vision into a fully functional website with just a conversation",
-      gradientColors: "bg-gradient-to-r from-orange-50 to-orange-100",
+      gradientColors: "bg-linear-to-r from-orange-50 to-orange-100",
     },
     {
       url: "/demos/excel-demo.mp4",
       title: "Excel Wizardry Made Simple",
       description:
         "Transform complex spreadsheet tasks into effortless conversations with your AI assistant",
-      gradientColors: "bg-gradient-to-r from-blue-50 to-blue-100",
+      gradientColors: "bg-linear-to-r from-blue-50 to-blue-100",
     },
   ];
 

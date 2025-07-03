@@ -1,0 +1,244 @@
+name: Sync Release to Public MacOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to sync (leave empty for latest)"
+        required: false
+        type: string
+
+jobs:
+  sync-to-homebrew:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Get latest release or use specified tag with full release info
+      - name: Get release information
+        id: get_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            # Use specified tag
+            TAG_NAME="${{ github.event.inputs.tag_name }}"
+            echo "🏷️ Using specified tag: $TAG_NAME"
+            
+            # Get specific release info
+            RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME")
+          else
+            # Get latest release
+            echo "🔍 Getting latest release..."
+            RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+            TAG_NAME=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+            echo "🏷️ Latest release tag: $TAG_NAME"
+          fi
+          
+          # Extract release information
+          RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name // "N/A"')
+          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available"')
+          
+          # Clean up release body for commit message (remove excessive newlines, limit length)
+          RELEASE_SUMMARY=$(echo "$RELEASE_BODY" | head -n 10 | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-500)
+          
+          # Remove 'v' prefix if present
+          VERSION=${TAG_NAME#v}
+          echo "📦 Version: $VERSION"
+          echo "📝 Release Name: $RELEASE_NAME"
+          echo "📄 Release Summary: $RELEASE_SUMMARY"
+          
+          # Set outputs (escape special characters for GitHub Actions)
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_OUTPUT
+          {
+            echo "RELEASE_SUMMARY<<EOF"
+            echo "$RELEASE_SUMMARY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      # Download DMG from source repository
+      - name: Download DMG from source release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_release.outputs.VERSION }}
+        run: |
+          echo "📥 Downloading DMG from source repository..."
+          DMG_URL="https://github.com/CodeFox-Repo/foxychat/releases/download/${TAG_NAME}/FoxyChat-${VERSION}-arm64.dmg"
+
+          # Download the DMG file
+          curl -L -o "FoxyChat-${VERSION}-arm64.dmg" "$DMG_URL"
+
+          # Verify download
+          if [ ! -f "FoxyChat-${VERSION}-arm64.dmg" ]; then
+            echo "❌ Failed to download DMG file"
+            exit 1
+          fi
+
+          # Calculate SHA256
+          DMG_SHA=$(shasum -a 256 "FoxyChat-${VERSION}-arm64.dmg" | cut -d' ' -f1)
+          echo "✅ Downloaded DMG with SHA256: $DMG_SHA"
+          echo "DMG_SHA=$DMG_SHA" >> $GITHUB_ENV
+
+      # Create release in homebrew repository
+      - name: Create release in homebrew repository
+        env:
+          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_release.outputs.VERSION }}
+          RELEASE_NAME: ${{ steps.get_release.outputs.RELEASE_NAME }}
+          RELEASE_SUMMARY: ${{ steps.get_release.outputs.RELEASE_SUMMARY }}
+        run: |
+          # Check if we have the required token
+          if [ -z "${{ secrets.REPO_ACCESS_TOKEN }}" ]; then
+            echo "❌ REPO_ACCESS_TOKEN not available"
+            echo "Please set up REPO_ACCESS_TOKEN secret with access to homebrew-codefox repository"
+            exit 1
+          fi
+
+          echo "🚀 Creating release in homebrew repository..."
+
+          # Create release using GitHub API with original release info
+          RELEASE_DATA='{
+            "tag_name": "'$TAG_NAME'",
+            "name": "'$RELEASE_NAME'",
+            "body": "FoxyChat version '$VERSION' - Synced from main repository\n\n## Original Release Summary\n'$RELEASE_SUMMARY'\n\n---\n\n**Source Release:** https://github.com/CodeFox-Repo/foxychat/releases/tag/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
+            "draft": false,
+            "prerelease": false
+          }'
+
+          # Create the release
+          RELEASE_RESPONSE=$(curl -X POST \
+            -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases" \
+            -d "$RELEASE_DATA")
+
+          # Extract upload URL
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
+
+          if [ "$UPLOAD_URL" = "null" ]; then
+            echo "❌ Failed to create release or release already exists"
+            echo "Response: $RELEASE_RESPONSE"
+            
+            # Check if release already exists
+            EXISTING_RELEASE=$(curl -s \
+              -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases/tags/$TAG_NAME")
+            
+            UPLOAD_URL=$(echo "$EXISTING_RELEASE" | jq -r '.upload_url' | sed 's/{?name,label}//')
+            
+            if [ "$UPLOAD_URL" = "null" ]; then
+              echo "❌ Could not get upload URL from existing release"
+              exit 1
+            else
+              echo "✅ Using existing release"
+            fi
+          else
+            echo "✅ Successfully created release"
+          fi
+
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+
+      # Upload DMG to homebrew repository release
+      - name: Upload DMG to homebrew repository
+        env:
+          VERSION: ${{ steps.get_release.outputs.VERSION }}
+        run: |
+          echo "📤 Uploading DMG to homebrew repository release..."
+
+          # Upload the DMG file
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"FoxyChat-${VERSION}-arm64.dmg" \
+            "${UPLOAD_URL}?name=FoxyChat-${VERSION}-arm64.dmg&label=FoxyChat-${VERSION}-arm64.dmg"
+
+          echo "✅ Successfully uploaded DMG"
+
+      # Update Homebrew formula to point to homebrew repository
+      - name: Update Homebrew formula
+        env:
+          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_release.outputs.VERSION }}
+          RELEASE_NAME: ${{ steps.get_release.outputs.RELEASE_NAME }}
+          RELEASE_SUMMARY: ${{ steps.get_release.outputs.RELEASE_SUMMARY }}
+        run: |
+          echo "🍺 Updating Homebrew formula to point to homebrew repository..."
+
+          # Clone Homebrew repository with the correct token
+          echo "📦 Cloning Homebrew repository..."
+          git clone https://x-access-token:${{ secrets.REPO_ACCESS_TOKEN }}@github.com/CodeFox-Repo/homebrew-codefox.git
+          cd homebrew-codefox
+
+          # Create Formula directory if it doesn't exist
+          mkdir -p Formula
+
+          # Create or update formula file (pointing to homebrew repository)
+          echo "📝 Creating Homebrew formula..."
+          cat > Formula/foxychat.rb << EOF
+          cask "foxychat" do
+            version "${VERSION}"
+            sha256 "${DMG_SHA}"
+            
+            url "https://github.com/CodeFox-Repo/homebrew-codefox/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
+            name "FoxyChat"
+            desc "All in one Chat App"
+            homepage "https://github.com/CodeFox-Repo/foxychat"
+            
+            app "FoxyChat.app"
+            
+            zap trash: [
+              "~/Library/Application Support/FoxyChat",
+              "~/Library/Preferences/com.codefox-foxychat.plist",
+              "~/Library/Saved Application State/com.codefox-foxychat.savedState",
+              "~/Library/Logs/FoxyChat"
+            ]
+          end
+          EOF
+
+          # Commit and push changes
+          echo "🚀 Committing and pushing changes..."
+          git config user.name "Sma1lboy"
+          git config user.email "541898146chen@gmail.com"
+          git add Formula/foxychat.rb
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "📋 No changes to commit - formula is already up to date"
+          else
+            git commit -m "Update FoxyChat to version ${VERSION} - ${RELEASE_NAME}
+
+            ${RELEASE_SUMMARY}
+
+            Release: ${TAG_NAME}
+            Source: https://github.com/CodeFox-Repo/foxychat/releases/tag/${TAG_NAME}
+            Homebrew Release: https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${TAG_NAME}
+            
+            Auto-synced by GitHub Actions"
+            git push
+            echo "✅ Successfully updated Homebrew formula to version ${VERSION}"
+          fi
+
+      # Summary
+      - name: Summary
+        if: always()
+        env:
+          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_release.outputs.VERSION }}
+        run: |
+          echo "## 📋 Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Tag:** $TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source:** https://github.com/CodeFox-Repo/foxychat/releases/tag/$TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Homebrew Release:** https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/$TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Formula:** \`brew install codefox/codefox/foxychat\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **DMG SHA256:** \`$DMG_SHA\`" >> $GITHUB_STEP_SUMMARY

@@ -24,8 +24,33 @@ TAG_NAME="v$APP_VERSION"
 echo "🏷️  Creating git tag: $TAG_NAME"
 
 if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-    echo "❌ Tag $TAG_NAME already exists!"
-    exit 1
+    echo "⚠️  Tag $TAG_NAME already exists!"
+    echo "What would you like to do?"
+    echo "  [r] Replace existing tag (delete and recreate)"
+    echo "  [s] Skip tag creation and just push commits"
+    echo "  [c] Cancel release"
+    read -p "Choose an option (r/s/c): " choice
+    
+    case $choice in
+        r|R)
+            echo "🗑️  Deleting existing local tag..."
+            git tag -d "$TAG_NAME"
+            echo "🗑️  Deleting existing remote tag..."
+            git push origin ":refs/tags/$TAG_NAME" 2>/dev/null || echo "Remote tag might not exist"
+            echo "✅ Existing tags deleted, proceeding with new tag creation..."
+            ;;
+        s|S)
+            echo "⏭️  Skipping tag creation, pushing commits only..."
+            git push origin main
+            echo "✅ Commits pushed successfully!"
+            echo "🎉 Released version: $APP_VERSION (no new tag created)"
+            exit 0
+            ;;
+        c|C|*)
+            echo "❌ Release cancelled by user"
+            exit 0
+            ;;
+    esac
 fi
 
 git tag -a "$TAG_NAME" -m "Release $TAG_NAME"

@@ -33,69 +33,27 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { baseURL } from "@/lib/api-client";
+import {
+  useApps,
+  useCreateApp,
+  useDeleteApp,
+  useImportApps,
+  useUpdateApp,
+} from "@/hooks/use-request";
+import { MCPAuthor, MCPManagementFormData, MCPServer, MCPServerConfig } from "@/types/market";
 import { Copy, Download, Edit, FileJson, Plus, Server, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface MCPServerConfig {
-  name?: string;
-  enabled?: boolean;
-  command?: string;
-  args?: string[];
-  cwd?: string;
-  env?: Record<string, string>;
-  url?: string;
-  apiKey?: string;
-  description?: string;
-  isSSE?: boolean;
-}
-
-interface MCPAuthor {
-  name: string;
-  url?: string;
-}
-
-interface MCPFile {
-  type: 'dataUrl' | 'url' | 'path';
-  content: string;
-}
-
-interface MCPServer {
-  id: string;
-  name: string;
-  description: string;
-  iconUrl: string;
-  config: MCPServerConfig;
-  version: string;
-  keywords: string[];
-  author: MCPAuthor;
-  fileType: string | null;
-  fileContent: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface MCPFormData {
-  serverId: string;
-  name: string;
-  description: string;
-  iconUrl: string;
-  command: string;
-  args: string;
-  url: string;
-  apiKey: string;
-  version: string;
-  keywords: string;
-  authorName: string;
-  authorUrl: string;
-}
-
 export function MCPManagement() {
-  const [servers, setServers] = useState<MCPServer[]>([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks
+  const { data: servers = [], isLoading: loading, error, refetch } = useApps({ enabled: true });
+  const createAppMutation = useCreateApp();
+  const updateAppMutation = useUpdateApp();
+  const deleteAppMutation = useDeleteApp();
+  const importAppsMutation = useImportApps();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<MCPServer | null>(null);
-  const [formData, setFormData] = useState<MCPFormData>({
+  const [formData, setFormData] = useState<MCPManagementFormData>({
     serverId: "",
     name: "",
     description: "",
@@ -116,39 +74,14 @@ export function MCPManagement() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [jsonConfigView, setJsonConfigView] = useState("");
-  
+
   // Keywords management
   const [keywordsList, setKeywordsList] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
-  
+
   // Arguments management
   const [argumentsList, setArgumentsList] = useState<string[]>([]);
   const [argumentInput, setArgumentInput] = useState("");
-
-  // Fetch MCP servers
-  const fetchServers = async () => {
-    try {
-      const response = await fetch(`${baseURL}/api/app`);
-      const data = await response.json();
-      if (data.success) {
-        setServers(data.data.mcpServers);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch App MCP list",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // State for icon file
   const [iconFile, setIconFile] = useState<File | null>(null);
@@ -165,14 +98,14 @@ export function MCPManagement() {
   };
 
   const removeKeyword = (keyword: string) => {
-    const newKeywords = keywordsList.filter(k => k !== keyword);
+    const newKeywords = keywordsList.filter((k) => k !== keyword);
     setKeywordsList(newKeywords);
     setFormData((prev) => ({ ...prev, keywords: newKeywords.join(", ") }));
     setHasUnsavedChanges(true);
   };
 
   const handleKeywordInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addKeyword();
     }
@@ -190,14 +123,14 @@ export function MCPManagement() {
   };
 
   const removeArgument = (argument: string) => {
-    const newArguments = argumentsList.filter(arg => arg !== argument);
+    const newArguments = argumentsList.filter((arg) => arg !== argument);
     setArgumentsList(newArguments);
     setFormData((prev) => ({ ...prev, args: newArguments.join(", ") }));
     setHasUnsavedChanges(true);
   };
 
   const handleArgumentInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addArgument();
     }
@@ -225,9 +158,7 @@ export function MCPManagement() {
         name: formData.authorName,
         url: formData.authorUrl,
       },
-      file: formData.iconUrl
-        ? { type: "dataUrl", content: formData.iconUrl }
-        : null,
+      file: formData.iconUrl ? { type: "dataUrl", content: formData.iconUrl } : null,
     };
     return JSON.stringify(server, null, 2);
   }, [formData, keywordsList, argumentsList]);
@@ -268,7 +199,7 @@ export function MCPManagement() {
         if (serverKeys.length > 0) {
           const serverId = serverKeys[0];
           const serverConfig = parsed.mcpServers[serverId];
-          
+
           const oldArgs = Array.isArray(serverConfig.args) ? serverConfig.args : [];
           setKeywordsList([]);
           setArgumentsList(oldArgs);
@@ -358,140 +289,68 @@ export function MCPManagement() {
 
   // Save MCP server
   const saveServer = async () => {
-    try {
-      const config: MCPServerConfig = {
+    const config: MCPServerConfig = {
+      command: formData.command,
+      args: argumentsList,
+      url: formData.url || undefined,
+    };
+
+    const author: MCPAuthor = {
+      name: formData.authorName,
+      url: formData.authorUrl || undefined,
+    };
+
+    if (editingServer) {
+      // For updates, include new fields
+      const payload = {
         name: formData.name,
-        command: formData.command,
-        args: argumentsList,
-        url: formData.url || undefined,
-        apiKey: formData.apiKey || undefined,
         description: formData.description,
+        iconUrl: formData.iconUrl || undefined,
+        config,
+        version: formData.version,
+        keywords: keywordsList,
+        author,
       };
 
-      const author: MCPAuthor = {
-        name: formData.authorName,
-        url: formData.authorUrl || undefined,
-      };
-
-      if (editingServer) {
-        // For updates, include new fields
-        const payload = {
-          name: formData.name,
-          description: formData.description,
-          iconUrl: formData.iconUrl || undefined,
-          config,
-          version: formData.version,
-          keywords: keywordsList,
-          author,
-        };
-
-        const response = await fetch(`${baseURL}/api/app/${editingServer.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
+      updateAppMutation.mutate(
+        { appId: editingServer.id, data: payload },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            resetForm();
+            setHasUnsavedChanges(false);
           },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        });
+        },
+      );
+    } else {
+      // For creation, use FormData to include icon upload
+      const formDataToSend = new FormData();
+      formDataToSend.append("serverId", formData.serverId);
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("config", JSON.stringify(config));
+      formDataToSend.append("version", formData.version);
+      formDataToSend.append("keywords", JSON.stringify(keywordsList));
+      formDataToSend.append("author", JSON.stringify(author));
 
-        const data = await response.json();
-
-        if (data.success) {
-          toast({
-            title: "Success",
-            description: "App MCP updated successfully",
-          });
-          setDialogOpen(false);
-          resetForm();
-          setHasUnsavedChanges(false);
-          fetchServers();
-        } else {
-          toast({
-            title: "Error",
-            description: data.error || "Failed to update App MCP",
-            variant: "destructive",
-          });
-        }
-      } else {
-        // For creation, use FormData to include icon upload
-        const formDataToSend = new FormData();
-        formDataToSend.append("serverId", formData.serverId);
-        formDataToSend.append("name", formData.name);
-        formDataToSend.append("description", formData.description);
-        formDataToSend.append("config", JSON.stringify(config));
-        formDataToSend.append("version", formData.version);
-        formDataToSend.append("keywords", JSON.stringify(keywordsList));
-        formDataToSend.append("author", JSON.stringify(author));
-
-        // Add icon file if selected
-        if (iconFile) {
-          formDataToSend.append("icon", iconFile);
-        }
-
-        const response = await fetch(`${baseURL}/api/app`, {
-          method: "POST",
-          credentials: "include",
-          body: formDataToSend,
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          toast({
-            title: "Success",
-            description: "App MCP created successfully",
-          });
-          setDialogOpen(false);
-          resetForm();
-          setHasUnsavedChanges(false);
-          fetchServers();
-        } else {
-          toast({
-            title: "Error",
-            description: data.error || "Failed to create App MCP",
-            variant: "destructive",
-          });
-        }
+      // Add icon file if selected
+      if (iconFile) {
+        formDataToSend.append("icon", iconFile);
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save App MCP",
-        variant: "destructive",
+
+      createAppMutation.mutate(formDataToSend, {
+        onSuccess: () => {
+          setDialogOpen(false);
+          resetForm();
+          setHasUnsavedChanges(false);
+        },
       });
     }
   };
 
   // Delete MCP server
-  const deleteServer = async (serverId: string) => {
-    try {
-      const response = await fetch(`${baseURL}/api/app/${serverId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: "App MCP deleted successfully",
-        });
-        fetchServers();
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to delete App MCP",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete App MCP",
-        variant: "destructive",
-      });
-    }
+  const deleteServer = (serverId: string) => {
+    deleteAppMutation.mutate(serverId);
   };
 
   // Reset form
@@ -536,7 +395,7 @@ export function MCPManagement() {
       command: server.config.command || "",
       args: args.join(", "),
       url: server.config.url || "",
-      apiKey: server.config.apiKey || "",
+      apiKey: "",
       version: server.version || "1.0.0",
       keywords: keywords.join(", "),
       authorName: server.author?.name || "",
@@ -575,7 +434,19 @@ export function MCPManagement() {
   const exportServers = () => {
     const exportData = {
       mcpServers: servers.reduce(
-        (acc, server) => {
+        (
+          acc: Record<
+            string,
+            {
+              name: string;
+              description: string;
+              command?: string;
+              args?: string[];
+              iconUrl?: string;
+            }
+          >,
+          server: MCPServer,
+        ) => {
           acc[server.id] = {
             name: server.name,
             description: server.description,
@@ -655,7 +526,11 @@ export function MCPManagement() {
             name: server.mcpconfig?.name || server.config?.name || server.name,
             command: server.mcpconfig?.command || server.config?.command || "",
             args: server.mcpconfig?.args || server.config?.args || [],
-            description: server.mcpconfig?.description || server.config?.description || server.description || "",
+            description:
+              server.mcpconfig?.description ||
+              server.config?.description ||
+              server.description ||
+              "",
             ...(server.mcpconfig?.url && { url: server.mcpconfig.url }),
             ...(server.config?.url && { url: server.config.url }),
             ...(server.mcpconfig?.apiKey && { apiKey: server.mcpconfig.apiKey }),
@@ -702,55 +577,40 @@ export function MCPManagement() {
         });
       }
 
-      const importPromises = serversToImport.map(async (payload) => {
-        // Create FormData for each server (following the same pattern as saveServer)
-        const formDataToSend = new FormData();
-        formDataToSend.append("serverId", payload.serverId);
-        formDataToSend.append("name", payload.name);
-        formDataToSend.append("description", payload.description);
-        formDataToSend.append("config", JSON.stringify(payload.config));
-        formDataToSend.append("version", payload.version);
-        formDataToSend.append("keywords", JSON.stringify(payload.keywords));
-        formDataToSend.append("author", JSON.stringify(payload.author));
+      const formDataArray = await Promise.all(
+        serversToImport.map(async (payload) => {
+          // Create FormData for each server (following the same pattern as saveServer)
+          const formDataToSend = new FormData();
+          formDataToSend.append("serverId", payload.serverId);
+          formDataToSend.append("name", payload.name);
+          formDataToSend.append("description", payload.description);
+          formDataToSend.append("config", JSON.stringify(payload.config));
+          formDataToSend.append("version", payload.version);
+          formDataToSend.append("keywords", JSON.stringify(payload.keywords));
+          formDataToSend.append("author", JSON.stringify(payload.author));
 
-        // Handle base64 icon data if present
-        if (payload.iconUrl && payload.iconUrl.startsWith("data:")) {
-          try {
-            // Convert base64 dataURL to blob
-            const response = await fetch(payload.iconUrl);
-            const blob = await response.blob();
-            formDataToSend.append("icon", blob, "icon.png");
-          } catch (error) {
-            console.warn(`Failed to process icon for ${payload.serverId}:`, error);
+          // Handle base64 icon data if present
+          if (payload.iconUrl && payload.iconUrl.startsWith("data:")) {
+            try {
+              // Convert base64 dataURL to blob
+              const response = await fetch(payload.iconUrl);
+              const blob = await response.blob();
+              formDataToSend.append("icon", blob, "icon.png");
+            } catch (error) {
+              console.warn(`Failed to process icon for ${payload.serverId}:`, error);
+            }
           }
-        }
 
-        return fetch(`${baseURL}/api/app`, {
-          method: "POST",
-          credentials: "include",
-          body: formDataToSend,
-        });
+          return formDataToSend;
+        }),
+      );
+
+      importAppsMutation.mutate(formDataArray, {
+        onSuccess: () => {
+          setJsonImportOpen(false);
+          setJsonContent("");
+        },
       });
-
-      const results = await Promise.allSettled(importPromises);
-      const successful = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected").length;
-
-      if (successful > 0) {
-        toast({
-          title: "Import completed",
-          description: `Successfully imported ${successful} App MCP${failed > 0 ? `, ${failed} failed` : ""}`,
-        });
-        setJsonImportOpen(false);
-        setJsonContent("");
-        fetchServers();
-      } else {
-        toast({
-          title: "Import failed",
-          description: "No App MCP were imported successfully",
-          variant: "destructive",
-        });
-      }
     } catch (error) {
       toast({
         title: "Error",
@@ -777,9 +637,31 @@ export function MCPManagement() {
     setJsonConfigView(generateJsonFromForm());
   }, [formData, generateJsonFromForm]);
 
-  useEffect(() => {
-    fetchServers();
-  }, []);
+  // Show error state if apps failed to load
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center">
+            <div className="shrink-0">
+              <X className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading App MCP</h3>
+              <div className="mt-2 text-sm text-red-700">
+                Failed to load App MCP. Please try refreshing the page.
+              </div>
+            </div>
+            <div className="ml-auto pl-3">
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -1131,7 +1013,9 @@ export function MCPManagement() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">Press Enter or click + to add command arguments</p>
+                  <p className="text-xs text-gray-500">
+                    Press Enter or click + to add command arguments
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -1241,7 +1125,17 @@ export function MCPManagement() {
               >
                 Cancel
               </Button>
-              <Button onClick={saveServer}>{editingServer ? "Update" : "Create"} Server</Button>
+              <Button
+                onClick={saveServer}
+                disabled={createAppMutation.isPending || updateAppMutation.isPending}
+              >
+                {createAppMutation.isPending || updateAppMutation.isPending
+                  ? "Saving..."
+                  : editingServer
+                    ? "Update"
+                    : "Create"}{" "}
+                Server
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1309,7 +1203,7 @@ export function MCPManagement() {
                   </TableCell>
                 </TableRow>
               ) : (
-                servers.map((server) => (
+                servers.map((server: MCPServer) => (
                   <TableRow key={server.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -1317,10 +1211,10 @@ export function MCPManagement() {
                           <img
                             src={server.iconUrl}
                             alt={server.name}
-                            className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-sm"
+                            className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-xs"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-xs">
                             {server.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -1344,7 +1238,9 @@ export function MCPManagement() {
                       <div className="space-y-1">
                         {server.author && server.author.name && (
                           <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium text-gray-900">{server.author.name}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {server.author.name}
+                            </span>
                           </div>
                         )}
                         {server.author && server.author.url && (
@@ -1360,8 +1256,8 @@ export function MCPManagement() {
                           </div>
                         )}
                         {server.keywords && server.keywords.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {server.keywords.slice(0, 3).map((keyword, index) => (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {server.keywords.slice(0, 3).map((keyword: string, index: number) => (
                               <span
                                 key={index}
                                 className="inline-flex items-center rounded-md bg-gray-50 px-1.5 py-0.5 text-xs font-medium text-gray-600"
@@ -1376,9 +1272,10 @@ export function MCPManagement() {
                             )}
                           </div>
                         )}
-                        {(!server.author || !server.author.name) && (!server.keywords || server.keywords.length === 0) && (
-                          <span className="text-xs text-gray-400">No author info</span>
-                        )}
+                        {(!server.author || !server.author.name) &&
+                          (!server.keywords || server.keywords.length === 0) && (
+                            <span className="text-xs text-gray-400">No author info</span>
+                          )}
                       </div>
                     </TableCell>
                     <TableCell>
