@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/theme/theme-switcher";
 import { Link } from "@tanstack/react-router";
 import { Download, ExternalLink, FileText, Menu, Play, X } from "lucide-react";
 import React, { useState } from "react";
@@ -30,13 +31,13 @@ const Navbar: React.FC = () => {
           <nav className="hidden items-center space-x-8 md:flex">
             <a
               href="#demo"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-orange-500"
+              className="group hover:text-brand-500 relative text-gray-600 transition-colors duration-300"
             >
               <span className="flex items-center space-x-1 text-sm font-medium">
                 <Play className="h-4 w-4" />
                 <span>Demo</span>
               </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
+              <div className="from-brand-500 to-brand-400 absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r transition-all duration-300 group-hover:w-full"></div>
             </a>
 
             <a
@@ -56,6 +57,8 @@ const Navbar: React.FC = () => {
 
           {/* CTA Buttons */}
           <div className="hidden items-center space-x-4 md:flex">
+            <ThemeSwitcher variant="compact" />
+
             <Badge
               variant="outline"
               className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
@@ -93,7 +96,7 @@ const Navbar: React.FC = () => {
               <a
                 href="#demo"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-orange-50 hover:text-orange-500"
+                className="hover:bg-brand-50 hover:text-brand-500 flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200"
               >
                 <Play className="h-4 w-4" />
                 <span className="font-medium">Demo</span>
@@ -122,7 +125,7 @@ const Navbar: React.FC = () => {
                 </div>
 
                 <Button
-                  className="w-full bg-linear-to-r from-orange-500 to-orange-400 text-white shadow-lg hover:from-orange-600 hover:to-orange-500"
+                  className="from-brand-500 to-brand-400 hover:from-brand-600 hover:to-brand-500 w-full bg-linear-to-r text-white shadow-lg"
                   asChild
                   onClick={() => setIsMenuOpen(false)}
                 >

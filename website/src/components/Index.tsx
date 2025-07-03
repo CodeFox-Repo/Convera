@@ -180,18 +180,18 @@ const Index = () => {
 
       {/* Hero Section */}
       <section
-        className="relative w-full overflow-hidden bg-linear-to-br from-orange-50 to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
+        className="from-brand-50 relative w-full overflow-hidden bg-linear-to-br to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
         {/* Animated background elements */}
-        <div className="absolute inset-0 animate-pulse bg-linear-to-r from-transparent via-orange-200/10 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-orange-100/20 to-transparent"></div>
+        <div className="via-brand-200/10 absolute inset-0 animate-pulse bg-linear-to-r from-transparent to-transparent"></div>
+        <div className="from-brand-100/20 absolute top-0 right-0 h-full w-1/3 bg-linear-to-l to-transparent"></div>
         <div
-          className="absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full bg-orange-200/8 blur-xl"
+          className="bg-brand-200/8 absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full blur-xl"
           style={{ animationDuration: "3s" }}
         ></div>
         <div
-          className="absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse rounded-full bg-orange-100/12 blur-2xl"
+          className="bg-brand-100/12 absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse rounded-full blur-2xl"
           style={{ animationDuration: "4s" }}
         ></div>
 
@@ -214,7 +214,7 @@ const Index = () => {
                 className={`text-muted-foreground max-w-[520px] text-xl leading-relaxed font-medium transition-all delay-400 duration-1000 md:text-2xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
                 Your personal desktop AI assistant that leverages{" "}
-                <span className="font-semibold text-orange-600">Model Context Protocol (MCP)</span>{" "}
+                <span className="text-brand-600 font-semibold">Model Context Protocol (MCP)</span>{" "}
                 to understand your workflows and automate repetitive tasks intelligently.
               </p>
               <div
@@ -222,7 +222,7 @@ const Index = () => {
               >
                 <Button
                   size="lg"
-                  className="transform animate-pulse bg-linear-to-r from-orange-500 to-orange-400 px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-orange-600 hover:to-orange-500 hover:shadow-orange-400/40"
+                  className="from-brand-500 to-brand-400 hover:from-brand-600 hover:to-brand-500 hover:shadow-brand-400/40 transform animate-pulse bg-linear-to-r px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none"
                   style={{ animationDuration: "2s" }}
                   asChild
                 >
@@ -260,19 +260,19 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="border-brand-200 hover:border-brand-300 hover:bg-brand-50 absolute top-1/2 left-0 z-10 -translate-y-1/2 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110"
                 onClick={scrollLeft}
               >
-                <ChevronLeft className="h-4 w-4 text-orange-600" />
+                <ChevronLeft className="text-brand-600 h-4 w-4" />
               </Button>
 
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="border-brand-200 hover:border-brand-300 hover:bg-brand-50 absolute top-1/2 right-0 z-10 -translate-y-1/2 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110"
                 onClick={scrollRight}
               >
-                <ChevronRight className="h-4 w-4 text-orange-600" />
+                <ChevronRight className="text-brand-600 h-4 w-4" />
               </Button>
 
               <div className="mx-12 overflow-hidden">
