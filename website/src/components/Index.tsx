@@ -180,12 +180,12 @@ const Index = () => {
 
       {/* Hero Section */}
       <section
-        className="relative w-full overflow-hidden bg-gradient-to-br from-orange-50 to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
+        className="relative w-full overflow-hidden bg-linear-to-br from-orange-50 to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
         {/* Animated background elements */}
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-orange-200/10 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-orange-100/20 to-transparent"></div>
+        <div className="absolute inset-0 animate-pulse bg-linear-to-r from-transparent via-orange-200/10 to-transparent"></div>
+        <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-orange-100/20 to-transparent"></div>
         <div
           className="absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full bg-orange-200/8 blur-xl"
           style={{ animationDuration: "3s" }}
@@ -222,7 +222,7 @@ const Index = () => {
               >
                 <Button
                   size="lg"
-                  className="transform animate-pulse bg-gradient-to-r from-orange-500 to-orange-400 px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-orange-600 hover:to-orange-500 hover:shadow-orange-400/40"
+                  className="transform animate-pulse bg-linear-to-r from-orange-500 to-orange-400 px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-orange-600 hover:to-orange-500 hover:shadow-orange-400/40"
                   style={{ animationDuration: "2s" }}
                   asChild
                 >
@@ -238,7 +238,7 @@ const Index = () => {
             <div
               className={`mt-8 flex justify-center transition-all delay-300 duration-1200 lg:mt-0 lg:justify-end ${isVisible.hero ? "translate-x-0 scale-100 opacity-100" : "translate-x-8 scale-95 opacity-0"}`}
             >
-              <div className="min-h-[32rem] w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-[36rem] xl:min-h-[40rem]">
+              <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
                 <HeroImage />
               </div>
             </div>
@@ -260,7 +260,7 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
                 onClick={scrollLeft}
               >
                 <ChevronLeft className="h-4 w-4 text-orange-600" />
@@ -269,7 +269,7 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
                 onClick={scrollRight}
               >
                 <ChevronRight className="h-4 w-4 text-orange-600" />
@@ -315,7 +315,7 @@ const Index = () => {
                   ].map((app, index) => (
                     <Card
                       key={index}
-                      className={`group h-24 w-24 flex-shrink-0 border border-orange-100/60 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:border-orange-200 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                      className={`group h-24 w-24 shrink-0 border border-orange-100/60 bg-white/90 shadow-md backdrop-blur-xs transition-all duration-300 hover:scale-110 hover:border-orange-200 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
                       style={{
                         transitionDelay: `${(index % 13) * 100}ms`,
                         animation: isVisible.apps
@@ -351,7 +351,7 @@ const Index = () => {
       {/* Benefits Section */}
       <section
         id="demo"
-        className="w-full bg-gradient-to-b from-orange-50/20 to-white py-20 md:py-28"
+        className="w-full bg-linear-to-b from-orange-50/20 to-white py-20 md:py-28"
         data-section="demo"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -371,7 +371,7 @@ const Index = () => {
           <div
             className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.demo ? "translate-x-0 opacity-100" : "-translate-x-8 opacity-0"}`}
           >
-            <div className="w-full max-w-2xl space-y-6 rounded-xl border border-gray-200/50 bg-white/80 p-8 shadow-lg backdrop-blur-sm transition-shadow duration-300 hover:shadow-xl md:p-10">
+            <div className="w-full max-w-2xl space-y-6 rounded-xl border border-gray-200/50 bg-white/80 p-8 shadow-lg backdrop-blur-xs transition-shadow duration-300 hover:shadow-xl md:p-10">
               <div className="space-y-3">
                 <div className="text-muted-foreground text-sm font-medium">Instead of:</div>
                 <div className="transform rounded-lg border border-red-100 bg-red-50 p-3 font-mono text-sm text-red-600 transition-transform duration-200 hover:scale-105">
@@ -394,7 +394,7 @@ const Index = () => {
 
       {/* Does a Lot More Than chat Section */}
       <section
-        className="w-full bg-gradient-to-br from-gray-50/50 via-blue-50/30 to-indigo-50/40 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-gray-50/50 via-blue-50/30 to-indigo-50/40 py-16 md:py-24"
         data-section="features"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -416,7 +416,7 @@ const Index = () => {
             <div className="w-full max-w-2xl">
               <div className="relative overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl transition-all duration-300 hover:border-blue-300 hover:shadow-2xl">
                 <div className="aspect-video w-full">
-                  <div className="hover:to-blue-150 flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 transition-all duration-300 hover:from-blue-100">
+                  <div className="hover:to-blue-150 flex h-full w-full items-center justify-center bg-linear-to-br from-blue-50 to-blue-100 transition-all duration-300 hover:from-blue-100">
                     <div className="space-y-3 text-center">
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
                         <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -456,10 +456,10 @@ const Index = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className={`transform space-y-4 rounded-lg border border-blue-100/50 bg-white/60 p-6 text-center shadow-sm backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+                className={`transform space-y-4 rounded-lg border border-blue-100/50 bg-white/60 p-6 text-center shadow-xs backdrop-blur-xs transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
                 style={{ transitionDelay: `${400 + feature.delay}ms` }}
               >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 shadow-xs transition-all duration-300 hover:scale-110 hover:shadow-md">
                   <span className="text-lg text-orange-600">{feature.emoji}</span>
                 </div>
                 <h4 className="text-xl font-semibold">{feature.title}</h4>
@@ -472,7 +472,7 @@ const Index = () => {
 
       {/* Core Features Section */}
       <section
-        className="w-full bg-gradient-to-br from-white via-gray-50/30 to-blue-50/20 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-white via-gray-50/30 to-blue-50/20 py-16 md:py-24"
         data-section="coreFeatures"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -499,7 +499,7 @@ const Index = () => {
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/current-app-detected.jpg)" }}
               />
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6">
+              <div className="bg-linear-to-r from-green-50 to-emerald-50 p-6">
                 <h3 className="mb-3 text-xl font-semibold text-gray-800">Smart App Detection</h3>
                 <p className="text-sm leading-relaxed text-gray-600">
                   Automatically detects your current application and provides contextual assistance.
@@ -517,7 +517,7 @@ const Index = () => {
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/mcp-market.jpg)" }}
               />
-              <div className="h-full bg-gradient-to-r from-blue-50 to-cyan-50 p-6">
+              <div className="h-full bg-linear-to-r from-blue-50 to-cyan-50 p-6">
                 <h3 className="mb-3 text-xl font-semibold text-gray-800">MCP Marketplace</h3>
                 <p className="text-sm leading-relaxed text-gray-600">
                   Explore a rich ecosystem of Model Context Protocol integrations. Discover and
@@ -531,7 +531,7 @@ const Index = () => {
 
       {/* Build Your Own Agent Section */}
       <section
-        className="w-full bg-gradient-to-br from-indigo-50/40 via-purple-50/30 to-pink-50/40 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-indigo-50/40 via-purple-50/30 to-pink-50/40 py-16 md:py-24"
         data-section="agent"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -581,10 +581,10 @@ const Index = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className={`transform space-y-4 rounded-lg border border-purple-100/50 bg-white/60 p-8 text-center shadow-sm backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.agent ? "translate-x-0 opacity-100" : `opacity-0 ${feature.direction === "left" ? "-translate-x-8" : "translate-x-8"}`}`}
+                className={`transform space-y-4 rounded-lg border border-purple-100/50 bg-white/60 p-8 text-center shadow-xs backdrop-blur-xs transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.agent ? "translate-x-0 opacity-100" : `opacity-0 ${feature.direction === "left" ? "-translate-x-8" : "translate-x-8"}`}`}
                 style={{ transitionDelay: `${400 + index * 200}ms` }}
               >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 shadow-xs transition-all duration-300 hover:scale-110 hover:shadow-md">
                   <span className="text-lg text-blue-600">{feature.emoji}</span>
                 </div>
                 <h4 className="text-xl font-semibold">{feature.title}</h4>

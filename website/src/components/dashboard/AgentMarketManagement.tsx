@@ -410,7 +410,7 @@ export function AgentMarketManagement() {
       <div className="space-y-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <X className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">
@@ -577,7 +577,7 @@ export function AgentMarketManagement() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="flex h-[90vh] max-w-[95vw] flex-col">
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
           </DialogHeader>
 
@@ -691,7 +691,7 @@ export function AgentMarketManagement() {
             {/* Right Panel - MCP Installation Configuration */}
             <div className="flex w-3/5 flex-col">
               <Card className="flex flex-1 flex-col">
-                <CardHeader className="flex-shrink-0 pb-3">
+                <CardHeader className="shrink-0 pb-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-lg">MCP Installation Configuration</CardTitle>
@@ -730,7 +730,7 @@ export function AgentMarketManagement() {
             </div>
           </div>
 
-          <DialogFooter className="flex-shrink-0">
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
@@ -754,7 +754,7 @@ export function AgentMarketManagement() {
       {/* App Search Dialog */}
       <Dialog open={appSearchOpen} onOpenChange={setAppSearchOpen}>
         <DialogContent className="flex h-[80vh] max-w-5xl flex-col" style={{ zIndex: 1000 }}>
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Search Available Apps</DialogTitle>
             <DialogDescription>
               Browse and select from available MCP applications to add to your agent configuration.
@@ -763,7 +763,7 @@ export function AgentMarketManagement() {
 
           <div className="flex min-h-0 flex-1 flex-col space-y-4">
             {/* Search Input */}
-            <div className="flex flex-shrink-0 gap-2">
+            <div className="flex shrink-0 gap-2">
               <Input
                 placeholder="Search apps by name, description, or keywords..."
                 value={appSearchQuery}
@@ -846,7 +846,7 @@ export function AgentMarketManagement() {
             </div>
           </div>
 
-          <DialogFooter className="bg-background flex-shrink-0 border-t pt-4">
+          <DialogFooter className="bg-background shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setAppSearchOpen(false)}>
               Close
             </Button>
