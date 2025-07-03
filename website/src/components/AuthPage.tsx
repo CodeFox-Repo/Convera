@@ -1,9 +1,13 @@
+import { useAuthRedirect } from "@/hooks/use-auth-redirect";
 import { AuthCard } from "@daveyplate/better-auth-ui";
 import { useParams } from "@tanstack/react-router";
 import Navbar from "./Navbar";
 
 export default function AuthPage() {
   const { pathname = "sign-in" } = useParams({ from: "/auth/$pathname" });
+
+  // Handle role-based redirection after successful login
+  useAuthRedirect();
 
   return (
     <div className="min-h-screen bg-linear-to-br from-orange-50 to-pink-50">
