@@ -207,8 +207,8 @@ jobs:
 
           # Commit and push changes
           echo "🚀 Committing and pushing changes..."
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "Sma1lboy"
+          git config user.email "541898146chen@gmail.com"
           git add Formula/foxychat.rb
 
           # Check if there are changes to commit
