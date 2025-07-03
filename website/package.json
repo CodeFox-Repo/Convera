@@ -1,7 +1,7 @@
 {
   "name": "@foxychat/website",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "NODE_ENV=production-dev vite",
