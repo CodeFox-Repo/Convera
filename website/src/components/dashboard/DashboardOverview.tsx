@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDashboardStats } from "@/hooks/use-request";
 import { Bot, Mail, Server, Shield, TrendingUp, Users } from "lucide-react";
-import { useDashboardStats } from "@/hooks/useRequest";
 
 interface DashboardOverviewProps {
   onSectionChange?: (section: string) => void;
@@ -66,8 +66,12 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
             <p className="text-muted-foreground text-xs">
-              +{stats?.recentRegistrations?.reduce((sum: number, day: { count: number }) => sum + day.count, 0) || 0} this
-              month
+              +
+              {stats?.recentRegistrations?.reduce(
+                (sum: number, day: { count: number }) => sum + day.count,
+                0,
+              ) || 0}{" "}
+              this month
             </p>
           </CardContent>
         </Card>
@@ -128,9 +132,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.agentMarket?.total || 0}</div>
-            <p className="text-muted-foreground text-xs">
-              Published agents
-            </p>
+            <p className="text-muted-foreground text-xs">Published agents</p>
           </CardContent>
         </Card>
       </div>

@@ -20,13 +20,117 @@ import {
   Smartphone,
   Star,
   Users,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+interface GitHubRelease {
+  tag_name: string;
+  name: string;
+  body: string;
+  published_at: string;
+  assets: Array<{
+    name: string;
+    browser_download_url: string;
+    size: number;
+    content_type: string;
+  }>;
+}
 
 const Download = () => {
   const { toast } = useToast();
-  const currentVersion = "0.0.8";
-  const releaseDate = "June 1, 2025";
+  const [latestRelease, setLatestRelease] = useState<GitHubRelease | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch latest release from homebrew-codefox repository
+  useEffect(() => {
+    const fetchLatestRelease = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch(
+          'https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases/latest',
+          {
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`GitHub API error: ${response.status}`);
+        }
+
+        const release: GitHubRelease = await response.json();
+        setLatestRelease(release);
+      } catch (err) {
+        console.error('Failed to fetch latest release:', err);
+        setError('Failed to load latest version information');
+        
+        // Fallback to default values
+        setLatestRelease({
+          tag_name: 'v0.0.8',
+          name: 'FoxyChat 0.0.8',
+          body: 'Latest version of FoxyChat with improved performance and new features.',
+          published_at: '2025-01-01T00:00:00Z',
+          assets: []
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLatestRelease();
+  }, []);
+
+  // Helper functions
+  const getVersionNumber = () => {
+    if (!latestRelease) return "0.0.8";
+    return latestRelease.tag_name.replace(/^v/, '');
+  };
+
+  const getFormattedDate = () => {
+    if (!latestRelease) return "Loading...";
+    try {
+      return new Date(latestRelease.published_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return "Unknown date";
+    }
+  };
+
+  const getDMGDownloadUrl = () => {
+    if (!latestRelease?.assets) return null;
+    
+    const dmgAsset = latestRelease.assets.find(asset => 
+      asset.name.endsWith('.dmg') && asset.name.includes('arm64')
+    );
+    
+    return dmgAsset?.browser_download_url || null;
+  };
+
+  const getDMGSize = () => {
+    if (!latestRelease?.assets) return "Unknown";
+    
+    const dmgAsset = latestRelease.assets.find(asset => 
+      asset.name.endsWith('.dmg') && asset.name.includes('arm64')
+    );
+    
+    if (!dmgAsset?.size) return "Unknown";
+    
+    // Convert bytes to MB
+    const sizeInMB = (dmgAsset.size / (1024 * 1024)).toFixed(1);
+    return `${sizeInMB} MB`;
+  };
+
+  const currentVersion = getVersionNumber();
+  const releaseDate = getFormattedDate();
 
   const showComingSoonToast = (platform?: string) => {
     toast({
@@ -51,12 +155,13 @@ const Download = () => {
       platform: "macOS",
       icon: <Apple className="h-8 w-8" />,
       version: "macOS 12+",
-      size: "102 MB",
+      size: getDMGSize(),
       type: "DMG Package",
-      downloadUrl: "/FoxyChat-0.0.8-arm64.dmg",
+      downloadUrl: getDMGDownloadUrl(),
       recommended: true,
       architecture: "Universal (Intel & Apple Silicon)",
       minRequirements: "macOS Monterey 12.0 or later",
+      available: !!getDMGDownloadUrl(),
     },
     {
       platform: "Windows",
@@ -84,14 +189,49 @@ const Download = () => {
     },
   ];
 
-  const releaseNotes = [
-    "🎉 Initial public release of Foxychat",
-    "🤖 Integrated with Model Context Protocol (MCP)",
-    "💬 Natural language desktop automation",
-    "🔧 Support for popular productivity apps",
-    "🎨 Modern, intuitive user interface",
-    "🔒 Privacy-focused local processing",
-  ];
+  const getReleaseNotes = () => {
+    if (!latestRelease?.body) {
+      return [
+        "🎉 Initial public release of Foxychat",
+        "🤖 Integrated with Model Context Protocol (MCP)",
+        "💬 Natural language desktop automation",
+        "🔧 Support for popular productivity apps",
+        "🎨 Modern, intuitive user interface",
+        "🔒 Privacy-focused local processing",
+      ];
+    }
+
+    // Parse GitHub release body into bullet points
+    const lines = latestRelease.body
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => line.trim());
+
+    // Look for lines that start with - or * or are numbered
+    const bulletPoints = lines.filter(line => 
+      line.match(/^[-*]\s/) || 
+      line.match(/^\d+\.\s/) ||
+      line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛🛠️📝]/));
+
+    if (bulletPoints.length > 0) {
+      return bulletPoints.slice(0, 6); // Limit to 6 items
+    }
+
+    // If no bullet points found, split by periods and use as features
+    const sentences = latestRelease.body
+      .split(/[.!]/)
+      .filter(sentence => sentence.trim().length > 10)
+      .slice(0, 6)
+      .map(sentence => `✨ ${sentence.trim()}`);
+
+    return sentences.length > 0 ? sentences : [
+      "📦 Latest version with improvements and bug fixes",
+      "🔧 Enhanced performance and stability",
+      "🎨 UI/UX improvements",
+    ];
+  };
+
+  const releaseNotes = getReleaseNotes();
 
   const features = [
     {
@@ -141,14 +281,22 @@ const Download = () => {
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
               <Badge variant="outline" className="bg-white/90 border-orange-200 text-orange-700 px-4 py-2 text-base">
-                <Star className="h-4 w-4 mr-2" />
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Star className="h-4 w-4 mr-2" />
+                )}
                 v{currentVersion}
               </Badge>
               <Badge variant="outline" className="bg-white/90 border-orange-200 text-orange-700 px-4 py-2 text-base">
                 <Clock className="h-4 w-4 mr-2" />
                 {releaseDate}
               </Badge>
- 
+              {error && (
+                <Badge variant="outline" className="bg-red-50 border-red-200 text-red-700 px-4 py-2 text-base">
+                  ⚠️ Using fallback data
+                </Badge>
+              )}
             </div>
 
             {/* Quick features */}
@@ -237,14 +385,16 @@ const Download = () => {
                     size="lg"
                     disabled={option.comingSoon}
                     onClick={() => {
-                      if (!option.comingSoon) {
-                        const link = document.createElement('a');
-                        link.href = option.downloadUrl;
-                        link.download = '';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                      if (!option.comingSoon && option.downloadUrl && option.available) {
+                        // Direct download from GitHub releases
+                        window.open(option.downloadUrl, '_blank');
                         showDownloadToast(option.platform);
+                      } else if (!option.available && option.platform === "macOS") {
+                        toast({
+                          title: "⚠️ Download Unavailable",
+                          description: "The latest release is still being processed. Please try again in a few minutes.",
+                          duration: 5000,
+                        });
                       } else {
                         showComingSoonToast(option.platform);
                       }
@@ -274,10 +424,10 @@ const Download = () => {
               <Button 
                 variant="outline" 
                 className="border-orange-200 text-orange-600 hover:bg-orange-50"
-                onClick={() => showComingSoonToast("GitHub Repository")}
+                onClick={() => window.open('https://github.com/CodeFox-Repo/homebrew-codefox/releases', '_blank')}
               >
                 <Github className="h-4 w-4 mr-2" />
-                View on GitHub
+                View All Releases
               </Button>
               <Button 
                 variant="outline" 
@@ -326,7 +476,7 @@ const Download = () => {
                   <Button 
                     variant="outline" 
                     className="w-full border-orange-200 text-orange-600 hover:bg-orange-50"
-                    onClick={() => showComingSoonToast("Full Changelog")}
+                    onClick={() => window.open(`https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${latestRelease?.tag_name || 'latest'}`, '_blank')}
                   >
                     View Full Changelog
                     <ExternalLink className="h-4 w-4 ml-2" />
