@@ -62,7 +62,7 @@ const Video = ({ url, title, description, gradientColors }: VideoProps) => {
         />
 
         {/* Hover overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
 
         {/* Loading state */}
         {isLoading && !hasError && (
