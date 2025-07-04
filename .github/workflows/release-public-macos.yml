@@ -74,12 +74,31 @@ jobs:
           echo "📥 Downloading DMG from source repository..."
           DMG_URL="https://github.com/CodeFox-Repo/foxychat/releases/download/${TAG_NAME}/FoxyChat-${VERSION}-arm64.dmg"
 
-          # Download the DMG file
-          curl -L -o "FoxyChat-${VERSION}-arm64.dmg" "$DMG_URL"
+          # Download the DMG file with proper error handling
+          echo "🔗 Downloading from: $DMG_URL"
+          HTTP_STATUS=$(curl -L -w "%{http_code}" -o "FoxyChat-${VERSION}-arm64.dmg" "$DMG_URL")
+          
+          echo "📊 Download HTTP status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "❌ Failed to download DMG file - HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
 
           # Verify download
           if [ ! -f "FoxyChat-${VERSION}-arm64.dmg" ]; then
-            echo "❌ Failed to download DMG file"
+            echo "❌ DMG file not found after download"
+            exit 1
+          fi
+          
+          # Check file size
+          FILE_SIZE=$(stat -f%z "FoxyChat-${VERSION}-arm64.dmg")
+          echo "📦 Downloaded DMG file size: ${FILE_SIZE} bytes"
+          
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "❌ Downloaded DMG file appears to be too small (less than 1MB)"
+            echo "File contents:"
+            head -c 200 "FoxyChat-${VERSION}-arm64.dmg"
             exit 1
           fi
 
@@ -155,14 +174,40 @@ jobs:
         run: |
           echo "📤 Uploading DMG to homebrew repository release..."
 
-          # Upload the DMG file
-          curl -X POST \
+          # Check if DMG file exists and get file size
+          if [ ! -f "FoxyChat-${VERSION}-arm64.dmg" ]; then
+            echo "❌ DMG file not found!"
+            exit 1
+          fi
+          
+          FILE_SIZE=$(stat -f%z "FoxyChat-${VERSION}-arm64.dmg")
+          echo "📦 DMG file size: ${FILE_SIZE} bytes"
+          
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "❌ DMG file appears to be too small (less than 1MB)"
+            exit 1
+          fi
+
+          # Upload the DMG file with proper error handling
+          UPLOAD_RESPONSE=$(curl -X POST \
             -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"FoxyChat-${VERSION}-arm64.dmg" \
-            "${UPLOAD_URL}?name=FoxyChat-${VERSION}-arm64.dmg&label=FoxyChat-${VERSION}-arm64.dmg"
+            -w "%{http_code}" \
+            -o upload_response.json \
+            "${UPLOAD_URL}?name=FoxyChat-${VERSION}-arm64.dmg&label=FoxyChat-${VERSION}-arm64.dmg")
 
-          echo "✅ Successfully uploaded DMG"
+          echo "📊 Upload HTTP status: $UPLOAD_RESPONSE"
+          
+          if [ "$UPLOAD_RESPONSE" -eq 201 ]; then
+            echo "✅ Successfully uploaded DMG"
+            cat upload_response.json
+          else
+            echo "❌ Failed to upload DMG - HTTP status: $UPLOAD_RESPONSE"
+            echo "Response:"
+            cat upload_response.json
+            exit 1
+          fi
 
       # Update Homebrew formula to point to homebrew repository
       - name: Update Homebrew formula
@@ -189,7 +234,7 @@ jobs:
             version "${VERSION}"
             sha256 "${DMG_SHA}"
             
-            url "https://github.com/CodeFox-Repo/homebrew-codefox/releases/download/v#{version}/FoxyChat-#{version}-arm64.dmg"
+            url "https://github.com/CodeFox-Repo/homebrew-codefox/releases/download/${TAG_NAME}/FoxyChat-#{version}-arm64.dmg"
             name "FoxyChat"
             desc "All in one Chat App"
             homepage "https://github.com/CodeFox-Repo/foxychat"
@@ -228,17 +273,3 @@ jobs:
             echo "✅ Successfully updated Homebrew formula to version ${VERSION}"
           fi
 
-      # Summary
-      - name: Summary
-        if: always()
-        env:
-          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
-          VERSION: ${{ steps.get_release.outputs.VERSION }}
-        run: |
-          echo "## 📋 Sync Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release Tag:** $TAG_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Source:** https://github.com/CodeFox-Repo/foxychat/releases/tag/$TAG_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Homebrew Release:** https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/$TAG_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Formula:** \`brew install codefox/codefox/foxychat\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **DMG SHA256:** \`$DMG_SHA\`" >> $GITHUB_STEP_SUMMARY
