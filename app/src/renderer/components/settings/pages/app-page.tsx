@@ -5,14 +5,14 @@ import { MCPServerConfig } from "@/shared/types/mcp";
 import {
   CheckCircle,
   ExternalLink,
+  Globe,
   Loader2,
   Plug,
   Plus,
   Search,
-  Trash2,
   Tag,
+  Trash2,
   User,
-  Globe,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -78,31 +78,14 @@ export function AppSettingsPage() {
       // Fetch installed MCP servers to check which apps are installed
       try {
         const installedResponse = await window.mcpAPI.getServers();
-        window.logger
-          .getLogger("test")
-          .info(JSON.stringify(installedResponse.data));
         if (installedResponse.success && installedResponse.data) {
-          // Debug: Log each server's isApp status
-          installedResponse.data.forEach((server) => {
-            console.log(
-              `Server "${server.name}": isApp=${server.isApp} (type: ${typeof server.isApp})`,
-            );
-          });
-
           // Filter servers that are marked as apps
           const installedAppIds = new Set(
             installedResponse.data
-              .filter((server) => {
-                const isApp = server.isApp === true;
-                console.log(
-                  `Filtering server "${server.name}": isApp=${server.isApp} -> include=${isApp}`,
-                );
-                return isApp;
-              })
+              .filter((server) => server.isApp === true)
               .map((server) => server.name),
           );
 
-          console.log("Final installed app IDs:", Array.from(installedAppIds));
           setInstalledApps(installedAppIds);
         }
       } catch (error) {
