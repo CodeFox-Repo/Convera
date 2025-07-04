@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.16
+
+### Patch Changes
+
+- refactor some bug
+
 ## 0.0.15
 
 ### Patch Changes
