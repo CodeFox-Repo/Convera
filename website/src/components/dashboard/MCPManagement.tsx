@@ -1214,7 +1214,7 @@ export function MCPManagement() {
                             className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-xs"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-xs">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
                             {server.name.charAt(0).toUpperCase()}
                           </div>
                         )}

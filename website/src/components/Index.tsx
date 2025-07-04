@@ -180,18 +180,18 @@ const Index = () => {
 
       {/* Hero Section */}
       <section
-        className="relative w-full overflow-hidden bg-linear-to-br from-orange-50 to-pink-50 py-20 pt-28 md:py-28 md:pt-36"
+        className="from-primary/5 to-accent/5 relative w-full overflow-hidden bg-linear-to-br py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
         {/* Animated background elements */}
-        <div className="absolute inset-0 animate-pulse bg-linear-to-r from-transparent via-orange-200/10 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-orange-100/20 to-transparent"></div>
+        <div className="via-primary/10 absolute inset-0 animate-pulse bg-linear-to-r from-transparent to-transparent"></div>
+        <div className="from-primary/20 absolute top-0 right-0 h-full w-1/3 bg-linear-to-l to-transparent"></div>
         <div
-          className="absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full bg-orange-200/8 blur-xl"
+          className="bg-primary/8 absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full blur-xl"
           style={{ animationDuration: "3s" }}
         ></div>
         <div
-          className="absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse rounded-full bg-orange-100/12 blur-2xl"
+          className="bg-primary/12 absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse rounded-full blur-2xl"
           style={{ animationDuration: "4s" }}
         ></div>
 
@@ -214,15 +214,15 @@ const Index = () => {
                 className={`text-muted-foreground max-w-[520px] text-xl leading-relaxed font-medium transition-all delay-400 duration-1000 md:text-2xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
                 Your personal desktop AI assistant that leverages{" "}
-                <span className="font-semibold text-orange-600">Model Context Protocol (MCP)</span>{" "}
-                to understand your workflows and automate repetitive tasks intelligently.
+                <span className="text-primary font-semibold">Model Context Protocol (MCP)</span> to
+                understand your workflows and automate repetitive tasks intelligently.
               </p>
               <div
                 className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
                 <Button
                   size="lg"
-                  className="transform animate-pulse bg-linear-to-r from-orange-500 to-orange-400 px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-orange-600 hover:to-orange-500 hover:shadow-orange-400/40"
+                  className="from-primary to-accent hover:from-primary/90 hover:to-accent/90 hover:shadow-primary/40 transform animate-pulse bg-linear-to-r px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none"
                   style={{ animationDuration: "2s" }}
                   asChild
                 >
@@ -260,19 +260,19 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="border-primary/20 hover:border-primary/30 hover:bg-primary/5 absolute top-1/2 left-0 z-10 -translate-y-1/2 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
                 onClick={scrollLeft}
               >
-                <ChevronLeft className="h-4 w-4 text-orange-600" />
+                <ChevronLeft className="text-primary h-4 w-4" />
               </Button>
 
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-orange-200 bg-white/90 shadow-lg backdrop-blur-xs transition-all duration-200 hover:scale-110 hover:border-orange-300 hover:bg-orange-50"
+                className="border-primary/20 hover:border-primary/30 hover:bg-primary/5 absolute top-1/2 right-0 z-10 -translate-y-1/2 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
                 onClick={scrollRight}
               >
-                <ChevronRight className="h-4 w-4 text-orange-600" />
+                <ChevronRight className="text-primary h-4 w-4" />
               </Button>
 
               <div className="mx-12 overflow-hidden">
@@ -315,7 +315,7 @@ const Index = () => {
                   ].map((app, index) => (
                     <Card
                       key={index}
-                      className={`group h-24 w-24 shrink-0 border border-orange-100/60 bg-white/90 shadow-md backdrop-blur-xs transition-all duration-300 hover:scale-110 hover:border-orange-200 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                      className={`group border-border hover:border-primary/20 h-24 w-24 shrink-0 border bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
                       style={{
                         transitionDelay: `${(index % 13) * 100}ms`,
                         animation: isVisible.apps
@@ -326,7 +326,7 @@ const Index = () => {
                       <CardContent className="flex h-full flex-col items-center justify-center space-y-2 p-3">
                         <div className="flex h-8 w-8 items-center justify-center transition-transform duration-200 group-hover:scale-110">
                           {app.isLucide ? (
-                            <app.icon className="h-8 w-8 text-gray-700 transition-colors duration-200 group-hover:text-orange-600" />
+                            <app.icon className="text-foreground/70 group-hover:text-primary h-8 w-8 transition-colors duration-200" />
                           ) : (
                             <div
                               className="h-8 w-8 transition-transform duration-200 group-hover:scale-110"
@@ -334,7 +334,7 @@ const Index = () => {
                             />
                           )}
                         </div>
-                        <span className="text-muted-foreground text-center text-xs font-medium transition-colors duration-200 group-hover:text-gray-800">
+                        <span className="text-muted-foreground group-hover:text-foreground text-center text-xs font-medium transition-colors duration-200">
                           {app.name}
                         </span>
                       </CardContent>
@@ -351,7 +351,7 @@ const Index = () => {
       {/* Benefits Section */}
       <section
         id="demo"
-        className="w-full bg-linear-to-b from-orange-50/20 to-white py-20 md:py-28"
+        className="from-primary/5 to-background w-full bg-linear-to-b py-20 md:py-28"
         data-section="demo"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -374,13 +374,13 @@ const Index = () => {
             <div className="w-full max-w-2xl space-y-6 rounded-xl border border-gray-200/50 bg-white/80 p-8 shadow-lg backdrop-blur-xs transition-shadow duration-300 hover:shadow-xl md:p-10">
               <div className="space-y-3">
                 <div className="text-muted-foreground text-sm font-medium">Instead of:</div>
-                <div className="transform rounded-lg border border-red-100 bg-red-50 p-3 font-mono text-sm text-red-600 transition-transform duration-200 hover:scale-105">
+                <div className="border-destructive/20 bg-destructive/5 text-destructive transform rounded-lg border p-3 font-mono text-sm transition-transform duration-200 hover:scale-105">
                   1. Open browser → 2. Copy → 3. Change tab → 4. Paste → 5. Ask
                 </div>
               </div>
               <div className="space-y-3">
                 <div className="text-muted-foreground text-sm font-medium">Now Simply Do:</div>
-                <div className="transform rounded-lg border border-green-100 bg-green-50 p-3 font-mono text-sm text-green-600 transition-transform duration-200 hover:scale-105">
+                <div className="border-primary/20 bg-primary/5 text-primary transform rounded-lg border p-3 font-mono text-sm transition-transform duration-200 hover:scale-105">
                   "1. Shortcut → 2. Ask"
                 </div>
               </div>
@@ -394,7 +394,7 @@ const Index = () => {
 
       {/* Does a Lot More Than chat Section */}
       <section
-        className="w-full bg-linear-to-br from-gray-50/50 via-blue-50/30 to-indigo-50/40 py-16 md:py-24"
+        className="from-muted/20 via-secondary/30 to-accent/10 w-full bg-linear-to-br py-16 md:py-24"
         data-section="features"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -414,16 +414,20 @@ const Index = () => {
             className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.features ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
           >
             <div className="w-full max-w-2xl">
-              <div className="relative overflow-hidden rounded-xl border border-blue-200 bg-white shadow-xl transition-all duration-300 hover:border-blue-300 hover:shadow-2xl">
+              <div className="border-primary/20 bg-card hover:border-primary/30 relative overflow-hidden rounded-xl border shadow-xl transition-all duration-300 hover:shadow-2xl">
                 <div className="aspect-video w-full">
-                  <div className="hover:to-blue-150 flex h-full w-full items-center justify-center bg-linear-to-br from-blue-50 to-blue-100 transition-all duration-300 hover:from-blue-100">
+                  <div className="from-primary/5 to-primary/10 hover:from-primary/10 flex h-full w-full items-center justify-center bg-linear-to-br transition-all duration-300">
                     <div className="space-y-3 text-center">
-                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
-                        <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="bg-primary mx-auto flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
+                        <svg
+                          className="text-primary-foreground h-4 w-4"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </div>
-                      <p className="text-sm font-medium text-blue-700">Feature Demo Video</p>
+                      <p className="text-primary text-sm font-medium">Feature Demo Video</p>
                     </div>
                   </div>
                 </div>
@@ -456,11 +460,11 @@ const Index = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className={`transform space-y-4 rounded-lg border border-blue-100/50 bg-white/60 p-6 text-center shadow-xs backdrop-blur-xs transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+                className={`border-border bg-card/60 hover:bg-card/80 transform space-y-4 rounded-lg border p-6 text-center shadow-sm backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
                 style={{ transitionDelay: `${400 + feature.delay}ms` }}
               >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 shadow-xs transition-all duration-300 hover:scale-110 hover:shadow-md">
-                  <span className="text-lg text-orange-600">{feature.emoji}</span>
+                <div className="bg-primary/10 mx-auto flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
+                  <span className="text-primary text-lg">{feature.emoji}</span>
                 </div>
                 <h4 className="text-xl font-semibold">{feature.title}</h4>
                 <p className="text-muted-foreground">{feature.description}</p>
@@ -472,7 +476,7 @@ const Index = () => {
 
       {/* Core Features Section */}
       <section
-        className="w-full bg-linear-to-br from-white via-gray-50/30 to-blue-50/20 py-16 md:py-24"
+        className="from-background via-muted/30 to-secondary/20 w-full bg-linear-to-br py-16 md:py-24"
         data-section="coreFeatures"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -492,16 +496,16 @@ const Index = () => {
           <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
             {/* Current App Detection */}
             <div
-              className={`group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              className={`group border-border bg-card overflow-hidden rounded-xl border shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               style={{ transitionDelay: "0ms" }}
             >
               <div
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/current-app-detected.jpg)" }}
               />
-              <div className="bg-linear-to-r from-green-50 to-emerald-50 p-6">
-                <h3 className="mb-3 text-xl font-semibold text-gray-800">Smart App Detection</h3>
-                <p className="text-sm leading-relaxed text-gray-600">
+              <div className="from-primary/5 to-accent/5 bg-linear-to-r p-6">
+                <h3 className="text-foreground mb-3 text-xl font-semibold">Smart App Detection</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   Automatically detects your current application and provides contextual assistance.
                   Foxychat understands what you're working on and adapts its responses accordingly.
                 </p>
@@ -510,16 +514,16 @@ const Index = () => {
 
             {/* MCP Market */}
             <div
-              className={`group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              className={`group border-border bg-card overflow-hidden rounded-xl border shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               style={{ transitionDelay: "200ms" }}
             >
               <div
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/mcp-market.jpg)" }}
               />
-              <div className="h-full bg-linear-to-r from-blue-50 to-cyan-50 p-6">
-                <h3 className="mb-3 text-xl font-semibold text-gray-800">MCP Marketplace</h3>
-                <p className="text-sm leading-relaxed text-gray-600">
+              <div className="from-secondary/10 to-accent/10 h-full bg-linear-to-r p-6">
+                <h3 className="text-foreground mb-3 text-xl font-semibold">MCP Marketplace</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   Explore a rich ecosystem of Model Context Protocol integrations. Discover and
                   install plugins that extend Foxychat's capabilities instantly.
                 </p>
@@ -531,7 +535,7 @@ const Index = () => {
 
       {/* Build Your Own Agent Section */}
       <section
-        className="w-full bg-linear-to-br from-indigo-50/40 via-purple-50/30 to-pink-50/40 py-16 md:py-24"
+        className="from-accent/10 via-secondary/30 to-primary/10 w-full bg-linear-to-br py-16 md:py-24"
         data-section="agent"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -552,7 +556,7 @@ const Index = () => {
             className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.agent ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
           >
             <div className="w-full max-w-2xl">
-              <div className="relative overflow-hidden rounded-xl border border-purple-200 bg-white shadow-xl transition-all duration-300 hover:border-purple-300 hover:shadow-2xl">
+              <div className="border-accent/20 bg-card hover:border-accent/30 relative overflow-hidden rounded-xl border shadow-xl transition-all duration-300 hover:shadow-2xl">
                 <div
                   className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 hover:scale-105"
                   style={{ backgroundImage: "url(/images/custom-agent.jpg)" }}
@@ -581,11 +585,11 @@ const Index = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className={`transform space-y-4 rounded-lg border border-purple-100/50 bg-white/60 p-8 text-center shadow-xs backdrop-blur-xs transition-all duration-500 hover:scale-105 hover:bg-white/80 hover:shadow-md ${isVisible.agent ? "translate-x-0 opacity-100" : `opacity-0 ${feature.direction === "left" ? "-translate-x-8" : "translate-x-8"}`}`}
+                className={`border-border bg-card/60 hover:bg-card/80 transform space-y-4 rounded-lg border p-8 text-center shadow-sm backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:shadow-md ${isVisible.agent ? "translate-x-0 opacity-100" : `opacity-0 ${feature.direction === "left" ? "-translate-x-8" : "translate-x-8"}`}`}
                 style={{ transitionDelay: `${400 + index * 200}ms` }}
               >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 shadow-xs transition-all duration-300 hover:scale-110 hover:shadow-md">
-                  <span className="text-lg text-blue-600">{feature.emoji}</span>
+                <div className="bg-accent/10 mx-auto flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
+                  <span className="text-accent text-lg">{feature.emoji}</span>
                 </div>
                 <h4 className="text-xl font-semibold">{feature.title}</h4>
                 <p className="text-muted-foreground">{feature.description}</p>
