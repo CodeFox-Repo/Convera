@@ -14,7 +14,7 @@ export function DashboardOverview({ onSectionChange }: DashboardOverviewProps) {
       <div className="space-y-6">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Shield className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">

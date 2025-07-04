@@ -180,12 +180,12 @@ const Index = () => {
 
       {/* Hero Section */}
       <section
-        className="relative w-full overflow-hidden bg-gradient-to-br from-primary/5 to-accent/5 py-20 pt-28 md:py-28 md:pt-36"
+        className="relative w-full overflow-hidden bg-linear-to-br from-primary/5 to-accent/5 py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
         {/* Animated background elements */}
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-primary/10 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-primary/20 to-transparent"></div>
+        <div className="absolute inset-0 animate-pulse bg-linear-to-r from-transparent via-primary/10 to-transparent"></div>
+        <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-primary/20 to-transparent"></div>
         <div
           className="absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full bg-primary/8 blur-xl"
           style={{ animationDuration: "3s" }}
@@ -222,7 +222,7 @@ const Index = () => {
               >
                 <Button
                   size="lg"
-                  className="transform animate-pulse bg-gradient-to-r from-primary to-accent px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-primary/90 hover:to-accent/90 hover:shadow-primary/40"
+                  className="transform animate-pulse bg-linear-to-r from-primary to-accent px-10 py-4 text-lg font-semibold shadow-xl transition-all duration-300 hover:scale-105 hover:animate-none hover:from-primary/90 hover:to-accent/90 hover:shadow-primary/40"
                   style={{ animationDuration: "2s" }}
                   asChild
                 >
@@ -238,7 +238,7 @@ const Index = () => {
             <div
               className={`mt-8 flex justify-center transition-all delay-300 duration-1200 lg:mt-0 lg:justify-end ${isVisible.hero ? "translate-x-0 scale-100 opacity-100" : "translate-x-8 scale-95 opacity-0"}`}
             >
-              <div className="min-h-[32rem] w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-[36rem] xl:min-h-[40rem]">
+              <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
                 <HeroImage />
               </div>
             </div>
@@ -315,7 +315,7 @@ const Index = () => {
                   ].map((app, index) => (
                     <Card
                       key={index}
-                      className={`group h-24 w-24 flex-shrink-0 border border-border bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:border-primary/20 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                      className={`group h-24 w-24 shrink-0 border border-border bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:border-primary/20 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
                       style={{
                         transitionDelay: `${(index % 13) * 100}ms`,
                         animation: isVisible.apps
@@ -351,7 +351,7 @@ const Index = () => {
       {/* Benefits Section */}
       <section
         id="demo"
-        className="w-full bg-gradient-to-b from-primary/5 to-background py-20 md:py-28"
+        className="w-full bg-linear-to-b from-primary/5 to-background py-20 md:py-28"
         data-section="demo"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -394,7 +394,7 @@ const Index = () => {
 
       {/* Does a Lot More Than chat Section */}
       <section
-        className="w-full bg-gradient-to-br from-muted/20 via-secondary/30 to-accent/10 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-muted/20 via-secondary/30 to-accent/10 py-16 md:py-24"
         data-section="features"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -416,7 +416,7 @@ const Index = () => {
             <div className="w-full max-w-2xl">
               <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-card shadow-xl transition-all duration-300 hover:border-primary/30 hover:shadow-2xl">
                 <div className="aspect-video w-full">
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 transition-all duration-300 hover:from-primary/10">
+                  <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/5 to-primary/10 transition-all duration-300 hover:from-primary/10">
                     <div className="space-y-3 text-center">
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
                         <svg className="h-4 w-4 text-primary-foreground" fill="currentColor" viewBox="0 0 24 24">
@@ -472,7 +472,7 @@ const Index = () => {
 
       {/* Core Features Section */}
       <section
-        className="w-full bg-gradient-to-br from-background via-muted/30 to-secondary/20 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-background via-muted/30 to-secondary/20 py-16 md:py-24"
         data-section="coreFeatures"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
@@ -499,7 +499,7 @@ const Index = () => {
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/current-app-detected.jpg)" }}
               />
-              <div className="bg-gradient-to-r from-primary/5 to-accent/5 p-6">
+              <div className="bg-linear-to-r from-primary/5 to-accent/5 p-6">
                 <h3 className="mb-3 text-xl font-semibold text-foreground">Smart App Detection</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Automatically detects your current application and provides contextual assistance.
@@ -517,7 +517,7 @@ const Index = () => {
                 className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: "url(/images/mcp-market.jpg)" }}
               />
-              <div className="h-full bg-gradient-to-r from-secondary/10 to-accent/10 p-6">
+              <div className="h-full bg-linear-to-r from-secondary/10 to-accent/10 p-6">
                 <h3 className="mb-3 text-xl font-semibold text-foreground">MCP Marketplace</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Explore a rich ecosystem of Model Context Protocol integrations. Discover and
@@ -531,7 +531,7 @@ const Index = () => {
 
       {/* Build Your Own Agent Section */}
       <section
-        className="w-full bg-gradient-to-br from-accent/10 via-secondary/30 to-primary/10 py-16 md:py-24"
+        className="w-full bg-linear-to-br from-accent/10 via-secondary/30 to-primary/10 py-16 md:py-24"
         data-section="agent"
       >
         <div className="container mx-auto max-w-6xl px-4 md:px-6">

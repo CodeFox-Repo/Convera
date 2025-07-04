@@ -261,16 +261,16 @@ const Download = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-br from-background via-primary/5 to-primary/10 py-16 md:py-24 pt-24 md:pt-32">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-primary/30 to-transparent"></div>
+      <section className="relative w-full overflow-hidden bg-linear-to-br from-background via-primary/5 to-primary/10 py-16 md:py-24 pt-24 md:pt-32">
+        <div className="absolute inset-0 bg-linear-to-r from-transparent via-primary/20 to-transparent"></div>
+        <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-primary/30 to-transparent"></div>
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8 max-w-6xl">
           <div className="text-center space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
                 Download{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+                <span className="bg-clip-text text-transparent bg-linear-to-r from-primary to-accent">
                   Foxychat
                 </span>
               </h1>
@@ -379,7 +379,7 @@ const Download = () => {
                   <Button 
                     className={`w-full transition-all duration-300 shadow-md hover:shadow-lg ${
                       option.recommended 
-                        ? 'bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90' 
+                        ? 'bg-linear-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90' 
                         : 'bg-muted hover:bg-muted/80'
                     }`}
                     size="lg"
@@ -451,7 +451,7 @@ const Download = () => {
       </section>
 
       {/* Release Notes & Additional Info */}
-      <section className="w-full py-16 md:py-20 bg-gradient-to-b from-muted/20 to-background">
+      <section className="w-full py-16 md:py-20 bg-linear-to-b from-muted/20 to-background">
         <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Release Notes */}
@@ -466,7 +466,7 @@ const Download = () => {
                 <ul className="space-y-4 mb-8">
                   {releaseNotes.map((note, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <CheckCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm leading-relaxed">{note}</span>
                     </li>
                   ))}
@@ -504,7 +504,7 @@ const Download = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-primary text-xs font-semibold">1</span>
                     </div>
                     <div>
@@ -514,7 +514,7 @@ const Download = () => {
                   </div>
                   
                   <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-primary text-xs font-semibold">2</span>
                     </div>
                     <div>
@@ -524,7 +524,7 @@ const Download = () => {
                   </div>
                   
                   <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-primary text-xs font-semibold">3</span>
                     </div>
                     <div>

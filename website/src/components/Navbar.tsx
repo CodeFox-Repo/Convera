@@ -13,7 +13,7 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-gray-200/20 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+    <header className="fixed top-0 z-50 w-full border-b border-gray-200/20 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/60">
       <div className="container mx-auto max-w-7xl">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Logo Section */}
@@ -21,7 +21,7 @@ const Navbar: React.FC = () => {
             <div className="transition-transform duration-300 group-hover:scale-105">
               <Logo />
             </div>
-            <span className="bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
+            <span className="bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
               Foxychat
             </span>
           </Link>
@@ -36,7 +36,7 @@ const Navbar: React.FC = () => {
                 <Play className="h-4 w-4" />
                 <span>Demo</span>
               </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
+              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
             </a>
 
             <a
@@ -50,7 +50,7 @@ const Navbar: React.FC = () => {
                 <span>Documentation</span>
                 <ExternalLink className="h-3 w-3 opacity-60" />
               </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
+              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
             </a>
           </nav>
 
@@ -58,7 +58,7 @@ const Navbar: React.FC = () => {
           <div className="hidden items-center space-x-4 md:flex">
             <Badge
               variant="outline"
-              className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
+              className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
             >
               Beta
             </Badge>
@@ -115,14 +115,14 @@ const Navbar: React.FC = () => {
                 <div className="mb-4 flex items-center justify-between">
                   <Badge
                     variant="outline"
-                    className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
+                    className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
                   >
                     Beta
                   </Badge>
                 </div>
 
                 <Button
-                  className="w-full bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-lg hover:from-orange-600 hover:to-orange-500"
+                  className="w-full bg-linear-to-r from-orange-500 to-orange-400 text-white shadow-lg hover:from-orange-600 hover:to-orange-500"
                   asChild
                   onClick={() => setIsMenuOpen(false)}
                 >

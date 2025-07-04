@@ -59,7 +59,7 @@ export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSi
             >
               <Icon
                 className={cn(
-                  "mr-3 h-4 w-4 flex-shrink-0",
+                  "mr-3 h-4 w-4 shrink-0",
                   isActive ? "text-orange-600" : "text-gray-500",
                 )}
               />

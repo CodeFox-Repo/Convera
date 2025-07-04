@@ -136,7 +136,7 @@ export function UserManagement() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-pink-500 text-sm font-medium text-white">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-orange-400 to-pink-500 text-sm font-medium text-white">
                         {user.name
                           ? user.name.charAt(0).toUpperCase()
                           : user.email.charAt(0).toUpperCase()}

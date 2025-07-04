@@ -643,7 +643,7 @@ export function MCPManagement() {
       <div className="space-y-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <X className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">
@@ -1214,7 +1214,7 @@ export function MCPManagement() {
                             className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-sm"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
                             {server.name.charAt(0).toUpperCase()}
                           </div>
                         )}
