@@ -9,111 +9,119 @@ on:
         type: string
 
 jobs:
-  sync-to-homebrew:
-    runs-on: ubuntu-latest
+  build-and-sync-to-homebrew:
+    runs-on: macos-latest
     permissions:
       contents: read
     steps:
-      # Checkout code
+      # Checkout code at specific tag
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag_name || github.ref }}
 
-      # Get latest release or use specified tag with full release info
-      - name: Get release information
-        id: get_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Get version information
+      - name: Get version information
+        id: get_version
         run: |
           if [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            # Use specified tag
             TAG_NAME="${{ github.event.inputs.tag_name }}"
-            echo "🏷️ Using specified tag: $TAG_NAME"
-            
-            # Get specific release info
-            RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME")
           else
-            # Get latest release
-            echo "🔍 Getting latest release..."
-            RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/latest")
-            TAG_NAME=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
-            echo "🏷️ Latest release tag: $TAG_NAME"
+            TAG_NAME=$(git describe --tags --exact-match 2>/dev/null || echo "v$(date +%Y%m%d%H%M%S)")
           fi
           
-          # Extract release information
-          RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name // "N/A"')
-          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available"')
-          
-          # Clean up release body for commit message (remove excessive newlines, limit length)
-          RELEASE_SUMMARY=$(echo "$RELEASE_BODY" | head -n 10 | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-500)
-          
-          # Remove 'v' prefix if present
           VERSION=${TAG_NAME#v}
           echo "📦 Version: $VERSION"
-          echo "📝 Release Name: $RELEASE_NAME"
-          echo "📄 Release Summary: $RELEASE_SUMMARY"
+          echo "🏷️ Tag: $TAG_NAME"
           
-          # Set outputs (escape special characters for GitHub Actions)
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_OUTPUT
-          {
-            echo "RELEASE_SUMMARY<<EOF"
-            echo "$RELEASE_SUMMARY"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
 
-      # Download DMG from source repository
-      - name: Download DMG from source release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
-          VERSION: ${{ steps.get_release.outputs.VERSION }}
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Install pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      # Install macOS dependencies for robotjs
+      - name: Install macOS dependencies
         run: |
-          echo "📥 Downloading DMG from source repository..."
-          DMG_URL="https://github.com/CodeFox-Repo/foxychat/releases/download/${TAG_NAME}/FoxyChat-${VERSION}-arm64.dmg"
+          xcode-select --install 2>/dev/null || true
+          brew install python@3.11
+          npm install -g node-gyp
 
-          # Download the DMG file with proper error handling
-          echo "🔗 Downloading from: $DMG_URL"
-          HTTP_STATUS=$(curl -L -w "%{http_code}" -o "FoxyChat-${VERSION}-arm64.dmg" "$DMG_URL")
+      # Cache dependencies
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      # Install dependencies
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Clean and rebuild robotjs for release environment
+      - name: Clean and rebuild robotjs for release
+        working-directory: app
+        run: |
+          export CI=false
+          rm -rf node_modules/@hurdlegroup/robotjs/build
+          pnpm run rebuild:robotjs
+
+      # Build the app
+      - name: Build and package app
+        working-directory: app
+        run: pnpm run make:robotjs
+
+      # Find and verify the DMG file
+      - name: Find and verify DMG file
+        id: find_dmg
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          echo "🔍 Looking for DMG file..."
+          DMG_PATH=$(find app/out/make -name "*.dmg" | head -1)
           
-          echo "📊 Download HTTP status: $HTTP_STATUS"
-          
-          if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "❌ Failed to download DMG file - HTTP status: $HTTP_STATUS"
+          if [ -z "$DMG_PATH" ]; then
+            echo "❌ No DMG file found"
+            echo "Available files:"
+            find app/out -name "*" -type f
             exit 1
           fi
-
-          # Verify download
-          if [ ! -f "FoxyChat-${VERSION}-arm64.dmg" ]; then
-            echo "❌ DMG file not found after download"
-            exit 1
-          fi
+          
+          echo "📦 Found DMG: $DMG_PATH"
           
           # Check file size
-          FILE_SIZE=$(stat -f%z "FoxyChat-${VERSION}-arm64.dmg")
-          echo "📦 Downloaded DMG file size: ${FILE_SIZE} bytes"
+          FILE_SIZE=$(stat -f%z "$DMG_PATH")
+          echo "📦 DMG file size: ${FILE_SIZE} bytes"
           
           if [ "$FILE_SIZE" -lt 1000000 ]; then
-            echo "❌ Downloaded DMG file appears to be too small (less than 1MB)"
-            echo "File contents:"
-            head -c 200 "FoxyChat-${VERSION}-arm64.dmg"
+            echo "❌ DMG file appears to be too small (less than 1MB)"
             exit 1
           fi
-
+          
           # Calculate SHA256
-          DMG_SHA=$(shasum -a 256 "FoxyChat-${VERSION}-arm64.dmg" | cut -d' ' -f1)
-          echo "✅ Downloaded DMG with SHA256: $DMG_SHA"
+          DMG_SHA=$(shasum -a 256 "$DMG_PATH" | cut -d' ' -f1)
+          echo "✅ DMG SHA256: $DMG_SHA"
+          
+          # Copy to expected location
+          cp "$DMG_PATH" "FoxyChat-${VERSION}-arm64.dmg"
+          
+          echo "DMG_PATH=$DMG_PATH" >> $GITHUB_OUTPUT
           echo "DMG_SHA=$DMG_SHA" >> $GITHUB_ENV
 
       # Create release in homebrew repository
       - name: Create release in homebrew repository
         env:
-          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
-          VERSION: ${{ steps.get_release.outputs.VERSION }}
-          RELEASE_NAME: ${{ steps.get_release.outputs.RELEASE_NAME }}
-          RELEASE_SUMMARY: ${{ steps.get_release.outputs.RELEASE_SUMMARY }}
+          TAG_NAME: ${{ steps.get_version.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
           # Check if we have the required token
           if [ -z "${{ secrets.REPO_ACCESS_TOKEN }}" ]; then
@@ -124,11 +132,11 @@ jobs:
 
           echo "🚀 Creating release in homebrew repository..."
 
-          # Create release using GitHub API with original release info
+          # Create release using GitHub API
           RELEASE_DATA='{
             "tag_name": "'$TAG_NAME'",
-            "name": "'$RELEASE_NAME'",
-            "body": "FoxyChat version '$VERSION' - Synced from main repository\n\n## Original Release Summary\n'$RELEASE_SUMMARY'\n\n---\n\n**Source Release:** https://github.com/CodeFox-Repo/foxychat/releases/tag/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
+            "name": "FoxyChat '$VERSION'",
+            "body": "FoxyChat version '$VERSION' - Built and synced from main repository\n\n**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
             "draft": false,
             "prerelease": false
           }'
@@ -170,7 +178,7 @@ jobs:
       # Upload DMG to homebrew repository release
       - name: Upload DMG to homebrew repository
         env:
-          VERSION: ${{ steps.get_release.outputs.VERSION }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
           echo "📤 Uploading DMG to homebrew repository release..."
 
@@ -212,10 +220,8 @@ jobs:
       # Update Homebrew formula to point to homebrew repository
       - name: Update Homebrew formula
         env:
-          TAG_NAME: ${{ steps.get_release.outputs.TAG_NAME }}
-          VERSION: ${{ steps.get_release.outputs.VERSION }}
-          RELEASE_NAME: ${{ steps.get_release.outputs.RELEASE_NAME }}
-          RELEASE_SUMMARY: ${{ steps.get_release.outputs.RELEASE_SUMMARY }}
+          TAG_NAME: ${{ steps.get_version.outputs.TAG_NAME }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
           echo "🍺 Updating Homebrew formula to point to homebrew repository..."
 
@@ -260,12 +266,10 @@ jobs:
           if git diff --staged --quiet; then
             echo "📋 No changes to commit - formula is already up to date"
           else
-            git commit -m "Update FoxyChat to version ${VERSION} - ${RELEASE_NAME}
-
-            ${RELEASE_SUMMARY}
+            git commit -m "Update FoxyChat to version ${VERSION}
 
             Release: ${TAG_NAME}
-            Source: https://github.com/CodeFox-Repo/foxychat/releases/tag/${TAG_NAME}
+            Source: https://github.com/CodeFox-Repo/foxychat/tree/${TAG_NAME}
             Homebrew Release: https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${TAG_NAME}
             
             Auto-synced by GitHub Actions"
