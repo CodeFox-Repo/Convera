@@ -184,14 +184,15 @@ jobs:
           fi
 
           # Create release using GitHub API with properly escaped JSON using jq
+          RELEASE_BODY_TEXT="FoxyChat version $VERSION - Built and synced from main repository
+
+**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/$TAG_NAME
+**Download:** Direct from homebrew repository for faster and more reliable distribution."
+
           jq -n \
             --arg tag "$TAG_NAME" \
             --arg name "$RELEASE_NAME" \
-            --arg version "$VERSION" \
-            --arg body "FoxyChat version $VERSION - Built and synced from main repository
-
-**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/$TAG_NAME
-**Download:** Direct from homebrew repository for faster and more reliable distribution." \
+            --arg body "$RELEASE_BODY_TEXT" \
             '{
               tag_name: $tag,
               name: $name,
