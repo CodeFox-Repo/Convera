@@ -7,6 +7,11 @@ on:
         description: "Release tag to sync (leave empty for latest)"
         required: false
         type: string
+      force_recreate:
+        description: "Force recreate release if exists"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-and-sync-to-homebrew:
@@ -169,21 +174,42 @@ jobs:
 
           echo "🚀 Creating release in homebrew repository..."
 
-          # Create release using GitHub API with original release info
-          RELEASE_DATA='{
-            "tag_name": "'$TAG_NAME'",
-            "name": "'$RELEASE_NAME'",
-            "body": "FoxyChat version '$VERSION' - Built and synced from main repository\n\n## Original Release Notes\n'$RELEASE_BODY'\n\n---\n\n**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
-            "draft": false,
-            "prerelease": false
-          }'
+          # Check if release already exists and force recreate if requested
+          if [ "${{ github.event.inputs.force_recreate }}" = "true" ]; then
+            echo "🔄 Force recreate enabled - deleting existing release if it exists..."
+            curl -X DELETE \
+              -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases/tags/$TAG_NAME" 2>/dev/null || true
+          fi
+
+          # Create release using GitHub API with properly escaped JSON using jq
+          jq -n \
+            --arg tag "$TAG_NAME" \
+            --arg name "$RELEASE_NAME" \
+            --arg version "$VERSION" \
+            --arg body "FoxyChat version $VERSION - Built and synced from main repository
+
+**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/$TAG_NAME
+**Download:** Direct from homebrew repository for faster and more reliable distribution." \
+            '{
+              tag_name: $tag,
+              name: $name,
+              body: $body,
+              draft: false,
+              prerelease: false
+            }' > release_data.json
+
+          echo "📋 Release data:"
+          cat release_data.json
 
           # Create the release
           RELEASE_RESPONSE=$(curl -X POST \
             -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
             "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases" \
-            -d "$RELEASE_DATA")
+            -d @release_data.json)
 
           # Extract upload URL
           UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
@@ -202,9 +228,21 @@ jobs:
             
             if [ "$UPLOAD_URL" = "null" ]; then
               echo "❌ Could not get upload URL from existing release"
+              echo "💡 Try enabling 'Force recreate release' option to recreate the release"
               exit 1
             else
               echo "✅ Using existing release"
+              # Delete existing assets first
+              echo "🗑️ Deleting existing assets..."
+              ASSETS=$(echo "$EXISTING_RELEASE" | jq -r '.assets[]?.id // empty')
+              for asset_id in $ASSETS; do
+                if [ -n "$asset_id" ]; then
+                  curl -X DELETE \
+                    -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases/assets/$asset_id" || true
+                fi
+              done
             fi
           else
             echo "✅ Successfully created release"
