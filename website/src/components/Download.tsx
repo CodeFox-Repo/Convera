@@ -211,7 +211,7 @@ const Download = () => {
     const bulletPoints = lines.filter(line => 
       line.match(/^[-*]\s/) || 
       line.match(/^\d+\.\s/) ||
-      line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛🛠️📝]/));
+      line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛🛠️📝]/u));
 
     if (bulletPoints.length > 0) {
       return bulletPoints.slice(0, 6); // Limit to 6 items
@@ -261,16 +261,16 @@ const Download = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-br from-white via-orange-50/40 to-orange-100/60 py-16 md:py-24 pt-24 md:pt-32">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/20 to-transparent"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-orange-100/30 to-transparent"></div>
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-background via-primary/5 to-primary/10 py-16 md:py-24 pt-24 md:pt-32">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
+        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-primary/30 to-transparent"></div>
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8 max-w-6xl">
           <div className="text-center space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
                 Download{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-orange-400">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
                   Foxychat
                 </span>
               </h1>
@@ -280,7 +280,7 @@ const Download = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-              <Badge variant="outline" className="bg-white/90 border-orange-200 text-orange-700 px-4 py-2 text-base">
+              <Badge variant="outline" className="bg-card border-primary/20 text-primary px-4 py-2 text-base">
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
@@ -288,12 +288,12 @@ const Download = () => {
                 )}
                 v{currentVersion}
               </Badge>
-              <Badge variant="outline" className="bg-white/90 border-orange-200 text-orange-700 px-4 py-2 text-base">
+              <Badge variant="outline" className="bg-card border-primary/20 text-primary px-4 py-2 text-base">
                 <Clock className="h-4 w-4 mr-2" />
                 {releaseDate}
               </Badge>
               {error && (
-                <Badge variant="outline" className="bg-red-50 border-red-200 text-red-700 px-4 py-2 text-base">
+                <Badge variant="outline" className="bg-destructive/5 border-destructive/20 text-destructive px-4 py-2 text-base">
                   ⚠️ Using fallback data
                 </Badge>
               )}
@@ -302,8 +302,8 @@ const Download = () => {
             {/* Quick features */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-8 max-w-4xl mx-auto">
               {features.map((feature, index) => (
-                <div key={index} className="text-center space-y-2 p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-orange-100/50">
-                  <div className="flex justify-center text-orange-500">
+                <div key={index} className="text-center space-y-2 p-4 rounded-lg bg-card/60 backdrop-blur-sm border border-primary/20">
+                  <div className="flex justify-center text-primary">
                     {feature.icon}
                   </div>
                   <h3 className="font-semibold text-sm">{feature.title}</h3>
@@ -328,11 +328,11 @@ const Download = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {downloadOptions.map((option, index) => (
               <Card key={index} className={`relative transition-all duration-300 hover:shadow-xl group ${
-                option.recommended ? 'border-2 border-orange-200 shadow-lg scale-105' : 'border border-gray-200 hover:border-orange-200'
+                option.recommended ? 'border-2 border-primary/30 shadow-lg scale-105' : 'border border-border hover:border-primary/20'
               } ${option.comingSoon ? 'opacity-75' : ''}`}>
                 {option.recommended && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1">
+                    <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1">
                       Recommended
                     </Badge>
                   </div>
@@ -340,14 +340,14 @@ const Download = () => {
                 
                 {option.comingSoon && (
                   <div className="absolute -top-3 right-4">
-                    <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700 px-3 py-1">
+                    <Badge variant="outline" className="bg-accent/5 border-accent/20 text-accent px-3 py-1">
                       Coming Soon
                     </Badge>
                   </div>
                 )}
                 
                 <CardHeader className="text-center pb-4 pt-8">
-                  <div className={`flex justify-center mb-4 ${option.recommended ? 'text-orange-500' : 'text-gray-500 group-hover:text-orange-500'} transition-colors`}>
+                  <div className={`flex justify-center mb-4 ${option.recommended ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'} transition-colors`}>
                     {option.icon}
                   </div>
                   <CardTitle className="text-2xl font-bold">{option.platform}</CardTitle>
@@ -379,8 +379,8 @@ const Download = () => {
                   <Button 
                     className={`w-full transition-all duration-300 shadow-md hover:shadow-lg ${
                       option.recommended 
-                        ? 'bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500' 
-                        : 'bg-gray-600 hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90' 
+                        : 'bg-muted hover:bg-muted/80'
                     }`}
                     size="lg"
                     disabled={option.comingSoon}
@@ -423,7 +423,7 @@ const Download = () => {
             <div className="flex flex-wrap justify-center gap-3">
               <Button 
                 variant="outline" 
-                className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                className="border-primary/20 text-primary hover:bg-primary/5"
                 onClick={() => window.open('https://github.com/CodeFox-Repo/homebrew-codefox/releases', '_blank')}
               >
                 <Github className="h-4 w-4 mr-2" />
@@ -431,7 +431,7 @@ const Download = () => {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                className="border-primary/20 text-primary hover:bg-primary/5"
                 onClick={() => showComingSoonToast("Web Version")}
               >
                 <Globe className="h-4 w-4 mr-2" />
@@ -439,7 +439,7 @@ const Download = () => {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                className="border-primary/20 text-primary hover:bg-primary/5"
                 onClick={() => showComingSoonToast("Mobile App")}
               >
                 <Smartphone className="h-4 w-4 mr-2" />
@@ -451,14 +451,14 @@ const Download = () => {
       </section>
 
       {/* Release Notes & Additional Info */}
-      <section className="w-full py-16 md:py-20 bg-gradient-to-b from-gray-50/50 to-white">
+      <section className="w-full py-16 md:py-20 bg-gradient-to-b from-muted/20 to-background">
         <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Release Notes */}
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-6">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <FileText className="h-5 w-5 text-orange-500" />
+                  <FileText className="h-5 w-5 text-primary" />
                   What's New in v{currentVersion}
                 </CardTitle>
               </CardHeader>
@@ -466,7 +466,7 @@ const Download = () => {
                 <ul className="space-y-4 mb-8">
                   {releaseNotes.map((note, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                       <span className="text-sm leading-relaxed">{note}</span>
                     </li>
                   ))}
@@ -475,7 +475,7 @@ const Download = () => {
                 <div className="space-y-3">
                   <Button 
                     variant="outline" 
-                    className="w-full border-orange-200 text-orange-600 hover:bg-orange-50"
+                    className="w-full border-primary/20 text-primary hover:bg-primary/5"
                     onClick={() => window.open(`https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${latestRelease?.tag_name || 'latest'}`, '_blank')}
                   >
                     View Full Changelog
@@ -483,7 +483,7 @@ const Download = () => {
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full border-gray-200 text-gray-600 hover:bg-gray-50"
+                    className="w-full border-border text-muted-foreground hover:bg-muted/20"
                     onClick={() => showComingSoonToast("Previous Versions")}
                   >
                     Previous Versions
@@ -497,15 +497,15 @@ const Download = () => {
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-6">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <Zap className="h-5 w-5 text-orange-500" />
+                  <Zap className="h-5 w-5 text-primary" />
                   Quick Start Guide
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-orange-600 text-xs font-semibold">1</span>
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-primary text-xs font-semibold">1</span>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm mb-1">Download & Install</h4>
@@ -514,8 +514,8 @@ const Download = () => {
                   </div>
                   
                   <div className="flex items-start gap-3">
-                    <div className="bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-orange-600 text-xs font-semibold">2</span>
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-primary text-xs font-semibold">2</span>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm mb-1">Launch Application</h4>
@@ -524,8 +524,8 @@ const Download = () => {
                   </div>
                   
                   <div className="flex items-start gap-3">
-                    <div className="bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-orange-600 text-xs font-semibold">3</span>
+                    <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-primary text-xs font-semibold">3</span>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm mb-1">Start Automating</h4>
@@ -538,14 +538,14 @@ const Download = () => {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold text-base flex items-center gap-2">
-                    <Users className="h-4 w-4 text-orange-500" />
+                    <Users className="h-4 w-4 text-primary" />
                     Need Help?
                   </h4>
                   <div className="space-y-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full justify-start border-blue-200 text-blue-600 hover:bg-blue-50"
+                      className="w-full justify-start border-accent/20 text-accent hover:bg-accent/5"
                       onClick={() => window.open('https://docs.foxychat.net/docs', '_blank')}
                     >
                       <FileText className="h-3 w-3 mr-2" />
@@ -554,7 +554,7 @@ const Download = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full justify-start border-green-200 text-green-600 hover:bg-green-50"
+                      className="w-full justify-start border-primary/20 text-primary hover:bg-primary/5"
                       onClick={() => showComingSoonToast("Community Forum")}
                     >
                       <Users className="h-3 w-3 mr-2" />
@@ -563,7 +563,7 @@ const Download = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full justify-start border-purple-200 text-purple-600 hover:bg-purple-50"
+                      className="w-full justify-start border-accent/20 text-accent hover:bg-accent/5"
                       onClick={() => showComingSoonToast("Issue Reporting")}
                     >
                       <Github className="h-3 w-3 mr-2" />
