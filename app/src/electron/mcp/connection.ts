@@ -207,6 +207,15 @@ export class MCPConnection extends EventEmitter {
       logger.info("Resolved config", resolvedConfig);
       // Create transport and client
       if (this.transportType === "stdio") {
+        // hack way
+        const enhancedPath =
+          process.env.PATH +
+          (process.platform === "darwin"
+            ? ":/usr/local/bin:/opt/homebrew/bin:/usr/bin"
+            : process.platform === "win32"
+              ? ";C:\\Program Files\\nodejs;C:\\Windows\\System32"
+              : ":/usr/local/bin:/usr/bin");
+
         const transport = new Experimental_StdioMCPTransport({
           command: resolvedConfig.command!,
           args: resolvedConfig.args || [],
@@ -216,6 +225,7 @@ export class MCPConnection extends EventEmitter {
             ELECTRON_USER_DATA: app.getPath("userData"),
             FOXYCHAT_APP_PATH: app.getAppPath(),
             FOXYCHAT_USER_DATA: app.getPath("userData"),
+            PATH: enhancedPath,
             ...resolvedConfig.env,
           },
           cwd: resolvedConfig.cwd || app.getPath("userData"),

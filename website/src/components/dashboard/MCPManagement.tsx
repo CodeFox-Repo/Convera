@@ -33,16 +33,16 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
+import {
+  useApps,
+  useCreateApp,
+  useDeleteApp,
+  useImportApps,
+  useUpdateApp,
+} from "@/hooks/use-request";
 import { MCPAuthor, MCPManagementFormData, MCPServer, MCPServerConfig } from "@/types/market";
 import { Copy, Download, Edit, FileJson, Plus, Server, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { 
-  useApps, 
-  useCreateApp, 
-  useUpdateApp, 
-  useDeleteApp, 
-  useImportApps 
-} from "@/hooks/useRequest";
 
 export function MCPManagement() {
   // React Query hooks
@@ -82,7 +82,6 @@ export function MCPManagement() {
   // Arguments management
   const [argumentsList, setArgumentsList] = useState<string[]>([]);
   const [argumentInput, setArgumentInput] = useState("");
-
 
   // State for icon file
   const [iconFile, setIconFile] = useState<File | null>(null);
@@ -321,7 +320,7 @@ export function MCPManagement() {
             resetForm();
             setHasUnsavedChanges(false);
           },
-        }
+        },
       );
     } else {
       // For creation, use FormData to include icon upload
@@ -435,13 +434,19 @@ export function MCPManagement() {
   const exportServers = () => {
     const exportData = {
       mcpServers: servers.reduce(
-        (acc: Record<string, {
-          name: string;
-          description: string;
-          command?: string;
-          args?: string[];
-          iconUrl?: string;
-        }>, server: MCPServer) => {
+        (
+          acc: Record<
+            string,
+            {
+              name: string;
+              description: string;
+              command?: string;
+              args?: string[];
+              iconUrl?: string;
+            }
+          >,
+          server: MCPServer,
+        ) => {
           acc[server.id] = {
             name: server.name,
             description: server.description,
@@ -597,7 +602,7 @@ export function MCPManagement() {
           }
 
           return formDataToSend;
-        })
+        }),
       );
 
       importAppsMutation.mutate(formDataArray, {
@@ -632,14 +637,13 @@ export function MCPManagement() {
     setJsonConfigView(generateJsonFromForm());
   }, [formData, generateJsonFromForm]);
 
-
   // Show error state if apps failed to load
   if (error) {
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <X className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">
@@ -649,11 +653,7 @@ export function MCPManagement() {
               </div>
             </div>
             <div className="ml-auto pl-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-              >
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
                 Retry
               </Button>
             </div>
@@ -1125,11 +1125,16 @@ export function MCPManagement() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={saveServer}
                 disabled={createAppMutation.isPending || updateAppMutation.isPending}
               >
-                {(createAppMutation.isPending || updateAppMutation.isPending) ? "Saving..." : (editingServer ? "Update" : "Create")} Server
+                {createAppMutation.isPending || updateAppMutation.isPending
+                  ? "Saving..."
+                  : editingServer
+                    ? "Update"
+                    : "Create"}{" "}
+                Server
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1206,10 +1211,10 @@ export function MCPManagement() {
                           <img
                             src={server.iconUrl}
                             alt={server.name}
-                            className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-sm"
+                            className="h-10 w-10 rounded-lg border border-gray-200 object-cover shadow-xs"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-orange-400 to-pink-500 text-sm font-semibold text-white shadow-sm">
                             {server.name.charAt(0).toUpperCase()}
                           </div>
                         )}
