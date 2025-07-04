@@ -23,16 +23,51 @@ jobs:
       # Get version information
       - name: Get version information
         id: get_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            # Use specified tag
             TAG_NAME="${{ github.event.inputs.tag_name }}"
+            echo "🏷️ Using specified tag: $TAG_NAME"
           else
-            TAG_NAME=$(git describe --tags --exact-match 2>/dev/null || echo "v$(date +%Y%m%d%H%M%S)")
+            # Get latest release tag
+            echo "🔍 Getting latest release tag..."
+            TAG_NAME=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
+              jq -r '.tag_name')
+            
+            if [ "$TAG_NAME" = "null" ] || [ -z "$TAG_NAME" ]; then
+              echo "❌ No release found, using current commit"
+              TAG_NAME="v$(date +%Y%m%d%H%M%S)"
+            else
+              echo "🏷️ Latest release tag: $TAG_NAME"
+            fi
           fi
           
+          # Remove 'v' prefix for version
           VERSION=${TAG_NAME#v}
           echo "📦 Version: $VERSION"
           echo "🏷️ Tag: $TAG_NAME"
+          
+          # Get release information if tag exists
+          if [ "$TAG_NAME" != "v$(date +%Y%m%d%H%M%S)" ]; then
+            echo "📋 Getting release information..."
+            RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME")
+            
+            RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name // "FoxyChat '$VERSION'"')
+            RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available"')
+            
+            echo "📝 Release Name: $RELEASE_NAME"
+            echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_OUTPUT
+            echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
+            echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_NAME=FoxyChat $VERSION" >> $GITHUB_OUTPUT
+            echo "RELEASE_BODY=Development build" >> $GITHUB_OUTPUT
+          fi
           
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
@@ -122,6 +157,8 @@ jobs:
         env:
           TAG_NAME: ${{ steps.get_version.outputs.TAG_NAME }}
           VERSION: ${{ steps.get_version.outputs.VERSION }}
+          RELEASE_NAME: ${{ steps.get_version.outputs.RELEASE_NAME }}
+          RELEASE_BODY: ${{ steps.get_version.outputs.RELEASE_BODY }}
         run: |
           # Check if we have the required token
           if [ -z "${{ secrets.REPO_ACCESS_TOKEN }}" ]; then
@@ -132,11 +169,11 @@ jobs:
 
           echo "🚀 Creating release in homebrew repository..."
 
-          # Create release using GitHub API
+          # Create release using GitHub API with original release info
           RELEASE_DATA='{
             "tag_name": "'$TAG_NAME'",
-            "name": "FoxyChat '$VERSION'",
-            "body": "FoxyChat version '$VERSION' - Built and synced from main repository\n\n**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
+            "name": "'$RELEASE_NAME'",
+            "body": "FoxyChat version '$VERSION' - Built and synced from main repository\n\n## Original Release Notes\n'$RELEASE_BODY'\n\n---\n\n**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/'$TAG_NAME'\n**Download:** Direct from homebrew repository for faster and more reliable distribution.",
             "draft": false,
             "prerelease": false
           }'
@@ -222,6 +259,7 @@ jobs:
         env:
           TAG_NAME: ${{ steps.get_version.outputs.TAG_NAME }}
           VERSION: ${{ steps.get_version.outputs.VERSION }}
+          RELEASE_NAME: ${{ steps.get_version.outputs.RELEASE_NAME }}
         run: |
           echo "🍺 Updating Homebrew formula to point to homebrew repository..."
 
@@ -266,7 +304,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "📋 No changes to commit - formula is already up to date"
           else
-            git commit -m "Update FoxyChat to version ${VERSION}
+            git commit -m "Update FoxyChat to version ${VERSION} - ${RELEASE_NAME}
 
             Release: ${TAG_NAME}
             Source: https://github.com/CodeFox-Repo/foxychat/tree/${TAG_NAME}
