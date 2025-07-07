@@ -29,6 +29,7 @@ import { app } from "electron";
 import { EventEmitter } from "events";
 import { z } from "zod";
 
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { getLogger } from "../logger";
 
 const logger = getLogger("MCPConnectionAI");
@@ -664,7 +665,6 @@ export class MCPConnection extends EventEmitter {
   ): Record<string, unknown> {
     try {
       // Handle cases where the tool definition provides a JSON schema directly
-      // This is a workaround for tools that don't use Zod schemas
       const potentialSchema = zodSchema as {
         jsonSchema?: Record<string, unknown>;
       };
@@ -672,42 +672,7 @@ export class MCPConnection extends EventEmitter {
         return potentialSchema.jsonSchema;
       }
 
-      // For simplified conversion, we'll return a basic object schema
-      // In a real implementation, you might want to use a proper Zod-to-JSON-Schema converter
-      if (zodSchema instanceof z.ZodObject) {
-        const shape = zodSchema.shape;
-        const properties: Record<string, unknown> = {};
-        const required: string[] = [];
-
-        for (const [key, value] of Object.entries(shape)) {
-          const zodType = value as z.ZodTypeAny;
-
-          if (zodType instanceof z.ZodString) {
-            properties[key] = { type: "string" };
-          } else if (zodType instanceof z.ZodNumber) {
-            properties[key] = { type: "number" };
-          } else if (zodType instanceof z.ZodBoolean) {
-            properties[key] = { type: "boolean" };
-          } else if (zodType instanceof z.ZodArray) {
-            properties[key] = { type: "array", items: { type: "any" } };
-          } else {
-            properties[key] = { type: "any" };
-          }
-
-          // Check if required (not optional)
-          if (!(zodType instanceof z.ZodOptional)) {
-            required.push(key);
-          }
-        }
-
-        return {
-          type: "object",
-          properties,
-          required: required.length > 0 ? required : undefined,
-        };
-      }
-
-      return { type: "object", properties: {} };
+      return zodToJsonSchema(zodSchema);
     } catch (e) {
       logger.error(
         "[MCPConnectionAI] Error converting zod schema to json schema",
@@ -722,9 +687,6 @@ export class MCPConnection extends EventEmitter {
    * Convert tools to legacy ToolDefinition format for backward compatibility
    */
   private convertToolsToLegacyFormat(): ToolDefinition[] {
-    getLogger("MCPConnectionAI").debug(
-      `Converting tools to legacy format for server ${JSON.stringify(this.tools, null, 2)}`,
-    );
     if (this.useAiSdk && this.client) {
       // AI SDK tools
       return Object.entries(this.tools).map(([name, tool]) => ({
