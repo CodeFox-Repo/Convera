@@ -1,7 +1,7 @@
 {
   "name": "foxfoxy-workspace",
   "private": true,
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "FoxyChat Workspace",
   "scripts": {
     "start": "cd app && pnpm start",

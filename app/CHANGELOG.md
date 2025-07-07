@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.18
+
+### Patch Changes
+
+- fix mcp cannot connect correctly
+
 ## 0.0.17
 
 ### Patch Changes
