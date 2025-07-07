@@ -28,6 +28,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { app } from "electron";
 import { EventEmitter } from "events";
 import { z } from "zod";
+
 import { getLogger } from "../logger";
 
 const logger = getLogger("MCPConnectionAI");
@@ -662,6 +663,15 @@ export class MCPConnection extends EventEmitter {
     zodSchema: z.ZodTypeAny,
   ): Record<string, unknown> {
     try {
+      // Handle cases where the tool definition provides a JSON schema directly
+      // This is a workaround for tools that don't use Zod schemas
+      const potentialSchema = zodSchema as {
+        jsonSchema?: Record<string, unknown>;
+      };
+      if (potentialSchema?.jsonSchema) {
+        return potentialSchema.jsonSchema;
+      }
+
       // For simplified conversion, we'll return a basic object schema
       // In a real implementation, you might want to use a proper Zod-to-JSON-Schema converter
       if (zodSchema instanceof z.ZodObject) {
@@ -698,7 +708,11 @@ export class MCPConnection extends EventEmitter {
       }
 
       return { type: "object", properties: {} };
-    } catch {
+    } catch (e) {
+      logger.error(
+        "[MCPConnectionAI] Error converting zod schema to json schema",
+        e,
+      );
       // Fallback to empty object schema
       return { type: "object", properties: {} };
     }
@@ -708,6 +722,9 @@ export class MCPConnection extends EventEmitter {
    * Convert tools to legacy ToolDefinition format for backward compatibility
    */
   private convertToolsToLegacyFormat(): ToolDefinition[] {
+    getLogger("MCPConnectionAI").debug(
+      `Converting tools to legacy format for server ${JSON.stringify(this.tools, null, 2)}`,
+    );
     if (this.useAiSdk && this.client) {
       // AI SDK tools
       return Object.entries(this.tools).map(([name, tool]) => ({

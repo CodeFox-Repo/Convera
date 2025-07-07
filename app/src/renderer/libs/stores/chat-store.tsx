@@ -501,9 +501,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const sendMessage = useCallback(
     (extraFiles?: File[]) => {
-      console.log("🎯 Frontend: sendMessage called");
-      console.log("🎯 Frontend: chatAPI.input:", chatAPI.input);
-      console.log("🎯 Frontend: copiedContent:", copiedContent);
       const filesToSend = [...attachments];
 
       if (extraFiles && extraFiles.length > 0) {
@@ -519,15 +516,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!conversationIdToUse) {
         conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         setCurrentConversationId(conversationIdToUse);
-        console.log(
-          "🆕 Frontend: Generated new conversation ID:",
-          conversationIdToUse,
-        );
-      } else {
-        console.log(
-          "🔄 Frontend: Using existing conversation ID:",
-          conversationIdToUse,
-        );
       }
 
       let messageText = chatAPI.input.trim();
