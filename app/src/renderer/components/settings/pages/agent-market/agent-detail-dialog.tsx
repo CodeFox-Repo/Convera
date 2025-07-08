@@ -252,40 +252,6 @@ export function AgentDetailDialog({
                     </div>
                   </div>
                 )}
-
-                {/* Metadata */}
-                <div className="space-y-2">
-                  <Label className="text-foreground">Metadata</Label>
-                  <div className="p-3 bg-muted/20 border border-border/30 rounded-md space-y-1 text-sm text-foreground">
-                    <p>
-                      <strong>Agent ID:</strong> {agent.id}
-                    </p>
-                    <p>
-                      <strong>Version:</strong> {agent.version || "1.0.0"}
-                    </p>
-                    <p>
-                      <strong>Created:</strong>{" "}
-                      {new Date(agent.createdAt).toLocaleString()}
-                    </p>
-                    <p>
-                      <strong>Updated:</strong>{" "}
-                      {new Date(agent.updatedAt).toLocaleString()}
-                    </p>
-                    {agent.iconUrl && (
-                      <p>
-                        <strong>Icon URL:</strong>{" "}
-                        <a
-                          href={agent.iconUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline break-all"
-                        >
-                          {agent.iconUrl}
-                        </a>
-                      </p>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -326,7 +292,7 @@ export function AgentDetailDialog({
                           ? '{\n  "mcpServers": {\n    // Only MCP servers configured in your system will appear here\n  }\n}'
                           : '{\n  "mcpServers": {\n    // Loading...\n  }\n}'
                       }
-                      className="flex-1 resize-none font-mono text-sm bg-background text-foreground border-border/30"
+                      className="flex-1 resize-none font-mono text-sm bg-background text-foreground border-border/30 overflow-y-auto"
                     />
                   </div>
                 </CardContent>
