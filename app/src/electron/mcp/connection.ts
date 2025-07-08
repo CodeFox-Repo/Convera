@@ -106,6 +106,7 @@ export class MCPConnection extends EventEmitter {
   private lastStarted: string | null = null;
   private disabled: boolean;
   private authorizationUrl?: string;
+  private sseStatusPollingInterval: NodeJS.Timeout | null = null;
 
   constructor(name: string, config: MCPServerConfig) {
     super();
@@ -256,7 +257,15 @@ export class MCPConnection extends EventEmitter {
         await this.connectWithHttpFallback(resolvedConfig);
       }
 
-      // Fetch initial capabilities
+      // For SSE connections using AI SDK, status will be updated by polling
+      if (this.useAiSdk && this.transportType !== "stdio") {
+        // SSE connection - status will be updated by polling
+        console.log(`MCP server '${this.name}' SSE connection initiated, polling for status...`);
+        this.startSseStatusPolling();
+        return;
+      }
+
+      // For other connections, fetch initial capabilities and mark as connected
       await this.updateCapabilities();
 
       // Mark as connected
@@ -323,6 +332,12 @@ export class MCPConnection extends EventEmitter {
     this.error = errorMessage || null;
     this.startTime = null;
     this.authorizationUrl = undefined;
+    
+    // Clear SSE polling interval
+    if (this.sseStatusPollingInterval) {
+      clearInterval(this.sseStatusPollingInterval);
+      this.sseStatusPollingInterval = null;
+    }
   }
 
   /**
@@ -560,6 +575,47 @@ export class MCPConnection extends EventEmitter {
         this.emit("error", { server: this.name, error });
       },
     });
+
+    // Start polling for connection status for SSE connections
+    this.startSseStatusPolling();
+  }
+
+  /**
+   * Start polling for SSE connection status
+   */
+  private startSseStatusPolling(): void {
+    if (this.sseStatusPollingInterval) {
+      clearInterval(this.sseStatusPollingInterval);
+    }
+
+    this.sseStatusPollingInterval = setInterval(async () => {
+      try {
+        if (this.client && this.status === ConnectionStatus.CONNECTING) {
+          // Try to get tools to check if connection is actually ready
+          const tools = await this.client.tools();
+          if (tools && Object.keys(tools).length >= 0) {
+            // Connection is ready, update status
+            this.status = ConnectionStatus.CONNECTED;
+            this.startTime = Date.now();
+            this.error = null;
+            
+            // Update capabilities
+            await this.updateCapabilities();
+            
+            // Clear polling interval
+            if (this.sseStatusPollingInterval) {
+              clearInterval(this.sseStatusPollingInterval);
+              this.sseStatusPollingInterval = null;
+            }
+            
+            console.log(`MCP server '${this.name}' connected successfully via SSE`);
+          }
+        }
+      } catch (error) {
+        // Still connecting or authorization needed, continue polling
+        console.debug(`SSE connection still in progress for ${this.name}:`, error);
+      }
+    }, 2000); // Poll every 2 seconds
   }
 
   /**
