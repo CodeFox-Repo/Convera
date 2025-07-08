@@ -256,7 +256,12 @@ export const useMcpStore = create<McpState>()(
 
           for (const [serverId, serverConfig] of serverEntries) {
             try {
-              window.mcpAPI.addServer(serverId, serverConfig);
+              // Ensure disabled is set to false by default if not specified
+              const configWithDefaults = {
+                ...serverConfig,
+                disabled: serverConfig.disabled ?? false,
+              };
+              window.mcpAPI.addServer(serverId, configWithDefaults);
               successes.push(serverId);
             } catch (error) {
               const errorMsg =

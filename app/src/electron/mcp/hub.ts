@@ -196,14 +196,19 @@ export class MCPHub extends EventEmitter {
    * Add new server
    */
   async addServer(name: string, config: MCPServerConfig): Promise<ServerInfo> {
-    this.config.mcpServers[name] = config;
+    // Ensure disabled is set to false by default if not specified
+    const configWithDefaults = {
+      ...config,
+      disabled: config.disabled ?? false,
+    };
+    this.config.mcpServers[name] = configWithDefaults;
     this.saveConfig();
 
-    if (config.disabled !== true) {
-      return await this.connectServer(name, config);
+    if (configWithDefaults.disabled !== true) {
+      return await this.connectServer(name, configWithDefaults);
     } else {
       // Create connection but don't start
-      const connection = new MCPConnection(name, config);
+      const connection = new MCPConnection(name, configWithDefaults);
       this.connections.set(name, connection);
       return connection.getServerInfo();
     }
