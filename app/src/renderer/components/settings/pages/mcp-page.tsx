@@ -61,7 +61,7 @@ export function McpSettingsPage() {
     const handleMcpModified = () => {
       mcpStore.refreshAll();
     };
-    
+
     window.addEventListener("mcp-servers-modified", handleMcpModified);
 
     return () => {

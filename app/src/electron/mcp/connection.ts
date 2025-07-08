@@ -260,7 +260,9 @@ export class MCPConnection extends EventEmitter {
       // For SSE connections using AI SDK, status will be updated by polling
       if (this.useAiSdk && this.transportType !== "stdio") {
         // SSE connection - status will be updated by polling
-        console.log(`MCP server '${this.name}' SSE connection initiated, polling for status...`);
+        console.log(
+          `MCP server '${this.name}' SSE connection initiated, polling for status...`,
+        );
         this.startSseStatusPolling();
         return;
       }
@@ -332,7 +334,7 @@ export class MCPConnection extends EventEmitter {
     this.error = errorMessage || null;
     this.startTime = null;
     this.authorizationUrl = undefined;
-    
+
     // Clear SSE polling interval
     if (this.sseStatusPollingInterval) {
       clearInterval(this.sseStatusPollingInterval);
@@ -598,22 +600,27 @@ export class MCPConnection extends EventEmitter {
             this.status = ConnectionStatus.CONNECTED;
             this.startTime = Date.now();
             this.error = null;
-            
+
             // Update capabilities
             await this.updateCapabilities();
-            
+
             // Clear polling interval
             if (this.sseStatusPollingInterval) {
               clearInterval(this.sseStatusPollingInterval);
               this.sseStatusPollingInterval = null;
             }
-            
-            console.log(`MCP server '${this.name}' connected successfully via SSE`);
+
+            console.log(
+              `MCP server '${this.name}' connected successfully via SSE`,
+            );
           }
         }
       } catch (error) {
         // Still connecting or authorization needed, continue polling
-        console.debug(`SSE connection still in progress for ${this.name}:`, error);
+        console.debug(
+          `SSE connection still in progress for ${this.name}:`,
+          error,
+        );
       }
     }, 2000); // Poll every 2 seconds
   }
