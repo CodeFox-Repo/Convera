@@ -253,6 +253,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         toolCall.args as Record<string, unknown>,
       );
 
+      if (!result.success) {
+        throw new Error(result.error || 'Tool call failed');
+      }
+
       return result.data;
     },
     onFinish: async () => {
