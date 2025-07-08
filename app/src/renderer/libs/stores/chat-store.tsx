@@ -254,7 +254,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (!result.success) {
-        throw new Error(result.error || 'Tool call failed');
+        throw new Error(result.error || "Tool call failed");
       }
 
       return result.data;
