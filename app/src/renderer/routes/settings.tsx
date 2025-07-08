@@ -8,6 +8,7 @@ import {
   Moon,
   Server,
   Settings as SettingsIcon,
+  ShoppingCart,
   Sun,
   User,
   X,
@@ -15,6 +16,7 @@ import {
 
 // Import page components
 import { AccountSettingsPage } from "@/renderer/components/settings/pages/account-page";
+import { AgentMarketPage } from "@/renderer/components/settings/pages/agent-market-page";
 import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
 import { AppSettingsPage } from "@/renderer/components/settings/pages/app-page";
 import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
@@ -95,11 +97,15 @@ function SettingsPage() {
       icon: <Bot className="h-5 w-5" />,
     },
     {
+      id: "agent-market",
+      label: "Agent Market",
+      icon: <ShoppingCart className="h-5 w-5" />,
+    },
+    {
       id: "mcp",
       label: "MCP Servers",
       icon: <Server className="h-5 w-5" />,
     },
-
     {
       id: "developer",
       label: "Developer",
@@ -118,6 +124,8 @@ function SettingsPage() {
         return (
           <AgentsSettingsPage onNavigateToMcp={() => handleTabChange("mcp")} />
         );
+      case "agent-market":
+        return <AgentMarketPage />;
       case "mcp":
         return <McpSettingsPage />;
       case "app":

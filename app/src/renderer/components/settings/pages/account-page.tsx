@@ -2,8 +2,8 @@ import { AuthModal } from "@/renderer/components/auth/auth-modal";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { authClient } from "@/renderer/libs/auth-client";
-import { useUpdateUser } from "@/renderer/libs/hooks/auth-hooks";
 import { getBaseUrl } from "@/renderer/libs/env";
+import { useUpdateUser } from "@/renderer/libs/hooks/auth-hooks";
 import { BarChart3, Camera, Check, Edit, LogOut, User, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -63,20 +63,11 @@ export function AccountSettingsPage() {
 
     setLoadingStats(true);
     try {
-      console.log("Loading usage stats...");
       const response = await fetch(`${getBaseUrl()}/api/users/usage`, {
         credentials: "include",
       });
-
-      console.log(
-        "Usage stats response:",
-        response.status,
-        response.statusText,
-      );
-
       if (response.ok) {
         const data = await response.json();
-        console.log("Usage stats data:", data);
         setUsageStats(data.usage);
       } else {
         const errorData = await response.text();
