@@ -53,6 +53,16 @@ const Navbar: React.FC = () => {
               </span>
               <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
             </a>
+
+            <Link
+              to="/pricing"
+              className="group relative text-gray-600 transition-colors duration-300 hover:text-purple-500"
+            >
+              <span className="flex items-center space-x-1 text-sm font-medium">
+                <span>Pricing</span>
+              </span>
+              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-purple-500 to-purple-400 transition-all duration-300 group-hover:w-full"></div>
+            </Link>
           </nav>
 
           {/* CTA Buttons */}
@@ -112,6 +122,14 @@ const Navbar: React.FC = () => {
                 <span className="font-medium">Documentation</span>
                 <ExternalLink className="h-3 w-3 opacity-60" />
               </a>
+
+              <Link
+                to="/pricing"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-purple-50 hover:text-purple-500"
+              >
+                <span className="font-medium">Pricing</span>
+              </Link>
 
               <div className="mt-4 border-t border-gray-200/50 pt-4">
                 <div className="mb-4 flex items-center justify-between">

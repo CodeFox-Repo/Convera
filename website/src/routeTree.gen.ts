@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as DownloadRouteImport } from './routes/download'
 import { Route as UserRouteImport } from './routes/_user'
 import { Route as AdminRouteImport } from './routes/_admin'
@@ -18,6 +19,11 @@ import { Route as AuthPathnameRouteImport } from './routes/auth.$pathname'
 import { Route as UserSettingsRouteImport } from './routes/_user/settings'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
 
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/download': typeof DownloadRoute
+  '/pricing': typeof PricingRoute
   '/dashboard': typeof AdminDashboardRoute
   '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/download': typeof DownloadRoute
+  '/pricing': typeof PricingRoute
   '/dashboard': typeof AdminDashboardRoute
   '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/_admin': typeof AdminRouteWithChildren
   '/_user': typeof UserRouteWithChildren
   '/download': typeof DownloadRoute
+  '/pricing': typeof PricingRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
   '/_user/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
@@ -90,11 +99,19 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/download'
+    | '/pricing'
     | '/dashboard'
     | '/settings'
     | '/auth/$pathname'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$' | '/download' | '/dashboard' | '/settings' | '/auth/$pathname'
+  to:
+    | '/'
+    | '/$'
+    | '/download'
+    | '/pricing'
+    | '/dashboard'
+    | '/settings'
+    | '/auth/$pathname'
   id:
     | '__root__'
     | '/'
@@ -102,6 +119,7 @@ export interface FileRouteTypes {
     | '/_admin'
     | '/_user'
     | '/download'
+    | '/pricing'
     | '/_admin/dashboard'
     | '/_user/settings'
     | '/auth/$pathname'
@@ -113,11 +131,19 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   UserRoute: typeof UserRouteWithChildren
   DownloadRoute: typeof DownloadRoute
+  PricingRoute: typeof PricingRoute
   AuthPathnameRoute: typeof AuthPathnameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/download': {
       id: '/download'
       path: '/download'
@@ -203,6 +229,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   UserRoute: UserRouteWithChildren,
   DownloadRoute: DownloadRoute,
+  PricingRoute: PricingRoute,
   AuthPathnameRoute: AuthPathnameRoute,
 }
 export const routeTree = rootRouteImport
