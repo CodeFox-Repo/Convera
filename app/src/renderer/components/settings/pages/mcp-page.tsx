@@ -57,16 +57,8 @@ export function McpSettingsPage() {
     // Subscribe to MCP data changes for real-time sync
     const unsubscribe = subscribeMcpChanges();
 
-    // Listen for MCP servers modification event
-    const handleMcpModified = () => {
-      mcpStore.refreshAll();
-    };
-
-    window.addEventListener("mcp-servers-modified", handleMcpModified);
-
     return () => {
       unsubscribe();
-      window.removeEventListener("mcp-servers-modified", handleMcpModified);
     };
   }, []);
 
