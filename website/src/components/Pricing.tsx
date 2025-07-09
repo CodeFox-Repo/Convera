@@ -1,11 +1,14 @@
 import { PricingCard } from "@/components/ui/pricing-card";
+import { useRouter } from "@tanstack/react-router";
 import React from "react";
 import Navbar from "./Navbar";
 
 const Pricing: React.FC = () => {
+  const router = useRouter();
+
   const handleFree = () => {
-    // Handle free trial signup
-    console.log("Starting free trial...");
+    // Redirect to download page
+    router.navigate({ to: "/download" });
   };
 
   const handleProUpgrade = () => {
@@ -39,7 +42,7 @@ const Pricing: React.FC = () => {
 
           {/* Pricing Cards */}
           <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3 md:gap-6 lg:gap-8">
-            {/* Free Trial */}
+            {/* Free */}
             <PricingCard
               title="Free"
               description="Start here and try our product"
