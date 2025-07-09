@@ -1,4 +1,4 @@
-import { PricingCard } from "@/components/ui/pricing-card";
+import { PricingCard } from "@/components/pricing-card";
 import { useRouter } from "@tanstack/react-router";
 import React from "react";
 import Navbar from "./Navbar";
