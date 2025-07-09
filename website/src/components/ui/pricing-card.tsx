@@ -30,7 +30,7 @@ export const PricingCard: React.FC<PricingCardProps> = ({
 }) => {
   return (
     <Card
-      className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
+      className={`relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg ${
         isPopular
           ? "scale-105 border-orange-200 bg-gradient-to-br from-orange-50 to-white shadow-lg"
           : "border-gray-200 hover:border-gray-300"
@@ -57,8 +57,8 @@ export const PricingCard: React.FC<PricingCardProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        <ul className="space-y-3">
+      <CardContent className="flex flex-1 flex-col">
+        <ul className="mb-6 flex-1 space-y-3">
           {features.map((feature, index) => (
             <li key={index} className="flex items-start gap-3">
               <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" />
