@@ -94,7 +94,7 @@ function UserSettings() {
       return;
     }
 
-    // Use user ID as customerId (common pattern with Stripe)
+    // send user id to backend to get customer portal url
     customerPortal.mutate(session.user.id);
   };
 
