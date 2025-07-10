@@ -34,8 +34,6 @@ const Pricing: React.FC = () => {
           priceId: "price_1RgRuD4Sb5jowGrkEP1Ob7tB", // Replace with your actual Stripe price ID for Pro plan
           planType: "pro",
           customerEmail: session.user.email,
-          successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${window.location.origin}/pricing`,
           automaticTax: true,
         }),
       });
@@ -83,8 +81,6 @@ const Pricing: React.FC = () => {
           priceId: "price_1RgXk54Sb5jowGrkDHHdA14W", // Replace with your actual Stripe price ID for Pro Plus plan
           planType: "pro-plus",
           customerEmail: session.user.email,
-          successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${window.location.origin}/pricing`,
           automaticTax: true,
         }),
       });
