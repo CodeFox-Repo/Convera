@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@daveyplate/better-auth-ui";
 import { BarChart3, Bot, Home, Server, Settings, Users } from "lucide-react";
-import Logo from "../../../public/icon.png";
+import Logo from "/icon.png";
 interface DashboardSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;

@@ -38,9 +38,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthQueryProvider>
-        <AuthProviderWithRouter>
-          {children}
-        </AuthProviderWithRouter>
+        <AuthProviderWithRouter>{children}</AuthProviderWithRouter>
       </AuthQueryProvider>
     </QueryClientProvider>
   );
