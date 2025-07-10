@@ -28,6 +28,7 @@ function AuthProviderWithRouter({ children }: { children: ReactNode }) {
           {children}
         </Link>
       )}
+      providers={["github"]}
     >
       {children}
     </AuthUIProvider>

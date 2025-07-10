@@ -10,32 +10,54 @@ export default function AuthPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50/50 p-4">
-      <div className="w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md">
+        <style>{`
+          /* Fix provider button icon overflow */
+          [data-slot="button"] svg {
+            max-width: 20px !important;
+            max-height: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            flex-shrink: 0 !important;
+          }
+          
+          /* Ensure proper button sizing */
+          button[type="button"] {
+            position: relative !important;
+            overflow: hidden !important;
+            max-height: 48px !important;
+          }
+          
+          /* Fix any absolute positioned elements */
+          .auth-card * {
+            position: relative !important;
+          }
+        `}</style>
+
         <AuthCard
           pathname={pathname}
           callbackURL={redirectURL}
           redirectTo={redirectURL}
-          className="border-0 shadow-2xl shadow-orange-100/50"
+          socialLayout="vertical"
+          className="relative z-20 border-0 shadow-2xl shadow-orange-100/50"
           classNames={{
-            base: "bg-white/95 backdrop-blur-sm border border-orange-100/50 shadow-2xl shadow-orange-100/50",
-            header: "pb-6 pt-8 px-8",
-            title: "text-2xl font-bold text-gray-900 text-center",
-            description: "text-gray-600 text-center mt-2",
-            content: "px-8 pb-8 space-y-6",
+            base: "bg-white/95 backdrop-blur-sm border border-orange-100/50 shadow-2xl shadow-orange-100/50 relative z-20 overflow-hidden auth-card",
+            header: "pb-6 pt-8 px-8 relative z-30",
+            title: "text-2xl font-bold text-gray-900 text-center relative z-30",
+            description: "text-gray-600 text-center mt-2 relative z-30",
+            content: "px-8 pb-8 space-y-0 relative z-30",
+            separator: "bg-gray-200 relative z-30",
             form: {
-              base: "space-y-1",
-              label: "text-sm font-medium text-gray-700",
+              base: "space-y-1 relative z-30",
+              label: "text-sm font-medium text-gray-700 relative z-30",
               input:
-                "w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200 bg-white",
-              button:
-                "w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-orange-200/50",
-              forgotPasswordLink:
-                "text-orange-600 hover:text-orange-700 text-sm font-medium transition-colors duration-200",
-              error: "text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3",
+                "w-full px-4  rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200 bg-white relative z-30",
+              error:
+                "text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 relative z-30",
             },
-            footer: "px-8 pb-6 pt-4 border-t border-gray-100",
+            footer: "px-8 pb-6 pt-4 border-t border-gray-100 relative z-30",
             footerLink:
-              "text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200",
+              "text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200 relative z-30",
           }}
         />
       </div>
