@@ -1,24 +1,115 @@
 import { PricingCard } from "@/components/pricing-card";
+import { toast } from "@/components/ui/use-toast";
+import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
 import React from "react";
 import Navbar from "./Navbar";
 
 const Pricing: React.FC = () => {
   const router = useRouter();
+  const { data: session } = useSession();
 
   const handleFree = () => {
     // Redirect to download page
     router.navigate({ to: "/download" });
   };
 
-  const handleProUpgrade = () => {
-    // Handle Pro plan upgrade
-    console.log("Upgrading to Pro...");
+  const handleProUpgrade = async () => {
+    // Check if user is authenticated
+    if (!session?.user) {
+      // Redirect to login
+      router.navigate({ to: "/auth/$pathname", params: { pathname: "sign-in" } });
+      return;
+    }
+
+    try {
+      // Create checkout session
+      const response = await fetch(`${getBaseURL()}/api/subscription/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          priceId: "price_1RgRuD4Sb5jowGrkEP1Ob7tB", // Replace with your actual Stripe price ID for Pro plan
+          planType: "pro",
+          customerEmail: session.user.email,
+          successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${window.location.origin}/pricing`,
+          automaticTax: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
+
+      const data = await response.json();
+
+      // Redirect to Stripe checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Checkout Failed",
+        description: error instanceof Error ? error.message : "Failed to start checkout process",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleProPlusUpgrade = () => {
-    // Handle Pro Plus plan upgrade
-    console.log("Upgrading to Pro Plus...");
+  const handleProPlusUpgrade = async () => {
+    // Check if user is authenticated
+    if (!session?.user) {
+      // Redirect to login
+      router.navigate({ to: "/auth/$pathname", params: { pathname: "sign-in" } });
+      return;
+    }
+
+    try {
+      // Create checkout session
+      const response = await fetch(`${getBaseURL()}/api/subscription/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          priceId: "price_1RgXk54Sb5jowGrkDHHdA14W", // Replace with your actual Stripe price ID for Pro Plus plan
+          planType: "pro-plus",
+          customerEmail: session.user.email,
+          successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${window.location.origin}/pricing`,
+          automaticTax: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
+
+      const data = await response.json();
+
+      // Redirect to Stripe checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Checkout Failed",
+        description: error instanceof Error ? error.message : "Failed to start checkout process",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
