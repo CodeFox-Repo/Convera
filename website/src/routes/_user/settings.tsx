@@ -199,22 +199,6 @@ function UserSettings() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing History</CardTitle>
-                <CardDescription>View your past invoices and billing history.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center">
-                  <Mail className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900">No billing history</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Your billing history will appear here once you have a subscription.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Subscription Tab */}
