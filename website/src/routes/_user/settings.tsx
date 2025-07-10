@@ -4,16 +4,51 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSession } from "@/lib/auth-client";
+import { toast } from "@/components/ui/use-toast";
+import { getBaseURL, useSession } from "@/lib/auth-client";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle, CreditCard, Crown, Mail, User } from "lucide-react";
+import { AlertCircle, CheckCircle, CreditCard, Crown, Mail, Settings, User } from "lucide-react";
 
 export const Route = createFileRoute("/_user/settings")({
   component: UserSettings,
 });
 
+// Custom hook for customer portal
+function useCustomerPortal() {
+  return useMutation({
+    mutationFn: async (customerId: string) => {
+      const response = await fetch(`${getBaseURL()}/api/subscription/customer-portal`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ customerId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to access customer portal");
+      }
+
+      // The backend redirects, but in case it returns data
+      return response.json().catch(() => ({}));
+    },
+    onError: (error: Error) => {
+      console.error("Customer portal error:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 function UserSettings() {
   const { data: session } = useSession();
+  const customerPortal = useCustomerPortal();
 
   const userInitials = session?.user.name
     ? session.user.name
@@ -22,6 +57,20 @@ function UserSettings() {
         .join("")
         .toUpperCase()
     : session?.user.email?.[0]?.toUpperCase() || "U";
+
+  const handleManageSubscription = () => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "User session not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use user ID as customerId (common pattern with Stripe)
+    customerPortal.mutate(session.user.id);
+  };
 
   return (
     <div className="space-y-6">
@@ -89,6 +138,24 @@ function UserSettings() {
 
           {/* Billing Tab */}
           <TabsContent value="billing" className="mt-0 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Management</CardTitle>
+                <CardDescription>
+                  Manage your subscription, payment methods, and billing information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center">
+                    <Button onClick={handleManageSubscription} disabled={customerPortal.isPending}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      {customerPortal.isPending ? "Opening..." : "Manage Subscription"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">Upcoming Invoice</CardTitle>
