@@ -18,27 +18,53 @@ export const Route = createFileRoute("/_user/settings")({
 function useCustomerPortal() {
   return useMutation({
     mutationFn: async (customerId: string) => {
-      const response = await fetch(`${getBaseURL()}/api/subscription/customer-portal`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ customerId }),
-      });
+      try {
+        // First, try to validate the request with fetch
+        const response = await fetch(`${getBaseURL()}/api/subscription/customer-portal`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ customerId }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to access customer portal");
+        // If we get a 400 error, the customer doesn't exist
+        if (response.status === 400) {
+          throw new Error("You haven't subscribed yet.");
+        }
+
+        // If we get here but the request "fails" due to CORS (redirect), that's actually success
+        // The fetch will fail with CORS when backend redirects to Stripe
+      } catch (error: any) {
+        // Check if it's a 400 error (customer not found)
+        if (error.message.includes("subscribed")) {
+          throw error;
+        }
       }
 
-      // The backend redirects, but in case it returns data
-      return response.json().catch(() => ({}));
+      // Create a form and submit it to trigger the redirect
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = `${getBaseURL()}/api/subscription/customer-portal`;
+      form.style.display = "none";
+
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "customerId";
+      input.value = customerId;
+
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+
+      return { success: true };
     },
     onError: (error: Error) => {
       console.error("Customer portal error:", error);
       toast({
-        title: "Error",
+        title: "Subscription Required",
         description: error.message,
         variant: "destructive",
       });
