@@ -5,23 +5,8 @@ export default function AuthPage() {
   const { pathname = "sign-in" } = useParams({ from: "/auth/$pathname" });
   const search = useSearch({ from: "/auth/$pathname" });
 
-  // Get the current origin for full URL construction
-  const getFullURL = (path: string) => {
-    if (path.startsWith("http")) return path;
-
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}${path}`;
-    }
-
-    // Fallback for SSR - use production URL
-    const baseURL =
-      process.env.NODE_ENV === "production" ? "https://foxychat.net" : "http://localhost:8080";
-    return `${baseURL}${path}`;
-  };
-
-  // Get redirect URL from search params, default to home page with full URL
-  const redirectPath = search.redirect || "/";
-  const redirectURL = getFullURL(redirectPath);
+  // Get redirect URL from search params, default to home page
+  const redirectURL = search.redirect || "/";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50/50 p-4">
