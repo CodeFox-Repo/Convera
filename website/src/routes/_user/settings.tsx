@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CreditCard, Mail, Settings, User } from "lucide-react";
+import { CreditCard, Settings, User } from "lucide-react";
 
 export const Route = createFileRoute("/_user/settings")({
   component: UserSettings,
@@ -172,23 +172,6 @@ function UserSettings() {
                       {customerPortal.isPending ? "Opening..." : "Manage Subscription"}
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">Upcoming Invoice</CardTitle>
-                <CardDescription>Your next billing cycle and charges</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center">
-                  <Mail className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900">No upcoming invoices</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    You don't have any upcoming invoices. Invoices will appear here when you have an
-                    active subscription.
-                  </p>
-                  <Button className="mt-4">View Subscription Plans</Button>
                 </div>
               </CardContent>
             </Card>
