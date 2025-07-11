@@ -14,7 +14,7 @@ const Pricing: React.FC = () => {
     router.navigate({ to: "/download" });
   };
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async (planName: string) => {
     // Check if user is authenticated
     if (!session?.user) {
       // Redirect to login
@@ -31,7 +31,7 @@ const Pricing: React.FC = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          planId: planId,
+          planName: planName,
           customerEmail: session.user.email,
           automaticTax: true,
         }),
