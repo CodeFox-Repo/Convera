@@ -1,5 +1,5 @@
 import { AuthQueryProvider } from "@daveyplate/better-auth-tanstack";
-import { AuthUIProvider } from "@daveyplate/better-auth-ui";
+import { AuthUIProviderTanstack } from "@daveyplate/better-auth-ui/tanstack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ReactNode } from "react";
@@ -19,7 +19,7 @@ function AuthProviderWithRouter({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   return (
-    <AuthUIProvider
+    <AuthUIProviderTanstack
       authClient={authClient}
       navigate={(href: string) => router.navigate({ to: href })}
       replace={(href: string) => router.navigate({ to: href, replace: true })}
@@ -28,9 +28,10 @@ function AuthProviderWithRouter({ children }: { children: ReactNode }) {
           {children}
         </Link>
       )}
+      providers={["github"]}
     >
       {children}
-    </AuthUIProvider>
+    </AuthUIProviderTanstack>
   );
 }
 
@@ -38,9 +39,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthQueryProvider>
-        <AuthProviderWithRouter>
-          {children}
-        </AuthProviderWithRouter>
+        <AuthProviderWithRouter>{children}</AuthProviderWithRouter>
       </AuthQueryProvider>
     </QueryClientProvider>
   );

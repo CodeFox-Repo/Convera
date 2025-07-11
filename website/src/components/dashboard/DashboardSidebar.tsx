@@ -1,82 +1,86 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@daveyplate/better-auth-ui";
-import { Home, Server, ShoppingCart, Users } from "lucide-react";
-
+import { BarChart3, Bot, Home, Server, Settings, Users } from "lucide-react";
+import Logo from "/icon.png";
 interface DashboardSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
 }
 
-const sidebarItems = [
+const mainNavItems = [
   {
     id: "overview",
-    label: "Overview",
+    label: "Dashboard",
     icon: Home,
-    description: "Dashboard overview",
   },
   {
     id: "users",
     label: "User Management",
     icon: Users,
-    description: "Manage users and roles",
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: BarChart3,
   },
   {
     id: "mcp",
     label: "App MCP",
     icon: Server,
-    description: "Manage App MCP marketplace",
   },
   {
     id: "agentMarket",
     label: "Agent Market",
-    icon: ShoppingCart,
-    description: "Manage Agent marketplace",
+    icon: Bot,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
   },
 ];
 
 export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSidebarProps) {
   return (
     <div className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-      {/* Navigation - flex-1 to take up remaining space */}
-      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-        {sidebarItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
+      {/* Brand Header */}
+      <div className="flex items-center border-b border-gray-200 p-6">
+        <img src={Logo} alt="FoxChat" width={32} height={32} />
+        <span className="ml-1 text-lg font-semibold text-gray-900">Foxychat</span>
+      </div>
 
-          return (
-            <Button
-              key={item.id}
-              variant={isActive ? "default" : "ghost"}
-              className={cn(
-                "h-auto w-full justify-start p-3 text-left",
-                isActive
-                  ? "border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-              )}
-              onClick={() => onSectionChange(item.id)}
-            >
-              <Icon
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-1">
+          {mainNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeSection === item.id;
+
+            return (
+              <button
+                key={item.id}
                 className={cn(
-                  "mr-3 h-4 w-4 shrink-0",
-                  isActive ? "text-orange-600" : "text-gray-500",
+                  "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                 )}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{item.label}</div>
-                <div className="truncate text-xs text-gray-500">{item.description}</div>
-              </div>
-            </Button>
-          );
-        })}
+                onClick={() => onSectionChange(item.id)}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* User Info - positioned at bottom with better-auth UI UserButton */}
+      {/* User Section */}
       <div className="border-t border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <UserButton className="flex-1" />
-          <Badge variant="secondary" className="ml-2 bg-orange-100 text-xs text-orange-800">
+          <Badge variant="secondary" className="ml-2 bg-gray-100 text-xs text-gray-700">
             Admin
           </Badge>
         </div>
