@@ -1,4 +1,4 @@
-import { PricingCard } from "@/components/pricing-card";
+import { PricingCard } from "@/components/pricing_card";
 import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";

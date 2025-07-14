@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, ExternalLink, FileText, Menu, Play, X } from "lucide-react";
 import React, { useState } from "react";
 import Logo from "./Logo";
-import { UserButton } from "./UserButton";
+import { UserButton } from "./user_button";
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
