@@ -73,7 +73,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Initialize settings
       initializeSettings: async () => {
         const { settingsInitialized, settingsLoading } = get();
-        
+
         // Prevent multiple initializations
         if (settingsInitialized || settingsLoading) {
           return;
@@ -93,7 +93,10 @@ export const useSettingsStore = create<SettingsState>()(
           });
 
           // Sync to localStorage for cross-window communication
-          localStorage.setItem("foxchat_settings", JSON.stringify(initialSettings));
+          localStorage.setItem(
+            "foxchat_settings",
+            JSON.stringify(initialSettings),
+          );
         } catch (error) {
           console.error("Failed to load settings:", error);
         } finally {
@@ -298,7 +301,7 @@ export const useSettingsStore = create<SettingsState>()(
 
         const handleStorageChange = async (event: StorageEvent) => {
           const { settings } = get();
-          
+
           // Handle model selection changes
           if (event.key === "selectedModelId" && event.newValue && settings) {
             const updatedOpenAI = {
@@ -308,14 +311,17 @@ export const useSettingsStore = create<SettingsState>()(
             const updated = await updateOpenAISettings(updatedOpenAI);
             set({ settings: updated });
           }
-          
+
           // Handle full settings sync across windows
           if (event.key === "foxchat_settings" && event.newValue) {
             try {
               const updatedSettings = JSON.parse(event.newValue);
               set({ settings: updatedSettings });
             } catch (error) {
-              console.error("Failed to parse settings from localStorage:", error);
+              console.error(
+                "Failed to parse settings from localStorage:",
+                error,
+              );
             }
           }
         };
