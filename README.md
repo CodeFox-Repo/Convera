@@ -32,6 +32,16 @@ pnpm test      # run unit tests
 pnpm test:all  # run all tests
 ```
 
+### Version Management
+
+To unify React and Tailwind versions across all packages:
+
+```bash
+node scripts/unify-versions.js
+```
+
+This script ensures all packages use the same React and Tailwind versions as the main app.
+
 ## Packages
 
 - **app** – Electron application containing the FoxyChat desktop client.
