@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
+import { AppSettings } from "@/shared/types/settings";
 import { Attachment, Message, UIMessage } from "ai";
 import { useChat } from "ai/react";
 import React, {
@@ -15,10 +14,11 @@ import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { parseApiError, type GenericError } from "../utils/error-handler";
-import { getSettings, updateOpenAISettings } from "../utils/settings";
+import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
 import { useModelStore } from "./model-store";
+import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -122,8 +122,7 @@ const mcpLogger = window.logger.getLogger("chat-store-mcp");
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [settings, setSettings] = useState<any>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const { settings, settingsLoading, initializeSettings } = useSettingsStore();
   const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(
     null,
   );
@@ -156,27 +155,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { selectedModelId } = useModelStore();
   const currentModelIdRef = useRef<string>(selectedModelId);
   const currentInputRef = useRef<string>("");
+  const settingsRef = useRef<AppSettings | null>(settings);
 
   // Initialize speech-to-text hook
   const speechToText = useSpeechToText();
 
-  // Load settings asynchronously
+  // Initialize settings on mount
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settingsData = await getSettings();
-        setSettings(settingsData);
-        // Initialize remote store setting from settings
-        setUseRemoteStore(settingsData.openai.useRemoteStore);
-      } catch (error) {
-        console.error("Failed to load settings:", error);
-      } finally {
-        setSettingsLoaded(true);
-      }
-    };
+    initializeSettings();
+  }, [initializeSettings]);
 
-    loadSettings();
-  }, []);
+  // Update useRemoteStore when settings change
+  useEffect(() => {
+    if (settings) {
+      setUseRemoteStore(settings.openai?.useRemoteStore || false);
+    }
+  }, [settings]);
 
   // Check login status on mount and update remote store accordingly
   useEffect(() => {
@@ -220,8 +214,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     currentModelIdRef.current = selectedModelId;
   }, [selectedModelId]);
 
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  // Listen for settings changes from other windows
+  useEffect(() => {
+    const handleSettingsChange = (event: StorageEvent) => {
+      if (event.key === "foxchat_settings" && event.newValue) {
+        try {
+          const updatedSettings = JSON.parse(event.newValue);
+          // Settings store will handle this automatically via its own storage listener
+          setUseRemoteStore(updatedSettings.openai?.useRemoteStore || false);
+        } catch (error) {
+          console.error("Failed to parse settings from localStorage:", error);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleSettingsChange);
+    return () => window.removeEventListener("storage", handleSettingsChange);
+  }, []);
+
   const chatAPI = useChat({
     api: getApiBaseUrl() + "/chat/completion",
+    maxSteps: 5,
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();
@@ -236,6 +253,87 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         headers["X-Session-ID"] = session.data.session.id;
       }
 
+      // Ensure all requests have complete MCP configuration
+      if (options.body && typeof options.body === "string") {
+        try {
+          const body = JSON.parse(options.body) as {
+            mcpServers?: Array<{ name: string; tools: ToolDefinition[] }>;
+            useRemoteServer?: boolean;
+            customApiSettings?: { endpoint: string; apiKey: string };
+            agent?: unknown;
+            modelId?: string;
+            messages?: unknown[];
+            [key: string]: unknown;
+          };
+
+          // Only supplement if missing critical fields
+          if (!body.mcpServers || body.mcpServers.length === 0) {
+            const currentSettings = settingsRef.current;
+            if (currentSettings) {
+              // Get fresh MCP servers data
+              const serversResponse = await window.mcpAPI.getServers();
+              const mcpServers: Array<{
+                name: string;
+                tools: ToolDefinition[];
+              }> = [];
+
+              if (serversResponse.success && serversResponse.data) {
+                const connectedServers = serversResponse.data.filter(
+                  (server) => server.status === "connected",
+                );
+
+                connectedServers.forEach((server) => {
+                  if (
+                    server.capabilities.tools &&
+                    server.capabilities.tools.length > 0
+                  ) {
+                    mcpServers.push({
+                      name: server.name,
+                      tools: server.capabilities.tools,
+                    });
+                  }
+                });
+              }
+
+              // Supplement missing configuration with correct logic
+              const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
+
+              if (
+                !Object.prototype.hasOwnProperty.call(body, "useRemoteServer")
+              ) {
+                body.useRemoteServer = shouldUseRemoteServer;
+              }
+
+              // Only set customApiSettings if NOT using remote server and we have custom API config
+              if (!body.customApiSettings && !shouldUseRemoteServer) {
+                if (
+                  currentSettings?.openai?.apiKey &&
+                  currentSettings?.openai?.endpoint
+                ) {
+                  body.customApiSettings = {
+                    endpoint: currentSettings.openai.endpoint,
+                    apiKey: currentSettings.openai.apiKey,
+                  };
+                }
+              }
+              if (!body.agent) {
+                body.agent = selectedAgent || undefined;
+              }
+              if (!body.modelId) {
+                body.modelId =
+                  selectedModelId || currentSettings.openai?.modelId;
+              }
+
+              body.mcpServers = mcpServers;
+
+              options.body = JSON.stringify(body);
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to parse/update request body:", error);
+        }
+      }
+
       return fetch(url, {
         ...options,
         headers,
@@ -247,11 +345,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Chat API error:", parsedError);
     },
     onToolCall: async ({ toolCall }) => {
+      console.log("🔧 Frontend: Tool call received:", {
+        toolName: toolCall.toolName,
+        args: toolCall.args,
+      });
+
       // Use simplified MCP tool call that finds first server with the tool
       const result = await window.mcpAPI.mcpToolCall(
         toolCall.toolName,
         toolCall.args as Record<string, unknown>,
       );
+
+      console.log("🔧 Frontend: Tool call result:", {
+        success: result.success,
+        hasData: !!result.data,
+        error: result.error,
+      });
 
       if (!result.success) {
         throw new Error(result.error || "Tool call failed");
@@ -572,6 +681,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const sendMessageWithAttachments = async () => {
         try {
+          // Use ref to get the latest settings
+          const currentSettings = settingsRef.current;
+
+          // Ensure settings are loaded before sending
+          if (!currentSettings) {
+            console.error("Settings not loaded yet, cannot send message");
+            return;
+          }
+
           // Combine regular attachments with clipboard image
           const allFiles = [...filesToSend];
           if (clipboardImageFile) {
@@ -608,22 +726,51 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }
 
+          // Check if we have valid custom API settings
+          const hasValidCustomApi =
+            currentSettings?.openai?.apiKey &&
+            currentSettings.openai.apiKey.trim() !== "" &&
+            currentSettings.openai.endpoint &&
+            currentSettings.openai.endpoint.trim() !== "";
+
+          // Determine which API to use
+          const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
+          const shouldUseCustomApi =
+            !shouldUseRemoteServer && hasValidCustomApi;
+
+          const customApiSettings = shouldUseCustomApi
+            ? {
+                endpoint: currentSettings.openai.endpoint,
+                apiKey: currentSettings.openai.apiKey,
+              }
+            : undefined;
+
+          // If neither remote server nor custom API is available, show error
+          if (!shouldUseRemoteServer && !hasValidCustomApi) {
+            console.error(
+              "No API configuration available. Please configure OpenAI settings or enable remote store.",
+            );
+            alert(
+              "Please configure your OpenAI API settings in the Settings page or enable remote store.",
+            );
+            return;
+          }
+
+          // Debug: Log the request body being sent
+          const requestBody = {
+            agent: selectedAgent || undefined,
+            modelId:
+              currentModelIdRef.current || currentSettings?.openai?.modelId,
+            conversationId: conversationIdToUse || undefined,
+            useRemoteServer: shouldUseRemoteServer,
+            customApiSettings,
+            mcpServers,
+          };
+          console.log("🔧 Frontend: Sending request with body:", requestBody);
+
           // Send message with all custom fields
           chatAPI.append(message, {
-            body: {
-              agent: selectedAgent || undefined,
-              modelId: currentModelIdRef.current || settings?.openai?.modelId,
-              conversationId: conversationIdToUse || undefined,
-              useRemoteServer: isUserLoggedIn && useRemoteStore,
-              customApiSettings:
-                !(isUserLoggedIn && useRemoteStore) && settings?.openai
-                  ? {
-                      endpoint: settings.openai.endpoint,
-                      apiKey: settings.openai.apiKey,
-                    }
-                  : undefined,
-              mcpServers,
-            },
+            body: requestBody,
           });
           clearAttachments();
         } catch (error) {
@@ -641,6 +788,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       fileToAttachment,
       currentConversationId,
       setCurrentConversationId,
+      selectedAgent,
+      isUserLoggedIn,
+      useRemoteStore,
     ],
   );
 
@@ -807,7 +957,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Show loading state if settings are not loaded yet
-  if (!settingsLoaded) {
+  if (settingsLoading || !settings) {
     return <div>Loading chat...</div>;
   }
 

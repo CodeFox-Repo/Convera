@@ -130,7 +130,7 @@
     "@types/hast": "^3.0.4",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "ai": "^4.3.4",
+    "ai": "^4.3.19",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250328",
     "bufferutil": "^4.0.9",
     "class-variance-authority": "^0.7.1",

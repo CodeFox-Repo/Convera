@@ -17,6 +17,7 @@ interface SettingsState {
   // Settings data
   settings: AppSettings | null;
   settingsLoading: boolean;
+  settingsInitialized: boolean;
   currentTheme: string;
 
   // Shortcut recording state
@@ -60,6 +61,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Initial state
       settings: null,
       settingsLoading: false,
+      settingsInitialized: false,
       currentTheme: "light",
       activeShortcut: null,
       recordingShortcut: "",
@@ -70,6 +72,13 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Initialize settings
       initializeSettings: async () => {
+        const { settingsInitialized, settingsLoading } = get();
+        
+        // Prevent multiple initializations
+        if (settingsInitialized || settingsLoading) {
+          return;
+        }
+
         set({ settingsLoading: true });
         try {
           const [initialSettings, themeResult] = await Promise.all([
@@ -80,7 +89,11 @@ export const useSettingsStore = create<SettingsState>()(
           set({
             settings: initialSettings,
             currentTheme: themeResult.system,
+            settingsInitialized: true,
           });
+
+          // Sync to localStorage for cross-window communication
+          localStorage.setItem("foxchat_settings", JSON.stringify(initialSettings));
         } catch (error) {
           console.error("Failed to load settings:", error);
         } finally {
@@ -105,6 +118,9 @@ export const useSettingsStore = create<SettingsState>()(
 
         const updated = await updateOpenAISettings(updatedOpenAI);
         set({ settings: updated });
+
+        // Always sync to localStorage for cross-window communication
+        localStorage.setItem("foxchat_settings", JSON.stringify(updated));
 
         if (field === "modelId") {
           window.dispatchEvent(
@@ -282,6 +298,8 @@ export const useSettingsStore = create<SettingsState>()(
 
         const handleStorageChange = async (event: StorageEvent) => {
           const { settings } = get();
+          
+          // Handle model selection changes
           if (event.key === "selectedModelId" && event.newValue && settings) {
             const updatedOpenAI = {
               ...settings.openai,
@@ -289,6 +307,16 @@ export const useSettingsStore = create<SettingsState>()(
             };
             const updated = await updateOpenAISettings(updatedOpenAI);
             set({ settings: updated });
+          }
+          
+          // Handle full settings sync across windows
+          if (event.key === "foxchat_settings" && event.newValue) {
+            try {
+              const updatedSettings = JSON.parse(event.newValue);
+              set({ settings: updatedSettings });
+            } catch (error) {
+              console.error("Failed to parse settings from localStorage:", error);
+            }
           }
         };
 
