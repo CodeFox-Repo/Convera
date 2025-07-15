@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.19
+
+### Patch Changes
+
+- fix mcp steps issue
+
 ## 0.0.18
 
 ### Patch Changes
