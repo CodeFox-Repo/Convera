@@ -250,7 +250,7 @@ export function GeneralSettingsPage() {
               variant="outline"
               size="sm"
               onClick={handleResetShortcuts}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-border hover:border-border/80"
             >
               <RotateCcw className="h-4 w-4" />
               Reset

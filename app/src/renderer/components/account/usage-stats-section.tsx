@@ -30,7 +30,7 @@ export function UsageStatsSection({
         </div>
       ) : usageStats && usageStats.total.requests > 0 ? (
         <div className="p-4 border border-border rounded-lg">
-          <div className="grid grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 gap-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-foreground">
                 {formatNumber(usageStats.total.requests)}
@@ -51,17 +51,6 @@ export function UsageStatsSection({
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {formatNumber(usageStats.recent.tokens)} this month
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-foreground">
-                {usageStats.byModel.length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Models Used
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Different AI models
               </div>
             </div>
           </div>

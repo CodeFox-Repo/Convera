@@ -123,7 +123,7 @@ export function ProfileSection({
             variant="outline"
             size="sm"
             onClick={onSignOut}
-            className="border-gray-300 hover:border-gray-400"
+            className="border-border hover:border-border/80"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
