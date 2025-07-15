@@ -111,7 +111,9 @@ export const useSettingsStore = create<SettingsState>()(
 
         // TODO: DISABLED LOCAL API - Only allow useRemoteStore changes, ignore local API fields
         if (field === "apiKey" || field === "endpoint") {
-          toast.warning("Local API configuration is disabled. Use remote server only.");
+          toast.warning(
+            "Local API configuration is disabled. Use remote server only.",
+          );
           return;
         }
 

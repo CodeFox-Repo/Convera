@@ -8,7 +8,7 @@ export function useAccountProfile() {
   const { data: session } = authClient.useSession();
   const { signOut } = authClient;
   const updateUser = useUpdateUser();
-  
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);

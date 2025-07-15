@@ -105,18 +105,12 @@ export function ProfileSection({
                   <h3 className="font-medium text-foreground">
                     {user?.name || "User"}
                   </h3>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onStartEdit}
-                  >
+                  <Button size="sm" variant="ghost" onClick={onStartEdit}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </div>
               )}
-              <p className="text-sm text-muted-foreground">
-                {user?.email}
-              </p>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
           <Button

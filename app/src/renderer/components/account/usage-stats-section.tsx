@@ -15,9 +15,7 @@ export function UsageStatsSection({
 }: UsageStatsSectionProps) {
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-medium text-foreground">
-        Usage Statistics
-      </h2>
+      <h2 className="text-lg font-medium text-foreground">Usage Statistics</h2>
 
       {loadingStats ? (
         <div className="p-4 border border-border rounded-lg">
@@ -46,9 +44,7 @@ export function UsageStatsSection({
               <div className="text-2xl font-bold text-foreground">
                 {formatNumber(usageStats.total.totalTokens)}
               </div>
-              <div className="text-sm text-muted-foreground">
-                Total Tokens
-              </div>
+              <div className="text-sm text-muted-foreground">Total Tokens</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {formatNumber(usageStats.recent.tokens)} this month
               </div>
