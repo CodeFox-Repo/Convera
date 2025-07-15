@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 // Import page components
-import { AccountSettingsPage } from "@/renderer/components/settings/pages/account-page";
+// NOTE: AccountSettingsPage is deprecated - account functionality integrated into GeneralSettingsPage
+// import { AccountSettingsPage } from "@/renderer/components/settings/pages/account-page";
 import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
 import { AppSettingsPage } from "@/renderer/components/settings/pages/app-page";
 import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
@@ -79,11 +80,12 @@ function SettingsPage() {
       label: "General",
       icon: <SettingsIcon className="h-5 w-5" />,
     },
-    {
-      id: "account",
-      label: "Account",
-      icon: <User className="h-5 w-5" />,
-    },
+    // NOTE: Account tab removed - functionality integrated into General tab
+    // {
+    //   id: "account",
+    //   label: "Account",
+    //   icon: <User className="h-5 w-5" />,
+    // },
     {
       id: "app",
       label: "Apps",
@@ -112,8 +114,9 @@ function SettingsPage() {
     switch (activeTab) {
       case "general":
         return <GeneralSettingsPage />;
-      case "account":
-        return <AccountSettingsPage />;
+      // NOTE: Account case removed - functionality integrated into General tab
+      // case "account":
+      //   return <AccountSettingsPage />;
       case "agents":
         return (
           <AgentsSettingsPage onNavigateToMcp={() => handleTabChange("mcp")} />

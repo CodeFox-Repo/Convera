@@ -21,9 +21,9 @@ async function getPlatform(): Promise<string> {
     );
   }
 
-  // Fallback to navigator.platform
+  // Fallback to userAgent check (navigator.platform is deprecated)
   if (typeof window !== "undefined") {
-    return navigator.platform.toLowerCase().includes("mac")
+    return navigator.userAgent.toLowerCase().includes("mac")
       ? "darwin"
       : "other";
   }
@@ -38,17 +38,19 @@ async function isMacOS(): Promise<boolean> {
 }
 
 const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
-  endpoint: "https://openrouter.ai/api/v1",
-  apiKey: "",
-  modelId: "anthropic/claude-3.7-sonnet",
+  // TODO: DISABLED LOCAL API - Empty local settings, force remote
+  endpoint: "", // No default endpoint - local API disabled
+  apiKey: "", // No default API key - local API disabled
+  modelId: "google/gemini-2.5-flash",
   supportedModels: [
+    "google/gemini-2.5-flash",
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
     "qwen/qwq-32b",
     "anthropic/claude-3.7-sonnet",
     "openai/o3-mini",
   ],
-  useRemoteStore: false, // Default to custom API
+  useRemoteStore: true, // Default to remote server only
 };
 
 // Get default shortcuts based on platform

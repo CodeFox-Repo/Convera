@@ -17,7 +17,7 @@ import {
   Square,
 } from "lucide-react";
 import React, { useEffect } from "react";
-import ModelSelector from "../popover/model-selector-popover";
+// import ModelSelector from "../popover/model-selector-popover";
 
 // TODO(Sma1lboy): clear selectModel and onModelSelect from props, it will passing from model-store
 interface ChatInputButtonsProps {
@@ -310,7 +310,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           );
         })}
 
-        <ModelSelector />
+        {/* <ModelSelector /> */}
         {/* previous app - only show when there's a valid previous app */}
         {previousApp && formatAppName(previousApp) && (
           <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">

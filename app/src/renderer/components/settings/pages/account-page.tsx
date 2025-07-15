@@ -1,9 +1,13 @@
+// TODO: DEPRECATED - This account page is no longer used
+// Account functionality has been integrated into the general settings page
+// This file is kept for reference but should not be actively used
+
 import { AuthModal } from "@/renderer/components/auth/auth-modal";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { authClient } from "@/renderer/libs/auth-client";
-import { useUpdateUser } from "@/renderer/libs/hooks/auth-hooks";
 import { getBaseUrl } from "@/renderer/libs/env";
+import { useUpdateUser } from "@/renderer/libs/hooks/auth-hooks";
 import { BarChart3, Camera, Check, Edit, LogOut, User, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -185,10 +189,6 @@ export function AccountSettingsPage() {
     return new Intl.NumberFormat().format(num);
   };
 
-  const getTopModels = (modelUsage: UsageStats["byModel"]) => {
-    return modelUsage.sort((a, b) => b.tokens - a.tokens).slice(0, 3);
-  };
-
   // Loading state
   if (isPending) {
     return (
@@ -196,9 +196,6 @@ export function AccountSettingsPage() {
         <div className="space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">
-              Account
-            </h1>
             <p className="text-muted-foreground">
               Manage your profile and view usage statistics
             </p>
@@ -222,9 +219,6 @@ export function AccountSettingsPage() {
         <div className="space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">
-              Account
-            </h1>
             <p className="text-muted-foreground">
               Manage your profile and view usage statistics
             </p>
@@ -253,9 +247,6 @@ export function AccountSettingsPage() {
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">
-            Account
-          </h1>
           <p className="text-muted-foreground">
             Manage your profile and view usage statistics
           </p>
@@ -377,7 +368,7 @@ export function AccountSettingsPage() {
           ) : usageStats && usageStats.total.requests > 0 ? (
             <div className="p-4 border border-border rounded-lg">
               <div className="space-y-8">
-                {/* Overview Stats */}
+                {/* Simplified Overview Stats - Only 3 Key Numbers */}
                 <div className="grid grid-cols-3 gap-8">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-foreground">
@@ -410,73 +401,6 @@ export function AccountSettingsPage() {
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Different AI models
-                    </div>
-                  </div>
-                </div>
-
-                {/* Top Models */}
-                {usageStats.byModel.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-4">
-                      Most Used Models
-                    </h4>
-                    <div className="space-y-0">
-                      {getTopModels(usageStats.byModel).map((model, index) => (
-                        <div
-                          key={model.modelId}
-                          className="flex items-center justify-between py-3 border-b border-border/10 last:border-b-0"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
-                              {index + 1}
-                            </div>
-                            <span className="font-medium text-foreground">
-                              {model.modelId}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-foreground">
-                              {formatNumber(model.tokens)} tokens
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatNumber(model.requests)} requests
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Token Breakdown */}
-                <div>
-                  <h4 className="font-semibold text-foreground mb-4">
-                    Token Usage Breakdown
-                  </h4>
-                  <div className="space-y-0">
-                    <div className="flex justify-between py-3 border-b border-border/10">
-                      <span className="text-muted-foreground">
-                        Prompt Tokens
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {formatNumber(usageStats.total.promptTokens)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-3 border-b border-border/10">
-                      <span className="text-muted-foreground">
-                        Completion Tokens
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {formatNumber(usageStats.total.completionTokens)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-3">
-                      <span className="font-semibold text-foreground">
-                        Total
-                      </span>
-                      <span className="font-bold text-foreground">
-                        {formatNumber(usageStats.total.totalTokens)}
-                      </span>
                     </div>
                   </div>
                 </div>

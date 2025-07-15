@@ -136,13 +136,14 @@ export function AIModelSection({
             AI Model Settings
           </h2>
           <p className="text-muted-foreground mt-1">
-            Configure your AI API settings
+            Configure your AI model settings (Remote server only)
           </p>
         </div>
       </div>
 
       <div className="space-y-6">
-        <div className="space-y-2">
+        {/* TODO: DISABLED LOCAL API - API Endpoint and Key fields are hidden */}
+        {/* <div className="space-y-2">
           <Label htmlFor="endpoint" className="text-foreground">
             API Endpoint
           </Label>
@@ -167,7 +168,7 @@ export function AIModelSection({
             placeholder="sk-..."
             className="border-input bg-background text-foreground"
           />
-        </div>
+        </div> */}
 
         <div className="space-y-2">
           <Label htmlFor="modelId" className="text-foreground">

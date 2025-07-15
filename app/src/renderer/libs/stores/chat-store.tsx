@@ -17,7 +17,7 @@ import { parseApiError, type GenericError } from "../utils/error-handler";
 import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
-import { useModelStore } from "./model-store";
+// import { useModelStore } from "./model-store";
 import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -152,8 +152,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // MCP logger
 
   const { selectedAgent } = useAgentStore();
-  const { selectedModelId } = useModelStore();
-  const currentModelIdRef = useRef<string>(selectedModelId);
+  // const { selectedModelId } = useModelStore();
+  // const currentModelIdRef = useRef<string>(selectedModelId);
   const currentInputRef = useRef<string>("");
   const settingsRef = useRef<AppSettings | null>(settings);
 
@@ -210,9 +210,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [useRemoteStore]);
 
-  useEffect(() => {
-    currentModelIdRef.current = selectedModelId;
-  }, [selectedModelId]);
+  // useEffect(() => {
+  //   currentModelIdRef.current = selectedModelId;
+  // }, [selectedModelId]);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -304,24 +304,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 body.useRemoteServer = shouldUseRemoteServer;
               }
 
+              // TODO: DISABLED LOCAL API - Never set custom API settings
               // Only set customApiSettings if NOT using remote server and we have custom API config
-              if (!body.customApiSettings && !shouldUseRemoteServer) {
-                if (
-                  currentSettings?.openai?.apiKey &&
-                  currentSettings?.openai?.endpoint
-                ) {
-                  body.customApiSettings = {
-                    endpoint: currentSettings.openai.endpoint,
-                    apiKey: currentSettings.openai.apiKey,
-                  };
-                }
-              }
+              // if (!body.customApiSettings && !shouldUseRemoteServer) {
+              //   if (
+              //     currentSettings?.openai?.apiKey &&
+              //     currentSettings?.openai?.endpoint
+              //   ) {
+              //     body.customApiSettings = {
+              //       endpoint: currentSettings.openai.endpoint,
+              //       apiKey: currentSettings.openai.apiKey,
+              //     };
+              //   }
+              // }
               if (!body.agent) {
                 body.agent = selectedAgent || undefined;
               }
               if (!body.modelId) {
-                body.modelId =
-                  selectedModelId || currentSettings.openai?.modelId;
+                // body.modelId = // Let backend use default
+                //   selectedModelId || currentSettings.openai?.modelId;
               }
 
               body.mcpServers = mcpServers;
@@ -343,6 +344,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     onError: (error) => {
       const parsedError = parseApiError(error as unknown as GenericError);
       console.error("Chat API error:", parsedError);
+      console.error("Full error object:", error);
+      // Check if it's a network error
+      if (error instanceof Error && error.message.includes("fetch")) {
+        console.error(
+          "Network error - is the backend server running on port 3001?",
+        );
+      }
     },
     onToolCall: async ({ toolCall }) => {
       console.log("🔧 Frontend: Tool call received:", {
@@ -726,32 +734,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }
 
+          // TODO: DISABLED LOCAL API - Only use remote server now
           // Check if we have valid custom API settings
-          const hasValidCustomApi =
-            currentSettings?.openai?.apiKey &&
-            currentSettings.openai.apiKey.trim() !== "" &&
-            currentSettings.openai.endpoint &&
-            currentSettings.openai.endpoint.trim() !== "";
+          // const hasValidCustomApi =
+          //   currentSettings?.openai?.apiKey &&
+          //   currentSettings.openai.apiKey.trim() !== "" &&
+          //   currentSettings.openai.endpoint &&
+          //   currentSettings.openai.endpoint.trim() !== "";
 
-          // Determine which API to use
-          const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
-          const shouldUseCustomApi =
-            !shouldUseRemoteServer && hasValidCustomApi;
+          // Determine which API to use - FORCE remote server only
+          const shouldUseRemoteServer = isUserLoggedIn;
+          // const shouldUseCustomApi =
+          //   !shouldUseRemoteServer && hasValidCustomApi;
 
-          const customApiSettings = shouldUseCustomApi
-            ? {
-                endpoint: currentSettings.openai.endpoint,
-                apiKey: currentSettings.openai.apiKey,
-              }
-            : undefined;
+          // const customApiSettings = shouldUseCustomApi
+          //   ? {
+          //       endpoint: currentSettings.openai.endpoint,
+          //       apiKey: currentSettings.openai.apiKey,
+          //     }
+          //   : undefined;
+          const customApiSettings = undefined; // Always undefined - no local API
 
-          // If neither remote server nor custom API is available, show error
-          if (!shouldUseRemoteServer && !hasValidCustomApi) {
+          // If remote server is not available, show error
+          if (!shouldUseRemoteServer) {
             console.error(
-              "No API configuration available. Please configure OpenAI settings or enable remote store.",
+              "Remote server required. Please log in and enable remote store.",
             );
             alert(
-              "Please configure your OpenAI API settings in the Settings page or enable remote store.",
+              "Please log in and enable remote store to use the chat functionality.",
             );
             return;
           }
@@ -759,11 +769,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           // Debug: Log the request body being sent
           const requestBody = {
             agent: selectedAgent || undefined,
-            modelId:
-              currentModelIdRef.current || currentSettings?.openai?.modelId,
+            // modelId: // Let backend use default model
+            //   currentModelIdRef.current || currentSettings?.openai?.modelId,
             conversationId: conversationIdToUse || undefined,
             useRemoteServer: shouldUseRemoteServer,
             customApiSettings,
+            // Re-enable MCP servers
             mcpServers,
           };
           console.log("🔧 Frontend: Sending request with body:", requestBody);
