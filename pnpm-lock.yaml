@@ -25,11 +25,11 @@ importers:
         version: 1.3.22(zod@3.24.4)
       '@daveyplate/better-auth-tanstack':
         specifier: 1.3.6
-        version: 1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0)
+        version: 1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0)
       '@daveyplate/better-auth-ui':
         specifier: 1.7.4
         version: >-
-          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.0.1)(@instantdb/react@0.20.9)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.9)(@radix-ui/react-checkbox@1.3.1)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.13)(@radix-ui/react-dropdown-menu@2.1.14)(@radix-ui/react-label@2.1.6)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.4)(@radix-ui/react-separator@1.1.6)(@radix-ui/react-slot@1.2.2)(@radix-ui/react-tabs@1.1.11)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.3.1)(@tanstack/react-query@5.76.0)(@triplit/client@1.0.47)(@triplit/react@1.0.47)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.56.3)(react-qr-code@2.0.18)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.6)(ua-parser-js@2.0.4)(zod@3.24.4)
+          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.0.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.9)(@radix-ui/react-checkbox@1.3.1)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.13)(@radix-ui/react-dropdown-menu@2.1.14)(@radix-ui/react-label@2.1.6)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.4)(@radix-ui/react-separator@1.1.6)(@radix-ui/react-slot@1.2.2)(@radix-ui/react-tabs@1.1.11)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.76.0)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.56.3)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.6)(ua-parser-js@2.0.4)(zod@3.24.4)
       '@fontsource/inter':
         specifier: ^5.2.5
         version: 5.2.5
@@ -155,16 +155,16 @@ importers:
         version: 1.120.18(react-dom@19.1.0)(react@19.1.0)
       '@tanstack/router-devtools':
         specifier: ^1.120.18
-        version: 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
+        version: 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
       '@tiptap/extension-placeholder':
         specifier: ^2.11.7
-        version: 2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0)
+        version: 2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0)
       '@tiptap/pm':
         specifier: ^2.11.7
         version: 2.12.0
       '@tiptap/react':
         specifier: ^2.11.7
-        version: 2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0)(react-dom@19.1.0)(react@19.1.0)
+        version: 2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0)(react-dom@19.1.0)(react@19.1.0)
       '@tiptap/starter-kit':
         specifier: ^2.11.7
         version: 2.12.0
@@ -517,11 +517,11 @@ importers:
     dependencies:
       '@daveyplate/better-auth-tanstack':
         specifier: ^1.3.6
-        version: 1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1)
+        version: 1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1)
       '@daveyplate/better-auth-ui':
         specifier: ^1.7.4
         version: >-
-          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.9)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.3.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.47)(@triplit/react@1.0.47)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.522.0)(react-dom@18.3.1)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.18)(react@18.3.1)(sonner@1.7.4)(tailwind-merge@2.6.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
+          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.522.0)(react-dom@18.3.1)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@18.3.1)(sonner@1.7.4)(tailwind-merge@2.6.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.1.1(react-hook-form@7.60.0)
@@ -614,10 +614,10 @@ importers:
         version: 0.0.1-beta.53
       '@tanstack/router-devtools':
         specifier: ^1.124.0
-        version: 1.125.4(@tanstack/react-router@1.127.8)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3)
+        version: 1.125.4(@tanstack/react-router@1.125.4)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3)
       '@tanstack/router-vite-plugin':
         specifier: ^1.124.0
-        version: 1.124.0(@tanstack/react-router@1.127.8)(vite@5.4.19)
+        version: 1.124.0(@tanstack/react-router@1.125.4)(vite@5.4.19)
       better-auth:
         specifier: ^1.2.12
         version: 1.2.12
@@ -806,7 +806,7 @@ packages:
       '@ai-sdk/provider-utils': 2.2.8(zod@3.24.4)
       '@ai-sdk/ui-utils': 1.2.11(zod@3.24.4)
       react: 19.1.0
-      swr: 2.3.4(react@19.1.0)
+      swr: 2.3.3(react@19.1.0)
       throttleit: 2.1.0
       zod: 3.24.4
     dev: false
@@ -820,7 +820,7 @@ packages:
       '@ai-sdk/provider': 1.1.3
       '@ai-sdk/provider-utils': 2.2.8(zod@3.24.4)
       zod: 3.24.4
-      zod-to-json-schema: 3.24.6(zod@3.24.4)
+      zod-to-json-schema: 3.24.5(zod@3.24.4)
     dev: false
 
   /@alloc/quick-lru@5.2.0:
@@ -1554,7 +1554,7 @@ packages:
     engines: {node: '>=18'}
     dev: true
 
-  /@daveyplate/better-auth-tanstack@1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0):
+  /@daveyplate/better-auth-tanstack@1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0):
     resolution: {integrity: sha512-GvIGdbjRMZCEfAffU7LeWpGpie4vSli8V9jmNFCQOziZZMEFbO4cd53HBFmAushC9oEYIyhSNZBgV2ADzW94Ww==}
     peerDependencies:
       '@tanstack/query-core': '>=5.65.0'
@@ -1563,14 +1563,14 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
     dependencies:
-      '@tanstack/query-core': 5.83.0
+      '@tanstack/query-core': 5.81.5
       '@tanstack/react-query': 5.76.0(react@19.1.0)
       better-auth: 1.2.12
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
     dev: false
 
-  /@daveyplate/better-auth-tanstack@1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1):
+  /@daveyplate/better-auth-tanstack@1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1):
     resolution: {integrity: sha512-GvIGdbjRMZCEfAffU7LeWpGpie4vSli8V9jmNFCQOziZZMEFbO4cd53HBFmAushC9oEYIyhSNZBgV2ADzW94Ww==}
     peerDependencies:
       '@tanstack/query-core': '>=5.65.0'
@@ -1579,14 +1579,14 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
     dependencies:
-      '@tanstack/query-core': 5.83.0
+      '@tanstack/query-core': 5.81.5
       '@tanstack/react-query': 5.81.5(react@18.3.1)
       better-auth: 1.2.12
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     dev: false
 
-  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.0.1)(@instantdb/react@0.20.9)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.9)(@radix-ui/react-checkbox@1.3.1)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.13)(@radix-ui/react-dropdown-menu@2.1.14)(@radix-ui/react-label@2.1.6)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.4)(@radix-ui/react-separator@1.1.6)(@radix-ui/react-slot@1.2.2)(@radix-ui/react-tabs@1.1.11)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.3.1)(@tanstack/react-query@5.76.0)(@triplit/client@1.0.47)(@triplit/react@1.0.47)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.56.3)(react-qr-code@2.0.18)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.6)(ua-parser-js@2.0.4)(zod@3.24.4)
+  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.0.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.9)(@radix-ui/react-checkbox@1.3.1)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.13)(@radix-ui/react-dropdown-menu@2.1.14)(@radix-ui/react-label@2.1.6)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.4)(@radix-ui/react-separator@1.1.6)(@radix-ui/react-slot@1.2.2)(@radix-ui/react-tabs@1.1.11)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.76.0)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.56.3)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.6)(ua-parser-js@2.0.4)(zod@3.24.4)
   : resolution: {integrity: sha512-YMlH0jXxZkfi97ibxvPqzYn02hQWOqV2EZ7jXab/NRYC57/KEacRV2ykWnyswzsBnes6LGW6ir8TREPitz2K+Q==}
     peerDependencies:
       '@better-fetch/fetch': '>=1.1.0'
@@ -1630,10 +1630,10 @@ packages:
       zod: '>=3.24.0'
     dependencies:
       '@better-fetch/fetch': 1.1.18
-      '@daveyplate/better-auth-tanstack': 1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0)
+      '@daveyplate/better-auth-tanstack': 1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.76.0)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0)
       '@hcaptcha/react-hcaptcha': 1.12.0(react-dom@19.1.0)(react@19.1.0)
       '@hookform/resolvers': 5.0.1(react-hook-form@7.56.3)
-      '@instantdb/react': 0.20.9(react@19.1.0)
+      '@instantdb/react': 0.20.4(react@19.1.0)
       '@marsidev/react-turnstile': 1.1.0(react-dom@19.1.0)(react@19.1.0)
       '@radix-ui/react-avatar': 1.1.9(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       '@radix-ui/react-checkbox': 1.3.1(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
@@ -1648,10 +1648,10 @@ packages:
       '@radix-ui/react-tabs': 1.1.11(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       '@radix-ui/react-use-callback-ref': 1.1.1(@types/react@19.1.4)(react@19.1.0)
       '@radix-ui/react-use-layout-effect': 1.1.1(@types/react@19.1.4)(react@19.1.0)
-      '@react-email/components': 0.3.1(react-dom@19.1.0)(react@19.1.0)
+      '@react-email/components': 0.1.1(react-dom@19.1.0)(react@19.1.0)
       '@tanstack/react-query': 5.76.0(react@19.1.0)
-      '@triplit/client': 1.0.47(typescript@5.8.3)
-      '@triplit/react': 1.0.47(react@19.1.0)(typescript@5.8.3)
+      '@triplit/client': 1.0.46(typescript@5.8.3)
+      '@triplit/react': 1.0.46(react@19.1.0)(typescript@5.8.3)
       '@wojtekmaj/react-recaptcha-v3': 0.1.4(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       better-auth: 1.2.12
       class-variance-authority: 0.7.1
@@ -1662,7 +1662,7 @@ packages:
       react-dom: 19.1.0(react@19.1.0)
       react-google-recaptcha: 3.1.0(react@19.1.0)
       react-hook-form: 7.56.3(react@19.1.0)
-      react-qr-code: 2.0.18(react@19.1.0)
+      react-qr-code: 2.0.16(react@19.1.0)
       sonner: 2.0.3(react-dom@19.1.0)(react@19.1.0)
       tailwind-merge: 3.3.0
       tailwindcss: 4.1.6
@@ -1670,7 +1670,7 @@ packages:
       zod: 3.24.4
     dev: false
 
-  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.9)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.3.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.47)(@triplit/react@1.0.47)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.522.0)(react-dom@18.3.1)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.18)(react@18.3.1)(sonner@1.7.4)(tailwind-merge@2.6.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
+  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.522.0)(react-dom@18.3.1)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@18.3.1)(sonner@1.7.4)(tailwind-merge@2.6.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
   : resolution: {integrity: sha512-YMlH0jXxZkfi97ibxvPqzYn02hQWOqV2EZ7jXab/NRYC57/KEacRV2ykWnyswzsBnes6LGW6ir8TREPitz2K+Q==}
     peerDependencies:
       '@better-fetch/fetch': '>=1.1.0'
@@ -1714,10 +1714,10 @@ packages:
       zod: '>=3.24.0'
     dependencies:
       '@better-fetch/fetch': 1.1.18
-      '@daveyplate/better-auth-tanstack': 1.3.6(@tanstack/query-core@5.83.0)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1)
+      '@daveyplate/better-auth-tanstack': 1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@18.3.1)(react@18.3.1)
       '@hcaptcha/react-hcaptcha': 1.12.0(react-dom@18.3.1)(react@18.3.1)
       '@hookform/resolvers': 5.1.1(react-hook-form@7.60.0)
-      '@instantdb/react': 0.20.9(react@18.3.1)
+      '@instantdb/react': 0.20.4(react@18.3.1)
       '@marsidev/react-turnstile': 1.1.0(react-dom@18.3.1)(react@18.3.1)
       '@radix-ui/react-avatar': 1.1.10(@types/react-dom@18.3.7)(@types/react@18.3.23)(react-dom@18.3.1)(react@18.3.1)
       '@radix-ui/react-checkbox': 1.3.2(@types/react-dom@18.3.7)(@types/react@18.3.23)(react-dom@18.3.1)(react@18.3.1)
@@ -1732,10 +1732,10 @@ packages:
       '@radix-ui/react-tabs': 1.1.12(@types/react-dom@18.3.7)(@types/react@18.3.23)(react-dom@18.3.1)(react@18.3.1)
       '@radix-ui/react-use-callback-ref': 1.1.1(@types/react@18.3.23)(react@18.3.1)
       '@radix-ui/react-use-layout-effect': 1.1.1(@types/react@18.3.23)(react@18.3.1)
-      '@react-email/components': 0.3.1(react-dom@18.3.1)(react@18.3.1)
+      '@react-email/components': 0.1.1(react-dom@18.3.1)(react@18.3.1)
       '@tanstack/react-query': 5.81.5(react@18.3.1)
-      '@triplit/client': 1.0.47(typescript@5.8.3)
-      '@triplit/react': 1.0.47(react@18.3.1)(typescript@5.8.3)
+      '@triplit/client': 1.0.46(typescript@5.8.3)
+      '@triplit/react': 1.0.46(react@18.3.1)(typescript@5.8.3)
       '@wojtekmaj/react-recaptcha-v3': 0.1.4(@types/react@18.3.23)(react-dom@18.3.1)(react@18.3.1)
       better-auth: 1.2.12
       class-variance-authority: 0.7.1
@@ -1746,7 +1746,7 @@ packages:
       react-dom: 18.3.1(react@18.3.1)
       react-google-recaptcha: 3.1.0(react@18.3.1)
       react-hook-form: 7.60.0(react@18.3.1)
-      react-qr-code: 2.0.18(react@18.3.1)
+      react-qr-code: 2.0.16(react@18.3.1)
       sonner: 1.7.4(react-dom@18.3.1)(react@18.3.1)
       tailwind-merge: 2.6.0
       tailwindcss: 4.1.11
@@ -2263,24 +2263,24 @@ packages:
       - supports-color
     dev: true
 
-  /@emnapi/core@1.4.4:
-    resolution: {integrity: sha512-A9CnAbC6ARNMKcIcrQwq6HeHCjpcBZ5wSx4U01WXCqEKlrzB9F9315WDNHkrs2xbx7YjjSxbUYxuN6EQzpcY2g==}
+  /@emnapi/core@1.4.3:
+    resolution: {integrity: sha512-4m62DuCE07lw01soJwPiBGC0nAww0Q+RY70VZ+n49yDIO13yyinhbWCeNnaob0lakDtWQzSdtNWzJeOJt2ma+g==}
     requiresBuild: true
     dependencies:
-      '@emnapi/wasi-threads': 1.0.3
+      '@emnapi/wasi-threads': 1.0.2
       tslib: 2.8.1
     dev: true
     optional: true
 
-  /@emnapi/runtime@1.4.4:
-    resolution: {integrity: sha512-hHyapA4A3gPaDCNfiqyZUStTMqIkKRshqPIuDOXv1hcBnD4U3l8cP0T1HMCfGRxQ6V64TGCcoswChANyOAwbQg==}
+  /@emnapi/runtime@1.4.3:
+    resolution: {integrity: sha512-pBPWdu6MLKROBX05wSNKcNb++m5Er+KQ9QkB+WVM+pW2Kx9hoSrVTnu3BdkI5eBLZoKu/J6mW/B6i6bJB2ytXQ==}
     requiresBuild: true
     dependencies:
       tslib: 2.8.1
     optional: true
 
-  /@emnapi/wasi-threads@1.0.3:
-    resolution: {integrity: sha512-8K5IFFsQqF9wQNJptGbS6FNKgUTsSRYnTqNCG1vPP8jFdjSv18n2mQfJpkt2Oibo9iBEzcDnDxNwKTzC7svlJw==}
+  /@emnapi/wasi-threads@1.0.2:
+    resolution: {integrity: sha512-5n3nTJblwRi8LlXkJ9eBzu+kZR8Yxcc7ubakyQTFzPMtIhFpUBRbsnc2Dv88IZDIbCDlBiWrknhB4Lsz7mg6BA==}
     requiresBuild: true
     dependencies:
       tslib: 2.8.1
@@ -3084,189 +3084,178 @@ packages:
       react: 19.1.0
     dev: false
 
-  /@img/sharp-darwin-arm64@0.34.3:
-    resolution: {integrity: sha512-ryFMfvxxpQRsgZJqBd4wsttYQbCxsJksrv9Lw/v798JcQ8+w84mBWuXwl+TT0WJ/WrYOLaYpwQXi3sA9nTIaIg==}
+  /@img/sharp-darwin-arm64@0.34.2:
+    resolution: {integrity: sha512-OfXHZPppddivUJnqyKoi5YVeHRkkNE2zUFT2gbpKxp/JZCFYEYubnMg+gOp6lWfasPrTS+KPosKqdI+ELYVDtg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-darwin-arm64': 1.2.0
+      '@img/sharp-libvips-darwin-arm64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-darwin-x64@0.34.3:
-    resolution: {integrity: sha512-yHpJYynROAj12TA6qil58hmPmAwxKKC7reUqtGLzsOHfP7/rniNGTL8tjWX6L3CTV4+5P4ypcS7Pp+7OB+8ihA==}
+  /@img/sharp-darwin-x64@0.34.2:
+    resolution: {integrity: sha512-dYvWqmjU9VxqXmjEtjmvHnGqF8GrVjM2Epj9rJ6BUIXvk8slvNDJbhGFvIoXzkDhrJC2jUxNLz/GUjjvSzfw+g==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-darwin-x64': 1.2.0
+      '@img/sharp-libvips-darwin-x64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-libvips-darwin-arm64@1.2.0:
-    resolution: {integrity: sha512-sBZmpwmxqwlqG9ueWFXtockhsxefaV6O84BMOrhtg/YqbTaRdqDE7hxraVE3y6gVM4eExmfzW4a8el9ArLeEiQ==}
+  /@img/sharp-libvips-darwin-arm64@1.1.0:
+    resolution: {integrity: sha512-HZ/JUmPwrJSoM4DIQPv/BfNh9yrOA8tlBbqbLz4JZ5uew2+o22Ik+tHQJcih7QJuSa0zo5coHTfD5J8inqj9DA==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-darwin-x64@1.2.0:
-    resolution: {integrity: sha512-M64XVuL94OgiNHa5/m2YvEQI5q2cl9d/wk0qFTDVXcYzi43lxuiFTftMR1tOnFQovVXNZJ5TURSDK2pNe9Yzqg==}
+  /@img/sharp-libvips-darwin-x64@1.1.0:
+    resolution: {integrity: sha512-Xzc2ToEmHN+hfvsl9wja0RlnXEgpKNmftriQp6XzY/RaSfwD9th+MSh0WQKzUreLKKINb3afirxW7A0fz2YWuQ==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linux-arm64@1.2.0:
-    resolution: {integrity: sha512-RXwd0CgG+uPRX5YYrkzKyalt2OJYRiJQ8ED/fi1tq9WQW2jsQIn0tqrlR5l5dr/rjqq6AHAxURhj2DVjyQWSOA==}
+  /@img/sharp-libvips-linux-arm64@1.1.0:
+    resolution: {integrity: sha512-IVfGJa7gjChDET1dK9SekxFFdflarnUB8PwW8aGwEoF3oAsSDuNUTYS+SKDOyOJxQyDC1aPFMuRYLoDInyV9Ew==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linux-arm@1.2.0:
-    resolution: {integrity: sha512-mWd2uWvDtL/nvIzThLq3fr2nnGfyr/XMXlq8ZJ9WMR6PXijHlC3ksp0IpuhK6bougvQrchUAfzRLnbsen0Cqvw==}
+  /@img/sharp-libvips-linux-arm@1.1.0:
+    resolution: {integrity: sha512-s8BAd0lwUIvYCJyRdFqvsj+BJIpDBSxs6ivrOPm/R7piTs5UIwY5OjXrP2bqXC9/moGsyRa37eYWYCOGVXxVrA==}
     cpu: [arm]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linux-ppc64@1.2.0:
-    resolution: {integrity: sha512-Xod/7KaDDHkYu2phxxfeEPXfVXFKx70EAFZ0qyUdOjCcxbjqyJOEUpDe6RIyaunGxT34Anf9ue/wuWOqBW2WcQ==}
+  /@img/sharp-libvips-linux-ppc64@1.1.0:
+    resolution: {integrity: sha512-tiXxFZFbhnkWE2LA8oQj7KYR+bWBkiV2nilRldT7bqoEZ4HiDOcePr9wVDAZPi/Id5fT1oY9iGnDq20cwUz8lQ==}
     cpu: [ppc64]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linux-s390x@1.2.0:
-    resolution: {integrity: sha512-eMKfzDxLGT8mnmPJTNMcjfO33fLiTDsrMlUVcp6b96ETbnJmd4uvZxVJSKPQfS+odwfVaGifhsB07J1LynFehw==}
+  /@img/sharp-libvips-linux-s390x@1.1.0:
+    resolution: {integrity: sha512-xukSwvhguw7COyzvmjydRb3x/09+21HykyapcZchiCUkTThEQEOMtBj9UhkaBRLuBrgLFzQ2wbxdeCCJW/jgJA==}
     cpu: [s390x]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linux-x64@1.2.0:
-    resolution: {integrity: sha512-ZW3FPWIc7K1sH9E3nxIGB3y3dZkpJlMnkk7z5tu1nSkBoCgw2nSRTFHI5pB/3CQaJM0pdzMF3paf9ckKMSE9Tg==}
+  /@img/sharp-libvips-linux-x64@1.1.0:
+    resolution: {integrity: sha512-yRj2+reB8iMg9W5sULM3S74jVS7zqSzHG3Ol/twnAAkAhnGQnpjj6e4ayUz7V+FpKypwgs82xbRdYtchTTUB+Q==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linuxmusl-arm64@1.2.0:
-    resolution: {integrity: sha512-UG+LqQJbf5VJ8NWJ5Z3tdIe/HXjuIdo4JeVNADXBFuG7z9zjoegpzzGIyV5zQKi4zaJjnAd2+g2nna8TZvuW9Q==}
+  /@img/sharp-libvips-linuxmusl-arm64@1.1.0:
+    resolution: {integrity: sha512-jYZdG+whg0MDK+q2COKbYidaqW/WTz0cc1E+tMAusiDygrM4ypmSCjOJPmFTvHHJ8j/6cAGyeDWZOsK06tP33w==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-libvips-linuxmusl-x64@1.2.0:
-    resolution: {integrity: sha512-SRYOLR7CXPgNze8akZwjoGBoN1ThNZoqpOgfnOxmWsklTGVfJiGJoC/Lod7aNMGA1jSsKWM1+HRX43OP6p9+6Q==}
+  /@img/sharp-libvips-linuxmusl-x64@1.1.0:
+    resolution: {integrity: sha512-wK7SBdwrAiycjXdkPnGCPLjYb9lD4l6Ze2gSdAGVZrEL05AOUJESWU2lhlC+Ffn5/G+VKuSm6zzbQSzFX/P65A==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: false
     optional: true
 
-  /@img/sharp-linux-arm64@0.34.3:
-    resolution: {integrity: sha512-QdrKe3EvQrqwkDrtuTIjI0bu6YEJHTgEeqdzI3uWJOH6G1O8Nl1iEeVYRGdj1h5I21CqxSvQp1Yv7xeU3ZewbA==}
+  /@img/sharp-linux-arm64@0.34.2:
+    resolution: {integrity: sha512-D8n8wgWmPDakc83LORcfJepdOSN6MvWNzzz2ux0MnIbOqdieRZwVYY32zxVx+IFUT8er5KPcyU3XXsn+GzG/0Q==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linux-arm64': 1.2.0
+      '@img/sharp-libvips-linux-arm64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-linux-arm@0.34.3:
-    resolution: {integrity: sha512-oBK9l+h6KBN0i3dC8rYntLiVfW8D8wH+NPNT3O/WBHeW0OQWCjfWksLUaPidsrDKpJgXp3G3/hkmhptAW0I3+A==}
+  /@img/sharp-linux-arm@0.34.2:
+    resolution: {integrity: sha512-0DZzkvuEOqQUP9mo2kjjKNok5AmnOr1jB2XYjkaoNRwpAYMDzRmAqUIa1nRi58S2WswqSfPOWLNOr0FDT3H5RQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linux-arm': 1.2.0
+      '@img/sharp-libvips-linux-arm': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-linux-ppc64@0.34.3:
-    resolution: {integrity: sha512-GLtbLQMCNC5nxuImPR2+RgrviwKwVql28FWZIW1zWruy6zLgA5/x2ZXk3mxj58X/tszVF69KK0Is83V8YgWhLA==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [ppc64]
-    os: [linux]
-    requiresBuild: true
-    optionalDependencies:
-      '@img/sharp-libvips-linux-ppc64': 1.2.0
-    dev: false
-    optional: true
-
-  /@img/sharp-linux-s390x@0.34.3:
-    resolution: {integrity: sha512-3gahT+A6c4cdc2edhsLHmIOXMb17ltffJlxR0aC2VPZfwKoTGZec6u5GrFgdR7ciJSsHT27BD3TIuGcuRT0KmQ==}
+  /@img/sharp-linux-s390x@0.34.2:
+    resolution: {integrity: sha512-EGZ1xwhBI7dNISwxjChqBGELCWMGDvmxZXKjQRuqMrakhO8QoMgqCrdjnAqJq/CScxfRn+Bb7suXBElKQpPDiw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [s390x]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linux-s390x': 1.2.0
+      '@img/sharp-libvips-linux-s390x': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-linux-x64@0.34.3:
-    resolution: {integrity: sha512-8kYso8d806ypnSq3/Ly0QEw90V5ZoHh10yH0HnrzOCr6DKAPI6QVHvwleqMkVQ0m+fc7EH8ah0BB0QPuWY6zJQ==}
+  /@img/sharp-linux-x64@0.34.2:
+    resolution: {integrity: sha512-sD7J+h5nFLMMmOXYH4DD9UtSNBD05tWSSdWAcEyzqW8Cn5UxXvsHAxmxSesYUsTOBmUnjtxghKDl15EvfqLFbQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linux-x64': 1.2.0
+      '@img/sharp-libvips-linux-x64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-linuxmusl-arm64@0.34.3:
-    resolution: {integrity: sha512-vAjbHDlr4izEiXM1OTggpCcPg9tn4YriK5vAjowJsHwdBIdx0fYRsURkxLG2RLm9gyBq66gwtWI8Gx0/ov+JKQ==}
+  /@img/sharp-linuxmusl-arm64@0.34.2:
+    resolution: {integrity: sha512-NEE2vQ6wcxYav1/A22OOxoSOGiKnNmDzCYFOZ949xFmrWZOVII1Bp3NqVVpvj+3UeHMFyN5eP/V5hzViQ5CZNA==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.0
+      '@img/sharp-libvips-linuxmusl-arm64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-linuxmusl-x64@0.34.3:
-    resolution: {integrity: sha512-gCWUn9547K5bwvOn9l5XGAEjVTTRji4aPTqLzGXHvIr6bIDZKNTA34seMPgM0WmSf+RYBH411VavCejp3PkOeQ==}
+  /@img/sharp-linuxmusl-x64@0.34.2:
+    resolution: {integrity: sha512-DOYMrDm5E6/8bm/yQLCWyuDJwUnlevR8xtF8bs+gjZ7cyUNYXiSf/E8Kp0Ss5xasIaXSHzb888V1BE4i1hFhAA==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     optionalDependencies:
-      '@img/sharp-libvips-linuxmusl-x64': 1.2.0
+      '@img/sharp-libvips-linuxmusl-x64': 1.1.0
     dev: false
     optional: true
 
-  /@img/sharp-wasm32@0.34.3:
-    resolution: {integrity: sha512-+CyRcpagHMGteySaWos8IbnXcHgfDn7pO2fiC2slJxvNq9gDipYBN42/RagzctVRKgxATmfqOSulgZv5e1RdMg==}
+  /@img/sharp-wasm32@0.34.2:
+    resolution: {integrity: sha512-/VI4mdlJ9zkaq53MbIG6rZY+QRN3MLbR6usYlgITEzi4Rpx5S6LFKsycOQjkOGmqTNmkIdLjEvooFKwww6OpdQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [wasm32]
     requiresBuild: true
     dependencies:
-      '@emnapi/runtime': 1.4.4
+      '@emnapi/runtime': 1.4.3
     dev: false
     optional: true
 
-  /@img/sharp-win32-arm64@0.34.3:
-    resolution: {integrity: sha512-MjnHPnbqMXNC2UgeLJtX4XqoVHHlZNd+nPt1kRPmj63wURegwBhZlApELdtxM2OIZDRv/DFtLcNhVbd1z8GYXQ==}
+  /@img/sharp-win32-arm64@0.34.2:
+    resolution: {integrity: sha512-cfP/r9FdS63VA5k0xiqaNaEoGxBg9k7uE+RQGzuK9fHt7jib4zAVVseR9LsE4gJcNWgT6APKMNnCcnyOtmSEUQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [win32]
@@ -3274,8 +3263,8 @@ packages:
     dev: false
     optional: true
 
-  /@img/sharp-win32-ia32@0.34.3:
-    resolution: {integrity: sha512-xuCdhH44WxuXgOM714hn4amodJMZl3OEvf0GVTm0BEyMeA2to+8HEdRPShH0SLYptJY1uBw+SCFP9WVQi1Q/cw==}
+  /@img/sharp-win32-ia32@0.34.2:
+    resolution: {integrity: sha512-QLjGGvAbj0X/FXl8n1WbtQ6iVBpWU7JO94u/P2M4a8CFYsvQi4GW2mRy/JqkRx0qpBzaOdKJKw8uc930EX2AHw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [ia32]
     os: [win32]
@@ -3283,8 +3272,8 @@ packages:
     dev: false
     optional: true
 
-  /@img/sharp-win32-x64@0.34.3:
-    resolution: {integrity: sha512-OWwz05d++TxzLEv4VnsTz5CmZ6mI6S05sfQGEMrNrQcOEERbX46332IvE7pO/EUiw7jUrrS40z/M7kPyjfl04g==}
+  /@img/sharp-win32-x64@0.34.2:
+    resolution: {integrity: sha512-aUdT6zEYtDKCaxkofmmJDJYGCf0+pJg3eU9/oBuqvEeoB9dKI6ZLc/1iLJCTuJQDO4ptntAlkUmHgGjyuobZbw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [win32]
@@ -3292,28 +3281,28 @@ packages:
     dev: false
     optional: true
 
-  /@instantdb/core@0.20.9:
-    resolution: {integrity: sha512-Aw5CVJX6WfX5dEEfyjV0x/lJWT2by3D5iCmYdOT0iQBZCyCjoqMVbUwQTiwYhK7eQehJ5jJV1XmUs+EbXNpZyA==}
+  /@instantdb/core@0.20.4:
+    resolution: {integrity: sha512-oiOiu+HGxURdIhxMftng7vFQ4ZQ/oHBRiakT0Miuy4Vo8eC7AG8WGcz3hnsnuB6mBukdhfUGwfiYksE04n4Wcg==}
     dependencies:
       mutative: 1.2.0
-      uuid: 11.1.0
+      uuid: 9.0.1
     dev: false
 
-  /@instantdb/react@0.20.9(react@18.3.1):
-    resolution: {integrity: sha512-0WX4vVp1J6+HVrtr4lT90FN0D5ZKidw7sQMMLILsLoswZRD4GIVfNKRBXiUlH5Chk96mc8FvEN/9k2pYZ658EQ==}
+  /@instantdb/react@0.20.4(react@18.3.1):
+    resolution: {integrity: sha512-9gwcuUDmt3LxgDZRVoBS3XYOV8+XJ6oABgtprhCBKfXNqCTnI26/Z10QyGNGR7y4bAGUb9tbqgRnezsCFUVXZw==}
     peerDependencies:
       react: '>=16'
     dependencies:
-      '@instantdb/core': 0.20.9
+      '@instantdb/core': 0.20.4
       react: 18.3.1
     dev: false
 
-  /@instantdb/react@0.20.9(react@19.1.0):
-    resolution: {integrity: sha512-0WX4vVp1J6+HVrtr4lT90FN0D5ZKidw7sQMMLILsLoswZRD4GIVfNKRBXiUlH5Chk96mc8FvEN/9k2pYZ658EQ==}
+  /@instantdb/react@0.20.4(react@19.1.0):
+    resolution: {integrity: sha512-9gwcuUDmt3LxgDZRVoBS3XYOV8+XJ6oABgtprhCBKfXNqCTnI26/Z10QyGNGR7y4bAGUb9tbqgRnezsCFUVXZw==}
     peerDependencies:
       react: '>=16'
     dependencies:
-      '@instantdb/core': 0.20.9
+      '@instantdb/core': 0.20.4
       react: 19.1.0
     dev: false
 
@@ -3519,13 +3508,13 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /@napi-rs/wasm-runtime@0.2.12:
-    resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
+  /@napi-rs/wasm-runtime@0.2.10:
+    resolution: {integrity: sha512-bCsCyeZEwVErsGmyPNSzwfwFn4OdxBj0mmv6hOFucB/k81Ojdu68RbZdxYsRQUPc9l6SU5F/cG+bXgWs3oUgsQ==}
     requiresBuild: true
     dependencies:
-      '@emnapi/core': 1.4.4
-      '@emnapi/runtime': 1.4.4
-      '@tybys/wasm-util': 0.10.0
+      '@emnapi/core': 1.4.3
+      '@emnapi/runtime': 1.4.3
+      '@tybys/wasm-util': 0.9.0
     dev: true
     optional: true
 
@@ -6357,8 +6346,8 @@ packages:
       react: 19.1.0
     dev: false
 
-  /@react-email/button@0.2.0(react@18.3.1):
-    resolution: {integrity: sha512-8i+v6cMxr2emz4ihCrRiYJPp2/sdYsNNsBzXStlcA+/B9Umpm5Jj3WJKYpgTPM+aeyiqlG/MMI1AucnBm4f1oQ==}
+  /@react-email/button@0.1.0(react@18.3.1):
+    resolution: {integrity: sha512-fg4LtgTu5zXxaRSly9cuv6sHVF/hi1lElbRaIA8EPx5coWOBhCto6rCPfawcXpaN2oER7rNHUrcNBkI+lz5F9A==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -6366,8 +6355,8 @@ packages:
       react: 18.3.1
     dev: false
 
-  /@react-email/button@0.2.0(react@19.1.0):
-    resolution: {integrity: sha512-8i+v6cMxr2emz4ihCrRiYJPp2/sdYsNNsBzXStlcA+/B9Umpm5Jj3WJKYpgTPM+aeyiqlG/MMI1AucnBm4f1oQ==}
+  /@react-email/button@0.1.0(react@19.1.0):
+    resolution: {integrity: sha512-fg4LtgTu5zXxaRSly9cuv6sHVF/hi1lElbRaIA8EPx5coWOBhCto6rCPfawcXpaN2oER7rNHUrcNBkI+lz5F9A==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -6431,14 +6420,14 @@ packages:
       react: 19.1.0
     dev: false
 
-  /@react-email/components@0.3.1(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-FqcyGaUpJJu8zfYGSS+qaSy7Zc2BFAswBc/LvHeSV4iTQMZMD8Dy7aS/NvP1SQMg5vjsO1aMpGFdrD4NBY58dw==}
+  /@react-email/components@0.1.1(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-NyPuoqd1o77HL4+58pBrpk3e5/0UZLNU11/OBnE59F2MCZ8IaZX+55Ce+HR5itKTMdqlgfncz7sGA1TDITo41g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
     dependencies:
       '@react-email/body': 0.0.11(react@18.3.1)
-      '@react-email/button': 0.2.0(react@18.3.1)
+      '@react-email/button': 0.1.0(react@18.3.1)
       '@react-email/code-block': 0.1.0(react@18.3.1)
       '@react-email/code-inline': 0.0.5(react@18.3.1)
       '@react-email/column': 0.0.13(react@18.3.1)
@@ -6455,21 +6444,21 @@ packages:
       '@react-email/render': 1.1.3(react-dom@18.3.1)(react@18.3.1)
       '@react-email/row': 0.0.12(react@18.3.1)
       '@react-email/section': 0.0.16(react@18.3.1)
-      '@react-email/tailwind': 1.2.1(react@18.3.1)
+      '@react-email/tailwind': 1.0.5(react@18.3.1)
       '@react-email/text': 0.1.5(react@18.3.1)
       react: 18.3.1
     transitivePeerDependencies:
       - react-dom
     dev: false
 
-  /@react-email/components@0.3.1(react-dom@19.1.0)(react@19.1.0):
-    resolution: {integrity: sha512-FqcyGaUpJJu8zfYGSS+qaSy7Zc2BFAswBc/LvHeSV4iTQMZMD8Dy7aS/NvP1SQMg5vjsO1aMpGFdrD4NBY58dw==}
+  /@react-email/components@0.1.1(react-dom@19.1.0)(react@19.1.0):
+    resolution: {integrity: sha512-NyPuoqd1o77HL4+58pBrpk3e5/0UZLNU11/OBnE59F2MCZ8IaZX+55Ce+HR5itKTMdqlgfncz7sGA1TDITo41g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
     dependencies:
       '@react-email/body': 0.0.11(react@19.1.0)
-      '@react-email/button': 0.2.0(react@19.1.0)
+      '@react-email/button': 0.1.0(react@19.1.0)
       '@react-email/code-block': 0.1.0(react@19.1.0)
       '@react-email/code-inline': 0.0.5(react@19.1.0)
       '@react-email/column': 0.0.13(react@19.1.0)
@@ -6486,7 +6475,7 @@ packages:
       '@react-email/render': 1.1.3(react-dom@19.1.0)(react@19.1.0)
       '@react-email/row': 0.0.12(react@19.1.0)
       '@react-email/section': 0.0.16(react@19.1.0)
-      '@react-email/tailwind': 1.2.1(react@19.1.0)
+      '@react-email/tailwind': 1.0.5(react@19.1.0)
       '@react-email/text': 0.1.5(react@19.1.0)
       react: 19.1.0
     transitivePeerDependencies:
@@ -6681,7 +6670,7 @@ packages:
       react-dom: ^18.0 || ^19.0 || ^19.0.0-rc
     dependencies:
       html-to-text: 9.0.5
-      prettier: 3.6.2
+      prettier: 3.5.3
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-promise-suspense: 0.3.4
@@ -6695,7 +6684,7 @@ packages:
       react-dom: ^18.0 || ^19.0 || ^19.0.0-rc
     dependencies:
       html-to-text: 9.0.5
-      prettier: 3.6.2
+      prettier: 3.5.3
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       react-promise-suspense: 0.3.4
@@ -6737,8 +6726,8 @@ packages:
       react: 19.1.0
     dev: false
 
-  /@react-email/tailwind@1.2.1(react@18.3.1):
-    resolution: {integrity: sha512-SmVyDuNQLJwO3wHEe/snSTaRhf/Exldy5DQU/RyPjcSPC0EuXXYwFlBr16br8jJSxkZA/fL91AxKL7HbbWp0Rw==}
+  /@react-email/tailwind@1.0.5(react@18.3.1):
+    resolution: {integrity: sha512-BH00cZSeFfP9HiDASl+sPHi7Hh77W5nzDgdnxtsVr/m3uQD9g180UwxcE3PhOfx0vRdLzQUU8PtmvvDfbztKQg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -6746,8 +6735,8 @@ packages:
       react: 18.3.1
     dev: false
 
-  /@react-email/tailwind@1.2.1(react@19.1.0):
-    resolution: {integrity: sha512-SmVyDuNQLJwO3wHEe/snSTaRhf/Exldy5DQU/RyPjcSPC0EuXXYwFlBr16br8jJSxkZA/fL91AxKL7HbbWp0Rw==}
+  /@react-email/tailwind@1.0.5(react@19.1.0):
+    resolution: {integrity: sha512-BH00cZSeFfP9HiDASl+sPHi7Hh77W5nzDgdnxtsVr/m3uQD9g180UwxcE3PhOfx0vRdLzQUU8PtmvvDfbztKQg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -7540,10 +7529,6 @@ packages:
     resolution: {integrity: sha512-ZJOgCy/z2qpZXWaj/oxvodDx07XcQa9BF92c0oINjHkoqUPsmm3uG08HpTaviviZ/N9eP1f9CM7mKSEkIo7O1Q==}
     dev: false
 
-  /@tanstack/query-core@5.83.0:
-    resolution: {integrity: sha512-0M8dA+amXUkyz5cVUm/B+zSk3xkQAcuXuz5/Q/LveT4ots2rBpPTZOzd7yJa2Utsf8D2Upl5KyjhHRY+9lB/XA==}
-    dev: false
-
   /@tanstack/react-query@5.76.0(react@19.1.0):
     resolution: {integrity: sha512-dZLYzVuUFZJkenxd8o01oyFimeLBmSkaUviPHuDzXe7LSLO4WTTx92jwJlNUXOOHzg6t0XknklZ15cjhYNSDjA==}
     peerDependencies:
@@ -7562,7 +7547,7 @@ packages:
       react: 18.3.1
     dev: false
 
-  /@tanstack/react-router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
+  /@tanstack/react-router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-iYz1jp2AJG0a+FiyxKqpg44RM9KiVzChD57RsZTQylbwjPBF+dpP1GHhSwKPS99JgA10VhsB2moo3wc7wAsmvg==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7571,7 +7556,7 @@ packages:
       react-dom: '>=18.0.0 || >=19.0.0'
     dependencies:
       '@tanstack/react-router': 1.120.18(react-dom@19.1.0)(react@19.1.0)
-      '@tanstack/router-devtools-core': 1.120.17(@tanstack/router-core@1.127.8)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
+      '@tanstack/router-devtools-core': 1.120.17(@tanstack/router-core@1.125.4)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       solid-js: 1.9.7
@@ -7581,7 +7566,7 @@ packages:
       - tiny-invariant
     dev: false
 
-  /@tanstack/react-router-devtools@1.125.4(@tanstack/react-router@1.127.8)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3):
+  /@tanstack/react-router-devtools@1.125.4(@tanstack/react-router@1.125.4)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-eRg6Ht6bLno+Eo2Gps3cfjp++Mvy0brc6qs81At4beKZsCkS7jlmqHgrq6pXdH3l2bAQ/Dhr8J9zXvzxvRxf/g==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7589,8 +7574,8 @@ packages:
       react: '>=18.0.0 || >=19.0.0'
       react-dom: '>=18.0.0 || >=19.0.0'
     dependencies:
-      '@tanstack/react-router': 1.127.8(react-dom@18.3.1)(react@18.3.1)
-      '@tanstack/router-devtools-core': 1.125.4(@tanstack/router-core@1.127.8)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
+      '@tanstack/react-router': 1.125.4(react-dom@18.3.1)(react@18.3.1)
+      '@tanstack/router-devtools-core': 1.125.4(@tanstack/router-core@1.125.4)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     transitivePeerDependencies:
@@ -7616,21 +7601,34 @@ packages:
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
 
-  /@tanstack/react-router@1.127.8(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-UIIlCdq/rVGeKtaevzl5e/n3z4RJby29kRaVY+Tungg1IY9decagXYyR/bmfxgzvF5+YI+muy9MH+FxNAzanMA==}
+  /@tanstack/react-router@1.125.4(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-IIlDiFCR+RN/17dWtYKMYiJvH38tmtgTyciHkeZvr8vSWhThAeuwjzKneF4mQl3B//YHYcrFm7rZM59c24As/A==}
     engines: {node: '>=12'}
     peerDependencies:
       react: '>=18.0.0 || >=19.0.0'
       react-dom: '>=18.0.0 || >=19.0.0'
     dependencies:
       '@tanstack/history': 1.121.34
-      '@tanstack/react-store': 0.7.3(react-dom@18.3.1)(react@18.3.1)
-      '@tanstack/router-core': 1.127.8
+      '@tanstack/react-store': 0.7.1(react-dom@18.3.1)(react@18.3.1)
+      '@tanstack/router-core': 1.125.4
       isbot: 5.1.28
+      jsesc: 3.1.0
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
+    dev: false
+
+  /@tanstack/react-store@0.7.1(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-qUTEKdId6QPWGiWyKAPf/gkN29scEsz6EUSJ0C3HgLMgaqTAyBsQ2sMCfGVcqb+kkhEXAdjleCgH6LAPD6f2sA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      '@tanstack/store': 0.7.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      use-sync-external-store: 1.5.0(react@18.3.1)
     dev: false
 
   /@tanstack/react-store@0.7.1(react-dom@19.1.0)(react@19.1.0):
@@ -7643,18 +7641,6 @@ packages:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       use-sync-external-store: 1.5.0(react@19.1.0)
-
-  /@tanstack/react-store@0.7.3(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-3Dnqtbw9P2P0gw8uUM8WP2fFfg8XMDSZCTsywRPZe/XqqYW8PGkXKZTvP0AHkE4mpqP9Y43GpOg9vwO44azu6Q==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    dependencies:
-      '@tanstack/store': 0.7.2
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      use-sync-external-store: 1.5.0(react@18.3.1)
-    dev: false
 
   /@tanstack/router-cli@1.120.18(@tanstack/react-router@1.120.18):
     resolution: {integrity: sha512-7E61/zU42mOws1vXV3YhGhFJtuIjE0AnQEyDvQ77jtgc/fsXW1eewV+7Wsw2kkF/ZFsYYwjnlT4a+SRWpYS/QA==}
@@ -7688,20 +7674,19 @@ packages:
       tiny-warning: 1.0.3
     dev: false
 
-  /@tanstack/router-core@1.127.8:
-    resolution: {integrity: sha512-GYRmuvU9mcqu68GF56pNSE8TLGQ8jI0CsxuJXLwhwlawmnWGWeVo2L3g4ZOoK/lW6Mc5pr9OefkbEcyB/SFFNw==}
+  /@tanstack/router-core@1.125.4:
+    resolution: {integrity: sha512-tdgGI0Kwt3Lgs9ceLbG32NPh4I2H1T9t2TKjcS+I78sifm5rjTWV8lfqVRNrvMPk5ek60vXPOL2AHAUg6ohwsA==}
     engines: {node: '>=12'}
     dependencies:
       '@tanstack/history': 1.121.34
-      '@tanstack/store': 0.7.2
+      '@tanstack/store': 0.7.1
       cookie-es: 1.2.2
-      seroval: 1.3.2
-      seroval-plugins: 1.3.2(seroval@1.3.2)
+      jsesc: 3.1.0
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
     dev: false
 
-  /@tanstack/router-devtools-core@1.120.17(@tanstack/router-core@1.127.8)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools-core@1.120.17(@tanstack/router-core@1.125.4)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-Ci2OV/hecsKy/ZXqK3gLS/h1Qg7OEl2Gy9c76iSYWIzroQ9nhKgsQ+qj+LxucImztWujNINXf23wkq5fVlR0EQ==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7713,7 +7698,7 @@ packages:
       csstype:
         optional: true
     dependencies:
-      '@tanstack/router-core': 1.127.8
+      '@tanstack/router-core': 1.125.4
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -7721,7 +7706,7 @@ packages:
       tiny-invariant: 1.3.3
     dev: false
 
-  /@tanstack/router-devtools-core@1.125.4(@tanstack/router-core@1.127.8)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools-core@1.125.4(@tanstack/router-core@1.125.4)(csstype@3.1.3)(solid-js@1.9.7)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-5QbCQCcJcN/M0NF2TARKqauJ8QeRuk7kyHQMCqOoSJWWGUVcDHEmcbg1ZCJevfPVZPgnUjV9mqDfCPTYWT8/+w==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7733,7 +7718,7 @@ packages:
       csstype:
         optional: true
     dependencies:
-      '@tanstack/router-core': 1.127.8
+      '@tanstack/router-core': 1.125.4
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -7741,7 +7726,7 @@ packages:
       tiny-invariant: 1.3.3
     dev: false
 
-  /@tanstack/router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools@1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-9P74erkZQprhMIJftzein35WS0Fi2J+jOvNaaylX59k+2wjahYdSImIkICAEGmj2K5C51QsPFUrikYVTT591LA==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7754,7 +7739,7 @@ packages:
         optional: true
     dependencies:
       '@tanstack/react-router': 1.120.18(react-dom@19.1.0)(react@19.1.0)
-      '@tanstack/react-router-devtools': 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
+      '@tanstack/react-router-devtools': 1.120.18(@tanstack/react-router@1.120.18)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@19.1.0)(react@19.1.0)(tiny-invariant@1.3.3)
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -7765,7 +7750,7 @@ packages:
       - tiny-invariant
     dev: false
 
-  /@tanstack/router-devtools@1.125.4(@tanstack/react-router@1.127.8)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3):
+  /@tanstack/router-devtools@1.125.4(@tanstack/react-router@1.125.4)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3):
     resolution: {integrity: sha512-VpCxC80C+t+HNt8xuRGoXDwV+0c1LFDNzOdL/dPlYSuTZWLd8zwOEi49oMaNSLeGJFLwgQx7FLP020UvQO6pMg==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7777,8 +7762,8 @@ packages:
       csstype:
         optional: true
     dependencies:
-      '@tanstack/react-router': 1.127.8(react-dom@18.3.1)(react@18.3.1)
-      '@tanstack/react-router-devtools': 1.125.4(@tanstack/react-router@1.127.8)(@tanstack/router-core@1.127.8)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3)
+      '@tanstack/react-router': 1.125.4(react-dom@18.3.1)(react@18.3.1)
+      '@tanstack/react-router-devtools': 1.125.4(@tanstack/react-router@1.125.4)(@tanstack/router-core@1.125.4)(csstype@3.1.3)(react-dom@18.3.1)(react@18.3.1)(solid-js@1.9.7)(tiny-invariant@1.3.3)
       clsx: 2.1.1
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
@@ -7866,7 +7851,7 @@ packages:
       - supports-color
     dev: true
 
-  /@tanstack/router-plugin@1.124.0(@tanstack/react-router@1.127.8)(vite@5.4.19):
+  /@tanstack/router-plugin@1.124.0(@tanstack/react-router@1.125.4)(vite@5.4.19):
     resolution: {integrity: sha512-CqV3PCVoMrHw0HyTioIGHTTjaMRgfwbW4ax2Pule++smyetn+3KPLV6C3VWc0vdukZMQz13JvLORSSeM0B2cYQ==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -7893,7 +7878,7 @@ packages:
       '@babel/template': 7.27.2
       '@babel/traverse': 7.28.0
       '@babel/types': 7.28.0
-      '@tanstack/react-router': 1.127.8(react-dom@18.3.1)(react@18.3.1)
+      '@tanstack/react-router': 1.125.4(react-dom@18.3.1)(react@18.3.1)
       '@tanstack/router-core': 1.124.0
       '@tanstack/router-generator': 1.124.0
       '@tanstack/router-utils': 1.121.21
@@ -7931,11 +7916,11 @@ packages:
       - supports-color
     dev: false
 
-  /@tanstack/router-vite-plugin@1.124.0(@tanstack/react-router@1.127.8)(vite@5.4.19):
+  /@tanstack/router-vite-plugin@1.124.0(@tanstack/react-router@1.125.4)(vite@5.4.19):
     resolution: {integrity: sha512-UVgZ/sXqgVwUqa0ez2Y76Q3MECVlMlRhLflAJGTtPjCtXHZuoibsBpnuJBaW/QRy2jlvwjlibySk/A6efJHSyQ==}
     engines: {node: '>=12'}
     dependencies:
-      '@tanstack/router-plugin': 1.124.0(@tanstack/react-router@1.127.8)(vite@5.4.19)
+      '@tanstack/router-plugin': 1.124.0(@tanstack/react-router@1.125.4)(vite@5.4.19)
     transitivePeerDependencies:
       - '@rsbuild/core'
       - '@tanstack/react-router'
@@ -7963,10 +7948,6 @@ packages:
 
   /@tanstack/store@0.7.1:
     resolution: {integrity: sha512-PjUQKXEXhLYj2X5/6c1Xn/0/qKY0IVFxTJweopRfF26xfjVyb14yALydJrHupDh3/d+1WKmfEgZPBVCmDkzzwg==}
-
-  /@tanstack/store@0.7.2:
-    resolution: {integrity: sha512-RP80Z30BYiPX2Pyo0Nyw4s1SJFH2jyM6f9i3HfX4pA+gm5jsnYryscdq2aIQLnL4TaGuQMO+zXmN9nh1Qck+Pg==}
-    dev: false
 
   /@tanstack/virtual-file-routes@1.120.17:
     resolution: {integrity: sha512-Ssi+yKcjG9ru02ieCpUBF7QQBEKGB7WQS1R9va3GHu+Oq9WjzmJ4rifzdugjTeKD3yfT7d1I+pOxRhoWog6CHw==}
@@ -8045,14 +8026,6 @@ packages:
       '@tiptap/pm': 2.12.0
     dev: false
 
-  /@tiptap/core@2.26.1(@tiptap/pm@2.12.0):
-    resolution: {integrity: sha512-fymyd/XZvYiHjBoLt1gxs024xP/LY26d43R1vluYq7AHBL/7DE3ywzy+1GEsGyAv5Je2L0KBhNIR/izbq3Kaqg==}
-    peerDependencies:
-      '@tiptap/pm': ^2.7.0
-    dependencies:
-      '@tiptap/pm': 2.12.0
-    dev: false
-
   /@tiptap/extension-blockquote@2.12.0(@tiptap/core@2.12.0):
     resolution: {integrity: sha512-XUC2A77YAPMJS2SqZ2S62IGcUH8gZ7cdhoWlYQb1pR4ZzXFByeKDJPxfYeAePSiuI01YGrlzgY2c6Ncx/DtO0A==}
     peerDependencies:
@@ -8069,13 +8042,13 @@ packages:
       '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
     dev: false
 
-  /@tiptap/extension-bubble-menu@2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0):
+  /@tiptap/extension-bubble-menu@2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0):
     resolution: {integrity: sha512-DYijoE0igV0Oi+ZppFsp2UrQsM/4HZtmmpD78BJM9zfCbd1YvAUIxmzmXr8uqU18OHd1uQy+/zvuNoUNYyw67g==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
       '@tiptap/pm': ^2.7.0
     dependencies:
-      '@tiptap/core': 2.26.1(@tiptap/pm@2.12.0)
+      '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
       '@tiptap/pm': 2.12.0
       tippy.js: 6.3.7
     dev: false
@@ -8124,13 +8097,13 @@ packages:
       '@tiptap/pm': 2.12.0
     dev: false
 
-  /@tiptap/extension-floating-menu@2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0):
+  /@tiptap/extension-floating-menu@2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0):
     resolution: {integrity: sha512-BYpyZx/56KCDksWuJJbhki/uNgt9sACuSSZFH5AN1yS1ISD+EzIxqf6Pzzv8QCoNJ+KcRNVaZsOlOFaJGoyzag==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
       '@tiptap/pm': ^2.7.0
     dependencies:
-      '@tiptap/core': 2.26.1(@tiptap/pm@2.12.0)
+      '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
       '@tiptap/pm': 2.12.0
       tippy.js: 6.3.7
     dev: false
@@ -8213,13 +8186,13 @@ packages:
       '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
     dev: false
 
-  /@tiptap/extension-placeholder@2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0):
+  /@tiptap/extension-placeholder@2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0):
     resolution: {integrity: sha512-K7irDox4P+NLAMjVrJeG72f0sulsCRYpx1Cy4gxKCdi1LTivj5VkXa6MXmi42KTCwBu3pWajBctYIOAES1FTAA==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
       '@tiptap/pm': ^2.7.0
     dependencies:
-      '@tiptap/core': 2.26.1(@tiptap/pm@2.12.0)
+      '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
       '@tiptap/pm': 2.12.0
     dev: false
 
@@ -8270,7 +8243,7 @@ packages:
       prosemirror-view: 1.39.2
     dev: false
 
-  /@tiptap/react@2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0)(react-dom@19.1.0)(react@19.1.0):
+  /@tiptap/react@2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0)(react-dom@19.1.0)(react@19.1.0):
     resolution: {integrity: sha512-D+PR+4kJO9h8AB/7XyQ/Anw8tqeS2ecv5QemBOCHi9JlMAjytauUrj6IfFBO9RbsCowlBjW5GnSpFhzpk2Gghg==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
@@ -8278,9 +8251,9 @@ packages:
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
-      '@tiptap/core': 2.26.1(@tiptap/pm@2.12.0)
-      '@tiptap/extension-bubble-menu': 2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0)
-      '@tiptap/extension-floating-menu': 2.12.0(@tiptap/core@2.26.1)(@tiptap/pm@2.12.0)
+      '@tiptap/core': 2.12.0(@tiptap/pm@2.12.0)
+      '@tiptap/extension-bubble-menu': 2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0)
+      '@tiptap/extension-floating-menu': 2.12.0(@tiptap/core@2.12.0)(@tiptap/pm@2.12.0)
       '@tiptap/pm': 2.12.0
       '@types/use-sync-external-store': 0.0.6
       fast-deep-equal: 3.1.3
@@ -8319,11 +8292,11 @@ packages:
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
     engines: {node: '>= 10'}
 
-  /@triplit/client@1.0.47(typescript@5.8.3):
-    resolution: {integrity: sha512-UY7ixa0iU3ak22vvxPPkxP8NiQQAyB5N9qgrLIjTr4i1DDOXgd5wI8L4ozrJP1mwDKOR5Pi8gb1/ixIpWUB3nA==}
+  /@triplit/client@1.0.46(typescript@5.8.3):
+    resolution: {integrity: sha512-Y1rsbyrJ6oOnTEANAjC7X+wjJ0R6CrDiai1uAa+qXldUgOMr2s76pHw6KgCtAg/FRU9MDJBv7xbSwDLOccjyTg==}
     engines: {node: '>=18.0.0'}
     dependencies:
-      '@triplit/db': 1.1.8(typescript@5.8.3)
+      '@triplit/db': 1.1.7(typescript@5.8.3)
       '@triplit/logger': 0.0.3(typescript@5.8.3)
       comlink: 4.4.2
       superjson: 2.2.2
@@ -8335,8 +8308,8 @@ packages:
       - uuidv7
     dev: false
 
-  /@triplit/db@1.1.8(typescript@5.8.3):
-    resolution: {integrity: sha512-rxFslurkhY6rCDhqXNtkmnZ7CcIQBR9ngU5kOl6AiCRyiEUN5/C0OPd/x1nUZauwOFsF9fU8V9ljeL/NoCYfww==}
+  /@triplit/db@1.1.7(typescript@5.8.3):
+    resolution: {integrity: sha512-FdmCB9ftqR9tZag1yT8X2FrWkuE/pDcYooZNMYjUUYiGI7G1tWw+xCcJG/z0QxAjqml5SdZgjZGdn/rZ7Ih85Q==}
     peerDependencies:
       better-sqlite3: '*'
       expo-sqlite: '*'
@@ -8353,7 +8326,7 @@ packages:
         optional: true
     dependencies:
       '@triplit/logger': 0.0.3(typescript@5.8.3)
-      core-js: 3.44.0
+      core-js: 3.43.0
       elen: 1.0.10
       nanoid: 5.1.5
       sorted-btree: 1.8.1
@@ -8370,12 +8343,12 @@ packages:
       typescript: 5.8.3
     dev: false
 
-  /@triplit/react@1.0.47(react@18.3.1)(typescript@5.8.3):
-    resolution: {integrity: sha512-p4ulfR7SmkzFrAsa/LMbe/D5Pc2pEu2d8UvApecLmcn5280r8GoD6T3cmDn9GJprM06h7Sov+86BIRd2pc/QUA==}
+  /@triplit/react@1.0.46(react@18.3.1)(typescript@5.8.3):
+    resolution: {integrity: sha512-AsrgtD2f3yrrChNirjAHjufYhfn6ZrRd8MRwbPIfXKkNwEK3BrLci0zXTOE6gUkvC92JIjpxFUPA17ljppGqzg==}
     peerDependencies:
       react: '*'
     dependencies:
-      '@triplit/client': 1.0.47(typescript@5.8.3)
+      '@triplit/client': 1.0.46(typescript@5.8.3)
       react: 18.3.1
     transitivePeerDependencies:
       - better-sqlite3
@@ -8385,12 +8358,12 @@ packages:
       - uuidv7
     dev: false
 
-  /@triplit/react@1.0.47(react@19.1.0)(typescript@5.8.3):
-    resolution: {integrity: sha512-p4ulfR7SmkzFrAsa/LMbe/D5Pc2pEu2d8UvApecLmcn5280r8GoD6T3cmDn9GJprM06h7Sov+86BIRd2pc/QUA==}
+  /@triplit/react@1.0.46(react@19.1.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-AsrgtD2f3yrrChNirjAHjufYhfn6ZrRd8MRwbPIfXKkNwEK3BrLci0zXTOE6gUkvC92JIjpxFUPA17ljppGqzg==}
     peerDependencies:
       react: '*'
     dependencies:
-      '@triplit/client': 1.0.47(typescript@5.8.3)
+      '@triplit/client': 1.0.46(typescript@5.8.3)
       react: 19.1.0
     transitivePeerDependencies:
       - better-sqlite3
@@ -8416,8 +8389,8 @@ packages:
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
     dev: true
 
-  /@tybys/wasm-util@0.10.0:
-    resolution: {integrity: sha512-VyyPYFlOMNylG45GoAe0xDoLwWuowvf92F9kySqzYh8vmYm7D2u4iUJKa1tOUpS70Ku13ASrOkS4ScXFsTaCNQ==}
+  /@tybys/wasm-util@0.9.0:
+    resolution: {integrity: sha512-6+7nlbMVX/PVDCwaIQ8nTOPveOcFLSt8GcXdx8hD0bt39uWxYT88uXzqTd4fTvqta7oeUJqudepapKNt2DYJFw==}
     requiresBuild: true
     dependencies:
       tslib: 2.8.1
@@ -9242,7 +9215,7 @@ packages:
     cpu: [wasm32]
     requiresBuild: true
     dependencies:
-      '@napi-rs/wasm-runtime': 0.2.12
+      '@napi-rs/wasm-runtime': 0.2.10
     dev: true
     optional: true
 
@@ -9969,12 +9942,6 @@ packages:
     dependencies:
       balanced-match: 1.0.2
 
-  /brace-expansion@2.0.2:
-    resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
-    dependencies:
-      balanced-match: 1.0.2
-    dev: true
-
   /braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
@@ -10528,8 +10495,8 @@ packages:
       is-what: 4.1.16
     dev: false
 
-  /core-js@3.44.0:
-    resolution: {integrity: sha512-aFCtd4l6GvAXwVEh3XbbVqJGHDJt0OZRa+5ePGx3LLwi12WfexqQxcsohb2wgsa/92xtl19Hd66G/L+TaAxDMw==}
+  /core-js@3.43.0:
+    resolution: {integrity: sha512-N6wEbTTZSYOY2rYAn85CuvWWkCK6QweMn7/4Nr3w+gDBeBhk/x4EJeY6FPo4QzDoJZxVTv8U7CMvgWk6pOHHqA==}
     requiresBuild: true
     dev: false
 
@@ -12931,7 +12898,7 @@ packages:
         optional: true
     optionalDependencies:
       '@mapbox/node-pre-gyp': 1.0.11
-      node-addon-api: 8.5.0
+      node-addon-api: 8.3.1
       node-gyp: 10.3.1
     transitivePeerDependencies:
       - encoding
@@ -15538,7 +15505,7 @@ packages:
     resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
     engines: {node: '>=10'}
     dependencies:
-      brace-expansion: 2.0.2
+      brace-expansion: 2.0.1
     dev: true
 
   /minimatch@9.0.3:
@@ -15814,7 +15781,7 @@ packages:
       '@next/swc-linux-x64-musl': 15.3.1
       '@next/swc-win32-arm64-msvc': 15.3.1
       '@next/swc-win32-x64-msvc': 15.3.1
-      sharp: 0.34.3
+      sharp: 0.34.2
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
@@ -15851,13 +15818,6 @@ packages:
     resolution: {integrity: sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA==}
     engines: {node: ^18 || ^20 || >= 21}
     dev: false
-
-  /node-addon-api@8.5.0:
-    resolution: {integrity: sha512-/bRZty2mXUIFY/xU5HLvveNHlswNJej+RnxBjOMkidWfwZzgTbPG1E3K5TOxRLOR+5hX7bSofy8yf1hZevMS8A==}
-    engines: {node: ^18 || ^20 || >= 21}
-    requiresBuild: true
-    dev: false
-    optional: true
 
   /node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
@@ -16650,12 +16610,6 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
-  /prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
-    engines: {node: '>=14'}
-    hasBin: true
-    dev: false
-
   /pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
@@ -17185,8 +17139,8 @@ packages:
       fast-deep-equal: 2.0.1
     dev: false
 
-  /react-qr-code@2.0.18(react@18.3.1):
-    resolution: {integrity: sha512-v1Jqz7urLMhkO6jkgJuBYhnqvXagzceg3qJUWayuCK/c6LTIonpWbwxR1f1APGd4xrW/QcQEovNrAojbUz65Tg==}
+  /react-qr-code@2.0.16(react@18.3.1):
+    resolution: {integrity: sha512-8f54aTOo7DxYr1LB47pMeclV5SL/zSbJxkXHIS2a+QnAIa4XDVIdmzYRC+CBCJeDLSCeFHn8gHtltwvwZGJD/w==}
     peerDependencies:
       react: '*'
     dependencies:
@@ -17195,8 +17149,8 @@ packages:
       react: 18.3.1
     dev: false
 
-  /react-qr-code@2.0.18(react@19.1.0):
-    resolution: {integrity: sha512-v1Jqz7urLMhkO6jkgJuBYhnqvXagzceg3qJUWayuCK/c6LTIonpWbwxR1f1APGd4xrW/QcQEovNrAojbUz65Tg==}
+  /react-qr-code@2.0.16(react@19.1.0):
+    resolution: {integrity: sha512-8f54aTOo7DxYr1LB47pMeclV5SL/zSbJxkXHIS2a+QnAIa4XDVIdmzYRC+CBCJeDLSCeFHn8gHtltwvwZGJD/w==}
     peerDependencies:
       react: '*'
     dependencies:
@@ -18179,8 +18133,8 @@ packages:
   /setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  /sharp@0.34.3:
-    resolution: {integrity: sha512-eX2IQ6nFohW4DbvHIOLRB3MHFpYqaqvXd3Tp5e/T/dSH83fxaNJQRvDMhASmkNTsNTVF2/OOopzRCt7xokgPfg==}
+  /sharp@0.34.2:
+    resolution: {integrity: sha512-lszvBmB9QURERtyKT2bNmsgxXK0ShJrL/fvqlonCo7e6xBF8nT8xU6pW+PMIbLsz0RxQk3rgH9kd8UmvOzlMJg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     requiresBuild: true
     dependencies:
@@ -18188,28 +18142,27 @@ packages:
       detect-libc: 2.0.4
       semver: 7.7.2
     optionalDependencies:
-      '@img/sharp-darwin-arm64': 0.34.3
-      '@img/sharp-darwin-x64': 0.34.3
-      '@img/sharp-libvips-darwin-arm64': 1.2.0
-      '@img/sharp-libvips-darwin-x64': 1.2.0
-      '@img/sharp-libvips-linux-arm': 1.2.0
-      '@img/sharp-libvips-linux-arm64': 1.2.0
-      '@img/sharp-libvips-linux-ppc64': 1.2.0
-      '@img/sharp-libvips-linux-s390x': 1.2.0
-      '@img/sharp-libvips-linux-x64': 1.2.0
-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.0
-      '@img/sharp-libvips-linuxmusl-x64': 1.2.0
-      '@img/sharp-linux-arm': 0.34.3
-      '@img/sharp-linux-arm64': 0.34.3
-      '@img/sharp-linux-ppc64': 0.34.3
-      '@img/sharp-linux-s390x': 0.34.3
-      '@img/sharp-linux-x64': 0.34.3
-      '@img/sharp-linuxmusl-arm64': 0.34.3
-      '@img/sharp-linuxmusl-x64': 0.34.3
-      '@img/sharp-wasm32': 0.34.3
-      '@img/sharp-win32-arm64': 0.34.3
-      '@img/sharp-win32-ia32': 0.34.3
-      '@img/sharp-win32-x64': 0.34.3
+      '@img/sharp-darwin-arm64': 0.34.2
+      '@img/sharp-darwin-x64': 0.34.2
+      '@img/sharp-libvips-darwin-arm64': 1.1.0
+      '@img/sharp-libvips-darwin-x64': 1.1.0
+      '@img/sharp-libvips-linux-arm': 1.1.0
+      '@img/sharp-libvips-linux-arm64': 1.1.0
+      '@img/sharp-libvips-linux-ppc64': 1.1.0
+      '@img/sharp-libvips-linux-s390x': 1.1.0
+      '@img/sharp-libvips-linux-x64': 1.1.0
+      '@img/sharp-libvips-linuxmusl-arm64': 1.1.0
+      '@img/sharp-libvips-linuxmusl-x64': 1.1.0
+      '@img/sharp-linux-arm': 0.34.2
+      '@img/sharp-linux-arm64': 0.34.2
+      '@img/sharp-linux-s390x': 0.34.2
+      '@img/sharp-linux-x64': 0.34.2
+      '@img/sharp-linuxmusl-arm64': 0.34.2
+      '@img/sharp-linuxmusl-x64': 0.34.2
+      '@img/sharp-wasm32': 0.34.2
+      '@img/sharp-win32-arm64': 0.34.2
+      '@img/sharp-win32-ia32': 0.34.2
+      '@img/sharp-win32-x64': 0.34.2
     dev: false
     optional: true
 
@@ -18342,7 +18295,7 @@ packages:
     dependencies:
       agent-base: 6.0.2
       debug: 4.4.0
-      socks: 2.8.6
+      socks: 2.8.4
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -18364,14 +18317,6 @@ packages:
     dependencies:
       ip-address: 9.0.5
       smart-buffer: 4.2.0
-
-  /socks@2.8.6:
-    resolution: {integrity: sha512-pe4Y2yzru68lXCb38aAqRf5gvN8YdjP1lok5o0J7BOHljkyCGKVz7H3vpVIXKD27rj2giOJ7DwVyk/GWrPHDWA==}
-    engines: {node: '>= 10.0.0', npm: '>= 3.0.0'}
-    dependencies:
-      ip-address: 9.0.5
-      smart-buffer: 4.2.0
-    dev: true
 
   /solid-js@1.9.7:
     resolution: {integrity: sha512-/saTKi8iWEM233n5OSi1YHCCuh66ZIQ7aK2hsToPe4tqGm7qAejU1SwNuTPivbWAYq7SjuHVVYxxuZQNRbICiw==}
@@ -18755,8 +18700,8 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
-  /swr@2.3.4(react@19.1.0):
-    resolution: {integrity: sha512-bYd2lrhc+VarcpkgWclcUi92wYCpOgMws9Sd1hG1ntAu0NEy+14CbotuFjshBU2kt9rYj9TSmDcybpxpeTU1fg==}
+  /swr@2.3.3(react@19.1.0):
+    resolution: {integrity: sha512-dshNvs3ExOqtZ6kJBaAsabhPdHyeY4P2cKwRCniDVifBMoG/SVI7tfLWqPXriVspf2Rg4tPzXJTnwaihIeFw2A==}
     peerDependencies:
       react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
@@ -19539,6 +19484,11 @@ packages:
     hasBin: true
     dev: false
 
+  /uuid@9.0.1:
+    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    hasBin: true
+    dev: false
+
   /v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
     dev: true
@@ -20180,14 +20130,6 @@ packages:
       zod: ^3.24.1
     dependencies:
       zod: 3.24.4
-
-  /zod-to-json-schema@3.24.6(zod@3.24.4):
-    resolution: {integrity: sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==}
-    peerDependencies:
-      zod: ^3.24.1
-    dependencies:
-      zod: 3.24.4
-    dev: false
 
   /zod-validation-error@3.4.1(zod@3.24.4):
     resolution: {integrity: sha512-1KP64yqDPQ3rupxNv7oXhf7KdhHHgaqbKuspVoiN93TT0xrBjql+Svjkdjq/Qh/7GSMmgQs3AfvBT0heE35thw==}
