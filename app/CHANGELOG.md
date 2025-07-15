@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.20
+
+### Patch Changes
+
+- turn off local api mode for now
+
 ## 0.0.19
 
 ### Patch Changes
