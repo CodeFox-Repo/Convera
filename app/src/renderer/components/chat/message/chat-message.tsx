@@ -323,7 +323,9 @@ const ChatMessage = memo(
               )}
 
               {/* Selected content section - below attachments, above message content */}
-              {selectedContent && <SelectedContentBlock content={selectedContent} />}
+              {selectedContent && (
+                <SelectedContentBlock content={selectedContent} />
+              )}
 
               {/* Message content */}
               <div className="text-foreground leading-relaxed">

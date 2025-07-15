@@ -435,9 +435,8 @@ export default function ChatContent({
       let contentToRender = message.content;
 
       if (message.role === "user" && message.content) {
-        const { selectedContent: extracted, cleanContent } = extractSelectedContent(
-          message.content,
-        );
+        const { selectedContent: extracted, cleanContent } =
+          extractSelectedContent(message.content);
         // Convert extracted string to SelectedContent object for backward compatibility
         selectedContent = extracted
           ? { text: extracted, source: "manual" }

@@ -123,9 +123,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(
-    null,
-  );
+  const [selectedContent, setSelectedContent] =
+    useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
