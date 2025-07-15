@@ -110,10 +110,11 @@ export function ContextButtons({
                 bg-background/30 px-2 py-1 text-xs font-medium max-w-[24ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />
-              <span className="truncate -mr-1 mt-1">
-                {selectedContent.text ? 
-                  selectedContent.text.slice(0, 30) + (selectedContent.text.length > 30 ? '...' : '') : 
-                  formatAppName("selected")}
+              <span className="truncate -mr-1">
+                {selectedContent.text
+                  ? selectedContent.text.slice(0, 30) +
+                    (selectedContent.text.length > 30 ? "..." : "")
+                  : formatAppName("selected")}
               </span>
               <button
                 onClick={onRejectSelectedContent}
