@@ -41,8 +41,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       isLoading,
       sendMessage,
       stopGeneration,
-      copiedContent,
-      rejectCopiedContent,
+      selectedContent,
+      rejectSelectedContent,
       resetChatWindow,
       handleVoiceInput,
       openSettings,
@@ -211,9 +211,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             }`}
           >
             <ContextButtons
-              copiedContent={copiedContent || null}
+              selectedContent={selectedContent || null}
               formatAppName={formatAppName}
-              onRejectCopiedContent={rejectCopiedContent}
+              onRejectSelectedContent={rejectSelectedContent}
               onAddFile={handleFileUpload}
             />
 

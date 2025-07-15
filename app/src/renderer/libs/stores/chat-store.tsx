@@ -22,8 +22,8 @@ import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
 
-// Clipboard content structure
-export interface ClipboardContent {
+// Selected content structure
+export interface SelectedContent {
   text?: string;
   imageData?: string; // base64 encoded image
   timestamp?: number;
@@ -42,7 +42,7 @@ interface ChatContextType {
   input: string;
   isLoading: boolean;
   error: Error | undefined;
-  copiedContent: ClipboardContent | null;
+  selectedContent: SelectedContent | null;
   attachments: File[];
 
   // View mode management
@@ -70,8 +70,8 @@ interface ChatContextType {
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
   resetChat: () => void;
-  setCopiedContent: (content: ClipboardContent | null) => void;
-  rejectCopiedContent: () => void;
+  setSelectedContent: (content: SelectedContent | null) => void;
+  rejectSelectedContent: () => void;
   addAttachments: (files: File | File[]) => void;
   removeAttachment: (index: number) => void;
   clearAttachments: () => void;
@@ -123,7 +123,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const [copiedContent, setCopiedContent] = useState<ClipboardContent | null>(
+  const [selectedContent, setSelectedContent] = useState<SelectedContent | null>(
     null,
   );
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -628,7 +628,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         filesToSend.push(...extraFiles);
       }
 
-      if (!chatAPI.input.trim() && !copiedContent && filesToSend.length === 0)
+      if (!chatAPI.input.trim() && !selectedContent && filesToSend.length === 0)
         return;
 
       // Generate conversation ID if this is the first message
@@ -641,19 +641,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       let messageText = chatAPI.input.trim();
 
-      // Handle clipboard content (text and/or image)
-      let clipboardImageFile: File | null = null;
+      // Handle selected content (text and/or image)
+      let selectedImageFile: File | null = null;
 
-      if (copiedContent) {
+      if (selectedContent) {
         // Handle text content
-        if (copiedContent.text) {
+        if (selectedContent.text) {
           messageText = messageText
-            ? `<copied>\n${copiedContent.text}\n</copied>\n\n${messageText}`
-            : `<copied>\n${copiedContent.text}\n</copied>`;
+            ? `<selected>\n${selectedContent.text}\n</selected>\n\n${messageText}`
+            : `<selected>\n${selectedContent.text}\n</selected>`;
         }
 
         // Handle image content - convert to File object
-        if (copiedContent.imageData) {
+        if (selectedContent.imageData) {
           try {
             const base64ToFile = (base64: string, filename: string): File => {
               const arr = base64.split(",");
@@ -667,19 +667,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               return new File([u8arr], filename, { type: mime });
             };
 
-            const imageDataUrl = copiedContent.imageData.startsWith("data:")
-              ? copiedContent.imageData
-              : `data:image/png;base64,${copiedContent.imageData}`;
+            const imageDataUrl = selectedContent.imageData.startsWith("data:")
+              ? selectedContent.imageData
+              : `data:image/png;base64,${selectedContent.imageData}`;
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
             const filename = `screenshot-${timestamp}.png`;
-            clipboardImageFile = base64ToFile(imageDataUrl, filename);
+            selectedImageFile = base64ToFile(imageDataUrl, filename);
           } catch (error) {
             console.error("Error converting clipboard image:", error);
           }
         }
 
-        setCopiedContent(null);
+        setSelectedContent(null);
       }
 
       const message: ChatMessage = {
@@ -698,10 +698,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
 
-          // Combine regular attachments with clipboard image
+          // Combine regular attachments with selected image
           const allFiles = [...filesToSend];
-          if (clipboardImageFile) {
-            allFiles.push(clipboardImageFile);
+          if (selectedImageFile) {
+            allFiles.push(selectedImageFile);
           }
 
           if (allFiles.length > 0) {
@@ -793,7 +793,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [
       chatAPI,
-      copiedContent,
+      selectedContent,
       attachments,
       clearAttachments,
       fileToAttachment,
@@ -855,15 +855,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
     chatAPI.setMessages([]);
-    setCopiedContent(null);
+    setSelectedContent(null);
     clearAttachments();
     setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
     setViewMode("compact");
   }, [chatAPI, clearAttachments]);
 
-  const rejectCopiedContent = useCallback(() => {
-    setCopiedContent(null);
+  const rejectSelectedContent = useCallback(() => {
+    setSelectedContent(null);
   }, []);
 
   // Chat related actions (previously in app-actions-store)
@@ -929,7 +929,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     input: chatAPI.input,
     isLoading: chatAPI.status === "streaming" || chatAPI.status === "submitted",
     error: chatAPI.error,
-    copiedContent,
+    selectedContent,
     attachments,
     viewMode,
     setViewMode,
@@ -944,8 +944,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     editMessage,
     regenerateMessage,
     resetChat,
-    setCopiedContent,
-    rejectCopiedContent,
+    setSelectedContent,
+    rejectSelectedContent,
     addAttachments,
     removeAttachment,
     clearAttachments,

@@ -1,12 +1,12 @@
 import { ChevronDown, ChevronUp, Clipboard, Image } from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
-import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 
 /**
- * Component to show copied content with subtle styling matching attachment pattern
+ * Component to show selected content with subtle styling matching attachment pattern
  */
-const CopiedContentBlock = memo(
-  ({ content }: { content: ClipboardContent }) => {
+const SelectedContentBlock = memo(
+  ({ content }: { content: SelectedContent }) => {
     const [expanded, setExpanded] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
     const [contentHeight, setContentHeight] = useState<number | undefined>(
@@ -39,7 +39,7 @@ const CopiedContentBlock = memo(
                 ? "Screenshot + Text"
                 : content.imageData
                   ? "Screenshot"
-                  : "Copied Content"}
+                  : "Selected Content"}
             </span>
           </div>
           <span className="flex items-center text-xs transition-colors hover:text-foreground">
@@ -89,6 +89,6 @@ const CopiedContentBlock = memo(
   },
 );
 
-CopiedContentBlock.displayName = "CopiedContentBlock";
+SelectedContentBlock.displayName = "SelectedContentBlock";
 
-export default CopiedContentBlock;
+export default SelectedContentBlock;

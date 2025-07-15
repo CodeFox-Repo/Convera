@@ -12,9 +12,9 @@ import remarkMath from "remark-math";
 // Import highlight.js styles
 import "highlight.js/styles/github-dark.css";
 // Import KaTeX styles
-import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import "katex/dist/katex.min.css";
-import ModifiedContentBlock from "../clipboard/modified-content-block";
+import ModifiedContentBlock from "../selected/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
@@ -163,20 +163,20 @@ export default function ChatContent({
     console.log(`Accepted modification for message ${messageId}`);
   }, []);
 
-  // Extract copied content from message content
-  const extractCopiedContent = useCallback((content: string) => {
-    if (!content) return { copiedContent: null, cleanContent: content };
+  // Extract selected content from message content
+  const extractSelectedContent = useCallback((content: string) => {
+    if (!content) return { selectedContent: null, cleanContent: content };
 
-    const copiedContentPattern = /<copied>\n([\s\S]*?)\n<\/copied>/;
-    const copiedContentMatch = content.match(copiedContentPattern);
+    const selectedContentPattern = /<selected>\n([\s\S]*?)\n<\/selected>/;
+    const selectedContentMatch = content.match(selectedContentPattern);
 
-    if (copiedContentMatch) {
-      const copiedContent = copiedContentMatch[1];
-      const cleanContent = content.replace(copiedContentPattern, "").trim();
-      return { copiedContent, cleanContent };
+    if (selectedContentMatch) {
+      const selectedContent = selectedContentMatch[1];
+      const cleanContent = content.replace(selectedContentPattern, "").trim();
+      return { selectedContent, cleanContent };
     }
 
-    return { copiedContent: null, cleanContent: content };
+    return { selectedContent: null, cleanContent: content };
   }, []);
 
   // Renders text content using Markdown
@@ -430,16 +430,16 @@ export default function ChatContent({
       const isEditing = editingMessageId === message.id;
       const isCopied = copiedMessageId === message.id ? true : false;
 
-      // Extract copied content for user messages
-      let copiedContent: ClipboardContent | null = null;
+      // Extract selected content for user messages
+      let selectedContent: SelectedContent | null = null;
       let contentToRender = message.content;
 
       if (message.role === "user" && message.content) {
-        const { copiedContent: extracted, cleanContent } = extractCopiedContent(
+        const { selectedContent: extracted, cleanContent } = extractSelectedContent(
           message.content,
         );
-        // Convert extracted string to ClipboardContent object for backward compatibility
-        copiedContent = extracted
+        // Convert extracted string to SelectedContent object for backward compatibility
+        selectedContent = extracted
           ? { text: extracted, source: "manual" }
           : null;
         contentToRender = cleanContent;
@@ -464,7 +464,7 @@ export default function ChatContent({
           isEditing={isEditing}
           editedContent={editedContent}
           isCopied={isCopied}
-          copiedContent={copiedContent}
+          selectedContent={selectedContent}
           onEditStart={() => handleEditStart(message)}
           onEditSave={() => handleEditSave(message)}
           onEditCancel={handleEditCancel}
@@ -481,7 +481,7 @@ export default function ChatContent({
     editingMessageId,
     editedContent,
     copiedMessageId,
-    extractCopiedContent,
+    extractSelectedContent,
     handleEditStart,
     handleEditSave,
     handleEditCancel,

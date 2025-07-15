@@ -1,11 +1,11 @@
 import { authClient } from "@/renderer/libs/auth-client";
-import { ClipboardContent } from "@/renderer/libs/stores/chat-store";
+import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, Edit, File, RefreshCw, User } from "lucide-react";
 import React, { memo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
-import CopiedContentBlock from "../clipboard/copied-content-block";
+import SelectedContentBlock from "../selected/selected-content-block";
 
 /**
  * Simple markdown renderer component
@@ -45,7 +45,7 @@ export interface ChatMessageProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
-  copiedContent?: ClipboardContent | null;
+  selectedContent?: SelectedContent | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -206,7 +206,7 @@ const ChatMessage = memo(
     isEditing,
     editedContent,
     isCopied,
-    copiedContent,
+    selectedContent,
     onEditStart,
     onEditSave,
     onEditCancel,
@@ -322,8 +322,8 @@ const ChatMessage = memo(
                 </div>
               )}
 
-              {/* Copied content section - below attachments, above message content */}
-              {copiedContent && <CopiedContentBlock content={copiedContent} />}
+              {/* Selected content section - below attachments, above message content */}
+              {selectedContent && <SelectedContentBlock content={selectedContent} />}
 
               {/* Message content */}
               <div className="text-foreground leading-relaxed">

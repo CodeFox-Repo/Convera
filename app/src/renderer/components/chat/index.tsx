@@ -11,15 +11,15 @@ import { ChatInputRef } from "./input/chat-input";
 
 export default function Chat() {
   const chatInputRef = useRef<ChatInputRef>(null);
-  const { messages, setCopiedContent } = useChatContext();
+  const { messages, setSelectedContent } = useChatContext();
   const { viewMode, setViewMode, hasExpandedOnce, setHasExpandedOnce } =
     useChatUIStore();
 
   const [initializing, setInitializing] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Helper function to create clipboard content with deduplication
-  const createClipboardContent = useCallback(
+  // Helper function to create selected content with deduplication
+  const createSelectedContent = useCallback(
     (content: { text?: string; imageData?: string }) => {
       const timestamp = Date.now();
       return {
@@ -108,17 +108,17 @@ export default function Chat() {
           // Prevent processing after unmount to avoid stale closure issues
           if (!mounted) return;
 
-          // Create clipboard content with both text and image data
+          // Create selected content with both text and image data
           if (content.imageData || (content.text && content.text.trim())) {
-            const clipboardContent = createClipboardContent({
+            const selectedContent = createSelectedContent({
               text:
                 content.text && content.text.trim() ? content.text : undefined,
               imageData: content.imageData || undefined,
             });
 
-            setCopiedContent(clipboardContent);
+            setSelectedContent(selectedContent);
           } else {
-            setCopiedContent(null);
+            setSelectedContent(null);
           }
         },
       );
@@ -128,7 +128,7 @@ export default function Chat() {
         unsubscribe?.();
       };
     }
-  }, [setCopiedContent, createClipboardContent]);
+  }, [setSelectedContent, createSelectedContent]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {

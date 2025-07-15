@@ -1,14 +1,14 @@
 import {
-  ClipboardContent,
+  SelectedContent,
   useChatContext,
 } from "@/renderer/libs/stores/chat-store";
 import { File, Monitor, Plus, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface ContextButtonsProps {
-  copiedContent: ClipboardContent | null;
+  selectedContent: SelectedContent | null;
   formatAppName: (name: string) => string;
-  onRejectCopiedContent: () => void;
+  onRejectSelectedContent: () => void;
   onAddFile?: () => void;
 }
 
@@ -72,9 +72,9 @@ const RemainingFilesBadge = ({ count }: { count: number }) => {
 };
 
 export function ContextButtons({
-  copiedContent,
+  selectedContent,
   formatAppName,
-  onRejectCopiedContent,
+  onRejectSelectedContent,
   onAddFile,
 }: ContextButtonsProps) {
   const { attachments, removeAttachment } = useChatContext();
@@ -85,7 +85,7 @@ export function ContextButtons({
       : 0;
   const visibleFiles = attachments.slice(0, MAX_VISIBLE_FILES);
 
-  const hasContexts = !!copiedContent || attachments.length > 0;
+  const hasContexts = !!selectedContent || attachments.length > 0;
 
   return (
     <div className="h-7.5 pt-1 overflow-hidden">
@@ -104,19 +104,21 @@ export function ContextButtons({
             )}
           </button>
 
-          {copiedContent && (
+          {selectedContent && (
             <div
               className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
-                bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5"
+                bg-background/30 px-2 py-1 text-xs font-medium max-w-[24ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />
               <span className="truncate -mr-1 mt-1">
-                {formatAppName("clipboard")}
+                {selectedContent.text ? 
+                  selectedContent.text.slice(0, 30) + (selectedContent.text.length > 30 ? '...' : '') : 
+                  formatAppName("selected")}
               </span>
               <button
-                onClick={onRejectCopiedContent}
+                onClick={onRejectSelectedContent}
                 className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
-                aria-label="Clear clipboard content"
+                aria-label="Clear selected content"
               >
                 <X size={12} />
               </button>
