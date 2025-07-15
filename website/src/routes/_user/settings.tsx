@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CreditCard, Settings, User } from "lucide-react";
 
 export const Route = createFileRoute("/_user/settings")({
@@ -16,6 +16,8 @@ export const Route = createFileRoute("/_user/settings")({
 
 // Custom hook for customer portal
 function useCustomerPortal() {
+  const navigate = useNavigate();
+  
   return useMutation({
     mutationFn: async (customerId: string) => {
       try {
@@ -63,11 +65,22 @@ function useCustomerPortal() {
     },
     onError: (error: Error) => {
       console.error("Customer portal error:", error);
-      toast({
-        title: "Subscription Required",
-        description: error.message,
-        variant: "destructive",
-      });
+      
+      // If user hasn't subscribed yet, redirect to pricing page
+      if (error.message.includes("subscribed")) {
+        toast({
+          title: "Subscription Required",
+          description: "Redirecting to pricing page...",
+        });
+        // Navigate to pricing page
+        navigate({ to: "/pricing" });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 }
