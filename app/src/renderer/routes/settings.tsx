@@ -9,7 +9,6 @@ import {
   Server,
   Settings as SettingsIcon,
   Sun,
-  User,
   X,
 } from "lucide-react";
 
