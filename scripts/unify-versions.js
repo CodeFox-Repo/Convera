@@ -17,7 +17,6 @@ const PACKAGES_TO_UNIFY = {
 
 // Other package.json file paths to check
 const OTHER_PACKAGE_PATHS = [
-  './docs/package.json',
   './app/template/new-template/package.json'
 ];
 
@@ -92,7 +91,7 @@ function main() {
     let updated = false;
     const changes = [];
 
-    for (const [packageName, expectedSection] of Object.entries(PACKAGES_TO_UNIFY)) {
+    for (const packageName of Object.keys(PACKAGES_TO_UNIFY)) {
       const appVersion = appVersions[packageName];
       if (!appVersion) continue;
 
