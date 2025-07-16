@@ -218,10 +218,20 @@ export class MCPConnection extends EventEmitter {
           const npxPaths = [
             "/usr/local/bin/npx",
             "/opt/homebrew/bin/npx",
-            path.join(os.homedir(), ".nvm/versions/node/v20.19.2/bin/npx"),
-            path.join(os.homedir(), ".nvm/versions/node/v22.13.2/bin/npx"),
-            path.join(os.homedir(), ".nvm/versions/node/v18.20.6/bin/npx"),
           ];
+          
+          // Check NVM directory for any installed versions
+          const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
+          try {
+            if (fs.existsSync(nvmDir)) {
+              const versions = fs.readdirSync(nvmDir);
+              for (const version of versions) {
+                npxPaths.push(path.join(nvmDir, version, "bin/npx"));
+              }
+            }
+          } catch (error) {
+            // Ignore if NVM directory doesn't exist
+          }
 
           for (const npxPath of npxPaths) {
             if (fs.existsSync(npxPath)) {
