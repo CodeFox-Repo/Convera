@@ -215,11 +215,8 @@ export class MCPConnection extends EventEmitter {
         let actualCommand = resolvedConfig.command!;
         if (actualCommand === "npx" && process.platform === "darwin") {
           const fs = await import("fs");
-          const npxPaths = [
-            "/usr/local/bin/npx",
-            "/opt/homebrew/bin/npx",
-          ];
-          
+          const npxPaths = ["/usr/local/bin/npx", "/opt/homebrew/bin/npx"];
+
           // Check NVM directory for any installed versions
           const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
           try {
