@@ -219,15 +219,11 @@ export class MCPConnection extends EventEmitter {
 
           // Check NVM directory for any installed versions
           const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
-          try {
-            if (fs.existsSync(nvmDir)) {
-              const versions = fs.readdirSync(nvmDir);
-              for (const version of versions) {
-                npxPaths.push(path.join(nvmDir, version, "bin/npx"));
-              }
+          if (fs.existsSync(nvmDir)) {
+            const versions = fs.readdirSync(nvmDir);
+            for (const version of versions) {
+              npxPaths.push(path.join(nvmDir, version, "bin/npx"));
             }
-          } catch (error) {
-            // Ignore if NVM directory doesn't exist
           }
 
           for (const npxPath of npxPaths) {
@@ -247,7 +243,6 @@ export class MCPConnection extends EventEmitter {
             ELECTRON_USER_DATA: app.getPath("userData"),
             FOXYCHAT_APP_PATH: app.getAppPath(),
             FOXYCHAT_USER_DATA: app.getPath("userData"),
-            PATH: enhancedPath,
             ...resolvedConfig.env,
           },
           cwd: resolvedConfig.cwd || app.getPath("userData"),
