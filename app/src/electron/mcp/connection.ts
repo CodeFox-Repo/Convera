@@ -28,6 +28,8 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { app } from "electron";
 import { EventEmitter } from "events";
 import { z } from "zod";
+import * as path from "path";
+import * as os from "os";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getLogger } from "../logger";
@@ -209,17 +211,31 @@ export class MCPConnection extends EventEmitter {
       logger.info("Resolved config", resolvedConfig);
       // Create transport and client
       if (this.transportType === "stdio") {
-        // hack way
-        const enhancedPath =
-          process.env.PATH +
-          (process.platform === "darwin"
-            ? ":/usr/local/bin:/opt/homebrew/bin:/usr/bin"
-            : process.platform === "win32"
-              ? ";C:\\Program Files\\nodejs;C:\\Windows\\System32"
-              : ":/usr/local/bin:/usr/bin");
+        // If command is npx, try to use full path
+        let actualCommand = resolvedConfig.command!;
+        if (actualCommand === "npx" && process.platform === "darwin") {
+          const fs = await import("fs");
+          const npxPaths = ["/usr/local/bin/npx", "/opt/homebrew/bin/npx"];
+
+          // Check NVM directory for any installed versions
+          const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
+          if (fs.existsSync(nvmDir)) {
+            const versions = fs.readdirSync(nvmDir);
+            for (const version of versions) {
+              npxPaths.push(path.join(nvmDir, version, "bin/npx"));
+            }
+          }
+
+          for (const npxPath of npxPaths) {
+            if (fs.existsSync(npxPath)) {
+              actualCommand = npxPath;
+              break;
+            }
+          }
+        }
 
         const transport = new Experimental_StdioMCPTransport({
-          command: resolvedConfig.command!,
+          command: actualCommand,
           args: resolvedConfig.args || [],
           env: {
             ...process.env,
@@ -227,7 +243,6 @@ export class MCPConnection extends EventEmitter {
             ELECTRON_USER_DATA: app.getPath("userData"),
             FOXYCHAT_APP_PATH: app.getAppPath(),
             FOXYCHAT_USER_DATA: app.getPath("userData"),
-            PATH: enhancedPath,
             ...resolvedConfig.env,
           },
           cwd: resolvedConfig.cwd || app.getPath("userData"),
