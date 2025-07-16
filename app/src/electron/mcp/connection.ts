@@ -222,7 +222,7 @@ export class MCPConnection extends EventEmitter {
             path.join(os.homedir(), ".nvm/versions/node/v22.13.2/bin/npx"),
             path.join(os.homedir(), ".nvm/versions/node/v18.20.6/bin/npx"),
           ];
-          
+
           for (const npxPath of npxPaths) {
             if (fs.existsSync(npxPath)) {
               actualCommand = npxPath;
