@@ -21,6 +21,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { UserButton } from "../auth/user-button";
 import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
 import ChatContent from "../chat/message/chat-content";
+import { EnhancedDragRegion, SidebarDragRegion } from "../ui/enhanced-drag-region";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -94,7 +95,13 @@ export function HomePage() {
   };
 
   return (
-    <div className="h-screen w-full flex bg-background">
+    <div className="h-screen w-full flex bg-background relative">
+      {/* Drag regions for all edges */}
+      <EnhancedDragRegion position="top" size={12} />
+      <EnhancedDragRegion position="bottom" size={12} />
+      <EnhancedDragRegion position="left" size={12} />
+      <EnhancedDragRegion position="right" size={12} />
+      
       {/* Sidebar */}
       <motion.div
         className={`bg-card flex flex-col border-r border-border/60 ${
@@ -105,10 +112,14 @@ export function HomePage() {
         transition={{ duration: 0.2, ease: "easeInOut" }}
         style={{ overflow: "hidden" }}
       >
-        {/* Sidebar Header */}
-        {!sidebarCollapsed && (
-          <div className="p-4">
-            <div className="flex items-center justify-between">
+        <SidebarDragRegion className="flex-1 flex flex-col h-full">
+          {/* Sidebar Header */}
+          {!sidebarCollapsed && (
+          <div className="p-4 relative">
+            {/* Drag whitespace area */}
+            <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
+            
+            <div className="flex items-center justify-between relative z-10">
               <div className="flex items-center gap-2">
                 <Sparkles size={20} className="text-orange-500" />
                 <h1 className="text-lg font-semibold text-foreground">
@@ -118,7 +129,7 @@ export function HomePage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleNewChat}
-                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors pointer-events-auto"
                   aria-label="New chat"
                   title="New Chat"
                 >
@@ -126,7 +137,7 @@ export function HomePage() {
                 </button>
                 <button
                   onClick={() => setSidebarCollapsed(true)}
-                  className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
                   aria-label="Collapse sidebar"
                   title="Collapse Sidebar"
                 >
@@ -139,8 +150,11 @@ export function HomePage() {
 
         {/* Chat Sessions */}
         <div className="flex-1 overflow-y-auto min-h-0 relative z-0">
+          {/* Drag whitespace area */}
+          <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
+          
           {!sidebarCollapsed && (
-            <div className="p-2 relative z-0">
+            <div className="p-2 relative z-10">
               {historyLoading && chatHistory.length === 0 ? (
                 <div className="flex items-center justify-center p-8">
                   <div className="text-center">
@@ -167,7 +181,7 @@ export function HomePage() {
                   <motion.div
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
-                    className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all ${
+                    className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all pointer-events-auto ${
                       currentSessionId === chat.id
                         ? "bg-accent text-accent-foreground"
                         : menuOpenId === chat.id
@@ -270,13 +284,16 @@ export function HomePage() {
         {/* Sidebar Footer - Fixed at bottom */}
         {!sidebarCollapsed && (
           <div className="border-t border-border/60 p-2 flex-shrink-0 relative z-10">
-            <div>
-              <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm">
+            {/* Drag whitespace area */}
+            <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
+            
+            <div className="relative z-10">
+              <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
                 <Archive size={16} className="flex-shrink-0" />
                 <span>Archive</span>
               </button>
               <Link to="/settings" search={{ from: "/" }}>
-                <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm">
+                <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
                   <Settings size={16} className="flex-shrink-0" />
                   <span>Settings</span>
                 </button>
@@ -284,12 +301,13 @@ export function HomePage() {
               <UserButton collapsed={false} />
             </div>
           </div>
-        )}
+          )}
+        </SidebarDragRegion>
       </motion.div>
 
       {/* Floating Controls - positioned at left edge when sidebar is collapsed */}
       {sidebarCollapsed && (
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <div className="absolute top-4 left-4 z-20 flex gap-2">
           <button
             onClick={() => setSidebarCollapsed(false)}
             className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
@@ -314,7 +332,7 @@ export function HomePage() {
         {/* Close Button - Top Right */}
         <button
           onClick={() => window.electronAPI.toggleWindow("chat")}
-          className="absolute top-4 right-4 z-10 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
+          className="absolute top-4 right-4 z-20 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
           aria-label="Close window"
           title="Close Window"
         >
@@ -323,8 +341,17 @@ export function HomePage() {
 
         {/* Messages Area */}
         {messages.length > 0 ? (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto p-6">
+          <div className="flex-1 overflow-y-auto relative">
+            {/* Chat area background drag region - avoid button zones */}
+            <div className="absolute draglayer z-0" 
+                 style={{ 
+                   top: '70px',
+                   left: '0',
+                   right: '0',
+                   bottom: '0'
+                 }}></div>
+            
+            <div className="max-w-4xl mx-auto p-6 relative z-10">
               <ChatContent
                 messages={messages}
                 messagesEndRef={messagesEndRef}
@@ -338,8 +365,27 @@ export function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-6 max-w-md">
+          <div className="flex-1 flex items-center justify-center relative">
+            {/* Welcome page background drag areas - multiple regions avoiding buttons */}
+            
+            {/* Top area - avoid both left and right button zones */}
+            <div className="absolute top-0 draglayer z-0" 
+                 style={{ 
+                   left: sidebarCollapsed ? '120px' : '0',
+                   right: '80px',
+                   height: '70px'
+                 }}></div>
+            
+            {/* Main center area - full width below buttons */}
+            <div className="absolute draglayer z-0" 
+                 style={{ 
+                   top: '70px',
+                   left: '0',
+                   right: '0',
+                   bottom: '120px'
+                 }}></div>
+            
+            <div className="text-center space-y-6 max-w-md relative z-10">
               <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center mx-auto">
                 <Sparkles size={32} className="text-white" />
               </div>
@@ -377,8 +423,8 @@ export function HomePage() {
         </AnimatePresence>
 
         {/* Input Area */}
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
+        <div className="p-6 relative pointer-events-auto">
+          <div className="max-w-4xl mx-auto relative z-10">
             <ChatInput
               ref={chatInputRef}
               hasMessages={messages.length > 0}
