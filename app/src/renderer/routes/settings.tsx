@@ -11,7 +11,10 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { EnhancedDragRegion, SidebarDragRegion } from "@/renderer/components/ui/enhanced-drag-region";
+import {
+  EnhancedDragRegion,
+  SidebarDragRegion,
+} from "@/renderer/components/ui/enhanced-drag-region";
 
 // Import page components
 // NOTE: AccountSettingsPage is deprecated - account functionality integrated into GeneralSettingsPage
@@ -139,7 +142,7 @@ function SettingsPage() {
       <EnhancedDragRegion position="bottom" size={12} />
       <EnhancedDragRegion position="left" size={12} />
       <EnhancedDragRegion position="right" size={12} />
-      
+
       {/* Sidebar */}
       <SidebarDragRegion
         className={`bg-gradient-to-b from-card/95 via-card to-card/95 backdrop-blur-xl border-r border-border/50 transition-all duration-300 flex flex-col ${
@@ -150,7 +153,7 @@ function SettingsPage() {
         <div className="p-6 border-b border-border/30 relative">
           {/* Drag whitespace area */}
           <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
-          
+
           <div className="flex items-center justify-between relative z-10">
             {!isSidebarCollapsed && (
               <div className="flex items-center space-x-3">
@@ -204,7 +207,7 @@ function SettingsPage() {
         <nav className="flex-1 py-2 px-4 relative">
           {/* Drag whitespace area */}
           <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
-          
+
           <ul className="space-y-2 relative z-10">
             {navigationItems.map((item) => (
               <li key={item.id}>
@@ -245,7 +248,7 @@ function SettingsPage() {
         <div className="border-t border-border/30 p-4 relative">
           {/* Drag whitespace area */}
           <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
-          
+
           <button
             onClick={handleCloseSettings}
             className={`group flex items-center text-foreground/60 hover:text-foreground/90 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-500/5 border border-transparent hover:border-red-500/20 transition-all duration-200 pointer-events-auto relative z-10 ${

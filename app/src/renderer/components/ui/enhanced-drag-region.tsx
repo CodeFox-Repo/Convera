@@ -79,10 +79,7 @@ export function SidebarDragRegion({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn("sidebar-drag-region relative", className)}
-      {...props}
-    >
+    <div className={cn("sidebar-drag-region relative", className)} {...props}>
       {children}
     </div>
   );
@@ -98,10 +95,7 @@ export function ContentDragRegion({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn("draglayer relative", className)}
-      {...props}
-    >
+    <div className={cn("draglayer relative", className)} {...props}>
       {children}
     </div>
   );
