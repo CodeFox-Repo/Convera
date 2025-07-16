@@ -211,75 +211,21 @@ export class MCPConnection extends EventEmitter {
       logger.info("Resolved config", resolvedConfig);
       // Create transport and client
       if (this.transportType === "stdio") {
-        // hack way
-        let enhancedPath = process.env.PATH || "";
-
-        // Add standard paths for different platforms
-        if (process.platform === "darwin") {
-          enhancedPath += ":/usr/local/bin:/opt/homebrew/bin:/usr/bin";
-
-          // Try to find npx in common Node.js installation locations
-          const fs = await import("fs");
-          const commonNodePaths = [
-            "/usr/local/bin",
-            "/opt/homebrew/bin",
-            path.join(os.homedir(), ".nvm/versions/node/v20.19.2/bin"), // Your specific path
-            path.join(os.homedir(), ".bun/bin"),
-          ];
-
-          // Add NVM paths if they exist
-          const nvmPath =
-            process.env.NVM_DIR || path.join(os.homedir(), ".nvm");
-          if (fs.existsSync(nvmPath)) {
-            try {
-              const nodeVersion =
-                process.env.NODE_VERSION || process.version.slice(1);
-              const nvmNodeBin = path.join(
-                nvmPath,
-                "versions",
-                "node",
-                `v${nodeVersion}`,
-                "bin",
-              );
-              if (fs.existsSync(nvmNodeBin)) {
-                enhancedPath += `:${nvmNodeBin}`;
-                logger.info(`Added NVM path: ${nvmNodeBin}`);
-              }
-            } catch (error) {
-              console.warn("Could not resolve NVM path:", error);
-            }
-          }
-
-          // Add any additional common paths where npx might be found
-          for (const nodePath of commonNodePaths) {
-            if (fs.existsSync(path.join(nodePath, "npx"))) {
-              enhancedPath += `:${nodePath}`;
-              logger.info(`Added Node.js path: ${nodePath}`);
-            }
-          }
-        } else if (process.platform === "win32") {
-          enhancedPath += ";C:\\Program Files\\nodejs;C:\\Windows\\System32";
-        } else {
-          enhancedPath += ":/usr/local/bin:/usr/bin";
-        }
-
-        logger.info(`Final enhanced PATH: ${enhancedPath}`);
-
-        // If command is npx and we can't find it in PATH, try to use full path
+        // If command is npx, try to use full path
         let actualCommand = resolvedConfig.command!;
         if (actualCommand === "npx" && process.platform === "darwin") {
           const fs = await import("fs");
-          const possibleNpxPaths = [
+          const npxPaths = [
             "/usr/local/bin/npx",
             "/opt/homebrew/bin/npx",
             path.join(os.homedir(), ".nvm/versions/node/v20.19.2/bin/npx"),
-            path.join(os.homedir(), ".bun/bin/npx"),
+            path.join(os.homedir(), ".nvm/versions/node/v22.13.2/bin/npx"),
+            path.join(os.homedir(), ".nvm/versions/node/v18.20.6/bin/npx"),
           ];
-
-          for (const npxPath of possibleNpxPaths) {
+          
+          for (const npxPath of npxPaths) {
             if (fs.existsSync(npxPath)) {
               actualCommand = npxPath;
-              logger.info(`Using full npx path: ${npxPath}`);
               break;
             }
           }
