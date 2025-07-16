@@ -213,26 +213,34 @@ export class MCPConnection extends EventEmitter {
       if (this.transportType === "stdio") {
         // hack way
         let enhancedPath = process.env.PATH || "";
-        
+
         // Add standard paths for different platforms
         if (process.platform === "darwin") {
           enhancedPath += ":/usr/local/bin:/opt/homebrew/bin:/usr/bin";
-          
+
           // Try to find npx in common Node.js installation locations
           const fs = await import("fs");
           const commonNodePaths = [
             "/usr/local/bin",
-            "/opt/homebrew/bin", 
+            "/opt/homebrew/bin",
             path.join(os.homedir(), ".nvm/versions/node/v20.19.2/bin"), // Your specific path
             path.join(os.homedir(), ".bun/bin"),
           ];
-          
+
           // Add NVM paths if they exist
-          const nvmPath = process.env.NVM_DIR || path.join(os.homedir(), ".nvm");
+          const nvmPath =
+            process.env.NVM_DIR || path.join(os.homedir(), ".nvm");
           if (fs.existsSync(nvmPath)) {
             try {
-              const nodeVersion = process.env.NODE_VERSION || process.version.slice(1);
-              const nvmNodeBin = path.join(nvmPath, "versions", "node", `v${nodeVersion}`, "bin");
+              const nodeVersion =
+                process.env.NODE_VERSION || process.version.slice(1);
+              const nvmNodeBin = path.join(
+                nvmPath,
+                "versions",
+                "node",
+                `v${nodeVersion}`,
+                "bin",
+              );
               if (fs.existsSync(nvmNodeBin)) {
                 enhancedPath += `:${nvmNodeBin}`;
                 logger.info(`Added NVM path: ${nvmNodeBin}`);
@@ -241,7 +249,7 @@ export class MCPConnection extends EventEmitter {
               console.warn("Could not resolve NVM path:", error);
             }
           }
-          
+
           // Add any additional common paths where npx might be found
           for (const nodePath of commonNodePaths) {
             if (fs.existsSync(path.join(nodePath, "npx"))) {
@@ -267,7 +275,7 @@ export class MCPConnection extends EventEmitter {
             path.join(os.homedir(), ".nvm/versions/node/v20.19.2/bin/npx"),
             path.join(os.homedir(), ".bun/bin/npx"),
           ];
-          
+
           for (const npxPath of possibleNpxPaths) {
             if (fs.existsSync(npxPath)) {
               actualCommand = npxPath;
