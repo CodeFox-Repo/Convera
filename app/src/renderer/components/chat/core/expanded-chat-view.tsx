@@ -3,6 +3,10 @@ import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import {
+  parseApiError,
+  type GenericError,
+} from "@/renderer/libs/utils/error-handler";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutDashboard, Plus, Sparkles, X } from "lucide-react";
 import React, { useEffect, useRef } from "react";
@@ -148,14 +152,25 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
               />
             </div>
 
-            {error && (
-              <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
-                <p className="text-red-500 font-medium">
-                  {error.message ||
-                    "An error occurred. Please check your API key or try again later."}
-                </p>
-              </div>
-            )}
+            {error &&
+              (() => {
+                const parsedError = parseApiError(
+                  error as unknown as GenericError,
+                );
+
+                // Don't show rate limit errors in the UI since we're already showing a toast
+                if (parsedError.code === "RATE_LIMIT") {
+                  return null;
+                }
+
+                return (
+                  <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
+                    <p className="text-red-500 font-medium">
+                      {parsedError.message}
+                    </p>
+                  </div>
+                );
+              })()}
 
             <div className="drag-region flex flex-col p-2">
               <div className="flex-1">
