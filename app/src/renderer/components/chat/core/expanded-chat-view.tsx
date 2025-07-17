@@ -11,6 +11,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutDashboard, Plus, Sparkles, X } from "lucide-react";
 import React, { useEffect, useRef } from "react";
+import RateLimitError from "../error/rate-limit-error";
 import ChatInput, { ChatInputRef } from "../input/chat-input";
 import ChatContent from "../message/chat-content";
 
@@ -162,11 +163,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
                 // Handle rate limit error specifically
                 if (parsedError.code === ErrorCode.RATE_LIMIT) {
                   return (
-                    <div className="mx-auto w-[90%] border-orange-500 rounded-md p-4 text-center bg-orange-50 dark:bg-orange-900/20">
-                      <p className="text-orange-600 dark:text-orange-400 font-medium mb-3">
-                        {parsedError.message}
-                      </p>
-                    </div>
+                    <RateLimitError blockedUntil={parsedError.blockedUntil} />
                   );
                 }
 

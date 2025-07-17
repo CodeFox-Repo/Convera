@@ -26,6 +26,7 @@ export interface ParsedError {
   message: string;
   code: string; // Using string here to allow for custom error codes
   action?: "settings" | "retry" | "wait" | null;
+  blockedUntil?: string; // ISO timestamp for rate limit
 }
 
 // Generic error interface to handle various error formats
@@ -52,6 +53,7 @@ export function parseApiError(error: GenericError): ParsedError {
   let message = "An unknown error occurred";
   let code: string = ErrorCode.UNKNOWN_ERROR;
   let action: "settings" | "retry" | "wait" | null = null;
+  let blockedUntil: string | undefined = undefined;
 
   try {
     // Case 1: Error with response object (Axios/fetch style)
@@ -124,12 +126,20 @@ export function parseApiError(error: GenericError): ParsedError {
         if (errorObj.error) message = errorObj.error;
 
         // Check for rate limit error specifically
-        if (errorObj.error === "Rate_Limit_Exceeded") {
+        if (
+          errorObj.error === "Rate_Limit_Exceeded" ||
+          errorObj.error === "Rate limit exceeded" ||
+          errorObj.rateLimitInfo
+        ) {
           code = ErrorCode.RATE_LIMIT;
           action = "wait";
           // Use the detailed message if available
           if (errorObj.message) {
             message = errorObj.message;
+          }
+          // Extract blocked until timestamp
+          if (errorObj.rateLimitInfo?.blockedUntil) {
+            blockedUntil = errorObj.rateLimitInfo.blockedUntil;
           }
         } else if (errorObj.code) {
           code = errorObj.code;
@@ -156,7 +166,7 @@ export function parseApiError(error: GenericError): ParsedError {
     // If anything fails, return the generic message
   }
 
-  return { message, code, action };
+  return { message, code, action, blockedUntil };
 }
 
 // Standard API error response objects
