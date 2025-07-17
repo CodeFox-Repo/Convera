@@ -4,8 +4,13 @@ import React from "react";
 interface EnhancedDragRegionProps extends React.HTMLAttributes<HTMLDivElement> {
   position?: "top" | "bottom" | "left" | "right" | "all";
   size?: number;
+  left?: number;
+  right?: number;
+  top?: number;
+  bottom?: number;
   className?: string;
   disabled?: boolean;
+
 }
 
 /**
@@ -15,6 +20,10 @@ interface EnhancedDragRegionProps extends React.HTMLAttributes<HTMLDivElement> {
 export function EnhancedDragRegion({
   position = "all",
   size = 8,
+  top,
+    bottom,
+    left,
+    right,
   className,
   disabled = false,
   ...props
