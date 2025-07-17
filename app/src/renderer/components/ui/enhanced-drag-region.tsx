@@ -36,20 +36,20 @@ export function EnhancedDragRegion({
     left !== undefined ||
     right !== undefined
   ) {
-    const regions: React.ReactNode[] = [];
-    if (top !== undefined)
-      regions.push(<EnhancedDragRegion key="t" position="top" size={top} />);
-    if (bottom !== undefined)
-      regions.push(
-        <EnhancedDragRegion key="b" position="bottom" size={bottom} />,
-      );
-    if (left !== undefined)
-      regions.push(<EnhancedDragRegion key="l" position="left" size={left} />);
-    if (right !== undefined)
-      regions.push(
-        <EnhancedDragRegion key="r" position="right" size={right} />,
-      );
-    return <>{regions}</>;
+    // const regions: React.ReactNode[] = [];
+    // if (top !== undefined)
+    //   regions.push(<EnhancedDragRegion key="t" position="top" size={top} />);
+    // if (bottom !== undefined)
+    //   regions.push(
+    //     <EnhancedDragRegion key="b" position="bottom" size={bottom} />,
+    //   );
+    // if (left !== undefined)
+    //   regions.push(<EnhancedDragRegion key="l" position="left" size={left} />);
+    // if (right !== undefined)
+    //   regions.push(
+    //     <EnhancedDragRegion key="r" position="right" size={right} />,
+    //   );
+    // return <>{regions}</>;
   }
   const getPositionClasses = () => {
     switch (position) {
