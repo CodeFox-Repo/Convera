@@ -138,10 +138,10 @@ function SettingsPage() {
   return (
     <div className="h-screen flex bg-gradient-to-br from-background via-background to-muted/20 relative">
       {/* Drag regions for all edges */}
-      <EnhancedDragRegion position="top" size={12} />
-      <EnhancedDragRegion position="bottom" size={12} />
-      <EnhancedDragRegion position="left" size={12} />
-      <EnhancedDragRegion position="right" size={12} />
+      <EnhancedDragRegion position="top" size={24} />
+      <EnhancedDragRegion position="bottom" size={24} />
+      <EnhancedDragRegion position="left" size={24} />
+      <EnhancedDragRegion position="right" size={24} />
 
       {/* Sidebar */}
       <SidebarDragRegion
