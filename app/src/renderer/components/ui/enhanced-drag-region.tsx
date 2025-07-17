@@ -112,19 +112,3 @@ export function SidebarDragRegion({
     </div>
   );
 }
-
-/**
- * Content drag region wrapper that makes entire content areas draggable
- * while preserving interactivity for child elements
- */
-export function ContentDragRegion({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn("draglayer relative", className)} {...props}>
-      {children}
-    </div>
-  );
-}
