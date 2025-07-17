@@ -10,7 +10,6 @@ interface EnhancedDragRegionProps extends React.HTMLAttributes<HTMLDivElement> {
   bottom?: number;
   className?: string;
   disabled?: boolean;
-
 }
 
 /**
@@ -21,9 +20,9 @@ export function EnhancedDragRegion({
   position = "all",
   size = 8,
   top,
-    bottom,
-    left,
-    right,
+  bottom,
+  left,
+  right,
   className,
   disabled = false,
   ...props
