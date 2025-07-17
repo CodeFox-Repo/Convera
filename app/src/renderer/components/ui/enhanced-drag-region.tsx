@@ -30,12 +30,12 @@ export function EnhancedDragRegion({
   if (disabled) {
     return null;
   }
-  if (
-    top !== undefined ||
-    bottom !== undefined ||
-    left !== undefined ||
-    right !== undefined
-  ) {
+  // if (
+  //   top !== undefined ||
+  //   bottom !== undefined ||
+  //   left !== undefined ||
+  //   right !== undefined
+  // ) {
     // const regions: React.ReactNode[] = [];
     // if (top !== undefined)
     //   regions.push(<EnhancedDragRegion key="t" position="top" size={top} />);
