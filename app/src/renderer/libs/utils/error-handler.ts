@@ -122,7 +122,16 @@ export function parseApiError(error: GenericError): ParsedError {
       try {
         const errorObj = JSON.parse(error.message);
         if (errorObj.error) message = errorObj.error;
-        if (errorObj.code) {
+
+        // Check for rate limit error specifically
+        if (errorObj.error === "Rate_Limit_Exceeded") {
+          code = ErrorCode.RATE_LIMIT;
+          action = "wait";
+          // Use the detailed message if available
+          if (errorObj.message) {
+            message = errorObj.message;
+          }
+        } else if (errorObj.code) {
           code = errorObj.code;
 
           // Set action based on error code

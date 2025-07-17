@@ -4,6 +4,7 @@ import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import {
+  ErrorCode,
   parseApiError,
   type GenericError,
 } from "@/renderer/libs/utils/error-handler";
@@ -158,11 +159,18 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
                   error as unknown as GenericError,
                 );
 
-                // Don't show rate limit errors in the UI since we're already showing a toast
-                if (parsedError.code === "RATE_LIMIT") {
-                  return null;
+                // Handle rate limit error specifically
+                if (parsedError.code === ErrorCode.RATE_LIMIT) {
+                  return (
+                    <div className="mx-auto w-[90%] border-orange-500 rounded-md p-4 text-center bg-orange-50 dark:bg-orange-900/20">
+                      <p className="text-orange-600 dark:text-orange-400 font-medium mb-3">
+                        {parsedError.message}
+                      </p>
+                    </div>
+                  );
                 }
 
+                // Default error display
                 return (
                   <div className="mx-auto w-[90%] border-red-500 rounded-md p-4 text-center">
                     <p className="text-red-500 font-medium">
