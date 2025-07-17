@@ -112,5 +112,3 @@ export function SidebarDragRegion({
     </div>
   );
 }
-
-
