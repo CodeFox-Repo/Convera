@@ -100,10 +100,7 @@ export function HomePage() {
   return (
     <div className="h-screen w-full flex bg-background relative">
       {/* Drag regions for all edges */}
-      <EnhancedDragRegion position="top" size={12} />
-      <EnhancedDragRegion position="bottom" size={12} />
-      <EnhancedDragRegion position="left" size={12} />
-      <EnhancedDragRegion position="right" size={12} />
+      <EnhancedDragRegion top={24} bottom={24} left={24} right={24} />
 
       {/* Sidebar */}
       <motion.div
