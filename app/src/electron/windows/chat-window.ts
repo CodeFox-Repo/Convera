@@ -1,5 +1,5 @@
 import {
-  positionWindowAtCenterBottom,
+  positionWindowAtCenterTop,
   setWindowHidden,
   setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
@@ -98,8 +98,8 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle ready-to-show event
   window.once("ready-to-show", () => {
     logger.info("Chat window ready, positioning and hiding");
-    // Position the window at center bottom without changing size
-    positionWindowAtCenterBottom(window);
+    // Position the window at center top without changing size
+    positionWindowAtCenterTop(window);
     setWindowHidden(window);
     logger.debug("Chat window positioned and hidden");
   });
@@ -139,7 +139,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         clearTimeout(repositionTimeout);
       }
       repositionTimeout = setTimeout(() => {
-        positionWindowAtCenterBottom(window);
+        positionWindowAtCenterTop(window);
         repositionTimeout = null;
       }, 100);
     }
