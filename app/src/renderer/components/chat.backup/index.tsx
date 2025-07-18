@@ -3,25 +3,20 @@ import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import RaycastInput from "./raycast-input";
-import RaycastResults from "./raycast-results";
+import CompactChatView from "./core/compact-chat-view";
+import ExpandedChatView from "./core/expanded-chat-view";
+import { ChatInputRef } from "./input/chat-input";
 
 export default function Chat() {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<ChatInputRef>(null);
   const { messages, setSelectedContent } = useChatContext();
-  
-  const [initializing, setInitializing] = useState(true);
-  const [inputValue, setInputValue] = useState("");
-  const [isCommandMode, setIsCommandMode] = useState(false);
-  const [results, setResults] = useState<CommandResult[]>([]);
+  const { viewMode, setViewMode, hasExpandedOnce, setHasExpandedOnce } =
+    useChatUIStore();
 
-  interface CommandResult {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-  }
+  const [initializing, setInitializing] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback(
@@ -42,82 +37,10 @@ export default function Chat() {
   // Handle Command+W for chat window deactivation
   useWindowClose({ type: "close" });
 
-  // Handle input change
-  const handleInputChange = (value: string) => {
-    setInputValue(value);
-    setIsCommandMode(value.startsWith("/"));
-    
-    if (value.startsWith("/")) {
-      // Handle command mode
-      handleCommandSearch(value);
-    } else if (value.trim()) {
-      // Handle AI chat mode
-      setResults([]);
-    } else {
-      setResults([]);
-    }
-  };
-
-  // Handle command search
-  const handleCommandSearch = (query: string) => {
-    const command = query.slice(1); // Remove the '/' prefix
-    
-    // Mock commands for now - you can replace this with actual command logic
-    const mockCommands = [
-      { id: "search", name: "Search", description: "Search for anything", icon: "🔍" },
-      { id: "calculate", name: "Calculate", description: "Perform calculations", icon: "🧮" },
-      { id: "settings", name: "Settings", description: "Open settings", icon: "⚙️" },
-      { id: "help", name: "Help", description: "Show help", icon: "❓" },
-    ];
-
-    const filtered = mockCommands.filter(cmd => 
-      cmd.name.toLowerCase().includes(command.toLowerCase()) ||
-      cmd.description.toLowerCase().includes(command.toLowerCase())
-    );
-
-    setResults(filtered);
-  };
-
-  // Handle command execution
-  const handleCommandExecute = (command: CommandResult) => {
-    console.log("Executing command:", command);
-    setInputValue("");
-    setResults([]);
-    setIsCommandMode(false);
-    
-    // Here you would implement actual command execution
-    // For now, just close the window
-    if (window.electronAPI?.toggleChatWindow) {
-      window.electronAPI.toggleChatWindow();
-    }
-  };
-
-  // Handle AI chat submission
-  const handleAIChatSubmit = (message: string) => {
-    console.log("AI Chat message:", message);
-    // Here you would implement AI chat logic
-    // For now, just clear the input
-    setInputValue("");
-    setResults([]);
-  };
-
-  // Handle key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      if (isCommandMode && results.length > 0) {
-        handleCommandExecute(results[0]);
-      } else if (!isCommandMode && inputValue.trim()) {
-        handleAIChatSubmit(inputValue.trim());
-      }
-    } else if (e.key === "Escape") {
-      if (window.electronAPI?.toggleChatWindow) {
-        window.electronAPI.toggleChatWindow();
-      }
-    }
-  };
-
   useEffect(() => {
     const mountTimer = setTimeout(() => {
+      setMounted(true);
+
       if (window.electronAPI && messages.length === 0) {
         try {
           window.electronAPI
@@ -141,8 +64,40 @@ export default function Chat() {
 
     return () => {
       clearTimeout(mountTimer);
+      setMounted(false);
     };
   }, [messages.length]);
+
+  useEffect(() => {
+    if (messages.length === 1 && !hasExpandedOnce && mounted && !initializing) {
+      setViewMode("expanded");
+    }
+
+    if (messages.length > 0 && viewMode === "compact") {
+      setViewMode("expanded");
+    }
+  }, [
+    messages.length,
+    hasExpandedOnce,
+    mounted,
+    initializing,
+    viewMode,
+    setViewMode,
+  ]);
+
+  useEffect(() => {
+    if (viewMode === "expanded" && !hasExpandedOnce) {
+      setHasExpandedOnce(true);
+
+      if (typeof window !== "undefined" && window.electronAPI) {
+        window.electronAPI.toggleViewMode(true);
+      }
+    } else if (viewMode === "compact") {
+      if (typeof window !== "undefined" && window.electronAPI) {
+        window.electronAPI.toggleViewMode(false);
+      }
+    }
+  }, [viewMode, hasExpandedOnce, setHasExpandedOnce]);
 
   useEffect(() => {
     let mounted = true;
@@ -150,8 +105,10 @@ export default function Chat() {
     if (window.electronAPI?.onSetInputContent) {
       const unsubscribe = window.electronAPI.onSetInputContent(
         (content: { text?: string; imageData?: string }) => {
+          // Prevent processing after unmount to avoid stale closure issues
           if (!mounted) return;
 
+          // Create selected content with both text and image data
           if (content.imageData || (content.text && content.text.trim())) {
             const selectedContent = createSelectedContent({
               text:
@@ -176,7 +133,7 @@ export default function Chat() {
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
-        inputRef.current?.focus();
+        chatInputRef.current?.focus();
       });
 
       return () => {
@@ -187,7 +144,7 @@ export default function Chat() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      inputRef.current?.focus();
+      chatInputRef.current?.focus();
     }, 100);
 
     return () => clearTimeout(timer);
@@ -242,38 +199,19 @@ export default function Chat() {
     };
   }, [messages.length]);
 
-  if (initializing) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="animate-fade-in opacity-0 delay-100">
-          <div className="bg-primary/20 h-10 w-10 animate-pulse rounded-full" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full w-full bg-background/95 backdrop-blur-xl">
-      <div className="flex-1 p-4">
-        <RaycastInput
-          ref={inputRef}
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          isCommandMode={isCommandMode}
-          placeholder={isCommandMode ? "Search commands..." : "Ask AI or type / for commands"}
-        />
-        
-        {(results.length > 0 || inputValue.trim()) && (
-          <RaycastResults
-            results={results}
-            query={inputValue}
-            isCommandMode={isCommandMode}
-            onCommandExecute={handleCommandExecute}
-            onAIChatSubmit={handleAIChatSubmit}
-          />
-        )}
-      </div>
+    <div className="overflow-hidden h-full w-full">
+      {initializing ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="animate-fade-in opacity-0 delay-100">
+            <div className="bg-primary/20 h-10 w-10 animate-pulse rounded-full" />
+          </div>
+        </div>
+      ) : messages.length > 0 ? (
+        <ExpandedChatView chatInputRef={chatInputRef} />
+      ) : (
+        <CompactChatView chatInputRef={chatInputRef} />
+      )}
     </div>
   );
 }

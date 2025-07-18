@@ -74,7 +74,6 @@ export function calculateWindowDimensionsWithTopMargin(
       ? Math.round(screenHeight * (topMarginPercent / 100))
       : topMarginPixels || 50;
   
-  console.log(`calculateWindowDimensionsWithTopMargin: screenHeight=${screenHeight}, topMarginPercent=${topMarginPercent}, topMargin=${topMargin}`);
 
   // Calculate proportional dimensions
   let width = Math.round(screenWidth * config.widthProportion);

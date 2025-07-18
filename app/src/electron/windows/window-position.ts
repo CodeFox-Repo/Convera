@@ -45,9 +45,6 @@ export function positionWindowAtCenterTop(
       ? Math.round(screenHeight * (topMarginPercent / 100))
       : topMarginPixels || 50;
 
-  console.log(
-    `positionWindowAtCenterTop: screenHeight=${screenHeight}, topMarginPercent=${topMarginPercent}, topMargin=${topMargin}`,
-  );
 
   // Get current window size
   const windowBounds = window.getBounds();
