@@ -11,7 +11,7 @@ import { getLogger } from "../logger";
 
 const logger = getLogger("PortableNodeManager");
 
-export interface NodeExecutionOptions extends Omit<SpawnOptions, 'env'> {
+export interface NodeExecutionOptions extends Omit<SpawnOptions, "env"> {
   env?: Record<string, string>;
   timeout?: number;
 }
@@ -55,7 +55,7 @@ export class PortableNodeManager {
    */
   private getNodeExecutablePath(): string {
     const platform = process.platform;
-    
+
     if (platform === "win32") {
       return path.join(this.nodeDir, "node.exe");
     } else {
@@ -68,7 +68,7 @@ export class PortableNodeManager {
    */
   private getNpmPath(): string {
     const platform = process.platform;
-    
+
     if (platform === "win32") {
       return path.join(this.nodeDir, "npm.cmd");
     } else {
@@ -81,7 +81,7 @@ export class PortableNodeManager {
    */
   private getNpxPath(): string {
     const platform = process.platform;
-    
+
     if (platform === "win32") {
       return path.join(this.nodeDir, "npx.cmd");
     } else {
@@ -92,10 +92,15 @@ export class PortableNodeManager {
   /**
    * 获取环境变量配置
    */
-  getEnvironment(additionalEnv: Record<string, string> = {}): Record<string, string> {
-    const binDir = process.platform === "win32" ? this.nodeDir : path.join(this.nodeDir, "bin");
+  getEnvironment(
+    additionalEnv: Record<string, string> = {},
+  ): Record<string, string> {
+    const binDir =
+      process.platform === "win32"
+        ? this.nodeDir
+        : path.join(this.nodeDir, "bin");
     const libDir = path.join(this.nodeDir, "lib", "node_modules");
-    
+
     return {
       ...process.env,
       PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
@@ -139,13 +144,15 @@ export class PortableNodeManager {
     const available = await this.isAvailable();
     if (!available) {
       throw new Error(
-        `Portable Node.js not found at ${this.nodePath}. Please run the setup script first.`
+        `Portable Node.js not found at ${this.nodePath}. Please run the setup script first.`,
       );
     }
 
     // 验证 Node.js 版本
     try {
-      const versionResult = await this.runNodeCommand(["--version"], { timeout: 5000 });
+      const versionResult = await this.runNodeCommand(["--version"], {
+        timeout: 5000,
+      });
       logger.info(`Portable Node.js version: ${versionResult.stdout.trim()}`);
     } catch (error) {
       logger.error("Failed to verify Node.js version:", error);
@@ -169,7 +176,7 @@ export class PortableNodeManager {
    */
   async runNodeCommand(
     args: string[],
-    options: NodeExecutionOptions = {}
+    options: NodeExecutionOptions = {},
   ): Promise<NodeProcessResult> {
     // Don't auto-initialize here to avoid recursion during initialization
     logger.debug(`Running node command: ${this.nodePath} ${args.join(" ")}`);
@@ -182,7 +189,7 @@ export class PortableNodeManager {
    */
   async runNpmCommand(
     args: string[],
-    options: NodeExecutionOptions = {}
+    options: NodeExecutionOptions = {},
   ): Promise<NodeProcessResult> {
     if (!this.initialized) {
       await this.initialize();
@@ -198,7 +205,7 @@ export class PortableNodeManager {
    */
   async runNpxCommand(
     args: string[],
-    options: NodeExecutionOptions = {}
+    options: NodeExecutionOptions = {},
   ): Promise<NodeProcessResult> {
     if (!this.initialized) {
       await this.initialize();
@@ -214,16 +221,18 @@ export class PortableNodeManager {
    */
   createNpxProcess(
     args: string[],
-    options: NodeExecutionOptions = {}
+    options: NodeExecutionOptions = {},
   ): ChildProcess {
     if (!this.initialized) {
-      throw new Error("PortableNodeManager not initialized. Call initialize() first.");
+      throw new Error(
+        "PortableNodeManager not initialized. Call initialize() first.",
+      );
     }
 
     logger.debug(`Creating npx process: ${this.npxPath} ${args.join(" ")}`);
 
     const env = this.getEnvironment(options.env);
-    
+
     const spawnOptions: SpawnOptions = {
       ...options,
       env,
@@ -238,7 +247,7 @@ export class PortableNodeManager {
   private async executeCommand(
     command: string,
     args: string[],
-    options: NodeExecutionOptions = {}
+    options: NodeExecutionOptions = {},
   ): Promise<NodeProcessResult> {
     return new Promise((resolve, reject) => {
       const env = this.getEnvironment(options.env);
@@ -290,7 +299,7 @@ export class PortableNodeManager {
           resolve(result);
         } else {
           const error = new Error(
-            `Command failed with exit code ${code}: ${stderr || stdout}`
+            `Command failed with exit code ${code}: ${stderr || stdout}`,
           );
           (error as any).result = result;
           reject(error);
@@ -311,18 +320,18 @@ export class PortableNodeManager {
    */
   async installPackage(
     packageName: string,
-    options: { global?: boolean; save?: boolean; dev?: boolean } = {}
+    options: { global?: boolean; save?: boolean; dev?: boolean } = {},
   ): Promise<NodeProcessResult> {
     const args = ["install"];
-    
+
     if (options.global) {
       args.push("-g");
     }
-    
+
     if (options.save) {
       args.push("--save");
     }
-    
+
     if (options.dev) {
       args.push("--save-dev");
     }
@@ -337,7 +346,10 @@ export class PortableNodeManager {
   /**
    * 检查包是否已安装
    */
-  async isPackageInstalled(packageName: string, global = false): Promise<boolean> {
+  async isPackageInstalled(
+    packageName: string,
+    global = false,
+  ): Promise<boolean> {
     try {
       const args = ["list", packageName, "--depth=0"];
       if (global) {

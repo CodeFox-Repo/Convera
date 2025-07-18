@@ -217,19 +217,21 @@ export class MCPConnection extends EventEmitter {
         // Handle npx commands using PortableNodeManager
         if (resolvedConfig.command === "npx") {
           logger.info(`[MCP Debug] Using PortableNodeManager for npx command`);
-          
+
           try {
             const portableNodeManager = getPortableNodeManager();
-            
+
             // Initialize the portable Node.js environment
             await portableNodeManager.initialize();
-            
-            logger.info(`[MCP Debug] PortableNodeManager initialized successfully`);
-            
+
+            logger.info(
+              `[MCP Debug] PortableNodeManager initialized successfully`,
+            );
+
             // Create npx transport using PortableNodeManager
             const npxArgs = resolvedConfig.args || [];
             logger.info(`[MCP Debug] Running: npx ${npxArgs.join(" ")}`);
-            
+
             const nodeEnv = portableNodeManager.getEnvironment({
               ELECTRON_APP_PATH: app.getAppPath(),
               ELECTRON_USER_DATA: app.getPath("userData"),
@@ -245,15 +247,16 @@ export class MCPConnection extends EventEmitter {
               env: nodeEnv,
               cwd: resolvedConfig.cwd || app.getPath("userData"),
             });
-            
-            logger.info(`[MCP Debug] Transport created with PortableNodeManager npx process`);
-            
+
+            logger.info(
+              `[MCP Debug] Transport created with PortableNodeManager npx process`,
+            );
           } catch (error) {
             logger.error(`[MCP Debug] PortableNodeManager failed:`, error);
-            
+
             // Fallback to system npx if available
             logger.warn(`[MCP Debug] Falling back to system npx`);
-            
+
             let actualCommand = "npx";
             const fs = await import("fs");
             const npxPaths = ["/usr/local/bin/npx", "/opt/homebrew/bin/npx"];
@@ -291,8 +294,10 @@ export class MCPConnection extends EventEmitter {
           }
         } else {
           // Non-npx commands use original logic
-          logger.info(`[MCP Debug] Using system command: ${resolvedConfig.command}`);
-          
+          logger.info(
+            `[MCP Debug] Using system command: ${resolvedConfig.command}`,
+          );
+
           transport = new Experimental_StdioMCPTransport({
             command: resolvedConfig.command!,
             args: resolvedConfig.args || [],

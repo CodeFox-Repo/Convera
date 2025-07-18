@@ -337,7 +337,6 @@ app.whenReady().then(async () => {
   try {
     logger.info("Application ready, starting initialization");
 
-
     if (inDevelopment) {
       await installExtensions();
     }
