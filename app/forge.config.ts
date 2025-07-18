@@ -12,8 +12,11 @@ const config: ForgeConfig = {
     executableName: pkg.name,
     name: pkg.productName,
     icon: "./public/images/icon",
-    // Include images directory in the packaged app
-    extraResource: ["./public/images"],
+    // Include images directory and Node.js runtime in the packaged app
+    extraResource: [
+      "./public/images",
+      "./resources/node"
+    ],
     // Force unpack robotjs using different syntax
     asar: {
       unpack: "**/@hurdlegroup/**",

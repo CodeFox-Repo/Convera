@@ -33,6 +33,7 @@ import * as os from "os";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getLogger } from "../logger";
+import { getPortableNodeManager } from "./portable-node-manager";
 
 const logger = getLogger("MCPConnectionAI");
 // Type for the MCP client instance
@@ -211,42 +212,101 @@ export class MCPConnection extends EventEmitter {
       logger.info("Resolved config", resolvedConfig);
       // Create transport and client
       if (this.transportType === "stdio") {
-        // If command is npx, try to use full path
-        let actualCommand = resolvedConfig.command!;
-        if (actualCommand === "npx" && process.platform === "darwin") {
-          const fs = await import("fs");
-          const npxPaths = ["/usr/local/bin/npx", "/opt/homebrew/bin/npx"];
+        let transport: Experimental_StdioMCPTransport;
 
-          // Check NVM directory for any installed versions
-          const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
-          if (fs.existsSync(nvmDir)) {
-            const versions = fs.readdirSync(nvmDir);
-            for (const version of versions) {
-              npxPaths.push(path.join(nvmDir, version, "bin/npx"));
-            }
-          }
+        // Handle npx commands using PortableNodeManager
+        if (resolvedConfig.command === "npx") {
+          logger.info(`[MCP Debug] Using PortableNodeManager for npx command`);
+          
+          try {
+            const portableNodeManager = getPortableNodeManager();
+            
+            // Initialize the portable Node.js environment
+            await portableNodeManager.initialize();
+            
+            logger.info(`[MCP Debug] PortableNodeManager initialized successfully`);
+            
+            // Create npx transport using PortableNodeManager
+            const npxArgs = resolvedConfig.args || [];
+            logger.info(`[MCP Debug] Running: npx ${npxArgs.join(" ")}`);
+            
+            const nodeEnv = portableNodeManager.getEnvironment({
+              ELECTRON_APP_PATH: app.getAppPath(),
+              ELECTRON_USER_DATA: app.getPath("userData"),
+              FOXYCHAT_APP_PATH: app.getAppPath(),
+              FOXYCHAT_USER_DATA: app.getPath("userData"),
+              ...resolvedConfig.env,
+            });
 
-          for (const npxPath of npxPaths) {
-            if (fs.existsSync(npxPath)) {
-              actualCommand = npxPath;
-              break;
+            // Create transport using the portable npx path
+            transport = new Experimental_StdioMCPTransport({
+              command: portableNodeManager.getNodePaths().npxPath,
+              args: npxArgs,
+              env: nodeEnv,
+              cwd: resolvedConfig.cwd || app.getPath("userData"),
+            });
+            
+            logger.info(`[MCP Debug] Transport created with PortableNodeManager npx process`);
+            
+          } catch (error) {
+            logger.error(`[MCP Debug] PortableNodeManager failed:`, error);
+            
+            // Fallback to system npx if available
+            logger.warn(`[MCP Debug] Falling back to system npx`);
+            
+            let actualCommand = "npx";
+            const fs = await import("fs");
+            const npxPaths = ["/usr/local/bin/npx", "/opt/homebrew/bin/npx"];
+
+            // Check NVM directory for any installed versions
+            const nvmDir = path.join(os.homedir(), ".nvm/versions/node");
+            if (fs.existsSync(nvmDir)) {
+              const versions = fs.readdirSync(nvmDir);
+              for (const version of versions) {
+                npxPaths.push(path.join(nvmDir, version, "bin/npx"));
+              }
             }
+
+            for (const npxPath of npxPaths) {
+              if (fs.existsSync(npxPath)) {
+                actualCommand = npxPath;
+                logger.info(`[MCP Debug] Found system npx at: ${npxPath}`);
+                break;
+              }
+            }
+
+            transport = new Experimental_StdioMCPTransport({
+              command: actualCommand,
+              args: resolvedConfig.args || [],
+              env: {
+                ...process.env,
+                ELECTRON_APP_PATH: app.getAppPath(),
+                ELECTRON_USER_DATA: app.getPath("userData"),
+                FOXYCHAT_APP_PATH: app.getAppPath(),
+                FOXYCHAT_USER_DATA: app.getPath("userData"),
+                ...resolvedConfig.env,
+              },
+              cwd: resolvedConfig.cwd || app.getPath("userData"),
+            });
           }
+        } else {
+          // Non-npx commands use original logic
+          logger.info(`[MCP Debug] Using system command: ${resolvedConfig.command}`);
+          
+          transport = new Experimental_StdioMCPTransport({
+            command: resolvedConfig.command!,
+            args: resolvedConfig.args || [],
+            env: {
+              ...process.env,
+              ELECTRON_APP_PATH: app.getAppPath(),
+              ELECTRON_USER_DATA: app.getPath("userData"),
+              FOXYCHAT_APP_PATH: app.getAppPath(),
+              FOXYCHAT_USER_DATA: app.getPath("userData"),
+              ...resolvedConfig.env,
+            },
+            cwd: resolvedConfig.cwd || app.getPath("userData"),
+          });
         }
-
-        const transport = new Experimental_StdioMCPTransport({
-          command: actualCommand,
-          args: resolvedConfig.args || [],
-          env: {
-            ...process.env,
-            ELECTRON_APP_PATH: app.getAppPath(),
-            ELECTRON_USER_DATA: app.getPath("userData"),
-            FOXYCHAT_APP_PATH: app.getAppPath(),
-            FOXYCHAT_USER_DATA: app.getPath("userData"),
-            ...resolvedConfig.env,
-          },
-          cwd: resolvedConfig.cwd || app.getPath("userData"),
-        });
 
         // Set up transport event handlers
         transport.onclose = () => this.handleTransportClose();
