@@ -1,5 +1,4 @@
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
-import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 import { appConfig } from "@/electron/config";
 import { calculateWindowDimensions, calculateWindowDimensionsWithTopMargin } from "@/electron/windows/utils";
 import {
@@ -7,7 +6,6 @@ import {
   WindowDimensions,
   WindowSizeConfig,
 } from "@/electron/windows/window-size";
-import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
 
 export let expectedPosition: WindowDimensions | null = null;
@@ -372,23 +370,6 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     isHiddenOffscreen = false;
   } else {
     console.log("Window is currently visible, hiding it");
-
-    // Try to activate previous app asynchronously
-    try {
-      const prevApp = getPreviousApp();
-      if (prevApp) {
-        exec(
-          `osascript -e 'tell application "${prevApp}" to activate'`,
-          (error) => {
-            if (error) {
-              console.error("Error activating previous app:", error);
-            }
-          },
-        );
-      }
-    } catch (error) {
-      console.error("Error getting previous app:", error);
-    }
 
     // Save current position only if it's valid
     const currentBounds = mainWindow.getBounds();
