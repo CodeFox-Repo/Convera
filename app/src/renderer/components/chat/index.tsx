@@ -1,20 +1,40 @@
-// app/src/renderer/components/chat/index.tsx
+// Chat Component - Main entry point for the Raycast-style command palette
+// This component provides a unified interface for both AI chat and command execution
+// Design philosophy follows Raycast's minimalist, keyboard-first approach
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import RaycastInput from "./raycast-input";
-import RaycastResults from "./raycast-results";
+// Import Raycast-inspired components
+import CommandInput from "./command-input";
+import CommandResults from "./command-results";
 
+/**
+ * Chat Component
+ *
+ * A lightweight, fast command palette interface inspired by Raycast's design
+ *
+ * Features:
+ * - Dual mode: AI chat (default) and command mode (activated with "/")
+ * - Dynamic window resizing based on content
+ * - Keyboard-first navigation
+ * - Minimal visual footprint with glass morphism effects
+ * - Fast response times and smooth animations
+ *
+ * The design prioritizes speed and efficiency over visual complexity
+ */
 export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { messages, setSelectedContent } = useChatContext();
-  
+  const { previousApp } = usePreviousApp();
+
   const [initializing, setInitializing] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [isCommandMode, setIsCommandMode] = useState(false);
   const [results, setResults] = useState<CommandResult[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   interface CommandResult {
     id: string;
@@ -22,6 +42,45 @@ export default function Chat() {
     description: string;
     icon: string;
   }
+
+  // Calculate dynamic window height based on results
+  const calculateDynamicHeight = (
+    resultCount: number,
+    hasInput: boolean,
+    hasActiveBadge: boolean = false,
+  ) => {
+    /**
+     * Dynamic base height calculation to prevent excessive bottom margin
+     *
+     * ISSUE: Previously used fixed baseHeight=98 regardless of active app badge presence,
+     * causing ~20px extra bottom margin when no badge was displayed.
+     *
+     * SOLUTION: Conditional base height based on active app badge:
+     * - WITH badge (previousApp exists): 98px - accounts for badge space + proper padding
+     * - WITHOUT badge (no previousApp): 78px - removes extra space, maintains padding
+     *
+     * This ensures the window fits content precisely without unwanted bottom space.
+     */
+    const baseHeight = hasActiveBadge ? 98 : 78; // Dynamic height based on badge presence
+    const containerPadding = 24; // Padding around container
+    const resultHeight = 48; // Height per result item
+    const resultsPadding = 8; // Padding around results
+
+    if (!hasInput && resultCount === 0) {
+      return baseHeight;
+    }
+
+    if (hasInput && resultCount === 0) {
+      // Show AI chat preview
+      return baseHeight + containerPadding + resultHeight + resultsPadding;
+    }
+
+    // Show command results
+    const maxResults = Math.min(resultCount, 6); // Limit to 6 results
+    return (
+      baseHeight + containerPadding + maxResults * resultHeight + resultsPadding
+    );
+  };
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback(
@@ -46,7 +105,8 @@ export default function Chat() {
   const handleInputChange = (value: string) => {
     setInputValue(value);
     setIsCommandMode(value.startsWith("/"));
-    
+    setSelectedIndex(0); // Reset selection when input changes
+
     if (value.startsWith("/")) {
       // Handle command mode
       handleCommandSearch(value);
@@ -61,18 +121,34 @@ export default function Chat() {
   // Handle command search
   const handleCommandSearch = (query: string) => {
     const command = query.slice(1); // Remove the '/' prefix
-    
+
     // Mock commands for now - you can replace this with actual command logic
     const mockCommands = [
-      { id: "search", name: "Search", description: "Search for anything", icon: "🔍" },
-      { id: "calculate", name: "Calculate", description: "Perform calculations", icon: "🧮" },
-      { id: "settings", name: "Settings", description: "Open settings", icon: "⚙️" },
+      {
+        id: "search",
+        name: "Search",
+        description: "Search for anything",
+        icon: "🔍",
+      },
+      {
+        id: "calculate",
+        name: "Calculate",
+        description: "Perform calculations",
+        icon: "🧮",
+      },
+      {
+        id: "settings",
+        name: "Settings",
+        description: "Open settings",
+        icon: "⚙️",
+      },
       { id: "help", name: "Help", description: "Show help", icon: "❓" },
     ];
 
-    const filtered = mockCommands.filter(cmd => 
-      cmd.name.toLowerCase().includes(command.toLowerCase()) ||
-      cmd.description.toLowerCase().includes(command.toLowerCase())
+    const filtered = mockCommands.filter(
+      (cmd) =>
+        cmd.name.toLowerCase().includes(command.toLowerCase()) ||
+        cmd.description.toLowerCase().includes(command.toLowerCase()),
     );
 
     setResults(filtered);
@@ -84,11 +160,11 @@ export default function Chat() {
     setInputValue("");
     setResults([]);
     setIsCommandMode(false);
-    
+
     // Here you would implement actual command execution
     // For now, just close the window
-    if (window.electronAPI?.toggleChatWindow) {
-      window.electronAPI.toggleChatWindow();
+    if (window.electronAPI?.toggleWindow) {
+      window.electronAPI.toggleWindow("chat");
     }
   };
 
@@ -105,13 +181,23 @@ export default function Chat() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       if (isCommandMode && results.length > 0) {
-        handleCommandExecute(results[0]);
+        handleCommandExecute(results[selectedIndex]);
       } else if (!isCommandMode && inputValue.trim()) {
         handleAIChatSubmit(inputValue.trim());
       }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (isCommandMode && results.length > 0) {
+        setSelectedIndex((prev) => (prev + 1) % results.length);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (isCommandMode && results.length > 0) {
+        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+      }
     } else if (e.key === "Escape") {
-      if (window.electronAPI?.toggleChatWindow) {
-        window.electronAPI.toggleChatWindow();
+      if (window.electronAPI?.toggleWindow) {
+        window.electronAPI.toggleWindow("chat");
       }
     }
   };
@@ -121,7 +207,7 @@ export default function Chat() {
       if (window.electronAPI && messages.length === 0) {
         try {
           window.electronAPI
-            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.COMPACT_CHAT)
+            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
             .then((res) => {
               requestAnimationFrame(() => {
                 window.electronAPI.resizeWindow(res.width, res.height, true);
@@ -143,6 +229,34 @@ export default function Chat() {
       clearTimeout(mountTimer);
     };
   }, [messages.length]);
+
+  // Dynamic window resizing based on results
+  useEffect(() => {
+    if (window.electronAPI && !initializing) {
+      const hasInput = inputValue.trim().length > 0;
+      const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
+      const hasActiveBadge = !!previousApp;
+
+      const newHeight = calculateDynamicHeight(
+        resultCount,
+        hasInput,
+        hasActiveBadge,
+      );
+
+      // Get current window size to preserve width
+      window.electronAPI
+        .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+        .then((currentSize) => {
+          // Only resize if height changed significantly (> 10px difference)
+          if (Math.abs(currentSize.height - newHeight) > 10) {
+            window.electronAPI.resizeWindow(currentSize.width, newHeight, true);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to get current window size:", error);
+        });
+    }
+  }, [results.length, inputValue, isCommandMode, initializing, previousApp]);
 
   useEffect(() => {
     let mounted = true;
@@ -253,24 +367,30 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background/95 backdrop-blur-xl">
-      <div className="flex-1 p-4">
-        <RaycastInput
+    <div className="flex flex-col h-full w-full">
+      <div className="flex-1 px-3 pt-3 pb-5">
+        <CommandInput
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
           isCommandMode={isCommandMode}
-          placeholder={isCommandMode ? "Search commands..." : "Ask AI or type / for commands"}
+          placeholder={
+            isCommandMode
+              ? "Search commands..."
+              : "Ask AI or type / for commands"
+          }
         />
-        
+
         {(results.length > 0 || inputValue.trim()) && (
-          <RaycastResults
+          <CommandResults
             results={results}
             query={inputValue}
             isCommandMode={isCommandMode}
+            selectedIndex={selectedIndex}
             onCommandExecute={handleCommandExecute}
             onAIChatSubmit={handleAIChatSubmit}
+            onSelectedIndexChange={setSelectedIndex}
           />
         )}
       </div>

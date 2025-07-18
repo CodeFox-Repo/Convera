@@ -313,7 +313,7 @@ function setupScreenResizeHandlers() {
         if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
           const dimensions = expectedPosition
             ? expectedPosition
-            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.CHAT);
           getChatWindow().setBounds(dimensions);
         }
 

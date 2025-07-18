@@ -353,7 +353,7 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     // === Restore display ===
     // Always use the new center-top positioning
     const dimensions = calculateWindowDimensionsWithTopMargin(
-      WINDOW_SIZE_PRESETS.COMPACT_CHAT,
+      WINDOW_SIZE_PRESETS.CHAT,
       undefined,
       true,
     );

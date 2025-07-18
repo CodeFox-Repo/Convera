@@ -34,7 +34,7 @@ export default function BaseLayout({
             replace={(href) => router.navigate({ href, replace: true })}
             Link={({ href, ...props }) => <Link to={href} {...props} />}
           >
-            <main className="bg-background/95 text-foreground h-full w-full">
+            <main className="text-foreground  h-full w-full bg-white/10">
               <ChatProvider>{children}</ChatProvider>
             </main>
           </AuthUIProviderTanstack>

@@ -25,29 +25,31 @@ export interface WindowDimensions {
  * Window size presets for different window types
  */
 export const WINDOW_SIZE_PRESETS = {
-  COMPACT_CHAT: {
-    widthProportion: 0.3,
-    heightProportion: 0.15,
-    minWidth: 500,
-    minHeight: 90,
+  // Raycast-style chat window with dynamic sizing
+  CHAT: {
+    widthProportion: 0.35,
+    heightProportion: 0.1, // Base height, will be adjusted dynamically
+    minWidth: 600,
+    minHeight: 80,
     maxWidth: 800,
+    maxHeight: 600,
   },
-  EXPANDED_CHAT: {
-    widthProportion: 0.3,
-    heightProportion: 0.6,
-    minWidth: 500,
-    minHeight: 400,
-    maxWidth: 800,
-    maxHeight: 800,
-  },
-  CHAT_PAGE: {
-    widthProportion: 0.4,
-    heightProportion: 0.7,
-    minWidth: 500,
-    minHeight: 400,
-    maxWidth: 800,
-    maxHeight: 800,
-  },
+  // Legacy presets - commented for reference
+  // COMPACT_CHAT: {
+  //   widthProportion: 0.3,
+  //   heightProportion: 0.15,
+  //   minWidth: 500,
+  //   minHeight: 90,
+  //   maxWidth: 800,
+  // },
+  // EXPANDED_CHAT: {
+  //   widthProportion: 0.3,
+  //   heightProportion: 0.6,
+  //   minWidth: 500,
+  //   minHeight: 400,
+  //   maxWidth: 800,
+  //   maxHeight: 800,
+  // },
   SETTINGS: {
     widthProportion: 0.6,
     heightProportion: 0.7,
