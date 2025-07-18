@@ -128,4 +128,7 @@ export interface IMcpAPI {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<MCPIPCResponse<unknown>>;
+
+  // Get all tools that don't require input parameters
+  getAllNonInputParamTool(): Promise<MCPIPCResponse<ToolDefinition[]>>;
 }

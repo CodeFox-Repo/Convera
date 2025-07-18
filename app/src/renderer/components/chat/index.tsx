@@ -40,7 +40,7 @@ export default function Chat() {
     id: string;
     name: string;
     description: string;
-    icon: string;
+    icon: string | React.ReactNode;
   }
 
   // Calculate dynamic window height based on results
@@ -119,50 +119,63 @@ export default function Chat() {
   };
 
   // Handle command search
-  const handleCommandSearch = (query: string) => {
+  const handleCommandSearch = async (query: string) => {
     const command = query.slice(1); // Remove the '/' prefix
 
-    // Mock commands for now - you can replace this with actual command logic
-    const mockCommands = [
-      {
-        id: "search",
-        name: "Search",
-        description: "Search for anything",
-        icon: "🔍",
-      },
-      {
-        id: "calculate",
-        name: "Calculate",
-        description: "Perform calculations",
-        icon: "🧮",
-      },
-      {
-        id: "settings",
-        name: "Settings",
-        description: "Open settings",
-        icon: "⚙️",
-      },
-      { id: "help", name: "Help", description: "Show help", icon: "❓" },
-    ];
+    try {
+      // Get MCP tools that don't require input parameters
+      const response = await window.mcpAPI.getAllNonInputParamTool();
+      
+      if (response.success && response.data) {
+        // Convert MCP tools to command format
+        const mcpCommands = response.data.map((tool) => ({
+          id: tool.name,
+          name: tool.description || tool.name, // Main title shows description
+          description: tool.name, // Subtitle shows tool name
+          icon: "Settings", // Lucide gear icon
+        }));
 
-    const filtered = mockCommands.filter(
-      (cmd) =>
-        cmd.name.toLowerCase().includes(command.toLowerCase()) ||
-        cmd.description.toLowerCase().includes(command.toLowerCase()),
-    );
+        // Filter based on search query
+        const filtered = mcpCommands.filter(
+          (cmd) =>
+            cmd.name.toLowerCase().includes(command.toLowerCase()) ||
+            cmd.description.toLowerCase().includes(command.toLowerCase()),
+        );
 
-    setResults(filtered);
+        setResults(filtered);
+      } else {
+        // Fallback to empty results if MCP fails
+        console.warn("Failed to fetch MCP tools:", response.error);
+        setResults([]);
+      }
+    } catch (error) {
+      console.error("Error fetching MCP tools:", error);
+      setResults([]);
+    }
   };
 
   // Handle command execution
-  const handleCommandExecute = (command: CommandResult) => {
-    console.log("Executing command:", command);
+  const handleCommandExecute = async (command: CommandResult) => {
+    console.log("Executing MCP command:", command);
     setInputValue("");
     setResults([]);
     setIsCommandMode(false);
 
-    // Here you would implement actual command execution
-    // For now, just close the window
+    try {
+      // Call MCP tool with no arguments since it's a non-input param tool
+      const response = await window.mcpAPI.mcpToolCall(command.id, {});
+      
+      if (response.success) {
+        console.log("MCP tool execution result:", response.data);
+        // You could show a toast or handle the result here
+      } else {
+        console.error("MCP tool execution failed:", response.error);
+      }
+    } catch (error) {
+      console.error("Error executing MCP tool:", error);
+    }
+
+    // Close the window after execution
     if (window.electronAPI?.toggleWindow) {
       window.electronAPI.toggleWindow("chat");
     }

@@ -2,13 +2,14 @@
 // A dynamic results list inspired by Raycast's clean, functional design
 // Displays either command suggestions or AI chat preview based on input mode
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { Settings } from "lucide-react";
 import React from "react";
 
 interface CommandResult {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: string | React.ReactNode;
 }
 
 interface CommandResultsProps {
@@ -66,7 +67,13 @@ const CommandResults: React.FC<CommandResultsProps> = ({
                   }}
                   onClick={() => onCommandExecute(command)}
                 >
-                  <div className="text-lg">{command.icon}</div>
+                  <div className="text-lg flex items-center justify-center">
+                    {command.icon === "Settings" ? (
+                      <Settings size={16} className="text-foreground/70" />
+                    ) : (
+                      command.icon
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-foreground text-sm">
                       {command.name}
