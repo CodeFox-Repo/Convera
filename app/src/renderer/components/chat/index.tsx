@@ -8,6 +8,7 @@ import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 // Import Raycast-inspired components
+import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
 
@@ -27,7 +28,8 @@ import CommandResults from "./command-results";
  */
 export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, setSelectedContent } = useChatContext();
+  const { messages, setSelectedContent, sendMessage, isLoading, resetChat } =
+    useChatContext();
   const { previousApp } = usePreviousApp();
 
   const [initializing, setInitializing] = useState(true);
@@ -35,6 +37,7 @@ export default function Chat() {
   const [isCommandMode, setIsCommandMode] = useState(false);
   const [results, setResults] = useState<CommandResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showContent, setShowContent] = useState(false);
 
   interface CommandResult {
     id: string;
@@ -43,11 +46,12 @@ export default function Chat() {
     icon: string | React.ReactNode;
   }
 
-  // Calculate dynamic window height based on results
-  const calculateDynamicHeight = (
+  // Calculate dynamic window height based on results and content
+  const calculateDynamicHeight = useCallback((
     resultCount: number,
     hasInput: boolean,
     hasActiveBadge: boolean = false,
+    hasContent: boolean = false,
   ) => {
     /**
      * Dynamic base height calculation to prevent excessive bottom margin
@@ -65,9 +69,16 @@ export default function Chat() {
     const containerPadding = 24; // Padding around container
     const resultHeight = 48; // Height per result item
     const resultsPadding = 8; // Padding around results
+    const contentHeight = 400; // Height for command content area
+
+    // If content is showing, use larger height
+    if (hasContent) {
+      return baseHeight + containerPadding + contentHeight;
+    }
 
     if (!hasInput && resultCount === 0) {
-      return baseHeight;
+      // Minimal height for empty state - especially when no active app
+      return hasActiveBadge ? baseHeight : 70;
     }
 
     if (hasInput && resultCount === 0) {
@@ -80,7 +91,7 @@ export default function Chat() {
     return (
       baseHeight + containerPadding + maxResults * resultHeight + resultsPadding
     );
-  };
+  }, []);
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback(
@@ -103,6 +114,9 @@ export default function Chat() {
 
   // Handle input change
   const handleInputChange = (value: string) => {
+    // Don't allow input changes when loading
+    if (isLoading) return;
+    
     setInputValue(value);
     setIsCommandMode(value.startsWith("/"));
     setSelectedIndex(0); // Reset selection when input changes
@@ -119,13 +133,13 @@ export default function Chat() {
   };
 
   // Handle command search
-  const handleCommandSearch = async (query: string) => {
+  const handleCommandSearch = useCallback(async (query: string) => {
     const command = query.slice(1); // Remove the '/' prefix
 
     try {
       // Get MCP tools that don't require input parameters
       const response = await window.mcpAPI.getAllNonInputParamTool();
-      
+
       if (response.success && response.data) {
         // Convert MCP tools to command format
         const mcpCommands = response.data.map((tool) => ({
@@ -152,46 +166,77 @@ export default function Chat() {
       console.error("Error fetching MCP tools:", error);
       setResults([]);
     }
-  };
+  }, []);
 
   // Handle command execution
-  const handleCommandExecute = async (command: CommandResult) => {
+  const handleCommandExecute = useCallback(async (command: CommandResult) => {
     console.log("Executing MCP command:", command);
     setInputValue("");
     setResults([]);
     setIsCommandMode(false);
+    setShowContent(true);
 
     try {
       // Call MCP tool with no arguments since it's a non-input param tool
       const response = await window.mcpAPI.mcpToolCall(command.id, {});
-      
+
       if (response.success) {
         console.log("MCP tool execution result:", response.data);
-        // You could show a toast or handle the result here
+
+        // Create a tool result message and add it to chat context
+        const toolResultMessage = {
+          id: `tool-${Date.now()}`,
+          role: "tool" as const,
+          content:
+            typeof response.data === "string"
+              ? response.data
+              : JSON.stringify(response.data, null, 2),
+          createdAt: new Date(),
+          toolName: command.id,
+        };
+
+        // You might need to add this to chat context - for now just log
+        console.log("Tool result message:", toolResultMessage);
       } else {
         console.error("MCP tool execution failed:", response.error);
+
+        // Show error message
+        const errorMessage = {
+          id: `error-${Date.now()}`,
+          role: "tool" as const,
+          content: `Error executing ${command.id}: ${response.error}`,
+          createdAt: new Date(),
+          toolName: command.id,
+        };
+        console.log("Tool error message:", errorMessage);
       }
     } catch (error) {
       console.error("Error executing MCP tool:", error);
     }
 
-    // Close the window after execution
-    if (window.electronAPI?.toggleWindow) {
-      window.electronAPI.toggleWindow("chat");
-    }
-  };
+    // Don't close window immediately - let user see results
+  }, [sendMessage]);
 
   // Handle AI chat submission
-  const handleAIChatSubmit = (message: string) => {
+  const handleAIChatSubmit = useCallback((message: string) => {
     console.log("AI Chat message:", message);
-    // Here you would implement AI chat logic
-    // For now, just clear the input
+    if (!message || message.trim() === "") {
+      console.error("Empty message submitted");
+      return;
+    }
+    
+    // Clear input first
     setInputValue("");
     setResults([]);
-  };
+    setShowContent(true);
+
+    // Send message directly with the message text
+    console.log("🚀 Calling sendMessage with:", message);
+    sendMessage(message);
+  }, [sendMessage]);
 
   // Handle key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       if (isCommandMode && results.length > 0) {
         handleCommandExecute(results[selectedIndex]);
@@ -206,14 +251,18 @@ export default function Chat() {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (isCommandMode && results.length > 0) {
-        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+        setSelectedIndex(
+          (prev) => (prev - 1 + results.length) % results.length,
+        );
       }
     } else if (e.key === "Escape") {
-      if (window.electronAPI?.toggleWindow) {
+      if (showContent) {
+        setShowContent(false);
+      } else if (window.electronAPI?.toggleWindow) {
         window.electronAPI.toggleWindow("chat");
       }
     }
-  };
+  }, [isCommandMode, results, selectedIndex, inputValue, handleCommandExecute, handleAIChatSubmit, showContent]);
 
   useEffect(() => {
     const mountTimer = setTimeout(() => {
@@ -243,7 +292,7 @@ export default function Chat() {
     };
   }, [messages.length]);
 
-  // Dynamic window resizing based on results
+  // Dynamic window resizing based on results and content
   useEffect(() => {
     if (window.electronAPI && !initializing) {
       const hasInput = inputValue.trim().length > 0;
@@ -254,6 +303,7 @@ export default function Chat() {
         resultCount,
         hasInput,
         hasActiveBadge,
+        showContent,
       );
 
       // Get current window size to preserve width
@@ -269,7 +319,15 @@ export default function Chat() {
           console.error("Failed to get current window size:", error);
         });
     }
-  }, [results.length, inputValue, isCommandMode, initializing, previousApp]);
+  }, [
+    results.length,
+    inputValue,
+    isCommandMode,
+    initializing,
+    previousApp,
+    showContent,
+    calculateDynamicHeight,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -303,14 +361,25 @@ export default function Chat() {
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
-        inputRef.current?.focus();
+        // Reset chat state when window is activated by shortcut
+        resetChat();
+        setInputValue("");
+        setResults([]);
+        setIsCommandMode(false);
+        setSelectedIndex(0);
+        setShowContent(false);
+        
+        // Focus the input after reset
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 50);
       });
 
       return () => {
         removeListener?.();
       };
     }
-  }, []);
+  }, [resetChat]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -319,6 +388,19 @@ export default function Chat() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Refocus input when loading completes
+  useEffect(() => {
+    if (!isLoading && inputRef.current) {
+      // Use a small delay to ensure the input is enabled before focusing
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -380,22 +462,29 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex-1 px-3 pt-3 pb-5">
+    <div className="flex flex-col h-full w-full relative px-3">
+      {/* Input always at top */}
+      <div className={`pt-3 mb-1 ${showContent ? "relative z-20" : ""}`}>
         <CommandInput
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
           isCommandMode={isCommandMode}
+          disabled={isLoading}
           placeholder={
             isCommandMode
               ? "Search commands..."
-              : "Ask AI or type / for commands"
+              : isLoading 
+                ? "AI is thinking..."
+                : "Ask FoxyChat AI anything or type / for commands"
           }
         />
+      </div>
 
-        {(results.length > 0 || inputValue.trim()) && (
+      {/* Results section - only show when not in content mode and not loading */}
+      {(results.length > 0 || inputValue.trim()) && !showContent && !isLoading && (
+        <div className="flex-1 ">
           <CommandResults
             results={results}
             query={inputValue}
@@ -405,8 +494,15 @@ export default function Chat() {
             onAIChatSubmit={handleAIChatSubmit}
             onSelectedIndexChange={setSelectedIndex}
           />
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Content overlay - covers everything below input when visible */}
+      {showContent && (
+        <div className="absolute inset-0 mt-24">
+          <CommandContent isVisible={showContent} />
+        </div>
+      )}
     </div>
   );
 }

@@ -65,7 +65,7 @@ interface ChatContextType {
   toolsError: string | null;
 
   setInput: (input: string) => void;
-  sendMessage: (files?: File[]) => void;
+  sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
@@ -238,6 +238,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const chatAPI = useChat({
     api: getApiBaseUrl() + "/chat/completion",
     maxSteps: 5,
+    initialInput: "",
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();
@@ -384,6 +385,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     },
   });
+
+  // Debug: Check initial chatAPI.input value
+  console.log('🔍 Initial chatAPI.input value:', chatAPI.input);
+  
+  // Monitor input changes
+  useEffect(() => {
+    console.log('📝 chatAPI.input changed to:', chatAPI.input);
+  }, [chatAPI.input]);
 
   // Auto-expand when there are messages
   useEffect(() => {
@@ -620,14 +629,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const sendMessage = useCallback(
-    (extraFiles?: File[]) => {
+    (messageOrFiles?: string | File[], extraFiles?: File[]) => {
+      // Handle overloaded parameters
+      let messageText: string;
       const filesToSend = [...attachments];
-
-      if (extraFiles && extraFiles.length > 0) {
-        filesToSend.push(...extraFiles);
+      
+      if (typeof messageOrFiles === 'string') {
+        // Called with message string
+        messageText = messageOrFiles;
+        console.log('📨 sendMessage called with string:', messageText);
+        if (extraFiles && extraFiles.length > 0) {
+          filesToSend.push(...extraFiles);
+        }
+      } else if (Array.isArray(messageOrFiles)) {
+        // Called with files array (old signature)
+        messageText = chatAPI.input.trim();
+        console.log('📨 sendMessage called with files, using chatAPI.input:', messageText);
+        filesToSend.push(...messageOrFiles);
+      } else {
+        // Called with no arguments
+        messageText = chatAPI.input.trim();
+        console.log('📨 sendMessage called with no args, using chatAPI.input:', messageText);
       }
 
-      if (!chatAPI.input.trim() && !selectedContent && filesToSend.length === 0)
+      if (!messageText && !selectedContent && filesToSend.length === 0)
         return;
 
       // Generate conversation ID if this is the first message
@@ -637,8 +662,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         setCurrentConversationId(conversationIdToUse);
       }
-
-      let messageText = chatAPI.input.trim();
 
       // Handle selected content (text and/or image)
       let selectedImageFile: File | null = null;
@@ -685,6 +708,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         role: "user",
         content: messageText,
       };
+      
+      console.log('📝 Creating message with content:', message.content);
 
       const sendMessageWithAttachments = async () => {
         try {
@@ -778,10 +803,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           };
           console.log("🔧 Frontend: Sending request with body:", requestBody);
 
+          // Debug: Log the message being sent
+          console.log('🚀 About to send message:', message);
+          console.log('🚀 Request body:', requestBody);
+          
           // Send message with all custom fields
           chatAPI.append(message, {
             body: requestBody,
           });
+          
+          // Clear the input after sending to prevent stale data
+          chatAPI.setInput("");
           clearAttachments();
         } catch (error) {
           console.error("Error processing file attachments:", error);

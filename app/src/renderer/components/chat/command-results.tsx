@@ -47,7 +47,7 @@ const CommandResults: React.FC<CommandResultsProps> = ({
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   if (isCommandMode) {
     return (
-      <div className="mt-1.5 mb-10 w-full">
+      <div className="mt-1.5  w-full">
         <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
           {results.length > 0 ? (
             <div className="max-h-96 overflow-y-auto">
@@ -58,7 +58,9 @@ const CommandResults: React.FC<CommandResultsProps> = ({
                     "flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200",
                     "hover:bg-foreground/8 active:bg-foreground/12",
                     // Only show keyboard selection highlight when mouse is not hovering
-                    hoveredIndex === null && index === selectedIndex && "bg-foreground/8",
+                    hoveredIndex === null &&
+                      index === selectedIndex &&
+                      "bg-foreground/8",
                   )}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => {
@@ -102,7 +104,7 @@ const CommandResults: React.FC<CommandResultsProps> = ({
   // AI Chat mode preview
   if (query.trim()) {
     return (
-      <div className="mt-2 w-full">
+      <div className=" mt-2 w-full">
         <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
           <div>
             <div
@@ -114,7 +116,9 @@ const CommandResults: React.FC<CommandResultsProps> = ({
             >
               <div className="text-lg">🤖</div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-foreground text-sm">Ask AI</div>
+                <div className="font-medium text-foreground text-sm">
+                  Ask AI
+                </div>
                 <div className="text-xs text-foreground/60 truncate">
                   &ldquo;{query}&rdquo;
                 </div>
