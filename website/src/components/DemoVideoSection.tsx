@@ -42,7 +42,7 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
       <div className="mb-8 text-center">
         <h3 className="mb-4 text-2xl font-semibold">See Foxychat in Action</h3>
         <p className="text-muted-foreground text-lg">
-          Discover how Foxychat transforms workflows across different industries
+          Watch how Foxychat transforms your daily workflows
         </p>
       </div>
 
@@ -62,7 +62,14 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
         </div>
 
         {/* Demo Videos Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div
+          className={`grid gap-8 ${
+            demoVideoCategories[activeCategory as keyof typeof demoVideoCategories].videos
+              .length === 1
+              ? "mx-auto max-w-2xl grid-cols-1"
+              : "grid-cols-1 lg:grid-cols-2"
+          }`}
+        >
           {demoVideoCategories[activeCategory as keyof typeof demoVideoCategories].videos.map(
             (video, index) => (
               <Video
