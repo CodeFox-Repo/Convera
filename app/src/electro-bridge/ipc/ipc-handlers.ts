@@ -9,6 +9,7 @@ import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
+import { load } from "cheerio";
 import { exec } from "child_process";
 import os from "os";
 import path from "path";
@@ -41,11 +42,50 @@ import {
 let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
+const webBrowserList = ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"];
 
 // ========== APP HANDLERS ==========
 
 export function getPreviousApp(): string {
   return previousAppName;
+}
+export function getPreviousAppContent(): Promise<string> {
+  let resultHandleScript: (html: string) => string;
+  const appleCommand = () => {
+    if (webBrowserList.includes(previousAppName)) {
+      resultHandleScript = (html: string) => {
+        const $ = load(html);
+        $("script,style,noscript").remove();
+
+        return $.root()
+          .text()
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join("\n");
+      };
+      return `osascript -e 'tell application "${previousAppName}"' \
+               -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
+               -e 'end tell'`;
+    }
+    return "";
+  };
+
+  return new Promise((resolve, reject) => {
+    exec(
+      appleCommand(),
+      { maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          console.error("AppleScript 执行出错：", stderr);
+          return reject(err);
+        }
+        const res = resultHandleScript(stdout);
+
+        resolve(res);
+      },
+    );
+  });
 }
 
 export function getPreviousAppID(): number {

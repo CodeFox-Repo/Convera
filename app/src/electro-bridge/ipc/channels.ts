@@ -20,6 +20,7 @@ export interface IPCServer {
   getClipboardText(): string;
   setInputContent(content: { text?: string; imageData?: string }): void;
   pasteModifiedContent(content: string): void;
+  getPreviousAppContent(): Promise<string>;
 
   // Platform detection
   getPlatform(): string;
@@ -88,6 +89,7 @@ export const CHANNELS = {
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
     SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
+    GET_PREVIOUS_CONTENT: "app:get-previous-content",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -119,6 +121,7 @@ export const CHANNELS = {
   },
 } as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // Unified Window Control
   toggleWindow: CHANNELS.WINDOW.TOGGLE,
@@ -130,6 +133,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // App functionality
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getPreviousAppContent: CHANNELS.APP.GET_PREVIOUS_CONTENT,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,

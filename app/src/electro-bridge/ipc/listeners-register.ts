@@ -12,6 +12,7 @@ import {
   getCurrentWindowSize,
   getPlatform,
   getPreviousApp,
+  getPreviousAppContent,
   getPreviousAppID,
   hideAgentPopoverWindow,
   hideModelSelectorWindow,
@@ -166,6 +167,10 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, () => {
     return getPreviousAppID();
+  });
+
+  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, () => {
+    return getPreviousAppContent();
   });
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {

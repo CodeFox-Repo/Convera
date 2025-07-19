@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
  */
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
+  const [previousAppContent, setPreviousAppContent] = useState<string>();
 
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
@@ -22,6 +23,16 @@ export function usePreviousApp() {
       console.error("Error fetching previous app:", error);
     }
   };
+
+  useEffect(() => {
+    // Initial fetch
+    const fetchContent = async () => {
+      const content = await window.electronAPI.getPreviousAppContent();
+      console.log("Previous app content:", content);
+      setPreviousAppContent(content);
+    };
+    fetchContent();
+  }, [previousApp]);
 
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
@@ -63,5 +74,6 @@ export function usePreviousApp() {
     previousApp,
     formatAppName,
     fetchPreviousApp,
+    previousAppContent,
   };
 }
