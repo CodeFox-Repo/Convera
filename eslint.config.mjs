@@ -16,6 +16,9 @@ const prettierIgnorePath = path.resolve(__dirname, ".prettierignore");
 export default [
   includeIgnoreFile(prettierIgnorePath),
   {
+    ignores: ["app/scripts/**/*.js"],
+  },
+  {
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     plugins: {
       "react-compiler": reactCompiler,
