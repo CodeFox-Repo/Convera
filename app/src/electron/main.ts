@@ -32,9 +32,9 @@ import {
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { getChatWindow } from "./windows/chat-window";
-import { 
-  startAutoSelectionWatcher, 
-  stopAutoSelectionWatcher 
+import {
+  startAutoSelectionWatcher,
+  stopAutoSelectionWatcher,
 } from "./selection-watcher";
 import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
@@ -382,7 +382,9 @@ app.whenReady().then(async () => {
     if (autoSelectionStarted) {
       console.log("🎯 Auto selection watcher started successfully");
     } else {
-      console.log("⚠️ Auto selection watcher failed to start - falling back to manual mode");
+      console.log(
+        "⚠️ Auto selection watcher failed to start - falling back to manual mode",
+      );
     }
 
     app.on("activate", () => {
