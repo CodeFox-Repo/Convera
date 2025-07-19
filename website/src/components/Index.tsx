@@ -1,5 +1,6 @@
 import DemoVideoSection from "@/components/DemoVideoSection";
 import Footer from "@/components/Footer";
+import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -229,6 +230,10 @@ const Index = () => {
                     <Download className="ml-3 h-5 w-5" />
                   </Link>
                 </Button>
+              </div>
+
+              <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
+                <HeroImage />
               </div>
             </div>
           </div>
