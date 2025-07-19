@@ -50,6 +50,7 @@ export interface IElectronAPI {
   getClipboardText: () => Promise<string>;
   setInputText: (text: string) => Promise<void>;
   pasteModifiedContent: (content: string) => Promise<void>;
+  getPreviousAppContent: () => Promise<string>;
 
   // Platform detection
   getPlatform: () => Promise<string>;
