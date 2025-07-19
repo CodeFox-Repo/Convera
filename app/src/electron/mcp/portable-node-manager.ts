@@ -301,7 +301,7 @@ export class PortableNodeManager {
           const error = new Error(
             `Command failed with exit code ${code}: ${stderr || stdout}`,
           );
-          (error as any).result = result;
+          (error as Error & { result: NodeProcessResult }).result = result;
           reject(error);
         }
       });
