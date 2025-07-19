@@ -18,17 +18,17 @@ import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import {
   getCurrentShortcut,
-  setInputContent,
   setPreviousApp,
+  setSelectedText,
 } from "@/electro-bridge/ipc/ipc-handlers";
 
-import robot from "@/shared/robot";
 import { clipboard } from "electron";
 
 import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
+import robot from "@/shared/robot";
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { getChatWindow } from "./windows/chat-window";
@@ -54,11 +54,9 @@ let trackingAppFocus = false;
 
 // Clipboard buffer for restoring original content
 let originalClipboardContent = "";
-let originalClipboardImage: Electron.NativeImage | null = null;
 
 // Previous clipboard buffer to avoid duplicates
 let prevClipboardContent = "";
-let prevClipboardImageHash = "";
 
 // Prevent duplicate shortcut processing
 let shortcutInProgress = false;
@@ -66,16 +64,13 @@ let shortcutInProgress = false;
 // Initialize logger for main process
 const logger = getLogger("main-process");
 
-function createImageHash(imageBuffer: Buffer): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const crypto = require("crypto");
-  return crypto.createHash("md5").update(imageBuffer).digest("hex");
-}
-
-async function simulateClipboardCopy(): Promise<void> {
+async function simulateClipboardCopy(): Promise<string> {
   try {
     originalClipboardContent = clipboard.readText();
-    originalClipboardImage = clipboard.readImage();
+
+    getLogger("clipboard").info("befored:", originalClipboardContent);
+    // Clear clipboard first to ensure we only get newly selected content
+    clipboard.writeText("");
 
     robot?.keyToggle("shift", "up");
     robot?.keyToggle("control", "up");
@@ -92,6 +87,12 @@ async function simulateClipboardCopy(): Promise<void> {
 
     // Minimal delay for copy operation to complete
     await new Promise((resolve) => setTimeout(resolve, 30));
+
+    // Get the selected content after copy operation
+    const selectedContent = clipboard.readText("selection");
+    getLogger("clipboard").info("copied:", selectedContent);
+
+    return selectedContent || "";
   } catch (error) {
     logger.error("Error simulating copy command:", error);
     throw error;
@@ -100,14 +101,11 @@ async function simulateClipboardCopy(): Promise<void> {
 
 function restoreClipboard(): void {
   try {
-    if (originalClipboardImage && !originalClipboardImage.isEmpty()) {
-      clipboard.writeImage(originalClipboardImage);
-    } else if (originalClipboardContent !== undefined) {
+    if (originalClipboardContent !== undefined) {
       clipboard.writeText(originalClipboardContent);
     }
 
     originalClipboardContent = "";
-    originalClipboardImage = null;
   } catch (error) {
     logger.error("Error restoring clipboard:", error);
   }
@@ -196,65 +194,28 @@ function registerGlobalShortcuts() {
       shortcutInProgress = true;
 
       try {
-        await simulateClipboardCopy();
-
-        const selectedText = clipboard.readText();
-        const selectedImage = clipboard.readImage();
+        const selectedText = await simulateClipboardCopy();
 
         // Check for duplicates
         let isTextDuplicate = false;
-        let isImageDuplicate = false;
 
         if (selectedText && selectedText === prevClipboardContent) {
           isTextDuplicate = true;
         }
-
-        let currentImageHash = "";
-        if (selectedImage && !selectedImage.isEmpty()) {
-          const imageBuffer = selectedImage.toPNG();
-          currentImageHash = createImageHash(imageBuffer);
-          if (currentImageHash === prevClipboardImageHash) {
-            isImageDuplicate = true;
-          }
-        }
-
-        // Skip content processing if all content is duplicate or no content
-        const allContentDuplicate =
-          selectedText &&
-          isTextDuplicate &&
-          selectedImage &&
-          !selectedImage.isEmpty() &&
-          isImageDuplicate;
-        const noContent =
-          !selectedText && (!selectedImage || selectedImage.isEmpty());
-
         if (getChatWindow()) {
           toggleChatWindowVisibility(getChatWindow());
 
-          // Process content immediately if we have new content
-          if (!allContentDuplicate && !noContent) {
-            const contentToSend: { text?: string; imageData?: string } = {};
+          // Always send selected text event, even if empty
+          const contentToSend: { text?: string } = {};
 
-            if (
-              selectedImage &&
-              !selectedImage.isEmpty() &&
-              !isImageDuplicate
-            ) {
-              const imageBuffer = selectedImage.toPNG();
-              const base64Image = imageBuffer.toString("base64");
-              contentToSend.imageData = base64Image;
-              prevClipboardImageHash = currentImageHash;
-            }
-
-            if (selectedText && !isTextDuplicate) {
-              contentToSend.text = selectedText;
-              prevClipboardContent = selectedText;
-            }
-
-            if (contentToSend.imageData || contentToSend.text) {
-              setInputContent(getChatWindow(), contentToSend);
-            }
+          if (selectedText && !isTextDuplicate) {
+            contentToSend.text = selectedText;
+            prevClipboardContent = selectedText;
+          } else {
+            contentToSend.text = "";
           }
+
+          setSelectedText(getChatWindow(), contentToSend);
         }
 
         // Restore clipboard asynchronously
@@ -369,14 +330,7 @@ app.whenReady().then(async () => {
     };
 
     logger.debug("Registering IPC listeners");
-    // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
-
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        logger.info("App activated, creating chat window");
-      }
-    });
 
     createSystemTray(getChatWindow());
   } catch (error) {
@@ -387,6 +341,7 @@ app.whenReady().then(async () => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   destroySystemTray();
+
   const hub = getMCPHub();
   if (hub) {
     hub.cleanup();

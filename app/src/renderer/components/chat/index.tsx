@@ -19,17 +19,14 @@ export default function Chat() {
   const [mounted, setMounted] = useState(false);
 
   // Helper function to create selected content with deduplication
-  const createSelectedContent = useCallback(
-    (content: { text?: string; imageData?: string }) => {
-      const timestamp = Date.now();
-      return {
-        ...content,
-        timestamp,
-        source: "shortcut" as const,
-      };
-    },
-    [],
-  );
+  const createSelectedContent = useCallback((content: { text?: string }) => {
+    const timestamp = Date.now();
+    return {
+      ...content,
+      timestamp,
+      source: "shortcut" as const,
+    };
+  }, []);
 
   // Listen for theme changes from settings
   useThemeSync();
@@ -100,23 +97,29 @@ export default function Chat() {
   }, [viewMode, hasExpandedOnce, setHasExpandedOnce]);
 
   useEffect(() => {
-    let mounted = true;
+    if (window.electronAPI?.onSetSelectedText) {
+      const unsubscribe = window.electronAPI.onSetSelectedText(
+        (content: { text?: string }) => {
+          window.logger
+            .getLogger("Chat")
+            .info("Received selected text from main process:", content);
+          if (
+            content.text === "" ||
+            content.text === undefined ||
+            content.text === null
+          ) {
+            setSelectedContent(null);
+            return;
+          }
 
-    if (window.electronAPI?.onSetInputContent) {
-      const unsubscribe = window.electronAPI.onSetInputContent(
-        (content: { text?: string; imageData?: string }) => {
-          // Prevent processing after unmount to avoid stale closure issues
-          if (!mounted) return;
-
-          // Create selected content with both text and image data
-          if (content.imageData || (content.text && content.text.trim())) {
-            const selectedContent = createSelectedContent({
-              text:
-                content.text && content.text.trim() ? content.text : undefined,
-              imageData: content.imageData || undefined,
-            });
-
-            setSelectedContent(selectedContent);
+          // Handle text content
+          if (content.text && content.text.trim()) {
+            setSelectedContent(
+              createSelectedContent({
+                text: content.text,
+              }),
+            );
+            console.log("✅ Selected content updated successfully");
           } else {
             setSelectedContent(null);
           }
@@ -124,7 +127,6 @@ export default function Chat() {
       );
 
       return () => {
-        mounted = false;
         unsubscribe?.();
       };
     }

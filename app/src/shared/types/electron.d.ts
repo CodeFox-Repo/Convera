@@ -47,8 +47,7 @@ export interface IElectronAPI {
   // App functionality
   getPreviousApp: () => Promise<string>;
   getPreviousAppID: () => Promise<number>;
-  getClipboardText: () => Promise<string>;
-  setInputText: (text: string) => Promise<void>;
+  setSelectedText: (content: { text?: string }) => Promise<void>;
   pasteModifiedContent: (content: string) => Promise<void>;
 
   // Platform detection
@@ -105,8 +104,8 @@ export interface IElectronAPI {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputContent: (
-    callback: (content: { text?: string; imageData?: string }) => void,
+  onSetSelectedText: (
+    callback: (content: { text?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }

@@ -86,7 +86,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         return editorRef.current?.getText() || "";
       },
       setInput: (content: string) => {
-        console.log("🎯 setInput called with:", content);
         if (editorRef.current) {
           editorRef.current.clearContent();
 

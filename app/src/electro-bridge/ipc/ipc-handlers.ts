@@ -425,17 +425,13 @@ export function getCurrentWindowSize(window: WindowSizeConfig): {
 
 // ========== CLIPBOARD HANDLERS ==========
 
-export function getClipboardText(): string {
-  return clipboard.readText();
-}
-
-export function setInputContent(
+export function setSelectedText(
   mainWindow: BrowserWindow | null,
-  content: { text?: string; imageData?: string },
+  content: { text?: string },
 ): void {
   if (mainWindow) {
-    // Send the content to the renderer to set as input
-    mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_CONTENT, content);
+    // Send the content to the renderer to set as selected text
+    mainWindow.webContents.send(CHANNELS.APP.SET_SELECTED_TEXT, content);
   }
 }
 

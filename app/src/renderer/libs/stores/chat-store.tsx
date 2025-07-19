@@ -25,9 +25,8 @@ export type ChatViewMode = "compact" | "expanded";
 // Selected content structure
 export interface SelectedContent {
   text?: string;
-  imageData?: string; // base64 encoded image
   timestamp?: number;
-  source?: "shortcut" | "manual"; // track how content was captured
+  source?: "shortcut" | "manual";
 }
 
 // Simple tool call result type
@@ -640,42 +639,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       let messageText = chatAPI.input.trim();
 
-      // Handle selected content (text and/or image)
-      let selectedImageFile: File | null = null;
-
       if (selectedContent) {
         // Handle text content
         if (selectedContent.text) {
           messageText = messageText
             ? `<selected>\n${selectedContent.text}\n</selected>\n\n${messageText}`
             : `<selected>\n${selectedContent.text}\n</selected>`;
-        }
-
-        // Handle image content - convert to File object
-        if (selectedContent.imageData) {
-          try {
-            const base64ToFile = (base64: string, filename: string): File => {
-              const arr = base64.split(",");
-              const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
-              const bstr = atob(arr.length > 1 ? arr[1] : base64);
-              let n = bstr.length;
-              const u8arr = new Uint8Array(n);
-              while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-              }
-              return new File([u8arr], filename, { type: mime });
-            };
-
-            const imageDataUrl = selectedContent.imageData.startsWith("data:")
-              ? selectedContent.imageData
-              : `data:image/png;base64,${selectedContent.imageData}`;
-
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const filename = `screenshot-${timestamp}.png`;
-            selectedImageFile = base64ToFile(imageDataUrl, filename);
-          } catch (error) {
-            console.error("Error converting clipboard image:", error);
-          }
         }
 
         setSelectedContent(null);
@@ -697,11 +666,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
 
-          // Combine regular attachments with selected image
           const allFiles = [...filesToSend];
-          if (selectedImageFile) {
-            allFiles.push(selectedImageFile);
-          }
 
           if (allFiles.length > 0) {
             const fileAttachments = await Promise.all(

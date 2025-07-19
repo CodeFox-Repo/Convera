@@ -6,7 +6,6 @@ import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { setupEnvIPC } from "./env-context";
 import {
   closeWindow,
-  getClipboardText,
   getCurrentTheme,
   getCurrentWindowPosition,
   getCurrentWindowSize,
@@ -23,7 +22,7 @@ import {
   pasteModifiedContent,
   resizeAndCenterWindow,
   resizeWindow,
-  setInputContent,
+  setSelectedText,
   setTheme,
   toggleAgentPopoverWindow,
   toggleModelSelectorWindow,
@@ -42,8 +41,8 @@ interface ElectronAPI extends IPCServer {
   ) => () => void;
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
-  onSetInputContent: (
-    callback: (content: { text?: string; imageData?: string }) => void,
+  onSetSelectedText: (
+    callback: (content: { text?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
@@ -93,14 +92,11 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onSetInputContent = (
-    callback: (content: { text?: string; imageData?: string }) => void,
-  ) => {
-    const handler = (_: any, content: { text?: string; imageData?: string }) =>
-      callback(content);
-    ipcRenderer.on(CHANNELS.APP.SET_INPUT_CONTENT, handler);
+  api.onSetSelectedText = (callback: (content: { text?: string }) => void) => {
+    const handler = (_: any, content: { text?: string }) => callback(content);
+    ipcRenderer.on(CHANNELS.APP.SET_SELECTED_TEXT, handler);
     return () => {
-      ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_CONTENT, handler);
+      ipcRenderer.removeListener(CHANNELS.APP.SET_SELECTED_TEXT, handler);
     };
   };
 
@@ -168,15 +164,11 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     return getPreviousAppID();
   });
 
-  ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
-    return getClipboardText();
-  });
-
   ipcMain.handle(
-    CHANNELS.APP.SET_INPUT_CONTENT,
-    (_event, content: { text?: string; imageData?: string }) => {
+    CHANNELS.APP.SET_SELECTED_TEXT,
+    (_event, content: { text?: string }) => {
       const window = chatWindow?.() || null;
-      return setInputContent(window, content);
+      return setSelectedText(window, content);
     },
   );
 
