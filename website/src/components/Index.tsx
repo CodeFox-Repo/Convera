@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import DemoVideoSection from "./DemoVideoSection";
 import AppsSupportSection from "./apps_support_section";
+import DemoVideoSection from "./DemoVideoSection";
+import FeaturesShowcaseCard from "./FeaturesShowcaseCard";
 
 const Index = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -229,12 +230,9 @@ const Index = () => {
 
       {/* Start demo section */}
       {/* Benefits Section */}
-      <section id="demo" className="w-full bg-white py-20 md:py-28" data-section="demo">
+      <section id="demo" data-section="demo" className="w-full bg-white py-20 md:py-28">
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
-          {/* Centered heading with entrance animation */}
-          <div
-            className={`mb-16 text-center transition-all duration-1000 ${isVisible.demo ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-          >
+          <div className="mb-16 text-center">
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
               Collaborate on your Computer
             </h2>
@@ -243,30 +241,23 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Workflow comparison with slide-in animation */}
-          <div
-            className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.demo ? "translate-x-0 opacity-100" : "-translate-x-8 opacity-0"}`}
-          >
-            <div className="w-full max-w-2xl space-y-6 rounded-xl border border-gray-200 bg-white p-8 shadow-lg transition-shadow duration-300 hover:shadow-xl md:p-10">
-              <div className="space-y-3">
-                <div className="text-muted-foreground text-sm font-medium">Instead of:</div>
-                <div className="transform rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-sm text-gray-700 transition-transform duration-200 hover:scale-105">
-                  1. Open browser → 2. Copy → 3. Change tab → 4. Paste → 5. Ask
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="text-muted-foreground text-sm font-medium">Now Simply Do:</div>
-                <div className="transform rounded-lg border border-gray-200 bg-gray-900 p-3 font-mono text-sm text-white transition-transform duration-200 hover:scale-105">
-                  "1. Shortcut → 2. Ask"
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            <FeaturesShowcaseCard
+              title="Smart App Detection"
+              description="Automatically detects your current application and provides contextual assistance. Foxychat understands what you're working on and adapts its responses accordingly."
+              imageUrl="/images/current-app-detected.jpg"
+            />
+            <FeaturesShowcaseCard
+              title="MCP Marketplace"
+              description="Explore a rich ecosystem of Model Context Protocol integrations. Discover and install plugins that extend Foxychat's capabilities instantly."
+              imageUrl="/images/mcp-market.jpg"
+            />
           </div>
         </div>
       </section>
 
       {/* Does a Lot More Than chat Section */}
-      <section className="w-full bg-gray-50 py-16 md:py-24" data-section="features">
+      <section className="w-full py-16 md:py-24" data-section="features">
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
           <div
             className={`mb-16 text-center transition-all duration-1000 ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
@@ -306,125 +297,6 @@ const Index = () => {
                 key={index}
                 className={`transform space-y-4 rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
                 style={{ transitionDelay: `${400 + feature.delay}ms` }}
-              >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
-                  <span className="text-lg text-gray-800">{feature.emoji}</span>
-                </div>
-                <h4 className="text-xl font-semibold">{feature.title}</h4>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Core Features Section */}
-      <section className="w-full bg-white py-16 md:py-24" data-section="coreFeatures">
-        <div className="container mx-auto max-w-6xl px-4 md:px-6">
-          <div
-            className={`mb-16 text-center transition-all duration-1000 ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-          >
-            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Powerful Core Features
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
-              Discover the advanced capabilities that make Foxychat your ultimate AI desktop
-              companion
-            </p>
-          </div>
-
-          {/* Core Features Grid */}
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
-            {/* Current App Detection */}
-            <div
-              className={`group border-border bg-card overflow-hidden rounded-xl border shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-              style={{ transitionDelay: "0ms" }}
-            >
-              <div
-                className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
-                style={{ backgroundImage: "url(/images/current-app-detected.jpg)" }}
-              />
-              <div className="bg-white p-6">
-                <h3 className="text-foreground mb-3 text-xl font-semibold">Smart App Detection</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  Automatically detects your current application and provides contextual assistance.
-                  Foxychat understands what you're working on and adapts its responses accordingly.
-                </p>
-              </div>
-            </div>
-
-            {/* MCP Market */}
-            <div
-              className={`group border-border bg-card overflow-hidden rounded-xl border shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${isVisible.coreFeatures ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-              style={{ transitionDelay: "200ms" }}
-            >
-              <div
-                className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
-                style={{ backgroundImage: "url(/images/mcp-market.jpg)" }}
-              />
-              <div className="h-full bg-white p-6">
-                <h3 className="text-foreground mb-3 text-xl font-semibold">MCP Marketplace</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  Explore a rich ecosystem of Model Context Protocol integrations. Discover and
-                  install plugins that extend Foxychat's capabilities instantly.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Build Your Own Agent Section */}
-      <section className="w-full bg-gray-50 py-16 md:py-24" data-section="agent">
-        <div className="container mx-auto max-w-6xl px-4 md:px-6">
-          <div
-            className={`mb-16 text-center transition-all duration-1000 ${isVisible.agent ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-          >
-            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Build Your Own Agent
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
-              Create custom AI agents tailored to your specific workflows and integrate them
-              seamlessly with Foxychat
-            </p>
-          </div>
-
-          {/* Agent Builder Demo Video with entrance animation */}
-          <div
-            className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.agent ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
-          >
-            <div className="w-full max-w-2xl">
-              <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl transition-all duration-300 hover:shadow-2xl">
-                <div
-                  className="aspect-video w-full bg-cover bg-center bg-no-repeat transition-transform duration-500 hover:scale-105"
-                  style={{ backgroundImage: "url(/images/custom-agent.jpg)" }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Agent Building Features with slide-in animations */}
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-            {[
-              {
-                emoji: "🛠️",
-                title: "No-Code Builder",
-                description:
-                  "Create powerful agents without writing a single line of code using our intuitive visual builder",
-                direction: "left",
-              },
-              {
-                emoji: "🔗",
-                title: "MCP Integration",
-                description:
-                  "Leverage Model Context Protocol to connect your agents with any application or service",
-                direction: "right",
-              },
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className={`transform space-y-4 rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-md ${isVisible.agent ? "translate-x-0 opacity-100" : `opacity-0 ${feature.direction === "left" ? "-translate-x-8" : "translate-x-8"}`}`}
-                style={{ transitionDelay: `${400 + index * 200}ms` }}
               >
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
                   <span className="text-lg text-gray-800">{feature.emoji}</span>
