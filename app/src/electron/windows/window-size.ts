@@ -53,7 +53,7 @@ export const WINDOW_SIZE_PRESETS = {
   //   maxHeight: 800,
   // },
   SETTINGS: {
-    widthProportion: 0.6,
+    widthProportion: 0.4,
     heightProportion: 0.7,
     minWidth: 800,
     minHeight: 600,
