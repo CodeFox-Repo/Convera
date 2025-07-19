@@ -135,7 +135,7 @@ export default function Chat() {
       if (!hasInput && resultCount === 0) {
         // Minimal height for empty state - use minHeight from window config for consistency
         // This ensures the window shrinks back to the compact initial size
-        return 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
+        return hasActiveBadge ? 100 : 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
       }
 
       if (hasInput && resultCount === 0) {

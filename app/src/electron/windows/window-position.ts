@@ -1,6 +1,10 @@
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
+import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 import { appConfig } from "@/electron/config";
-import { calculateWindowDimensions, calculateWindowDimensionsWithTopMargin } from "@/electron/windows/utils";
+import {
+  calculateWindowDimensions,
+  calculateWindowDimensionsWithTopMargin,
+} from "@/electron/windows/utils";
 import {
   WINDOW_SIZE_PRESETS,
   WindowDimensions,
@@ -42,7 +46,6 @@ export function positionWindowAtCenterTop(
     topMarginPercent > 0
       ? Math.round(screenHeight * (topMarginPercent / 100))
       : topMarginPixels || 50;
-
 
   // Get current window size
   const windowBounds = window.getBounds();
@@ -240,7 +243,6 @@ function updateExpectedPosition(window: BrowserWindow) {
   }
 }
 
-
 /**
  * Resize window and maintain its top position
  * This keeps the window's top edge in the same place when resizing vertically
@@ -349,14 +351,34 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     console.log("Window is currently hidden, making it visible");
 
     // === Restore display ===
-    // Always use the new center-top positioning
+    // Check if activeApp has content to determine initial window size
+    const previousApp = getPreviousApp();
+    const hasActiveAppContent = previousApp && previousApp.trim().length > 0;
+
+    console.log(
+      `Previous app: "${previousApp}", has content: ${hasActiveAppContent}`,
+    );
+
+    // Use different window config based on activeApp content
+    let windowConfig = WINDOW_SIZE_PRESETS.CHAT;
+    if (hasActiveAppContent) {
+      // Create a larger window config when activeApp has content
+      windowConfig = {
+        ...WINDOW_SIZE_PRESETS.CHAT,
+        minHeight: 100,
+      };
+      console.log("Using larger window size due to active app content");
+    } else {
+      console.log("Using compact window size (no active app content)");
+    }
+
     const dimensions = calculateWindowDimensionsWithTopMargin(
-      WINDOW_SIZE_PRESETS.CHAT,
+      windowConfig,
       undefined,
       true,
     );
     mainWindow.setBounds(dimensions, false);
-    
+
     // Update expected position to the new correct position
     expectedPosition = dimensions;
 
