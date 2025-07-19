@@ -213,8 +213,7 @@ const Index = () => {
               <p
                 className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium whitespace-nowrap transition-all delay-400 duration-1000 md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
-                Desktop AI assistant that you can call anywhere you want and understands your
-                workflows
+                AI assistant you can access anywhere, designed to integrate with your workflows.
               </p>
               <div
                 className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:justify-center sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
@@ -245,7 +244,7 @@ const Index = () => {
           >
             <div className="text-center">
               <p className="text-muted-foreground mx-auto max-w-[600px] text-lg font-medium md:text-xl">
-                Foxychat's MCP integrates seamlessly with your favorite productivity tools
+                Foxychat's App integrates seamlessly with your favorite productivity tools
               </p>
             </div>
 
