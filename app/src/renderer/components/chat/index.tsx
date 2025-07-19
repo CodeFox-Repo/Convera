@@ -28,7 +28,7 @@ import CommandResults from "./command-results";
  */
 export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, setSelectedContent, sendMessage, isLoading, resetChat } =
+  const { messages, setSelectedContent, sendMessage, isLoading, resetChat, currentConversationId } =
     useChatContext();
   const { previousApp } = usePreviousApp();
 
@@ -47,51 +47,57 @@ export default function Chat() {
   }
 
   // Calculate dynamic window height based on results and content
-  const calculateDynamicHeight = useCallback((
-    resultCount: number,
-    hasInput: boolean,
-    hasActiveBadge: boolean = false,
-    hasContent: boolean = false,
-  ) => {
-    /**
-     * Dynamic base height calculation to prevent excessive bottom margin
-     *
-     * ISSUE: Previously used fixed baseHeight=98 regardless of active app badge presence,
-     * causing ~20px extra bottom margin when no badge was displayed.
-     *
-     * SOLUTION: Conditional base height based on active app badge:
-     * - WITH badge (previousApp exists): 98px - accounts for badge space + proper padding
-     * - WITHOUT badge (no previousApp): 78px - removes extra space, maintains padding
-     *
-     * This ensures the window fits content precisely without unwanted bottom space.
-     */
-    const baseHeight = hasActiveBadge ? 98 : 78; // Dynamic height based on badge presence
-    const containerPadding = 24; // Padding around container
-    const resultHeight = 48; // Height per result item
-    const resultsPadding = 8; // Padding around results
-    const contentHeight = 400; // Height for command content area
+  const calculateDynamicHeight = useCallback(
+    (
+      resultCount: number,
+      hasInput: boolean,
+      hasActiveBadge: boolean = false,
+      hasContent: boolean = false,
+    ) => {
+      /**
+       * Dynamic base height calculation to prevent excessive bottom margin
+       *
+       * ISSUE: Previously used fixed baseHeight=98 regardless of active app badge presence,
+       * causing ~20px extra bottom margin when no badge was displayed.
+       *
+       * SOLUTION: Conditional base height based on active app badge:
+       * - WITH badge (previousApp exists): 98px - accounts for badge space + proper padding
+       * - WITHOUT badge (no previousApp): 78px - removes extra space, maintains padding
+       *
+       * This ensures the window fits content precisely without unwanted bottom space.
+       */
+      const baseHeight = hasActiveBadge ? 98 : 78; // Dynamic height based on badge presence
+      const containerPadding = 24; // Padding around container
+      const resultHeight = 48; // Height per result item
+      const resultsPadding = 8; // Padding around results
+      const contentHeight = 400; // Height for command content area
 
-    // If content is showing, use larger height
-    if (hasContent) {
-      return baseHeight + containerPadding + contentHeight;
-    }
+      // If content is showing, use larger height
+      if (hasContent) {
+        return baseHeight + containerPadding + contentHeight;
+      }
 
-    if (!hasInput && resultCount === 0) {
-      // Minimal height for empty state - especially when no active app
-      return hasActiveBadge ? baseHeight : 70;
-    }
+      if (!hasInput && resultCount === 0) {
+        // Minimal height for empty state - especially when no active app
+        return hasActiveBadge ? baseHeight : 70;
+      }
 
-    if (hasInput && resultCount === 0) {
-      // Show AI chat preview
-      return baseHeight + containerPadding + resultHeight + resultsPadding;
-    }
+      if (hasInput && resultCount === 0) {
+        // Show AI chat preview
+        return baseHeight + containerPadding + resultHeight + resultsPadding;
+      }
 
-    // Show command results
-    const maxResults = Math.min(resultCount, 6); // Limit to 6 results
-    return (
-      baseHeight + containerPadding + maxResults * resultHeight + resultsPadding
-    );
-  }, []);
+      // Show command results
+      const maxResults = Math.min(resultCount, 6); // Limit to 6 results
+      return (
+        baseHeight +
+        containerPadding +
+        maxResults * resultHeight +
+        resultsPadding
+      );
+    },
+    [],
+  );
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback(
@@ -116,7 +122,7 @@ export default function Chat() {
   const handleInputChange = (value: string) => {
     // Don't allow input changes when loading
     if (isLoading) return;
-    
+
     setInputValue(value);
     setIsCommandMode(value.startsWith("/"));
     setSelectedIndex(0); // Reset selection when input changes
@@ -169,100 +175,159 @@ export default function Chat() {
   }, []);
 
   // Handle command execution
-  const handleCommandExecute = useCallback(async (command: CommandResult) => {
-    console.log("Executing MCP command:", command);
-    setInputValue("");
-    setResults([]);
-    setIsCommandMode(false);
-    setShowContent(true);
+  const handleCommandExecute = useCallback(
+    async (command: CommandResult) => {
+      console.log("Executing MCP command:", command);
+      setInputValue("");
+      setResults([]);
+      setIsCommandMode(false);
+      setShowContent(true);
 
-    try {
-      // Call MCP tool with no arguments since it's a non-input param tool
-      const response = await window.mcpAPI.mcpToolCall(command.id, {});
+      try {
+        // Call MCP tool with no arguments since it's a non-input param tool
+        const response = await window.mcpAPI.mcpToolCall(command.id, {});
 
-      if (response.success) {
-        console.log("MCP tool execution result:", response.data);
+        if (response.success) {
+          console.log("MCP tool execution result:", response.data);
 
-        // Create a tool result message and add it to chat context
-        const toolResultMessage = {
-          id: `tool-${Date.now()}`,
-          role: "tool" as const,
-          content:
-            typeof response.data === "string"
-              ? response.data
-              : JSON.stringify(response.data, null, 2),
-          createdAt: new Date(),
-          toolName: command.id,
-        };
+          // Create a tool result message and add it to chat context
+          const toolResultMessage = {
+            id: `tool-${Date.now()}`,
+            role: "tool" as const,
+            content:
+              typeof response.data === "string"
+                ? response.data
+                : JSON.stringify(response.data, null, 2),
+            createdAt: new Date(),
+            toolName: command.id,
+          };
 
-        // You might need to add this to chat context - for now just log
-        console.log("Tool result message:", toolResultMessage);
-      } else {
-        console.error("MCP tool execution failed:", response.error);
+          // You might need to add this to chat context - for now just log
+          console.log("Tool result message:", toolResultMessage);
+        } else {
+          console.error("MCP tool execution failed:", response.error);
 
-        // Show error message
-        const errorMessage = {
-          id: `error-${Date.now()}`,
-          role: "tool" as const,
-          content: `Error executing ${command.id}: ${response.error}`,
-          createdAt: new Date(),
-          toolName: command.id,
-        };
-        console.log("Tool error message:", errorMessage);
+          // Show error message
+          const errorMessage = {
+            id: `error-${Date.now()}`,
+            role: "tool" as const,
+            content: `Error executing ${command.id}: ${response.error}`,
+            createdAt: new Date(),
+            toolName: command.id,
+          };
+          console.log("Tool error message:", errorMessage);
+        }
+      } catch (error) {
+        console.error("Error executing MCP tool:", error);
       }
-    } catch (error) {
-      console.error("Error executing MCP tool:", error);
-    }
 
-    // Don't close window immediately - let user see results
-  }, [sendMessage]);
+      // Don't close window immediately - let user see results
+    },
+    [sendMessage],
+  );
 
   // Handle AI chat submission
-  const handleAIChatSubmit = useCallback((message: string) => {
-    console.log("AI Chat message:", message);
-    if (!message || message.trim() === "") {
-      console.error("Empty message submitted");
-      return;
-    }
-    
-    // Clear input first
-    setInputValue("");
-    setResults([]);
-    setShowContent(true);
+  const handleAIChatSubmit = useCallback(
+    (message: string) => {
+      console.log("AI Chat message:", message);
+      if (!message || message.trim() === "") {
+        console.error("Empty message submitted");
+        return;
+      }
 
-    // Send message directly with the message text
-    console.log("🚀 Calling sendMessage with:", message);
-    sendMessage(message);
-  }, [sendMessage]);
+      // Clear input first
+      setInputValue("");
+      setResults([]);
+      setShowContent(true);
+
+      // Send message directly with the message text
+      console.log("🚀 Calling sendMessage with:", message);
+      sendMessage(message);
+    },
+    [sendMessage],
+  );
 
   // Handle key press
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      if (isCommandMode && results.length > 0) {
-        handleCommandExecute(results[selectedIndex]);
-      } else if (!isCommandMode && inputValue.trim()) {
-        handleAIChatSubmit(inputValue.trim());
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        if (isCommandMode && results.length > 0) {
+          handleCommandExecute(results[selectedIndex]);
+        } else if (!isCommandMode && inputValue.trim()) {
+          handleAIChatSubmit(inputValue.trim());
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (isCommandMode && results.length > 0) {
+          setSelectedIndex((prev) => (prev + 1) % results.length);
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (isCommandMode && results.length > 0) {
+          setSelectedIndex(
+            (prev) => (prev - 1 + results.length) % results.length,
+          );
+        }
+      } else if (e.key === "Escape") {
+        if (showContent) {
+          setShowContent(false);
+        } else if (window.electronAPI?.toggleWindow) {
+          window.electronAPI.toggleWindow("chat");
+        }
       }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (isCommandMode && results.length > 0) {
-        setSelectedIndex((prev) => (prev + 1) % results.length);
+    },
+    [
+      isCommandMode,
+      results,
+      selectedIndex,
+      inputValue,
+      handleCommandExecute,
+      handleAIChatSubmit,
+      showContent,
+    ],
+  );
+
+  // Handle global Cmd+J shortcut
+  useEffect(() => {
+    const handleGlobalKeydown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        e.preventDefault();
+
+        // Only allow if chat has at least one complete conversation (user + assistant)
+        if (messages.length >= 2 && !isLoading && currentConversationId) {
+          console.log("Switching to main window with conversation:", currentConversationId);
+          
+          // Pass conversation ID to main window via localStorage
+          localStorage.setItem("switchToConversation", currentConversationId);
+          
+          // Trigger storage event for same-window detection
+          window.dispatchEvent(new StorageEvent("storage", {
+            key: "switchToConversation",
+            newValue: currentConversationId,
+            oldValue: null
+          }));
+
+          if (window.electronAPI?.toggleWindow) {
+            // Hide current chat window and show main window
+            window.electronAPI.toggleWindow("chat"); // Hide chat
+            window.electronAPI.toggleWindow("main"); // Show main
+          }
+        } else {
+          console.log("Cannot switch: insufficient messages or still loading", {
+            messagesCount: messages.length,
+            isLoading,
+            conversationId: currentConversationId
+          });
+        }
       }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (isCommandMode && results.length > 0) {
-        setSelectedIndex(
-          (prev) => (prev - 1 + results.length) % results.length,
-        );
-      }
-    } else if (e.key === "Escape") {
-      if (showContent) {
-        setShowContent(false);
-      } else if (window.electronAPI?.toggleWindow) {
-        window.electronAPI.toggleWindow("chat");
-      }
-    }
-  }, [isCommandMode, results, selectedIndex, inputValue, handleCommandExecute, handleAIChatSubmit, showContent]);
+    };
+
+    document.addEventListener("keydown", handleGlobalKeydown);
+
+    return () => {
+      document.removeEventListener("keydown", handleGlobalKeydown);
+    };
+  }, [messages.length, isLoading, currentConversationId]);
 
   useEffect(() => {
     const mountTimer = setTimeout(() => {
@@ -368,7 +433,7 @@ export default function Chat() {
         setIsCommandMode(false);
         setSelectedIndex(0);
         setShowContent(false);
-        
+
         // Focus the input after reset
         setTimeout(() => {
           inputRef.current?.focus();
@@ -396,11 +461,10 @@ export default function Chat() {
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
-
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -475,7 +539,7 @@ export default function Chat() {
           placeholder={
             isCommandMode
               ? "Search commands..."
-              : isLoading 
+              : isLoading
                 ? "AI is thinking..."
                 : "Ask FoxyChat AI anything or type / for commands"
           }
@@ -483,19 +547,21 @@ export default function Chat() {
       </div>
 
       {/* Results section - only show when not in content mode and not loading */}
-      {(results.length > 0 || inputValue.trim()) && !showContent && !isLoading && (
-        <div className="flex-1 ">
-          <CommandResults
-            results={results}
-            query={inputValue}
-            isCommandMode={isCommandMode}
-            selectedIndex={selectedIndex}
-            onCommandExecute={handleCommandExecute}
-            onAIChatSubmit={handleAIChatSubmit}
-            onSelectedIndexChange={setSelectedIndex}
-          />
-        </div>
-      )}
+      {(results.length > 0 || inputValue.trim()) &&
+        !showContent &&
+        !isLoading && (
+          <div className="flex-1 ">
+            <CommandResults
+              results={results}
+              query={inputValue}
+              isCommandMode={isCommandMode}
+              selectedIndex={selectedIndex}
+              onCommandExecute={handleCommandExecute}
+              onAIChatSubmit={handleAIChatSubmit}
+              onSelectedIndexChange={setSelectedIndex}
+            />
+          </div>
+        )}
 
       {/* Content overlay - covers everything below input when visible */}
       {showContent && (

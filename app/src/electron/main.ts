@@ -177,6 +177,7 @@ function startAppFocusTracking() {
   }, 500);
 }
 
+
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
 

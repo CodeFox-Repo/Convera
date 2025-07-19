@@ -12,6 +12,7 @@ interface CommandInputProps {
   isCommandMode: boolean;
   disabled?: boolean;
   placeholder?: string;
+  selectedCommand?: { id: string; type?: string } | null;
 }
 
 /**
@@ -24,73 +25,96 @@ interface CommandInputProps {
  * - Responsive to theme changes with appropriate contrast ratios
  */
 const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
-  ({ value, onChange, onKeyPress, isCommandMode, disabled, placeholder }, ref) => {
+  (
+    {
+      value,
+      onChange,
+      onKeyPress,
+      isCommandMode,
+      disabled,
+      placeholder,
+      selectedCommand,
+    },
+    ref,
+  ) => {
     const { previousApp, formatAppName } = usePreviousApp();
 
     return (
       <div className="relative w-full">
-        <div className={cn(
-          "relative border border-foreground/10 rounded-lg transition-all duration-200 bg-white/5 backdrop-blur-sm",
-          !disabled && "focus-within:border-foreground/20 focus-within:ring-1 focus-within:ring-foreground/10",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}>
-          {/* Command mode indicator - shows when user types "/" */}
-          {isCommandMode && (
-            <div
-              className={cn(
-                "absolute left-4 -translate-y-1/2 text-primary/60 z-10 flex items-center justify-center",
-                previousApp ? "top-7" : "top-7",
-              )}
-            >
-              <span className="text-lg font-medium">/</span>
-            </div>
+        <div
+          className={cn(
+            "relative border border-foreground/10 rounded-lg transition-all duration-200 bg-white/5 backdrop-blur-sm",
+            !disabled &&
+              "focus-within:border-foreground/20 focus-within:ring-1 focus-within:ring-foreground/10",
+            disabled && "opacity-50 cursor-not-allowed",
           )}
-
-          {/* Main input field with enhanced transparency for window blur */}
-          <input
-            ref={ref}
-            type="text"
-            value={
-              isCommandMode && value.startsWith("/") ? value.slice(1) : value
-            }
-            onChange={(e) => {
-              if (disabled) return;
-              const newValue = e.target.value;
-              // In command mode, always ensure the "/" prefix is maintained
-              if (isCommandMode) {
-                onChange("/" + newValue);
-              } else {
-                onChange(newValue);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (disabled) return;
-              // Handle backspace to exit command mode
-              if (e.key === "Backspace" && isCommandMode && value === "/") {
-                e.preventDefault();
-                onChange("");
-              }
-              onKeyPress(e);
-            }}
-            placeholder={placeholder || "Ask AI or type / for commands"}
-            className={cn(
-              // Base styling - leverages window transparency for glass effect
-              "w-full h-14 rounded-lg border-0",
-              "text-foreground placeholder:text-foreground/50",
-              "focus:outline-none",
-              "transition-all duration-200 ease-in-out",
-              "text-base font-medium",
-              // Adaptive padding based on mode and active app badge
-              isCommandMode ? "pl-7 pr-4" : "px-4",
-              // Transparent background to show window blur
-              "bg-transparent backdrop-blur-none text-lg",
-              // Disabled state
-              disabled && "cursor-not-allowed"
+        >
+          <div className="flex items-center ">
+            {/* Command mode indicator - shows when user types "/" or in command input mode */}
+            {(isCommandMode || selectedCommand) && (
+              <div
+                className={cn(
+                  "ml-4 z-10 flex items-center justify-center",
+                  previousApp ? "top-7" : "top-7",
+                  isCommandMode && !selectedCommand && "-mr-4",
+                )}
+              >
+                {selectedCommand && selectedCommand.type === "input-command" ? (
+                  <span className="text-sm font-medium text-primary/60">
+                    /{selectedCommand.id}
+                  </span>
+                ) : (
+                  <span className="text-lg font-medium text-primary/60">/</span>
+                )}
+              </div>
             )}
-            disabled={disabled}
-            autoComplete="off"
-            spellCheck={false}
-          />
+
+            {/* Main input field with enhanced transparency for window blur */}
+            <input
+              ref={ref}
+              type="text"
+              value={
+                isCommandMode && value.startsWith("/") ? value.slice(1) : value
+              }
+              onChange={(e) => {
+                if (disabled) return;
+                const newValue = e.target.value;
+                // In command mode, always ensure the "/" prefix is maintained
+                if (isCommandMode) {
+                  onChange("/" + newValue);
+                } else {
+                  onChange(newValue);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (disabled) return;
+                // Handle backspace to exit command mode
+                if (e.key === "Backspace" && isCommandMode && value === "/") {
+                  e.preventDefault();
+                  onChange("");
+                }
+                onKeyPress(e);
+              }}
+              placeholder={placeholder || "Ask AI or type / for commands"}
+              className={cn(
+                // Base styling - leverages window transparency for glass effect
+                "w-full h-14 rounded-lg border-0",
+                "text-foreground placeholder:text-foreground/50",
+                "focus:outline-none",
+                "transition-all duration-200 ease-in-out",
+                "text-base font-medium",
+                // Adaptive padding based on mode and active app badge
+                isCommandMode ? "pl-6 pr-4" : "pl-2",
+                // Transparent background to show window blur
+                "bg-transparent backdrop-blur-none text-lg",
+                // Disabled state
+                disabled && "cursor-not-allowed",
+              )}
+              disabled={disabled}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
 
           {/* Active app badge - positioned inside input border at bottom left */}
 

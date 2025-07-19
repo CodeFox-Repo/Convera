@@ -52,6 +52,40 @@ export function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
+  // Listen for conversation switching from chat popup window
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "switchToConversation" && event.newValue) {
+        const conversationId = event.newValue;
+        console.log("Main window received switchToConversation:", conversationId);
+        
+        // Load the conversation using existing selectChat method
+        // Clean up immediately to prevent other windows from processing this event
+        localStorage.removeItem("switchToConversation");
+        
+        const loadConversation = async () => {
+          try {
+            console.log("Loading conversation:", conversationId);
+            setCurrentSessionId(conversationId);
+            await selectChat(conversationId);
+            console.log("Successfully loaded conversation in main window");
+          } catch (error) {
+            console.error("Failed to load conversation in main window:", error);
+          }
+        };
+        
+        loadConversation();
+      }
+    };
+
+    // Listen for storage events from other windows
+    window.addEventListener("storage", handleStorageChange);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [selectChat, chatHistory, setCurrentSessionId]);
+
   // Fetch chat history on component mount
   useEffect(() => {
     fetchChatHistory();

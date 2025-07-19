@@ -1,7 +1,7 @@
 // Command Content Component
 // Displays MCP command results and AI chat responses in a larger content area
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
-import { Bot, Loader2, Settings, User } from "lucide-react";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
@@ -53,7 +53,7 @@ interface CommandContentProps {
  * - Clean typography for improved readability
  */
 const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
-  const { messages, isLoading } = useChatContext();
+  const { messages, isLoading, currentConversationId } = useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
@@ -194,75 +194,120 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
             <div className="text-sm">No content yet</div>
           </div>
         ) : messages.length > 0 || isLoading ? (
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div key={message.id || index} className="flex gap-3">
-                {/* Avatar */}
-                <div className="flex-shrink-0 mt-1">
-                  {message.role === "user" ? (
-                    <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <User size={12} className="text-blue-500" />
+          <div className="space-y-6">
+            {/* Group messages into user-assistant pairs */}
+            {(() => {
+              const messagePairs = [];
+              for (let i = 0; i < messages.length; i += 2) {
+                const userMessage = messages[i];
+                const assistantMessage = messages[i + 1];
+
+                if (userMessage?.role === "user") {
+                  messagePairs.push({
+                    user: userMessage,
+                    assistant: assistantMessage,
+                    index: i,
+                  });
+                }
+              }
+
+              return messagePairs.map((pair, pairIndex) => {
+                const isLastPair = pairIndex === messagePairs.length - 1;
+
+                return (
+                  <div key={pair.user.id || pair.index} className="space-y-3">
+                    {/* Card containing both user and assistant messages */}
+                    <div className="rounded-lg border border-foreground/10 px-4 py-2 space-y-0">
+                      {/* User message */}
+                      <div className="text-muted-foreground">
+                        {renderToolContent(pair.user)}
+                      </div>
+
+                      {/* Assistant message (if exists) */}
+                      {pair.assistant && (
+                        <div className="text-foreground leading-relaxed">
+                          {renderToolContent(pair.assistant)}
+                        </div>
+                      )}
+
+                      {/* Loading indicator inside card when AI is thinking */}
+                      {isLastPair && isLoading && !pair.assistant && (
+                        <div className="text-foreground leading-relaxed">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-sm text-foreground/60">
+                              Foxy Thinking...
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ) : message.role === "assistant" ? (
-                    <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <Bot size={12} className="text-green-500" />
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center">
-                      <Settings size={12} className="text-orange-500" />
-                    </div>
-                  )}
-                </div>
 
-                {/* Message Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground/80 mb-1">
-                    {message.role === "user"
-                      ? "You"
-                      : message.role === "assistant"
-                        ? "AI"
-                        : "Tool"}
+                    {/* Bottom section with model and continue button - only after last pair, no divider */}
+                    {isLastPair && pair.assistant && (
+                      <div className="flex items-center justify-between ">
+                        <div className="flex items-center gap-2 text-xs text-foreground/60">
+                          <Bot size={12} />
+                          <span>GPT-4o mini</span>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (currentConversationId && window.electronAPI?.toggleWindow) {
+                              console.log("Continue in Chat button - switching with conversation:", currentConversationId);
+                              
+                              // Pass conversation ID to main window via localStorage
+                              localStorage.setItem("switchToConversation", currentConversationId);
+                              
+                              // Trigger storage event for same-window detection
+                              window.dispatchEvent(new StorageEvent("storage", {
+                                key: "switchToConversation",
+                                newValue: currentConversationId,
+                                oldValue: null
+                              }));
+                              
+                              // Hide current chat window and show main window
+                              window.electronAPI.toggleWindow("chat"); // Hide chat
+                              window.electronAPI.toggleWindow("main");  // Show main
+                            }
+                          }}
+                          className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors flex items-center gap-1"
+                        >
+                          <span>Continue in Chat</span>
+                          <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">
+                            ⌘
+                          </span>
+                          <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">
+                            J
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="text-sm text-foreground/90 leading-relaxed">
-                    {renderToolContent(message)}
-                  </div>
-
-                  {/* Timestamp */}
-                  <div className="text-xs text-foreground/40 mt-2">
-                    {new Date(
-                      message.createdAt || Date.now(),
-                    ).toLocaleTimeString()}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Loading indicator */}
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Bot size={12} className="text-green-500" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground/80 mb-1">
-                    AI
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-foreground/60">
-                      Thinking...
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+                );
+              });
+            })()}
 
             {/* Scroll anchor */}
             <div ref={messagesEndRef} className="h-1" />
           </div>
         ) : null}
       </div>
+
+      {/* Footer - shown when there are messages or loading */}
+      {(messages.length > 0 || isLoading) && (
+        <div className="px-3 border-t border-foreground/10 bg-foreground/10">
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-2 text-xs text-foreground/50">
+              <Sparkles size={12} />
+              <span>Pro AI</span>
+            </div>
+            <button className="flex items-center gap-1 text-xs text-foreground/50 hover:text-foreground/70 transition-colors">
+              <span>Cancel</span>
+              <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">ESC</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
