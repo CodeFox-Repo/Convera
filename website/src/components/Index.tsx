@@ -1,6 +1,5 @@
 import DemoVideoSection from "@/components/DemoVideoSection";
 import Footer from "@/components/Footer";
-import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -196,13 +195,13 @@ const Index = () => {
         ></div>
 
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
-          <div className="mb-20 grid grid-cols-1 items-center gap-16 lg:grid-cols-[1fr_1.5fr] lg:gap-20 xl:gap-24">
-            {/* Left side - Content with stagger animation */}
+          <div className="mb-20 flex items-center justify-center">
+            {/* Centered Content with stagger animation */}
             <div
-              className={`space-y-8 transition-all duration-1000 lg:space-y-10 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              className={`max-w-7xl space-y-8 text-center transition-all duration-1000 lg:space-y-10 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
             >
               <h1
-                className={`bg-clip-text text-5xl leading-tight font-bold tracking-tight text-transparent transition-all delay-200 duration-1200 sm:text-6xl md:text-7xl lg:text-6xl xl:text-7xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+                className={`bg-clip-text text-4xl leading-tight font-bold tracking-tight whitespace-nowrap text-transparent transition-all delay-200 duration-1200 sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
                 style={{
                   backgroundImage:
                     "linear-gradient(to right, rgb(30 41 59) 0%, rgb(30 41 59) 30%, rgb(251 146 60) 50%, rgb(251 146 60) 100%)",
@@ -211,14 +210,13 @@ const Index = () => {
                 Your AI Desktop Companion
               </h1>
               <p
-                className={`text-muted-foreground max-w-[520px] text-xl leading-relaxed font-medium transition-all delay-400 duration-1000 md:text-2xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+                className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium whitespace-nowrap transition-all delay-400 duration-1000 md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
-                Your personal desktop AI assistant that leverages{" "}
-                <span className="text-primary font-semibold">Model Context Protocol (MCP)</span> to
-                understand your workflows and automate repetitive tasks intelligently.
+                Desktop AI assistant that you can call anywhere you want and understands your
+                workflows
               </p>
               <div
-                className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+                className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:justify-center sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
                 <Button
                   size="lg"
@@ -231,15 +229,6 @@ const Index = () => {
                     <Download className="ml-3 h-5 w-5" />
                   </Link>
                 </Button>
-              </div>
-            </div>
-
-            {/* Right side - Hero Image with entrance animation */}
-            <div
-              className={`mt-8 flex justify-center transition-all delay-300 duration-1200 lg:mt-0 lg:justify-end ${isVisible.hero ? "translate-x-0 scale-100 opacity-100" : "translate-x-8 scale-95 opacity-0"}`}
-            >
-              <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
-                <HeroImage />
               </div>
             </div>
           </div>
