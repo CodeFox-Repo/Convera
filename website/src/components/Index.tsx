@@ -2,22 +2,11 @@ import Footer from "@/components/Footer";
 import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Code, Download, FileText, Palette, Table } from "lucide-react";
+import { Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  siDiscord,
-  siFigma,
-  siGithub,
-  siGnubash,
-  siGooglechrome,
-  siJira,
-  siNotion,
-  siObsidian,
-  siSlack,
-} from "simple-icons";
 import DemoVideoSection from "./DemoVideoSection";
+import AppsSupportSection from "./apps_support_section";
 
 const Index = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -227,113 +216,14 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-
-              <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
-                <HeroImage />
-              </div>
             </div>
           </div>
 
-          {/* Integrated Apps Support Section with stagger animation */}
-          <div
-            className={`space-y-8 transition-all delay-800 duration-1000 md:space-y-12 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
-            data-section="apps"
-          >
-            <div className="text-center">
-              <p className="text-muted-foreground mx-auto max-w-[600px] text-lg font-medium md:text-xl">
-                Foxychat's App integrates seamlessly with your favorite productivity tools
-              </p>
-            </div>
-
-            <div className="relative">
-              {/* Enhanced arrow buttons */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-gray-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-gray-300 hover:bg-white/100"
-                onClick={scrollLeft}
-              >
-                <ChevronLeft className="h-4 w-4 text-black" />
-              </Button>
-
-              <Button
-                variant="outline"
-                size="icon"
-                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-gray-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-gray-300 hover:bg-white/100"
-                onClick={scrollRight}
-              >
-                <ChevronRight className="h-4 w-4 text-black" />
-              </Button>
-
-              <div className="mx-12 overflow-hidden">
-                <div
-                  ref={scrollContainerRef}
-                  className="scrollbar-hide flex space-x-4 overflow-x-auto px-2 py-4"
-                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                  onMouseEnter={() => setIsHovered(true)}
-                  onMouseLeave={() => setIsHovered(false)}
-                >
-                  {[
-                    // App icons data
-                    { name: "VS Code", icon: Code, isLucide: true },
-                    { name: "Chrome", logo: siGooglechrome.svg },
-                    { name: "Notion", logo: siNotion.svg },
-                    { name: "Slack", logo: siSlack.svg },
-                    { name: "Discord", logo: siDiscord.svg },
-                    { name: "Figma", logo: siFigma.svg },
-                    { name: "Excel", icon: Table, isLucide: true },
-                    { name: "Word", icon: FileText, isLucide: true },
-                    { name: "GitHub", logo: siGithub.svg },
-                    { name: "Jira", logo: siJira.svg },
-                    { name: "Obsidian", logo: siObsidian.svg },
-                    { name: "Terminal", logo: siGnubash.svg },
-                    { name: "Photoshop", icon: Palette, isLucide: true },
-                    // Duplicate set for seamless loop
-                    { name: "VS Code", icon: Code, isLucide: true },
-                    { name: "Chrome", logo: siGooglechrome.svg },
-                    { name: "Notion", logo: siNotion.svg },
-                    { name: "Slack", logo: siSlack.svg },
-                    { name: "Discord", logo: siDiscord.svg },
-                    { name: "Figma", logo: siFigma.svg },
-                    { name: "Excel", icon: Table, isLucide: true },
-                    { name: "Word", icon: FileText, isLucide: true },
-                    { name: "GitHub", logo: siGithub.svg },
-                    { name: "Jira", logo: siJira.svg },
-                    { name: "Obsidian", logo: siObsidian.svg },
-                    { name: "Terminal", logo: siGnubash.svg },
-                    { name: "Photoshop", icon: Palette, isLucide: true },
-                  ].map((app, index) => (
-                    <Card
-                      key={index}
-                      className={`group h-24 w-24 shrink-0 border border-gray-200 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white hover:shadow-lg ${isVisible.apps ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
-                      style={{
-                        transitionDelay: `${(index % 13) * 100}ms`,
-                        animation: isVisible.apps
-                          ? `fadeInUp 0.6s ease-out ${(index % 13) * 100}ms both`
-                          : "none",
-                      }}
-                    >
-                      <CardContent className="flex h-full flex-col items-center justify-center space-y-2 p-3">
-                        <div className="flex h-8 w-8 items-center justify-center transition-transform duration-200 group-hover:scale-110">
-                          {app.isLucide ? (
-                            <app.icon className="h-8 w-8 text-gray-700 transition-colors duration-200 group-hover:text-black" />
-                          ) : (
-                            <div
-                              className="h-8 w-8 transition-transform duration-200 group-hover:scale-110"
-                              dangerouslySetInnerHTML={{ __html: app.logo || "" }}
-                            />
-                          )}
-                        </div>
-                        <span className="text-muted-foreground text-center text-xs font-medium transition-colors duration-200 group-hover:text-black">
-                          {app.name}
-                        </span>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
+            <HeroImage />
           </div>
+
+          <AppsSupportSection isVisible={isVisible.hero} />
         </div>
       </section>
 
