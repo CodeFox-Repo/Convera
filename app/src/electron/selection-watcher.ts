@@ -4,8 +4,11 @@ import { getChatWindow } from "./windows/chat-window";
 import { setInputContent } from "@/electro-bridge/ipc/ipc-handlers";
 
 // 使用 uiohook-napi 替代 iohook
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let uiohook: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let uiohookNapi: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let getWindows: any = null;
 
 // 尝试动态加载依赖
@@ -75,6 +78,7 @@ async function simulateClipboardCopy(): Promise<void> {
   try {
     // 导入robot模块
     const robot = await import("@/shared/robot");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const robotjs = robot.default as any;
 
     if (!robotjs) {
@@ -187,6 +191,7 @@ async function handleSelectionCheck() {
       if (getWindows) {
         try {
           const windows = await getWindows();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const activeWindow = windows.find((win: any) => {
             return win.owner?.name && win.bounds?.x !== undefined;
           });
@@ -210,6 +215,7 @@ async function handleSelectionCheck() {
           `✅ Selection detected from ${appName}: "${selectedText.slice(0, 50)}..."`,
         );
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const content: any = {
           text: selectedText,
         };
@@ -295,6 +301,7 @@ async function pollClipboardChanges(): Promise<void> {
         console.log("🪟 Active windows:", windows.length);
 
         // 找到前台活跃窗口
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const activeWindow = windows.find((win: any) => {
           // 检查窗口是否有 owner 信息
           return win.owner?.name && win.bounds?.x !== undefined;
@@ -320,6 +327,7 @@ async function pollClipboardChanges(): Promise<void> {
       );
 
       // 发送内容和应用信息
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const content: any = {
         text: currentText,
       };
@@ -417,6 +425,7 @@ export function startAutoSelectionWatcher(): boolean {
         console.log("🎯 Starting uiohook-napi for mouse event detection...");
 
         // 监听所有鼠标和键盘事件
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         uiohook.on("input", async (event: any) => {
           const eventType = event.type;
 

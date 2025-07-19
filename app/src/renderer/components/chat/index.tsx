@@ -100,8 +100,6 @@ export default function Chat() {
   }, [viewMode, hasExpandedOnce, setHasExpandedOnce]);
 
   useEffect(() => {
-    let mounted = true;
-
     if (window.electronAPI?.onSetInputContent) {
       const unsubscribe = window.electronAPI.onSetInputContent(
         (content: { text?: string; imageData?: string }) => {
