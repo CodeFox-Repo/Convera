@@ -270,48 +270,11 @@ const Index = () => {
             {/* Demo Videos Section with zoom-in animation */}
             <DemoVideoSection isVisible={isVisible.demo} />
           </div>
-
-          {/* Feature grid with stagger animation */}
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {[
-              {
-                emoji: "🔧",
-                title: "Integrate with your favorite app",
-                description:
-                  "Integrate with your favorite app and use it with Foxychat through MCP Server",
-                delay: 0,
-              },
-              {
-                emoji: "🧠",
-                title: "Context Awareness",
-                description: "Understands what you're working on and provides relevant assistance",
-                delay: 200,
-              },
-              {
-                emoji: "⚡",
-                title: "Instant Actions",
-                description: "Execute complex operations with simple text commands",
-                delay: 400,
-              },
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className={`transform space-y-4 rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-md ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-                style={{ transitionDelay: `${400 + feature.delay}ms` }}
-              >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 shadow-sm transition-all duration-300 hover:scale-110 hover:shadow-md">
-                  <span className="text-lg text-gray-800">{feature.emoji}</span>
-                </div>
-                <h4 className="text-xl font-semibold">{feature.title}</h4>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
       {/* Join Foxychat Community Section */}
-      <section className="w-full bg-gray-50 py-20 md:py-28">
+      <section className="w-full py-20 md:py-28">
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
