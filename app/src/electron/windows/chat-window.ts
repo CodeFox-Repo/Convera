@@ -18,7 +18,7 @@ const logger = getLogger("chat-window");
 
 const CHAT_WINDOW_DIMENSIONS = {
   width: 600,
-  height: 700,
+  height: 700, // Raycast-style compact initial height
 };
 
 // Extract platform-specific configurations for chat window

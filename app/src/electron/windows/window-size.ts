@@ -4,7 +4,7 @@
  */
 export interface WindowSizeConfig {
   widthProportion: number;
-  heightProportion: number;
+  heightProportion?: number; // Optional: allows disabling initial height proportion for dynamic sizing
   minWidth: number;
   minHeight: number;
   maxWidth?: number;
@@ -26,9 +26,11 @@ export interface WindowDimensions {
  */
 export const WINDOW_SIZE_PRESETS = {
   // Raycast-style chat window with dynamic sizing
+  // DISABLED: heightProportion to prevent initial window size interference
+  // The window size will be controlled by React's dynamic height calculation instead
   CHAT: {
     widthProportion: 0.35,
-    heightProportion: 0.1, // Base height, will be adjusted dynamically
+    // heightProportion: 0.06, // DISABLED: Let React handle height dynamically
     minWidth: 600,
     minHeight: 80,
     maxWidth: 800,

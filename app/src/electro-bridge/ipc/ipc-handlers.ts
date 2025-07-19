@@ -420,6 +420,14 @@ export function getCurrentWindowSize(window: WindowSizeConfig): {
   width: number;
   height: number;
 } {
+  // Get the actual current window size, not the calculated config size
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    const [width, height] = focusedWindow.getSize();
+    return { width, height };
+  }
+
+  // Fallback to calculated dimensions if no focused window
   return calculateWindowDimensions(window);
 }
 

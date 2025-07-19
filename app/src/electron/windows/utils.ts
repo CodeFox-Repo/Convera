@@ -1,9 +1,9 @@
+import { appConfig } from "@/electron/config";
 import {
   WindowDimensions,
   WindowSizeConfig,
 } from "@/electron/windows/window-size";
 import { screen } from "electron";
-import { appConfig } from "@/electron/config";
 
 /**
  * Calculate window dimensions based on screen size and proportion configuration
@@ -29,7 +29,10 @@ export function calculateWindowDimensions(
 
   // Calculate proportional dimensions
   let width = Math.round(screenWidth * config.widthProportion);
-  let height = Math.round(screenHeight * config.heightProportion);
+  // Use heightProportion if available, otherwise use minHeight for dynamic sizing
+  let height = config.heightProportion
+    ? Math.round(screenHeight * config.heightProportion)
+    : config.minHeight;
 
   // Apply min/max constraints
   width = Math.max(config.minWidth, width);
@@ -73,11 +76,13 @@ export function calculateWindowDimensionsWithTopMargin(
     topMarginPercent > 0
       ? Math.round(screenHeight * (topMarginPercent / 100))
       : topMarginPixels || 50;
-  
 
   // Calculate proportional dimensions
   let width = Math.round(screenWidth * config.widthProportion);
-  let height = Math.round(screenHeight * config.heightProportion);
+  // Use heightProportion if available, otherwise use minHeight for dynamic sizing
+  let height = config.heightProportion
+    ? Math.round(screenHeight * config.heightProportion)
+    : config.minHeight;
 
   // Apply min/max constraints
   width = Math.max(config.minWidth, width);
@@ -92,7 +97,9 @@ export function calculateWindowDimensionsWithTopMargin(
   }
 
   // Calculate position
-  const x = centerX ? workAreaX + Math.round((screenWidth - width) / 2) : workAreaX;
+  const x = centerX
+    ? workAreaX + Math.round((screenWidth - width) / 2)
+    : workAreaX;
   const y = topMargin;
 
   return { width, height, x, y };

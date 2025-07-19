@@ -17,6 +17,8 @@ interface CommandResultsProps {
   query: string;
   isCommandMode: boolean;
   selectedIndex: number;
+  selectedInputCommand: CommandResult | null;
+  commandResult: string;
   onCommandExecute: (command: CommandResult) => void;
   onAIChatSubmit: (message: string) => void;
   onSelectedIndexChange: (index: number) => void;
@@ -40,11 +42,46 @@ const CommandResults: React.FC<CommandResultsProps> = ({
   query,
   isCommandMode,
   selectedIndex,
+  selectedInputCommand,
+  commandResult,
   onCommandExecute,
   onAIChatSubmit,
   onSelectedIndexChange,
 }) => {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+
+  // Input Change Command mode - show command result instead of command list
+  if (selectedInputCommand && query.trim()) {
+    return (
+      <div className=" mt-2 w-full">
+        <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
+          <div>
+            <div
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200",
+                "hover:bg-foreground/8 active:bg-foreground/12 bg-foreground/8",
+              )}
+              onClick={() => onAIChatSubmit(commandResult)}
+            >
+              <div className="text-lg">{selectedInputCommand.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-foreground text-sm">
+                  {selectedInputCommand.name}
+                </div>
+                <div className="text-xs text-foreground/60 truncate">
+                  {commandResult}
+                </div>
+              </div>
+              <div className="text-xs text-foreground/40 flex items-center justify-center">
+                ⏎
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isCommandMode) {
     return (
       <div className="mt-1.5  w-full">
@@ -114,10 +151,10 @@ const CommandResults: React.FC<CommandResultsProps> = ({
               )}
               onClick={() => onAIChatSubmit(query)}
             >
-              <div className="text-lg">🤖</div>
+              <div className="text-lg">🦊</div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-foreground text-sm">
-                  Ask AI
+                  Ask Foxy
                 </div>
                 <div className="text-xs text-foreground/60 truncate">
                   &ldquo;{query}&rdquo;

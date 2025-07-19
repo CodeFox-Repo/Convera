@@ -98,7 +98,7 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               placeholder={placeholder || "Ask AI or type / for commands"}
               className={cn(
                 // Base styling - leverages window transparency for glass effect
-                "w-full h-14 rounded-lg border-0",
+                "w-full h-16 rounded-lg border-0",
                 "text-foreground placeholder:text-foreground/50",
                 "focus:outline-none",
                 "transition-all duration-200 ease-in-out",
