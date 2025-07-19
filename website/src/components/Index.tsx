@@ -1,4 +1,3 @@
-import DemoVideoSection from "@/components/DemoVideoSection";
 import Footer from "@/components/Footer";
 import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
@@ -18,6 +17,7 @@ import {
   siObsidian,
   siSlack,
 } from "simple-icons";
+import DemoVideoSection from "./DemoVideoSection";
 
 const Index = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -379,9 +379,6 @@ const Index = () => {
               </div>
             </div>
           </div>
-
-          {/* Demo Videos Section with zoom-in animation */}
-          <DemoVideoSection isVisible={isVisible.demo} />
         </div>
       </section>
 
@@ -397,35 +394,9 @@ const Index = () => {
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
               Does a Lot More Than Chat
             </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
-              Foxychat goes beyond simple conversations to become your intelligent desktop companion
-            </p>
-          </div>
 
-          {/* Small Demo Video with entrance animation */}
-          <div
-            className={`mb-16 flex justify-center transition-all delay-200 duration-1000 ${isVisible.features ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
-          >
-            <div className="w-full max-w-2xl">
-              <div className="border-primary/20 bg-card hover:border-primary/30 relative overflow-hidden rounded-xl border shadow-xl transition-all duration-300 hover:shadow-2xl">
-                <div className="aspect-video w-full">
-                  <div className="from-primary/5 to-primary/10 hover:from-primary/10 flex h-full w-full items-center justify-center bg-linear-to-br transition-all duration-300">
-                    <div className="space-y-3 text-center">
-                      <div className="bg-primary mx-auto flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl">
-                        <svg
-                          className="text-primary-foreground h-4 w-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                      <p className="text-primary text-sm font-medium">Feature Demo Video</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Demo Videos Section with zoom-in animation */}
+            <DemoVideoSection isVisible={isVisible.demo} />
           </div>
 
           {/* Feature grid with stagger animation */}
