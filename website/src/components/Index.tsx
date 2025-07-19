@@ -3,9 +3,10 @@ import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { Download } from "lucide-react";
+import { DollarSign, Download, MessageCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import AppsSupportSection from "./apps_support_section";
+import CommunityCard from "./community_card";
 import DemoVideoSection from "./DemoVideoSection";
 import FeaturesShowcaseCard from "./FeaturesShowcaseCard";
 
@@ -305,6 +306,45 @@ const Index = () => {
                 <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Join Foxychat Community Section */}
+      <section className="w-full bg-gray-50 py-20 md:py-28">
+        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+          <div className="mb-16 text-center">
+            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              Join Foxychat Community
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl text-center text-lg leading-relaxed md:text-xl">
+              Get started with Foxychat today and become part of our growing community
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <CommunityCard
+              icon={Download}
+              title="Download Now"
+              description="Get the latest version of Foxychat and start enhancing your productivity today."
+              buttonText="Download Free"
+              href="/download"
+            />
+            <CommunityCard
+              icon={MessageCircle}
+              title="Join Our Discord"
+              description="Connect with other users, get support, and share your experiences with the community."
+              buttonText="Join Discord"
+              href="https://discord.gg/foxychat"
+              isExternal={true}
+            />
+            <CommunityCard
+              icon={DollarSign}
+              title="View Pricing"
+              description="Explore our pricing plans and find the perfect option for your needs."
+              buttonText="See Pricing"
+              href="/pricing"
+            />
           </div>
         </div>
       </section>
