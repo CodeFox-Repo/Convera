@@ -204,7 +204,9 @@ const Index = () => {
               <h1
                 className={`text-4xl leading-tight font-bold tracking-tight text-gray-800 sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
               >
-                Your AI Desktop Companion
+                Your AI Desktop
+                <br />
+                Companion
               </h1>
               <p
                 className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
