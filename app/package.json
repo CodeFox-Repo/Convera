@@ -172,6 +172,7 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
+    "uiohook-napi": "^1.5.4",
     "utf-8-validate": "^6.0.5",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",

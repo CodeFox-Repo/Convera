@@ -105,8 +105,15 @@ export default function Chat() {
     if (window.electronAPI?.onSetInputContent) {
       const unsubscribe = window.electronAPI.onSetInputContent(
         (content: { text?: string; imageData?: string }) => {
-          // Prevent processing after unmount to avoid stale closure issues
-          if (!mounted) return;
+          // 不再检查 mounted 状态，确保始终能接收内容
+          console.log('📨 Received content from IPC:', content.text?.slice(0, 50));
+
+          // 处理空文本的情况（用于清空 context）
+          if (content.text === "" || content.text === undefined || content.text === null) {
+            console.log('🧹 Clearing selected content (empty text received)');
+            setSelectedContent(null);
+            return;
+          }
 
           // Create selected content with both text and image data
           if (content.imageData || (content.text && content.text.trim())) {
@@ -117,6 +124,7 @@ export default function Chat() {
             });
 
             setSelectedContent(selectedContent);
+            console.log('✅ Selected content set successfully');
           } else {
             setSelectedContent(null);
           }
@@ -124,7 +132,6 @@ export default function Chat() {
       );
 
       return () => {
-        mounted = false;
         unsubscribe?.();
       };
     }

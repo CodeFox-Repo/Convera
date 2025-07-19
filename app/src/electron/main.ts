@@ -32,6 +32,10 @@ import {
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { getChatWindow } from "./windows/chat-window";
+import { 
+  startAutoSelectionWatcher, 
+  stopAutoSelectionWatcher 
+} from "./selection-watcher";
 import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
@@ -372,6 +376,15 @@ app.whenReady().then(async () => {
     // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
 
+    // 启动自动选区检测
+    logger.debug("Starting auto selection watcher");
+    const autoSelectionStarted = startAutoSelectionWatcher();
+    if (autoSelectionStarted) {
+      console.log("🎯 Auto selection watcher started successfully");
+    } else {
+      console.log("⚠️ Auto selection watcher failed to start - falling back to manual mode");
+    }
+
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         logger.info("App activated, creating chat window");
@@ -387,6 +400,7 @@ app.whenReady().then(async () => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   destroySystemTray();
+  stopAutoSelectionWatcher();
   const hub = getMCPHub();
   if (hub) {
     hub.cleanup();
