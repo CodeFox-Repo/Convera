@@ -101,7 +101,7 @@ const AppsSupportSection = ({ isVisible }: AppsSupportSectionProps) => {
             ].map((app, index) => (
               <Card
                 key={index}
-                className={`group h-24 w-24 shrink-0 border border-gray-200 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white hover:shadow-lg ${isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                className={`group h-32 w-32 shrink-0 border border-gray-200 bg-white/90 shadow-md backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white hover:shadow-lg ${isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
                 style={{
                   transitionDelay: `${(index % 13) * 100}ms`,
                   animation: isVisible
