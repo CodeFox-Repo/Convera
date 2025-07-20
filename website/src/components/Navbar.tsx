@@ -14,61 +14,63 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-gray-200/20 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/60">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          {/* Logo Section */}
-          <div className="flex flex-1 items-center">
-            <Link to="/" className="group flex items-center space-x-3">
-              <div className="transition-transform duration-300 group-hover:scale-105">
-                <Logo />
-              </div>
-              <span className="bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
-                Foxychat
-              </span>
-            </Link>
+    <header className="fixed top-4 left-1/2 z-50 w-full -translate-x-1/2">
+      <div className="container mx-auto rounded-full border border-gray-200/20 bg-gray-100/80 backdrop-blur-xl supports-backdrop-filter:bg-gray-100/80">
+        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-x-12">
+            {/* Logo Section */}
+            <div className="flex items-center">
+              <Link to="/" className="group flex items-center space-x-3">
+                <div className="transition-transform duration-300 group-hover:scale-105">
+                  <Logo />
+                </div>
+                <span className="bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
+                  Foxychat
+                </span>
+              </Link>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden items-center space-x-6 md:flex">
+              <a
+                href="#demo"
+                className="group relative text-gray-600 transition-colors duration-300 hover:text-orange-500"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <Play className="h-4 w-4" />
+                  <span>Demo</span>
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
+              </a>
+
+              <a
+                href="https://docs.foxychat.net/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative text-gray-600 transition-colors duration-300 hover:text-blue-500"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <FileText className="h-4 w-4" />
+                  <span>Documentation</span>
+                  <ExternalLink className="h-3 w-3 opacity-60" />
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
+              </a>
+
+              <Link
+                to="/pricing"
+                className="group relative text-gray-600 transition-colors duration-300 hover:text-purple-500"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <span>Pricing</span>
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-purple-500 to-purple-400 transition-all duration-300 group-hover:w-full"></div>
+              </Link>
+            </nav>
           </div>
 
-          {/* Desktop Navigation - Centered */}
-          <nav className="hidden flex-1 items-center justify-center space-x-8 md:flex">
-            <a
-              href="#demo"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-orange-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <Play className="h-4 w-4" />
-                <span>Demo</span>
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
-            </a>
-
-            <a
-              href="https://docs.foxychat.net/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-blue-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <FileText className="h-4 w-4" />
-                <span>Documentation</span>
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
-            </a>
-
-            <Link
-              to="/pricing"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-purple-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <span>Pricing</span>
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-purple-500 to-purple-400 transition-all duration-300 group-hover:w-full"></div>
-            </Link>
-          </nav>
-
           {/* CTA Buttons */}
-          <div className="hidden flex-1 items-center justify-end space-x-4 md:flex">
+          <div className="hidden items-center justify-end space-x-4 md:flex">
             <Badge
               variant="outline"
               className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
