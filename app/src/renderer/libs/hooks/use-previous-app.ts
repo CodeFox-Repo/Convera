@@ -10,8 +10,8 @@ export function usePreviousApp() {
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
     try {
-      if (window.electronAPI) {
-        const appName = await window.electronAPI.getPreviousApp();
+      if (window.activeAppAPI) {
+        const appName = await window.activeAppAPI.getPreviousApp();
 
         // Ignore self-referential applications
         const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
@@ -27,7 +27,7 @@ export function usePreviousApp() {
   useEffect(() => {
     // Initial fetch
     const fetchContent = async () => {
-      const content = await window.electronAPI.getPreviousAppContent();
+      const content = await window.activeAppAPI.getPreviousAppContent();
       console.log("Previous app content:", content);
       setPreviousAppContent(content);
     };

@@ -9,10 +9,9 @@ import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
-import { load } from "cheerio";
-import { exec } from "child_process";
 import os from "os";
 import path from "path";
+import { activatePreviousApp } from "./active-app-context";
 import { CHANNELS } from "./channels";
 
 // Import window getters and creators
@@ -40,112 +39,6 @@ import {
 
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
-let previousAppName = "";
-let previousAppId = 0;
-let resultHandleScript: (html: string) => string;
-enum appType {
-  WebBrowser = "web-browser",
-  Safari = "safari",
-}
-
-const filterHtmlContent = (html: string): string => {
-  const $ = load(html);
-  // Remove script, style, and noscript tags
-  $("script,style,noscript").remove();
-  // Get the text content, trim each line, and filter out empty lines
-  return $.root()
-    .text()
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
-};
-const appNameList: Record<
-  appType,
-  {
-    // List of application ueing same appleScript
-    appList: string[];
-
-    // AppleScript command to get the content of the frontmost application
-    appleScript: (appName: string) => string;
-    // function to handle content filtering after calling appleScript
-    filter: (content: string) => string;
-  }
-> = {
-  [appType.WebBrowser]: {
-    appList: ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"],
-    appleScript: (appName) => `osascript -e 'tell application "${appName}"' \
-             -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
-             -e 'end tell'`,
-    filter: (content) => {
-      return filterHtmlContent(content);
-    },
-  },
-  [appType.Safari]: {
-    appList: ["Safari"],
-    appleScript: (appName) =>
-      `osascript -e 'tell application "${appName}" to return source of front document'`,
-    filter: (content) => {
-      return filterHtmlContent(content);
-    },
-  },
-};
-const appleCommand = (): string => {
-  for (const appTypeKey in appNameList) {
-    const appTypeValue = appNameList[appTypeKey as keyof typeof appNameList];
-    if (appTypeValue.appList.includes(previousAppName)) {
-      resultHandleScript = appTypeValue.filter;
-      return appTypeValue.appleScript(previousAppName);
-    }
-  }
-  return "";
-};
-
-// ========== APP HANDLERS ==========
-
-export function getPreviousApp(): string {
-  return previousAppName;
-}
-export function getPreviousAppContent(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    exec(appleCommand(), { maxBuffer: 100 * 1024 * 1024 }, (err, stdout) => {
-      if (err) {
-        return reject(err);
-      }
-      const res =
-        stdout && resultHandleScript ? resultHandleScript(stdout) : "";
-
-      resolve(res);
-    });
-  });
-}
-
-export function getPreviousAppID(): number {
-  return previousAppId;
-}
-
-export function getPlatform(): string {
-  return process.platform;
-}
-
-export function setPreviousApp(appName: string, appId?: number): void {
-  if (
-    appName !== previousAppName ||
-    (appId !== undefined && appId !== previousAppId)
-  ) {
-    previousAppName = appName;
-
-    if (appId !== undefined) {
-      previousAppId = appId;
-    }
-
-    BrowserWindow.getAllWindows().forEach((win) => {
-      if (!win.isDestroyed()) {
-        win.webContents.send(CHANNELS.APP.APP_CHANGED, appName, previousAppId);
-      }
-    });
-  }
-}
 
 // ========== UNIFIED WINDOW CONTROL ==========
 
@@ -514,19 +407,11 @@ export function setInputContent(
 // Function to simulate a paste operation using robotjs
 export function simulateClipboardPaste(): void {
   try {
-    // use to run the app in dev mode
-
-    // const robot = require("@hurdlegroup/robotjs");
-
-    // Write to clipboard first
     if (process.platform === "darwin") {
-      // For macOS, use Command+V
       robot?.keyTap("v", "command");
     } else {
-      // For Windows/Linux, use Control+V
       robot?.keyTap("v", "control");
     }
-
     console.log("Paste operation simulated successfully");
   } catch (error) {
     console.error("Error simulating paste operation:", error);
@@ -537,85 +422,13 @@ export function simulateClipboardPaste(): void {
 export function pasteModifiedContent(content: string): void {
   try {
     console.log("Pasting modified content to previous app");
-
-    // Save content to clipboard
     clipboard.writeText(content);
+    activatePreviousApp();
 
-    // Get the previous app name and ID
-    const prevApp = getPreviousApp();
-    const prevAppId = getPreviousAppID();
-
-    if (prevApp) {
-      // Activate the previous app
-      if (process.platform === "darwin") {
-        // For macOS, use AppleScript
-        exec(
-          `osascript -e 'tell application "${prevApp}" to activate'`,
-          (error) => {
-            if (error) {
-              console.error(`Error activating ${prevApp}:`, error);
-              return;
-            }
-
-            // Wait a moment for the app to come to foreground, then paste
-            setTimeout(() => {
-              simulateClipboardPaste();
-            }, 500);
-          },
-        );
-      } else if (process.platform === "win32" && prevAppId) {
-        // For Windows, use node-window-manager
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { windowManager } = require("node-window-manager");
-
-          // Get all windows
-          const windows = windowManager.getWindows();
-
-          // Find the target window
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const targetWindow = windows.find((w: any) => {
-            // Try to match by process ID first (most reliable)
-            if (prevAppId && w.processId === prevAppId) {
-              return true;
-            }
-
-            // Fall back to title matching
-            const title = w.getTitle();
-            return title && title.includes(prevApp);
-          });
-
-          if (targetWindow) {
-            console.log(`Found window for ${prevApp}, activating...`);
-
-            // Restore if minimized
-            if (!targetWindow.isVisible()) {
-              targetWindow.restore();
-            }
-
-            // Bring window to top (activate it)
-            targetWindow.bringToTop();
-
-            // Wait a moment for the window to activate, then paste
-            setTimeout(() => {
-              simulateClipboardPaste();
-            }, 300);
-          } else {
-            console.warn(`Window for "${prevApp}" not found; pasting anyway`);
-            simulateClipboardPaste();
-          }
-        } catch (error) {
-          console.error("Error using window-manager:", error);
-          // Fallback to just pasting
-          simulateClipboardPaste();
-        }
-      } else {
-        // For other platforms, just simulate paste (without app switching)
-        simulateClipboardPaste();
-      }
-    } else {
-      console.log("No previous app detected, can't switch focus");
-    }
+    // Wait a moment for the app to come to foreground, then paste
+    setTimeout(() => {
+      simulateClipboardPaste();
+    }, 500);
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }
@@ -625,7 +438,6 @@ export function pasteModifiedContent(content: string): void {
  * Open file or directory path in system default application
  */
 export function openPath(targetPath: string): void {
-  // Handle tilde expansion for home directory
   let resolvedPath = targetPath;
   if (targetPath.startsWith("~/")) {
     resolvedPath = path.join(os.homedir(), targetPath.slice(2));
