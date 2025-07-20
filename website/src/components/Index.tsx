@@ -164,7 +164,7 @@ const Index = () => {
               <p
                 className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
-                AI assistant you can access anywhere, designed to integrate with your workflows.
+                AI assistant you can access anywhere, integrate with your workflows.
               </p>
               <div
                 className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:justify-center sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
