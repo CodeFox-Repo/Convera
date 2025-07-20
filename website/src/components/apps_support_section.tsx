@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Code, FileText, Palette, Table } from "lucide-react";
+import { Code, FileText, Palette, Table } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   siDiscord,
@@ -12,7 +12,6 @@ import {
   siSlack,
 } from "simple-icons";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface AppsSupportSectionProps {
@@ -50,44 +49,6 @@ const AppsSupportSection = ({ isVisible }: AppsSupportSectionProps) => {
     };
   }, [isHovered]);
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const cardWidth = 96 + 16;
-      const scrollAmount = cardWidth * 4;
-      const maxScroll = container.scrollWidth / 2;
-
-      setIsHovered(true);
-
-      if (container.scrollLeft <= 0) {
-        container.scrollLeft = maxScroll - scrollAmount;
-      } else {
-        container.scrollBy({ left: -scrollAmount, behavior: "smooth" });
-      }
-
-      setTimeout(() => setIsHovered(false), 2000);
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const cardWidth = 96 + 16;
-      const scrollAmount = cardWidth * 4;
-      const maxScroll = container.scrollWidth / 2;
-
-      setIsHovered(true);
-
-      if (container.scrollLeft >= maxScroll - 50) {
-        container.scrollLeft = 0;
-      } else {
-        container.scrollBy({ left: scrollAmount, behavior: "smooth" });
-      }
-
-      setTimeout(() => setIsHovered(false), 2000);
-    }
-  };
-
   return (
     <div
       className={`space-y-8 transition-all delay-800 duration-1000 md:space-y-12 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
@@ -100,25 +61,6 @@ const AppsSupportSection = ({ isVisible }: AppsSupportSectionProps) => {
       </div>
 
       <div className="relative">
-        {/* Enhanced arrow buttons */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute top-1/2 left-0 z-10 -translate-y-1/2 border-gray-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-gray-300 hover:bg-white/100"
-          onClick={scrollLeft}
-        >
-          <ChevronLeft className="h-4 w-4 text-black" />
-        </Button>
-
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute top-1/2 right-0 z-10 -translate-y-1/2 border-gray-200 bg-white/90 shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:border-gray-300 hover:bg-white/100"
-          onClick={scrollRight}
-        >
-          <ChevronRight className="h-4 w-4 text-black" />
-        </Button>
-
         <div className="mx-12 overflow-hidden">
           <div
             ref={scrollContainerRef}
