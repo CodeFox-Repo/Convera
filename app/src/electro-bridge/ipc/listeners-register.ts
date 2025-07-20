@@ -2,6 +2,12 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import {
+  getPlatform,
+  getPreviousApp,
+  getPreviousAppContent,
+  getPreviousAppID,
+} from "./active-app-context";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { setupEnvIPC } from "./env-context";
 import {
@@ -10,10 +16,6 @@ import {
   getCurrentTheme,
   getCurrentWindowPosition,
   getCurrentWindowSize,
-  getPlatform,
-  getPreviousApp,
-  getPreviousAppContent,
-  getPreviousAppID,
   hideAgentPopoverWindow,
   hideModelSelectorWindow,
   initGlobalShortcut,
@@ -161,17 +163,9 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   });
 
   // App functionality
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, () => {
-    return getPreviousApp();
-  });
-
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, () => {
-    return getPreviousAppID();
-  });
-
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, () => {
-    return getPreviousAppContent();
-  });
+  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, getPreviousApp);
+  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, getPreviousAppID);
+  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, getPreviousAppContent);
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
     return getClipboardText();
@@ -193,9 +187,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   );
 
   // Platform detection
-  ipcMain.handle(CHANNELS.PLATFORM.GET, () => {
-    return getPlatform();
-  });
+  ipcMain.handle(CHANNELS.PLATFORM.GET, getPlatform);
 
   // Unified Theme Control
   ipcMain.handle(CHANNELS.THEME.SET, (_event, mode: ThemeMode) => {

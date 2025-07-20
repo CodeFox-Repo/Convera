@@ -16,10 +16,10 @@ import {
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
+import { setPreviousApp } from "@/electro-bridge/ipc/active-app-context";
 import {
   getCurrentShortcut,
   setInputContent,
-  setPreviousApp,
 } from "@/electro-bridge/ipc/ipc-handlers";
 
 import robot from "@/shared/robot";
