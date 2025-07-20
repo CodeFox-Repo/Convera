@@ -1,5 +1,8 @@
+import {
+  activatePreviousApp,
+  getPreviousApp,
+} from "@/electro-bridge/ipc/active-app-context";
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
-import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 import { appConfig } from "@/electron/config";
 import {
   calculateWindowDimensions,
@@ -392,7 +395,11 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     isHiddenOffscreen = false;
   } else {
     console.log("Window is currently visible, hiding it");
-
+    try {
+      activatePreviousApp();
+    } catch (error) {
+      console.error("Error getting previous app:", error);
+    }
     // Save current position only if it's valid
     const currentBounds = mainWindow.getBounds();
     if (currentBounds.x >= 0 && currentBounds.y >= 0) {

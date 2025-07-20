@@ -47,6 +47,18 @@ export const useAgentStore = create<AgentState>()(
       const savedAgents = localStorage.getItem("availableAgents");
 
       const baseUrl = getApiBaseUrl();
+
+      const defaultAgent: Agent = {
+        id: "", // Special ID for the default agent
+        name: "Default Assistant",
+        description: "The default assistant with general capabilities.",
+        systemPrompt: "",
+        disableToolReferences: [],
+        predefined: true,
+        selectedMCPs: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
       return {
         selectedAgent: savedAgent ? JSON.parse(savedAgent) : null,
         agentChanged: false,
@@ -101,12 +113,18 @@ export const useAgentStore = create<AgentState>()(
 
               if (Array.isArray(agents)) {
                 console.log(`Store loaded ${agents.length} agents`);
-                get().setAvailableAgents(agents);
+                const agentsWithDefault = [
+                  defaultAgent,
+                  ...agents.filter(
+                    (agent: Agent) => agent.id !== "DefaultAssistant",
+                  ),
+                ];
+                get().setAvailableAgents(agentsWithDefault);
 
                 // Update selected agent if it exists in the new list
                 const currentSelected = get().selectedAgent;
                 if (currentSelected) {
-                  const updatedSelectedAgent = agents.find(
+                  const updatedSelectedAgent = agentsWithDefault.find(
                     (agent: Agent) => agent.id === currentSelected.id,
                   );
                   if (updatedSelectedAgent) {

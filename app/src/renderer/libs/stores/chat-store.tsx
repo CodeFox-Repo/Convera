@@ -12,6 +12,7 @@ import React, {
 } from "react";
 import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
+import { usePreviousApp } from "../hooks/use-previous-app";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { parseApiError, type GenericError } from "../utils/error-handler";
 import { updateOpenAISettings } from "../utils/settings";
@@ -123,6 +124,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
+  const { previousApp, openedApps, previousAppContent } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -800,6 +802,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             customApiSettings,
             // Re-enable MCP servers
             mcpServers,
+            environment: {
+              app: {
+                activeApp: previousApp,
+                openedApps: openedApps,
+                activeAppContent: previousAppContent,
+              },
+            },
           };
           console.log("🔧 Frontend: Sending request with body:", requestBody);
 
@@ -833,6 +842,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedAgent,
       isUserLoggedIn,
       useRemoteStore,
+      previousApp,
+      openedApps,
+      previousAppContent,
     ],
   );
 

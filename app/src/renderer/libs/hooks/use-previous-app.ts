@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
  */
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
+  const [previousAppContent, setPreviousAppContent] = useState<string>();
+  const [openedApps, setOpenedApps] = useState<string[]>([]);
 
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
     try {
-      if (window.electronAPI) {
-        const appName = await window.electronAPI.getPreviousApp();
+      if (window.activeAppAPI) {
+        const appName = await window.activeAppAPI.getPreviousApp();
 
         // Ignore self-referential applications
         const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
@@ -22,6 +24,28 @@ export function usePreviousApp() {
       console.error("Error fetching previous app:", error);
     }
   };
+
+  const fetchOpenedApps = async () => {
+    try {
+      if (window.activeAppAPI) {
+        const apps = await window.activeAppAPI.getOpenedApps();
+        setOpenedApps(apps);
+      }
+    } catch (error) {
+      console.error("Error fetching opened apps:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Initial fetch
+    const fetchContent = async () => {
+      const content = await window.activeAppAPI.getPreviousAppContent();
+      console.log("Previous app content:", content);
+      setPreviousAppContent(content);
+    };
+    fetchContent();
+    fetchOpenedApps();
+  }, [previousApp]);
 
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
@@ -63,5 +87,7 @@ export function usePreviousApp() {
     previousApp,
     formatAppName,
     fetchPreviousApp,
+    previousAppContent,
+    openedApps,
   };
 }
