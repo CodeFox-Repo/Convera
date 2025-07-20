@@ -48,16 +48,7 @@ export const appContextRetrievers: Record<
   },
   [appType.Generic]: {
     appList: [], // This will be the fallback
-    appleScript: (appName) => `osascript -e 'tell application "System Events"' \
-        -e 'if exists process "${appName}" then' \
-        -e '    tell process "${appName}"' \
-        -e '        set uiElements to entire contents' \
-        -e '        return uiElements' \
-        -e '    end tell' \
-        -e 'else' \
-        -e '    error "The process "${appName}" is not running."' \
-        -e 'end if' \
-        -e 'end tell'`,
+    appleScript: () => "",
     filter: (content) => content,
   },
 };
@@ -65,6 +56,9 @@ export const appContextRetrievers: Record<
 export let contentFilter: (content: string) => string = (content) => content;
 
 export const getAppleScriptForApp = (appName: string): string => {
+  if (!appName) {
+    return "";
+  }
   for (const appTypeKey in appContextRetrievers) {
     if (appTypeKey === appType.Generic) continue;
     const appTypeValue =
@@ -87,6 +81,9 @@ export function getPreviousApp(): string {
 
 export function getPreviousAppContent(): Promise<string> {
   return new Promise((resolve) => {
+    if (!previousAppName) {
+      return resolve("");
+    }
     const command = getAppleScriptForApp(previousAppName);
     if (!command) {
       return resolve("");
