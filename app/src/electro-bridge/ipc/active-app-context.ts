@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { BrowserWindow } from "electron";
 import { CHANNELS } from "./channels";
 
@@ -56,9 +56,6 @@ export const appContextRetrievers: Record<
 export let contentFilter: (content: string) => string = (content) => content;
 
 export const getAppleScriptForApp = (appName: string): string => {
-  if (!appName) {
-    return "";
-  }
   for (const appTypeKey in appContextRetrievers) {
     if (appTypeKey === appType.Generic) continue;
     const appTypeValue =
@@ -134,8 +131,9 @@ export function activatePreviousApp(): void {
   }
 
   if (process.platform === "darwin") {
-    exec(
-      `osascript -e 'tell application "${prevApp}" to activate'`,
+    execFile(
+      "osascript",
+      ["-e", `tell application "${prevApp}" to activate`],
       (error) => {
         if (error) {
           console.error(`Error activating ${prevApp}:`, error);
@@ -175,14 +173,19 @@ export function getOpenedApps(): Promise<string[]> {
     if (process.platform !== "darwin") {
       return resolve([]);
     }
-    const script =
-      'tell application "System Events" to get name of every process whose background only is false';
-    exec(`osascript -e '${script}'`, (err, stdout) => {
+    const script = `
+      try
+        tell application "System Events" to get name of every process whose background only is false
+      on error
+        return ""
+      end try
+    `;
+    execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
         console.error("Error getting opened apps:", err);
         return resolve([]);
       }
-      const apps = stdout.trim().split(", ");
+      const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
       resolve(apps);
     });
   });

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
   const [previousAppContent, setPreviousAppContent] = useState<string>();
+  const [openedApps, setOpenedApps] = useState<string[]>([]);
 
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
@@ -24,6 +25,17 @@ export function usePreviousApp() {
     }
   };
 
+  const fetchOpenedApps = async () => {
+    try {
+      if (window.activeAppAPI) {
+        const apps = await window.activeAppAPI.getOpenedApps();
+        setOpenedApps(apps);
+      }
+    } catch (error) {
+      console.error("Error fetching opened apps:", error);
+    }
+  };
+
   useEffect(() => {
     // Initial fetch
     const fetchContent = async () => {
@@ -32,6 +44,7 @@ export function usePreviousApp() {
       setPreviousAppContent(content);
     };
     fetchContent();
+    fetchOpenedApps();
   }, [previousApp]);
 
   // Fetch previous app on component mount and setup event listener for app changes
@@ -75,5 +88,6 @@ export function usePreviousApp() {
     formatAppName,
     fetchPreviousApp,
     previousAppContent,
+    openedApps,
   };
 }
