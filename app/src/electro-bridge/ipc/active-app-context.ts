@@ -11,6 +11,7 @@ let previousAppId = 0;
 export enum appType {
   WebBrowser = "web-browser",
   Safari = "safari",
+  Generic = "generic",
 }
 
 export const filterHtmlContent = (html: string): string => {
@@ -24,7 +25,7 @@ export const filterHtmlContent = (html: string): string => {
     .join("\n");
 };
 
-export const appNameList: Record<
+export const appContextRetrievers: Record<
   appType,
   {
     appList: string[];
@@ -45,20 +46,38 @@ export const appNameList: Record<
       `osascript -e 'tell application "${appName}" to return source of front document'`,
     filter: (content) => filterHtmlContent(content),
   },
+  [appType.Generic]: {
+    appList: [], // This will be the fallback
+    appleScript: (appName) => `osascript -e 'tell application "System Events"' \
+        -e 'if exists process "${appName}" then' \
+        -e '    tell process "${appName}"' \
+        -e '        set uiElements to entire contents' \
+        -e '        return uiElements' \
+        -e '    end tell' \
+        -e 'else' \
+        -e '    error "The process "${appName}" is not running."' \
+        -e 'end if' \
+        -e 'end tell'`,
+    filter: (content) => content,
+  },
 };
 
-export let resultHandleScript: (content: string) => string = (content) =>
-  content;
+export let contentFilter: (content: string) => string = (content) => content;
 
-export const appleCommand = (appName: string): string => {
-  for (const appTypeKey in appNameList) {
-    const appTypeValue = appNameList[appTypeKey as keyof typeof appNameList];
+export const getAppleScriptForApp = (appName: string): string => {
+  for (const appTypeKey in appContextRetrievers) {
+    if (appTypeKey === appType.Generic) continue;
+    const appTypeValue =
+      appContextRetrievers[appTypeKey as keyof typeof appContextRetrievers];
     if (appTypeValue.appList.includes(appName)) {
-      resultHandleScript = appTypeValue.filter;
+      contentFilter = appTypeValue.filter;
       return appTypeValue.appleScript(appName);
     }
   }
-  return "";
+  // Fallback to generic
+  const genericApp = appContextRetrievers[appType.Generic];
+  contentFilter = genericApp.filter;
+  return genericApp.appleScript(appName);
 };
 
 // API Methods
@@ -68,7 +87,7 @@ export function getPreviousApp(): string {
 
 export function getPreviousAppContent(): Promise<string> {
   return new Promise((resolve) => {
-    const command = appleCommand(previousAppName);
+    const command = getAppleScriptForApp(previousAppName);
     if (!command) {
       return resolve("");
     }
@@ -77,8 +96,7 @@ export function getPreviousAppContent(): Promise<string> {
         console.error("Error getting app content:", err);
         return resolve("");
       }
-      const res =
-        stdout && resultHandleScript ? resultHandleScript(stdout) : "";
+      const res = stdout && contentFilter ? contentFilter(stdout) : "";
       resolve(res);
     });
   });
