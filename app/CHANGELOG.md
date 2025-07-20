@@ -1,5 +1,11 @@
 # @foxychat/app
 
+## 0.0.21
+
+### Patch Changes
+
+- c49a69a: Release version 0.0.21
+
 ## 0.0.20
 
 ### Patch Changes

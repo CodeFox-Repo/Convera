@@ -86,6 +86,36 @@
     app-region: no-drag;
   }
 
+  /* Smart sidebar drag region - default to no-drag to preserve clicking */
+  .sidebar-drag-region {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  /* Only empty whitespace areas are draggable */
+  .sidebar-drag-region .drag-whitespace {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  /* Ensure all interactive and content elements remain clickable */
+  .sidebar-drag-region button,
+  .sidebar-drag-region input,
+  .sidebar-drag-region textarea,
+  .sidebar-drag-region select,
+  .sidebar-drag-region a,
+  .sidebar-drag-region h1,
+  .sidebar-drag-region h2,
+  .sidebar-drag-region h3,
+  .sidebar-drag-region p,
+  .sidebar-drag-region span,
+  .sidebar-drag-region div:not(.drag-whitespace),
+  .sidebar-drag-region img,
+  .sidebar-drag-region .no-drag-region {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
   button {
     @apply cursor-pointer;
     transition:

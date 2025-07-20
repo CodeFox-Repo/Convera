@@ -47,47 +47,46 @@ enum appType {
   WebBrowser = "web-browser",
   Safari = "safari",
 }
+
+const filterHtmlContent = (html: string): string => {
+  const $ = load(html);
+  // Remove script, style, and noscript tags
+  $("script,style,noscript").remove();
+  // Get the text content, trim each line, and filter out empty lines
+  return $.root()
+    .text()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+};
 const appNameList: Record<
   appType,
   {
+    // List of application ueing same appleScript
     appList: string[];
-    handlerScript: (html: string) => string;
+
+    // AppleScript command to get the content of the frontmost application
     appleScript: (appName: string) => string;
+    // function to handle content filtering after calling appleScript
+    filter: (content: string) => string;
   }
 > = {
   [appType.WebBrowser]: {
     appList: ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"],
-    appleScript: (
-      appName: string,
-    ) => `osascript -e 'tell application "${appName}"' \
+    appleScript: (appName) => `osascript -e 'tell application "${appName}"' \
              -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
              -e 'end tell'`,
-    handlerScript: (html: string) => {
-      const $ = load(html);
-      $("script,style,noscript").remove();
-
-      return $.root()
-        .text()
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join("\n");
+    filter: (content) => {
+      return filterHtmlContent(content);
     },
   },
   [appType.Safari]: {
     appList: ["Safari"],
-    appleScript: (appName: string) =>
+    appleScript: (appName) =>
       `osascript -e 'tell application "${appName}" to return source of front document'`,
-    handlerScript: (html: string) => {
-      const $ = load(html);
-      $("script,style,noscript").remove();
-
-      return $.root()
-        .text()
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join("\n");
+    filter: (content) => {
+      return filterHtmlContent(content);
     },
   },
 };
@@ -95,7 +94,7 @@ const appleCommand = (): string => {
   for (const appTypeKey in appNameList) {
     const appTypeValue = appNameList[appTypeKey as keyof typeof appNameList];
     if (appTypeValue.appList.includes(previousAppName)) {
-      resultHandleScript = appTypeValue.handlerScript;
+      resultHandleScript = appTypeValue.filter;
       return appTypeValue.appleScript(previousAppName);
     }
   }
