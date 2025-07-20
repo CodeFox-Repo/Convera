@@ -172,3 +172,21 @@ export function activatePreviousApp(): void {
     }
   }
 }
+
+export function getOpenedApps(): Promise<string[]> {
+  return new Promise((resolve) => {
+    if (process.platform !== "darwin") {
+      return resolve([]);
+    }
+    const script =
+      'tell application "System Events" to get name of every process whose background only is false';
+    exec(`osascript -e '${script}'`, (err, stdout) => {
+      if (err) {
+        console.error("Error getting opened apps:", err);
+        return resolve([]);
+      }
+      const apps = stdout.trim().split(", ");
+      resolve(apps);
+    });
+  });
+}
