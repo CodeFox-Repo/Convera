@@ -127,44 +127,6 @@ const Index = () => {
     };
   }, [isHovered]);
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const cardWidth = 96 + 16;
-      const scrollAmount = cardWidth * 4;
-      const maxScroll = container.scrollWidth / 2;
-
-      setIsHovered(true);
-
-      if (container.scrollLeft <= 0) {
-        container.scrollLeft = maxScroll - scrollAmount;
-      } else {
-        container.scrollBy({ left: -scrollAmount, behavior: "smooth" });
-      }
-
-      setTimeout(() => setIsHovered(false), 2000);
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const cardWidth = 96 + 16;
-      const scrollAmount = cardWidth * 4;
-      const maxScroll = container.scrollWidth / 2;
-
-      setIsHovered(true);
-
-      if (container.scrollLeft >= maxScroll - 50) {
-        container.scrollLeft = 0;
-      } else {
-        container.scrollBy({ left: scrollAmount, behavior: "smooth" });
-      }
-
-      setTimeout(() => setIsHovered(false), 2000);
-    }
-  };
-
   return (
     <div className="bg-background flex min-h-screen flex-col">
       <Navbar />
