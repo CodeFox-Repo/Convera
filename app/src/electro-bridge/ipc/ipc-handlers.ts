@@ -42,7 +42,65 @@ import {
 let currentActivateShortcut = "";
 let previousAppName = "";
 let previousAppId = 0;
-const webBrowserList = ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"];
+let resultHandleScript: (html: string) => string;
+enum appType {
+  WebBrowser = "web-browser",
+  Safari = "safari",
+}
+const appNameList: Record<
+  appType,
+  {
+    appList: string[];
+    handlerScript: (html: string) => string;
+    appleScript: (appName: string) => string;
+  }
+> = {
+  [appType.WebBrowser]: {
+    appList: ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"],
+    appleScript: (
+      appName: string,
+    ) => `osascript -e 'tell application "${appName}"' \
+             -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
+             -e 'end tell'`,
+    handlerScript: (html: string) => {
+      const $ = load(html);
+      $("script,style,noscript").remove();
+
+      return $.root()
+        .text()
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("\n");
+    },
+  },
+  [appType.Safari]: {
+    appList: ["Safari"],
+    appleScript: (appName: string) =>
+      `osascript -e 'tell application "${appName}" to return source of front document'`,
+    handlerScript: (html: string) => {
+      const $ = load(html);
+      $("script,style,noscript").remove();
+
+      return $.root()
+        .text()
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("\n");
+    },
+  },
+};
+const appleCommand = (): string => {
+  for (const appTypeKey in appNameList) {
+    const appTypeValue = appNameList[appTypeKey as keyof typeof appNameList];
+    if (appTypeValue.appList.includes(previousAppName)) {
+      resultHandleScript = appTypeValue.handlerScript;
+      return appTypeValue.appleScript(previousAppName);
+    }
+  }
+  return "";
+};
 
 // ========== APP HANDLERS ==========
 
@@ -50,41 +108,16 @@ export function getPreviousApp(): string {
   return previousAppName;
 }
 export function getPreviousAppContent(): Promise<string> {
-  let resultHandleScript: (html: string) => string;
-  const appleCommand = () => {
-    if (webBrowserList.includes(previousAppName)) {
-      resultHandleScript = (html: string) => {
-        const $ = load(html);
-        $("script,style,noscript").remove();
-
-        return $.root()
-          .text()
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean)
-          .join("\n");
-      };
-      return `osascript -e 'tell application "${previousAppName}"' \
-               -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
-               -e 'end tell'`;
-    }
-    return "";
-  };
-
   return new Promise((resolve, reject) => {
-    exec(
-      appleCommand(),
-      { maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        if (err) {
-          console.error("AppleScript 执行出错：", stderr);
-          return reject(err);
-        }
-        const res = resultHandleScript(stdout);
+    exec(appleCommand(), { maxBuffer: 100 * 1024 * 1024 }, (err, stdout) => {
+      if (err) {
+        return reject(err);
+      }
+      const res =
+        stdout && resultHandleScript ? resultHandleScript(stdout) : "";
 
-        resolve(res);
-      },
-    );
+      resolve(res);
+    });
   });
 }
 
