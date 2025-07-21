@@ -3,7 +3,8 @@ import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { DollarSign, Download, MessageCircle } from "lucide-react";
+import { DollarSign, Download } from "lucide-react";
+import { siDiscord } from "simple-icons";
 import { useEffect, useRef, useState } from "react";
 import AppsSupportSection from "./apps_support_section";
 import CommunityCard from "./community_card";
@@ -409,7 +410,7 @@ const Index = () => {
               href="/download"
             />
             <CommunityCard
-              icon={MessageCircle}
+              svgIcon={siDiscord.svg}
               title="Join Our Discord"
               description="Connect with other users, get support, and share your experiences with the community."
               buttonText="Join Discord"
