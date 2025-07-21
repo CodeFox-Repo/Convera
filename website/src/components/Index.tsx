@@ -81,6 +81,33 @@ const Index = () => {
         }
       }
       
+      @keyframes float {
+        0%, 100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-20px);
+        }
+      }
+      
+      @keyframes rotate {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 0.8;
+        }
+      }
+      
       .animate-fadeInUp {
         animation: fadeInUp 0.6s ease-out both;
       }
@@ -91,6 +118,18 @@ const Index = () => {
       
       .animate-slideInRight {
         animation: slideInFromRight 0.6s ease-out both;
+      }
+      
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
+      }
+      
+      .animate-rotate {
+        animation: rotate 20s linear infinite;
+      }
+      
+      .animate-pulse-slow {
+        animation: pulse 4s ease-in-out infinite;
       }
     `;
     document.head.appendChild(style);
@@ -136,17 +175,38 @@ const Index = () => {
         className="relative w-full overflow-hidden py-20 pt-28 md:py-28 md:pt-36"
         data-section="hero"
       >
-        {/* Animated background elements */}
-        <div className="bg-opacity-50 absolute inset-0 bg-white"></div>
-        <div className="absolute top-0 right-0 h-full w-1/3"></div>
-        <div
-          className="bg-primary/8 absolute top-1/4 left-1/4 h-32 w-32 animate-bounce rounded-full blur-xl"
-          style={{ animationDuration: "3s" }}
-        ></div>
-        <div
-          className="bg-primary/12 absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse rounded-full blur-2xl"
-          style={{ animationDuration: "4s" }}
-        ></div>
+        {/* Enhanced background with gradient and patterns */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50"></div>
+        
+        {/* Geometric background pattern */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_25%_25%,rgba(59,130,246,0.1)_0%,transparent_50%),radial-gradient(circle_at_75%_75%,rgba(147,51,234,0.1)_0%,transparent_50%)]"></div>
+        </div>
+        
+        {/* Floating geometric shapes */}
+        <div className="absolute top-10 left-10 w-20 h-20 bg-blue-200/30 rounded-lg animate-float blur-sm" style={{ animationDelay: "0s" }}></div>
+        <div className="absolute top-32 right-20 w-16 h-16 bg-purple-200/30 rounded-full animate-float blur-sm" style={{ animationDelay: "1s" }}></div>
+        <div className="absolute bottom-40 left-20 w-12 h-12 bg-indigo-200/30 rounded-lg animate-float blur-sm" style={{ animationDelay: "2s" }}></div>
+        <div className="absolute bottom-20 right-32 w-24 h-24 bg-pink-200/30 rounded-full animate-float blur-sm" style={{ animationDelay: "0.5s" }}></div>
+        
+        {/* Rotating elements */}
+        <div className="absolute top-1/4 left-1/4 w-32 h-32 border border-blue-200/40 rounded-full animate-rotate" style={{ animationDuration: "25s" }}></div>
+        <div className="absolute bottom-1/3 right-1/4 w-40 h-40 border border-purple-200/40 rounded-lg animate-rotate" style={{ animationDuration: "30s" }}></div>
+        
+        {/* Enhanced animated blobs */}
+        <div className="bg-gradient-to-r from-blue-400/20 to-purple-400/20 absolute top-1/4 left-1/4 h-32 w-32 animate-pulse-slow rounded-full blur-xl"></div>
+        <div className="bg-gradient-to-r from-purple-400/20 to-pink-400/20 absolute right-1/4 bottom-1/3 h-48 w-48 animate-pulse-slow rounded-full blur-2xl" style={{ animationDelay: "2s" }}></div>
+        <div className="bg-gradient-to-r from-indigo-400/15 to-blue-400/15 absolute top-1/2 left-1/6 h-24 w-24 animate-pulse-slow rounded-full blur-lg" style={{ animationDelay: "1s" }}></div>
+        
+        {/* Particle-like dots */}
+        <div className="absolute top-20 left-1/3 w-2 h-2 bg-blue-400/60 rounded-full animate-float" style={{ animationDelay: "0.5s" }}></div>
+        <div className="absolute top-40 right-1/3 w-1 h-1 bg-purple-400/60 rounded-full animate-float" style={{ animationDelay: "1.5s" }}></div>
+        <div className="absolute bottom-32 left-1/2 w-3 h-3 bg-indigo-400/60 rounded-full animate-float" style={{ animationDelay: "2.5s" }}></div>
+        <div className="absolute bottom-60 right-1/5 w-2 h-2 bg-pink-400/60 rounded-full animate-float" style={{ animationDelay: "3s" }}></div>
+        <div className="absolute top-60 left-1/5 w-1 h-1 bg-blue-500/60 rounded-full animate-float" style={{ animationDelay: "1.2s" }}></div>
+        
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
 
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
           <div className="mb-20 flex items-center justify-center">
@@ -193,7 +253,11 @@ const Index = () => {
 
       {/* Start demo section */}
       {/* Benefits Section */}
-      <section id="demo" data-section="demo" className="w-full bg-white py-20 md:py-28">
+      <section id="demo" data-section="demo" className="relative w-full bg-gradient-to-b from-gray-50 to-white py-20 md:py-28 overflow-hidden">
+        {/* Subtle background elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-100/20 rounded-full blur-2xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-50/30 to-purple-50/30 rounded-full blur-3xl"></div>
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
@@ -220,7 +284,11 @@ const Index = () => {
       </section>
 
       {/* Does a Lot More Than chat Section */}
-      <section className="w-full py-16 md:py-24" data-section="features">
+      <section className="relative w-full py-16 md:py-24 bg-gradient-to-b from-white to-gray-50 overflow-hidden" data-section="features">
+        {/* Background decorative elements */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-indigo-100/30 rounded-lg animate-float blur-sm" style={{ animationDelay: "1s" }}></div>
+        <div className="absolute bottom-10 right-10 w-40 h-40 bg-pink-100/30 rounded-full animate-float blur-sm" style={{ animationDelay: "2s" }}></div>
+        <div className="absolute top-1/3 right-1/4 w-20 h-20 bg-blue-100/40 rounded-full animate-pulse-slow blur-lg"></div>
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
           <div
             className={`mb-16 text-center transition-all duration-1000 ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
@@ -236,7 +304,12 @@ const Index = () => {
       </section>
 
       {/* Join Foxychat Community Section */}
-      <section className="w-full py-20 md:py-28">
+      <section className="relative w-full py-20 md:py-28 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+        {/* Community section background */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.05)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,rgba(168,85,247,0.05)_0%,transparent_50%)]"></div>
+        <div className="absolute top-20 left-1/4 w-24 h-24 bg-violet-100/40 rounded-lg animate-float blur-sm" style={{ animationDelay: "0.5s" }}></div>
+        <div className="absolute bottom-20 right-1/4 w-28 h-28 bg-blue-100/40 rounded-full animate-float blur-sm" style={{ animationDelay: "1.5s" }}></div>
+        <div className="absolute top-1/2 left-10 w-16 h-16 bg-purple-100/30 rounded-full animate-pulse-slow blur-lg" style={{ animationDelay: "2s" }}></div>
         <div className="container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
