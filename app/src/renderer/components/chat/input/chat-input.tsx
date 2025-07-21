@@ -108,29 +108,29 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setInput(content);
       setEditorContent(content);
     };
-    
+
     const handleAppSelect = async (appName: string) => {
       try {
         // Get app content
         const content = await window.activeAppAPI.getAppContent(appName);
-        
+
         // Set selected content
         setSelectedContent({
           text: content || `Content from ${appName}`,
           source: "manual",
           timestamp: Date.now(),
         });
-        
+
         // Add @AppName to current text
         const currentText = editorRef.current?.getText() || "";
         const newText = currentText + `@${appName} `;
-        
+
         // Update editor
         if (editorRef.current) {
           editorRef.current.clearContent();
           editorRef.current.insertContent(newText);
         }
-        
+
         setInput(newText);
         setShowAppSelector(false);
       } catch (error) {
@@ -138,7 +138,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setShowAppSelector(false);
       }
     };
-    
+
     const handleToggleAppSelector = () => {
       setShowAppSelector(!showAppSelector);
     };
@@ -275,7 +275,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 onSubmit={handleSubmit}
                 autoFocus={true}
               />
-              
+
               {/* App selector button */}
               <AppSelector
                 open={showAppSelector}

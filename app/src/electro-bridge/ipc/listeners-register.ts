@@ -169,7 +169,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, getPreviousAppID);
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, getPreviousAppContent);
   ipcMain.handle(CHANNELS.APP.GET_CONTENT, (_event, appName: string) =>
-    getAppContent(appName)
+    getAppContent(appName),
   );
   ipcMain.handle(CHANNELS.APP.GET_OPENED, getOpenedApps);
 

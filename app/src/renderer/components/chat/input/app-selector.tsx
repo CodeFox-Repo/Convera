@@ -71,7 +71,7 @@ export function AppSelector({
                     }}
                     className={cn(
                       "flex items-center gap-2 cursor-pointer",
-                      "hover:bg-accent/50"
+                      "hover:bg-accent/50",
                     )}
                   >
                     <Monitor size={16} className="text-muted-foreground" />
