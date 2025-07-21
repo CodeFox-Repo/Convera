@@ -11,6 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppSelector } from "./app-selector";
 import { ChatInputButtons } from "./chat-input-button";
 import { ContextButtons } from "./context-button";
 
@@ -33,6 +34,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [editorContent, setEditorContent] = useState("");
     const [isDragging, setIsDragging] = useState(false);
     const previousInputRef = useRef<string>("");
+    const [showAppSelector, setShowAppSelector] = useState(false);
 
     // Get state and methods from context and stores
     const {
@@ -42,6 +44,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       sendMessage,
       stopGeneration,
       selectedContent,
+      setSelectedContent,
       rejectSelectedContent,
       resetChatWindow,
       handleVoiceInput,
@@ -104,6 +107,40 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const handleEditorChange = (content: string) => {
       setInput(content);
       setEditorContent(content);
+    };
+    
+    const handleAppSelect = async (appName: string) => {
+      try {
+        // Get app content
+        const content = await window.activeAppAPI.getAppContent(appName);
+        
+        // Set selected content
+        setSelectedContent({
+          text: content || `Content from ${appName}`,
+          source: "manual",
+          timestamp: Date.now(),
+        });
+        
+        // Add @AppName to current text
+        const currentText = editorRef.current?.getText() || "";
+        const newText = currentText + `@${appName} `;
+        
+        // Update editor
+        if (editorRef.current) {
+          editorRef.current.clearContent();
+          editorRef.current.insertContent(newText);
+        }
+        
+        setInput(newText);
+        setShowAppSelector(false);
+      } catch (error) {
+        console.error("Failed to get app content:", error);
+        setShowAppSelector(false);
+      }
+    };
+    
+    const handleToggleAppSelector = () => {
+      setShowAppSelector(!showAppSelector);
     };
 
     const handleFileUpload = useCallback(() => {
@@ -228,7 +265,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               </div>
             )}
 
-            <div className="drag-region mb-2 w-full flex-1 px-2">
+            <div className="drag-region mb-2 w-full flex-1 px-2 relative">
               <TiptapEditor
                 ref={editorRef}
                 content={editorContent || input}
@@ -238,6 +275,22 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 onSubmit={handleSubmit}
                 autoFocus={true}
               />
+              
+              {/* App selector button */}
+              <AppSelector
+                open={showAppSelector}
+                onOpenChange={setShowAppSelector}
+                onSelect={handleAppSelect}
+              >
+                <button
+                  type="button"
+                  onClick={handleToggleAppSelector}
+                  className="absolute bottom-2 right-2 p-1 rounded bg-background/80 hover:bg-accent text-muted-foreground hover:text-foreground"
+                  title="Insert app content"
+                >
+                  @
+                </button>
+              </AppSelector>
             </div>
 
             <ChatInputButtons

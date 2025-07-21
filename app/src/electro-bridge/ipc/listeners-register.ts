@@ -3,6 +3,7 @@ import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import {
+  getAppContent,
   getOpenedApps,
   getPlatform,
   getPreviousApp,
@@ -167,6 +168,9 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, getPreviousApp);
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, getPreviousAppID);
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, getPreviousAppContent);
+  ipcMain.handle(CHANNELS.APP.GET_CONTENT, (_event, appName: string) =>
+    getAppContent(appName)
+  );
   ipcMain.handle(CHANNELS.APP.GET_OPENED, getOpenedApps);
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {

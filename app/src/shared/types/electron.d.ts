@@ -109,6 +109,7 @@ export interface IElectronAPI {
 export interface IActiveAppAPI {
   getPreviousApp: () => Promise<string>;
   getPreviousAppContent: () => Promise<string>;
+  getAppContent: (appName: string) => Promise<string>;
   getPreviousAppID: () => Promise<number>;
   getPlatform: () => Promise<string>;
   getOpenedApps: () => Promise<string[]>;

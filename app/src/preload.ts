@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("activeAppAPI", {
   getPreviousApp: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS),
   getPreviousAppContent: () =>
     ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_CONTENT),
+  getAppContent: (appName: string) =>
+    ipcRenderer.invoke(CHANNELS.APP.GET_CONTENT, appName),
   getPreviousAppID: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_ID),
   getPlatform: () => ipcRenderer.invoke(CHANNELS.PLATFORM.GET),
   getOpenedApps: () => ipcRenderer.invoke(CHANNELS.APP.GET_OPENED),

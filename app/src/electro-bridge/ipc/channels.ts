@@ -21,6 +21,7 @@ export interface IPCServer {
   setInputContent(content: { text?: string; imageData?: string }): void;
   pasteModifiedContent(content: string): void;
   getPreviousAppContent(): Promise<string>;
+  getAppContent(appName: string): Promise<string>;
   getOpenedApps(): Promise<string[]>;
 
   // Platform detection
@@ -91,6 +92,7 @@ export const CHANNELS = {
     SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
     GET_PREVIOUS_CONTENT: "app:get-previous-content",
+    GET_CONTENT: "app:get-content",
     GET_OPENED: "app:get-opened",
   },
   CLIPBOARD: {
@@ -135,6 +137,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // App functionality
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
   getPreviousAppContent: CHANNELS.APP.GET_PREVIOUS_CONTENT,
+  getAppContent: CHANNELS.APP.GET_CONTENT,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,

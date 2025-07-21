@@ -96,6 +96,26 @@ export function getPreviousAppContent(): Promise<string> {
   });
 }
 
+export function getAppContent(appName: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (!appName) {
+      return resolve("");
+    }
+    const command = getAppleScriptForApp(appName);
+    if (!command) {
+      return resolve("");
+    }
+    exec(command, { maxBuffer: 100 * 1024 * 1024 }, (err, stdout) => {
+      if (err) {
+        console.error(`Error getting content for app ${appName}:`, err);
+        return resolve("");
+      }
+      const res = stdout && contentFilter ? contentFilter(stdout) : "";
+      resolve(res);
+    });
+  });
+}
+
 export function getPreviousAppID(): number {
   return previousAppId;
 }
