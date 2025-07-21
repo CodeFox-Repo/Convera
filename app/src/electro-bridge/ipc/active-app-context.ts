@@ -88,6 +88,19 @@ export function getPreviousAppContent(): Promise<string> {
     exec(command, { maxBuffer: 100 * 1024 * 1024 }, (err, stdout) => {
       if (err) {
         console.error("Error getting app content:", err);
+        
+        // Check if it's the Chrome JavaScript permission error
+        if (err.message && err.message.includes("JavaScript through AppleScript is turned off")) {
+          const helpMessage = 
+            "⚠️ Chrome requires permission to execute JavaScript via AppleScript.\n\n" +
+            "To enable this feature:\n" +
+            "1. Open Google Chrome\n" +
+            "2. Go to View → Developer → Allow JavaScript from Apple Events\n" +
+            "3. Try again after enabling this setting\n\n" +
+            "This is a Chrome security feature and needs to be enabled manually.";
+          return resolve(helpMessage);
+        }
+        
         return resolve("");
       }
       const res = stdout && contentFilter ? contentFilter(stdout) : "";

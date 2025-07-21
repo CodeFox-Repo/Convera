@@ -404,7 +404,7 @@ export function getClipboardText(): string {
 
 export function setInputContent(
   mainWindow: BrowserWindow | null,
-  content: { text?: string; imageData?: string },
+  content: { text?: string },
 ): void {
   if (mainWindow) {
     // Send the content to the renderer to set as input

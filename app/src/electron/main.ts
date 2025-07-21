@@ -54,11 +54,9 @@ let trackingAppFocus = false;
 
 // Clipboard buffer for restoring original content
 let originalClipboardContent = "";
-let originalClipboardImage: Electron.NativeImage | null = null;
 
 // Previous clipboard buffer to avoid duplicates
 let prevClipboardContent = "";
-let prevClipboardImageHash = "";
 
 // Prevent duplicate shortcut processing
 let shortcutInProgress = false;
@@ -66,16 +64,9 @@ let shortcutInProgress = false;
 // Initialize logger for main process
 const logger = getLogger("main-process");
 
-function createImageHash(imageBuffer: Buffer): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const crypto = require("crypto");
-  return crypto.createHash("md5").update(imageBuffer).digest("hex");
-}
-
 async function simulateClipboardCopy(): Promise<void> {
   try {
     originalClipboardContent = clipboard.readText();
-    originalClipboardImage = clipboard.readImage();
 
     robot?.keyToggle("shift", "up");
     robot?.keyToggle("control", "up");
@@ -100,14 +91,11 @@ async function simulateClipboardCopy(): Promise<void> {
 
 function restoreClipboard(): void {
   try {
-    if (originalClipboardImage && !originalClipboardImage.isEmpty()) {
-      clipboard.writeImage(originalClipboardImage);
-    } else if (originalClipboardContent !== undefined) {
+    if (originalClipboardContent !== undefined) {
       clipboard.writeText(originalClipboardContent);
     }
 
     originalClipboardContent = "";
-    originalClipboardImage = null;
   } catch (error) {
     logger.error("Error restoring clipboard:", error);
   }
@@ -200,59 +188,30 @@ function registerGlobalShortcuts() {
         await simulateClipboardCopy();
 
         const selectedText = clipboard.readText();
-        const selectedImage = clipboard.readImage();
 
         // Check for duplicates
         let isTextDuplicate = false;
-        let isImageDuplicate = false;
 
         if (selectedText && selectedText === prevClipboardContent) {
           isTextDuplicate = true;
         }
 
-        let currentImageHash = "";
-        if (selectedImage && !selectedImage.isEmpty()) {
-          const imageBuffer = selectedImage.toPNG();
-          currentImageHash = createImageHash(imageBuffer);
-          if (currentImageHash === prevClipboardImageHash) {
-            isImageDuplicate = true;
-          }
-        }
-
         // Skip content processing if all content is duplicate or no content
-        const allContentDuplicate =
-          selectedText &&
-          isTextDuplicate &&
-          selectedImage &&
-          !selectedImage.isEmpty() &&
-          isImageDuplicate;
-        const noContent =
-          !selectedText && (!selectedImage || selectedImage.isEmpty());
+        const noContent = !selectedText;
 
         if (getChatWindow()) {
           toggleChatWindowVisibility(getChatWindow());
 
           // Process content immediately if we have new content
-          if (!allContentDuplicate && !noContent) {
-            const contentToSend: { text?: string; imageData?: string } = {};
-
-            if (
-              selectedImage &&
-              !selectedImage.isEmpty() &&
-              !isImageDuplicate
-            ) {
-              const imageBuffer = selectedImage.toPNG();
-              const base64Image = imageBuffer.toString("base64");
-              contentToSend.imageData = base64Image;
-              prevClipboardImageHash = currentImageHash;
-            }
+          if (!isTextDuplicate && !noContent) {
+            const contentToSend: { text?: string } = {};
 
             if (selectedText && !isTextDuplicate) {
               contentToSend.text = selectedText;
               prevClipboardContent = selectedText;
             }
 
-            if (contentToSend.imageData || contentToSend.text) {
+            if (contentToSend.text) {
               setInputContent(getChatWindow(), contentToSend);
             }
           }

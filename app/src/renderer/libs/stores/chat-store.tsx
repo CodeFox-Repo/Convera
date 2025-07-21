@@ -26,7 +26,6 @@ export type ChatViewMode = "compact" | "expanded";
 // Selected content structure
 export interface SelectedContent {
   text?: string;
-  imageData?: string; // base64 encoded image
   timestamp?: number;
   source?: "shortcut" | "manual"; // track how content was captured
 }
@@ -124,7 +123,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const { previousApp, openedApps, previousAppContent } = usePreviousApp();
+  const { previousApp, openedApps } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -388,14 +387,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Debug: Check initial chatAPI.input value
-  console.log('🔍 Initial chatAPI.input value:', chatAPI.input);
-  
-  // Monitor input changes
-  useEffect(() => {
-    console.log('📝 chatAPI.input changed to:', chatAPI.input);
-  }, [chatAPI.input]);
-
   // Auto-expand when there are messages
   useEffect(() => {
     if (chatAPI.messages.length > 0 && viewMode === "compact") {
@@ -635,27 +626,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       // Handle overloaded parameters
       let messageText: string;
       const filesToSend = [...attachments];
-      
-      if (typeof messageOrFiles === 'string') {
+
+      if (typeof messageOrFiles === "string") {
         // Called with message string
         messageText = messageOrFiles;
-        console.log('📨 sendMessage called with string:', messageText);
+        console.log("📨 sendMessage called with string:", messageText);
         if (extraFiles && extraFiles.length > 0) {
           filesToSend.push(...extraFiles);
         }
       } else if (Array.isArray(messageOrFiles)) {
         // Called with files array (old signature)
         messageText = chatAPI.input.trim();
-        console.log('📨 sendMessage called with files, using chatAPI.input:', messageText);
         filesToSend.push(...messageOrFiles);
       } else {
         // Called with no arguments
         messageText = chatAPI.input.trim();
-        console.log('📨 sendMessage called with no args, using chatAPI.input:', messageText);
       }
 
-      if (!messageText && !selectedContent && filesToSend.length === 0)
-        return;
+      if (!messageText && !selectedContent && filesToSend.length === 0) return;
 
       // Generate conversation ID if this is the first message
       let conversationIdToUse = currentConversationId;
@@ -665,42 +653,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         setCurrentConversationId(conversationIdToUse);
       }
 
-      // Handle selected content (text and/or image)
-      let selectedImageFile: File | null = null;
-
+      // Handle selected content (text only)
       if (selectedContent) {
         // Handle text content
         if (selectedContent.text) {
           messageText = messageText
             ? `<selected>\n${selectedContent.text}\n</selected>\n\n${messageText}`
             : `<selected>\n${selectedContent.text}\n</selected>`;
-        }
-
-        // Handle image content - convert to File object
-        if (selectedContent.imageData) {
-          try {
-            const base64ToFile = (base64: string, filename: string): File => {
-              const arr = base64.split(",");
-              const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
-              const bstr = atob(arr.length > 1 ? arr[1] : base64);
-              let n = bstr.length;
-              const u8arr = new Uint8Array(n);
-              while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-              }
-              return new File([u8arr], filename, { type: mime });
-            };
-
-            const imageDataUrl = selectedContent.imageData.startsWith("data:")
-              ? selectedContent.imageData
-              : `data:image/png;base64,${selectedContent.imageData}`;
-
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const filename = `screenshot-${timestamp}.png`;
-            selectedImageFile = base64ToFile(imageDataUrl, filename);
-          } catch (error) {
-            console.error("Error converting clipboard image:", error);
-          }
         }
 
         setSelectedContent(null);
@@ -710,8 +669,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         role: "user",
         content: messageText,
       };
-      
-      console.log('📝 Creating message with content:', message.content);
 
       const sendMessageWithAttachments = async () => {
         try {
@@ -724,15 +681,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
 
-          // Combine regular attachments with selected image
-          const allFiles = [...filesToSend];
-          if (selectedImageFile) {
-            allFiles.push(selectedImageFile);
-          }
-
-          if (allFiles.length > 0) {
+          if (filesToSend.length > 0) {
             const fileAttachments = await Promise.all(
-              allFiles.map(fileToAttachment),
+              filesToSend.map(fileToAttachment),
             );
             message.experimental_attachments = fileAttachments;
           }
@@ -791,6 +742,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             );
             return;
           }
+          // Get fresh previousAppContent before sending
+          const freshPreviousAppContent =
+            await window.activeAppAPI.getPreviousAppContent();
 
           // Debug: Log the request body being sent
           const requestBody = {
@@ -806,21 +760,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               app: {
                 activeApp: previousApp,
                 openedApps: openedApps,
-                activeAppContent: previousAppContent,
+                activeAppContent: freshPreviousAppContent,
               },
             },
           };
           console.log("🔧 Frontend: Sending request with body:", requestBody);
 
-          // Debug: Log the message being sent
-          console.log('🚀 About to send message:', message);
-          console.log('🚀 Request body:', requestBody);
-          
           // Send message with all custom fields
           chatAPI.append(message, {
             body: requestBody,
           });
-          
+
           // Clear the input after sending to prevent stale data
           chatAPI.setInput("");
           clearAttachments();
@@ -844,7 +794,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       useRemoteStore,
       previousApp,
       openedApps,
-      previousAppContent,
     ],
   );
 

@@ -164,7 +164,7 @@ export default function Chat() {
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback(
-    (content: { text?: string; imageData?: string }) => {
+    (content: { text?: string }) => {
       const timestamp = Date.now();
       return {
         ...content,
@@ -525,14 +525,12 @@ export default function Chat() {
 
     if (window.electronAPI?.onSetInputContent) {
       const unsubscribe = window.electronAPI.onSetInputContent(
-        (content: { text?: string; imageData?: string }) => {
+        (content: { text?: string }) => {
           if (!mounted) return;
 
-          if (content.imageData || (content.text && content.text.trim())) {
+          if (content.text && content.text.trim()) {
             const selectedContent = createSelectedContent({
-              text:
-                content.text && content.text.trim() ? content.text : undefined,
-              imageData: content.imageData || undefined,
+              text: content.text,
             });
 
             setSelectedContent(selectedContent);
