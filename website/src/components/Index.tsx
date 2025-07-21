@@ -4,8 +4,8 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { DollarSign, Download } from "lucide-react";
-import { siDiscord } from "simple-icons";
 import { useEffect, useRef, useState } from "react";
+import { siDiscord } from "simple-icons";
 import AppsSupportSection from "./apps_support_section";
 import CommunityCard from "./community_card";
 import DemoVideoSection from "./DemoVideoSection";
@@ -259,7 +259,7 @@ const Index = () => {
               >
                 Your AI Desktop
                 <br />
-                Companion
+                Assistant
               </h1>
               <p
                 className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
