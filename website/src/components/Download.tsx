@@ -43,6 +43,31 @@ const Download = () => {
   const [latestRelease, setLatestRelease] = useState<GitHubRelease | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState({
+    hero: false,
+  });
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target.getAttribute("data-section");
+            if (target) {
+              setIsVisible((prev) => ({ ...prev, [target]: true }));
+            }
+          }
+        });
+      },
+      { threshold: 0.1 },
+    );
+
+    const sections = document.querySelectorAll("[data-section]");
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch latest release from homebrew-codefox repository
   useEffect(() => {
@@ -265,48 +290,128 @@ const Download = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="from-background via-primary/5 to-primary/10 relative w-full overflow-hidden bg-linear-to-br py-16 pt-24 md:py-24 md:pt-32">
-        <div className="via-primary/20 absolute inset-0 bg-linear-to-r from-transparent to-transparent"></div>
-        <div className="from-primary/30 absolute top-0 right-0 h-full w-1/3 bg-linear-to-l to-transparent"></div>
+      <section
+        className="relative w-full overflow-hidden py-20 pt-28 md:py-28 md:pt-36"
+        data-section="hero"
+      >
+        {/* Enhanced background with gradient and patterns */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50"></div>
+
+        {/* Geometric background pattern */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-0 h-full w-full bg-[radial-gradient(circle_at_25%_25%,rgba(59,130,246,0.1)_0%,transparent_50%),radial-gradient(circle_at_75%_75%,rgba(147,51,234,0.1)_0%,transparent_50%)]"></div>
+        </div>
+
+        {/* Floating geometric shapes */}
+        <div
+          className="animate-float absolute top-10 left-10 h-20 w-20 rounded-lg bg-blue-200/30 blur-sm"
+          style={{ animationDelay: "0s" }}
+        ></div>
+        <div
+          className="animate-float absolute top-32 right-20 h-16 w-16 rounded-full bg-purple-200/30 blur-sm"
+          style={{ animationDelay: "1s" }}
+        ></div>
+        <div
+          className="animate-float absolute bottom-40 left-20 h-12 w-12 rounded-lg bg-indigo-200/30 blur-sm"
+          style={{ animationDelay: "2s" }}
+        ></div>
+        <div
+          className="animate-float absolute right-32 bottom-20 h-24 w-24 rounded-full bg-pink-200/30 blur-sm"
+          style={{ animationDelay: "0.5s" }}
+        ></div>
+
+        {/* Rotating elements */}
+        <div
+          className="animate-rotate absolute top-1/4 left-1/4 h-32 w-32 rounded-full border border-blue-200/40"
+          style={{ animationDuration: "25s" }}
+        ></div>
+        <div
+          className="animate-rotate absolute right-1/4 bottom-1/3 h-40 w-40 rounded-lg border border-purple-200/40"
+          style={{ animationDuration: "30s" }}
+        ></div>
+
+        {/* Enhanced animated blobs */}
+        <div className="animate-pulse-slow absolute top-1/4 left-1/4 h-32 w-32 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-xl"></div>
+        <div
+          className="animate-pulse-slow absolute right-1/4 bottom-1/3 h-48 w-48 rounded-full bg-gradient-to-r from-purple-400/20 to-pink-400/20 blur-2xl"
+          style={{ animationDelay: "2s" }}
+        ></div>
+        <div
+          className="animate-pulse-slow absolute top-1/2 left-1/6 h-24 w-24 rounded-full bg-gradient-to-r from-indigo-400/15 to-blue-400/15 blur-lg"
+          style={{ animationDelay: "1s" }}
+        ></div>
+
+        {/* Particle-like dots */}
+        <div
+          className="animate-float absolute top-20 left-1/3 h-2 w-2 rounded-full bg-blue-400/60"
+          style={{ animationDelay: "0.5s" }}
+        ></div>
+        <div
+          className="animate-float absolute top-40 right-1/3 h-1 w-1 rounded-full bg-purple-400/60"
+          style={{ animationDelay: "1.5s" }}
+        ></div>
+        <div
+          className="animate-float absolute bottom-32 left-1/2 h-3 w-3 rounded-full bg-indigo-400/60"
+          style={{ animationDelay: "2.5s" }}
+        ></div>
+        <div
+          className="animate-float absolute right-1/5 bottom-60 h-2 w-2 rounded-full bg-pink-400/60"
+          style={{ animationDelay: "3s" }}
+        ></div>
+        <div
+          className="animate-float absolute top-60 left-1/5 h-1 w-1 rounded-full bg-blue-500/60"
+          style={{ animationDelay: "1.2s" }}
+        ></div>
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
 
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
-          <div className="space-y-8 text-center">
+          <div
+            className={`space-y-8 text-center transition-all duration-1000 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+          >
             <div className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+              <h1
+                className={`text-4xl font-bold tracking-tight text-gray-800 md:text-5xl lg:text-6xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+              >
                 Download{" "}
-                <span className="from-primary to-accent bg-linear-to-r bg-clip-text text-transparent">
+                <span className="from-primary to-accent bg-gradient-to-r bg-clip-text text-transparent">
                   Foxychat
                 </span>
               </h1>
-              <p className="text-muted-foreground mx-auto max-w-3xl text-xl leading-relaxed md:text-2xl">
+              <p
+                className={`text-muted-foreground mx-auto max-w-3xl text-lg leading-relaxed md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              >
                 Your personal AI desktop companion that understands your workflow and automates
                 repetitive tasks intelligently.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <div
+              className={`flex flex-wrap items-center justify-center gap-4 pt-4 transition-all delay-300 duration-1000 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+            >
               <Badge
                 variant="outline"
-                className="bg-card border-primary/20 text-primary px-4 py-2 text-base"
+                className="border-primary/20 bg-white/50 px-4 py-2 text-base text-gray-700 backdrop-blur-sm"
               >
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Star className="mr-2 h-4 w-4" />
+                  <Star className="text-primary mr-2 h-4 w-4" />
                 )}
                 v{currentVersion}
               </Badge>
               <Badge
                 variant="outline"
-                className="bg-card border-primary/20 text-primary px-4 py-2 text-base"
+                className="border-primary/20 bg-white/50 px-4 py-2 text-base text-gray-700 backdrop-blur-sm"
               >
-                <Clock className="mr-2 h-4 w-4" />
+                <Clock className="text-primary mr-2 h-4 w-4" />
                 {releaseDate}
               </Badge>
               {error && (
                 <Badge
                   variant="outline"
-                  className="bg-destructive/5 border-destructive/20 text-destructive px-4 py-2 text-base"
+                  className="border-destructive/20 bg-destructive/10 text-destructive px-4 py-2 text-base backdrop-blur-sm"
                 >
                   ⚠️ Using fallback data
                 </Badge>
@@ -314,14 +419,16 @@ const Download = () => {
             </div>
 
             {/* Quick features */}
-            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 pt-8 md:grid-cols-4">
+            <div
+              className={`mx-auto grid max-w-4xl grid-cols-2 gap-4 pt-8 transition-all delay-500 duration-1000 md:grid-cols-4 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+            >
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="bg-card/60 border-primary/20 space-y-2 rounded-lg border p-4 text-center backdrop-blur-sm"
+                  className="space-y-2 rounded-lg border border-gray-200/50 bg-white/50 p-4 text-center backdrop-blur-sm transition-all hover:shadow-lg"
                 >
                   <div className="text-primary flex justify-center">{feature.icon}</div>
-                  <h3 className="text-sm font-semibold">{feature.title}</h3>
+                  <h3 className="text-sm font-semibold text-gray-800">{feature.title}</h3>
                   <p className="text-muted-foreground text-xs">{feature.description}</p>
                 </div>
               ))}
