@@ -15,7 +15,7 @@ const Navbar: React.FC = () => {
 
   return (
     <header className="fixed top-4 left-1/2 z-50 w-full -translate-x-1/2">
-      <div className="container mx-auto rounded-full border border-gray-200/20 bg-gray-100/80 backdrop-blur-xl supports-backdrop-filter:bg-gray-100/80">
+      <div className="container mx-auto rounded-full border border-gray-200/30 bg-gradient-to-r from-gray-50/90 via-gray-100/85 to-gray-50/90 backdrop-blur-xl shadow-lg shadow-gray-200/20 transition-all duration-500 hover:shadow-xl hover:shadow-gray-300/25">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-x-12">
             {/* Logo Section */}
@@ -24,7 +24,7 @@ const Navbar: React.FC = () => {
                 <div className="transition-transform duration-300 group-hover:scale-105">
                   <Logo />
                 </div>
-                <span className="bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
+                <span className="bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-xl font-bold text-transparent transition-all duration-300">
                   Foxychat
                 </span>
               </Link>
@@ -34,7 +34,7 @@ const Navbar: React.FC = () => {
             <nav className="hidden items-center space-x-6 md:flex">
               <a
                 href="#demo"
-                className="group relative text-gray-600 transition-colors duration-300 hover:text-orange-500"
+                className="group relative text-gray-700 transition-all duration-300 hover:text-orange-500 hover:scale-105"
               >
                 <span className="flex items-center space-x-1 text-base font-medium">
                   <Play className="h-4 w-4" />
@@ -47,7 +47,7 @@ const Navbar: React.FC = () => {
                 href="https://docs.foxychat.net/docs"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative text-gray-600 transition-colors duration-300 hover:text-blue-500"
+                className="group relative text-gray-700 transition-all duration-300 hover:text-blue-500 hover:scale-105"
               >
                 <span className="flex items-center space-x-1 text-base font-medium">
                   <FileText className="h-4 w-4" />
@@ -59,7 +59,7 @@ const Navbar: React.FC = () => {
 
               <Link
                 to="/pricing"
-                className="group relative text-gray-600 transition-colors duration-300 hover:text-purple-500"
+                className="group relative text-gray-700 transition-all duration-300 hover:text-purple-500 hover:scale-105"
               >
                 <span className="flex items-center space-x-1 text-base font-medium">
                   <span>Pricing</span>
@@ -81,7 +81,7 @@ const Navbar: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="border-gray-200 text-gray-600 transition-all duration-300 hover:bg-gray-50 hover:text-gray-800"
+              className="border-gray-300/50 text-gray-700 transition-all duration-300 hover:bg-gray-100/80 hover:text-gray-900 hover:border-gray-400/60 hover:shadow-md"
               asChild
             >
               <Link to="/download">
@@ -95,7 +95,7 @@ const Navbar: React.FC = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMenu}
-            className="rounded-lg p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-800 md:hidden"
+            className="rounded-lg p-2 text-gray-700 transition-all duration-300 hover:bg-gray-200/60 hover:text-gray-900 hover:scale-105 md:hidden"
             aria-label="Toggle menu"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -104,12 +104,12 @@ const Navbar: React.FC = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="border-t border-gray-200/20 bg-white/95 backdrop-blur-xl md:hidden">
+          <div className="border-t border-gray-300/30 bg-gradient-to-b from-gray-50/95 to-white/95 backdrop-blur-xl md:hidden transition-all duration-300">
             <nav className="flex flex-col space-y-1 p-4">
               <a
                 href="#demo"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-orange-50 hover:text-orange-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-700 transition-all duration-300 hover:bg-orange-50/80 hover:text-orange-500 hover:scale-[1.02]"
               >
                 <Play className="h-4 w-4" />
                 <span className="font-medium">Demo</span>
@@ -120,7 +120,7 @@ const Navbar: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-blue-50 hover:text-blue-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-700 transition-all duration-300 hover:bg-blue-50/80 hover:text-blue-500 hover:scale-[1.02]"
               >
                 <FileText className="h-4 w-4" />
                 <span className="font-medium">Documentation</span>
@@ -130,12 +130,12 @@ const Navbar: React.FC = () => {
               <Link
                 to="/pricing"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-purple-50 hover:text-purple-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-700 transition-all duration-300 hover:bg-purple-50/80 hover:text-purple-500 hover:scale-[1.02]"
               >
                 <span className="font-medium">Pricing</span>
               </Link>
 
-              <div className="mt-4 border-t border-gray-200/50 pt-4">
+              <div className="mt-4 border-t border-gray-300/40 pt-4">
                 <div className="mb-4 flex items-center justify-between">
                   <Badge
                     variant="outline"
