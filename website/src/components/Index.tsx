@@ -360,7 +360,7 @@ const Index = () => {
           style={{ animationDelay: "2s" }}
         ></div>
         <div className="animate-pulse-slow absolute top-1/3 right-1/4 h-20 w-20 rounded-full bg-blue-100/40 blur-lg"></div>
-        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+        <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
           <div
             className={`mb-16 text-center transition-all duration-1000 ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
           >
@@ -390,7 +390,7 @@ const Index = () => {
           className="animate-pulse-slow absolute top-1/2 left-10 h-16 w-16 rounded-full bg-purple-100/30 blur-lg"
           style={{ animationDelay: "2s" }}
         ></div>
-        <div className="container mx-auto max-w-6xl px-4 md:px-6">
+        <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
               Join Foxychat Community
