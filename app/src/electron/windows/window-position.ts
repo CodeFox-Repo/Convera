@@ -1,5 +1,5 @@
+import { activatePreviousApp } from "@/electro-bridge/ipc/active-app-context";
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
-import { getPreviousApp } from "@/electro-bridge/ipc/ipc-handlers";
 import { appConfig } from "@/electron/config";
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -7,7 +7,6 @@ import {
   WindowDimensions,
   WindowSizeConfig,
 } from "@/electron/windows/window-size";
-import { exec } from "child_process";
 import { BrowserWindow, screen } from "electron";
 
 export let expectedPosition: WindowDimensions | null = null;
@@ -316,17 +315,7 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
 
     // Try to activate previous app asynchronously
     try {
-      const prevApp = getPreviousApp();
-      if (prevApp) {
-        exec(
-          `osascript -e 'tell application "${prevApp}" to activate'`,
-          (error) => {
-            if (error) {
-              console.error("Error activating previous app:", error);
-            }
-          },
-        );
-      }
+      activatePreviousApp();
     } catch (error) {
       console.error("Error getting previous app:", error);
     }

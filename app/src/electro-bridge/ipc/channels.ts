@@ -20,6 +20,8 @@ export interface IPCServer {
   getClipboardText(): string;
   setInputContent(content: { text?: string; imageData?: string }): void;
   pasteModifiedContent(content: string): void;
+  getPreviousAppContent(): Promise<string>;
+  getOpenedApps(): Promise<string[]>;
 
   // Platform detection
   getPlatform(): string;
@@ -88,6 +90,8 @@ export const CHANNELS = {
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
     SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
+    GET_PREVIOUS_CONTENT: "app:get-previous-content",
+    GET_OPENED: "app:get-opened",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -130,10 +134,12 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // App functionality
   getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
+  getPreviousAppContent: CHANNELS.APP.GET_PREVIOUS_CONTENT,
   getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
+  getOpenedApps: CHANNELS.APP.GET_OPENED,
 
   // Platform detection
   getPlatform: CHANNELS.PLATFORM.GET,

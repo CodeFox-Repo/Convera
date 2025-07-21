@@ -45,14 +45,9 @@ export interface IElectronAPI {
   initGlobalShortcut: (shortcut: string) => Promise<boolean>;
 
   // App functionality
-  getPreviousApp: () => Promise<string>;
-  getPreviousAppID: () => Promise<number>;
   getClipboardText: () => Promise<string>;
   setInputText: (text: string) => Promise<void>;
   pasteModifiedContent: (content: string) => Promise<void>;
-
-  // Platform detection
-  getPlatform: () => Promise<string>;
 
   // Unified Theme Control
   setTheme: (mode: ThemeMode) => Promise<string>;
@@ -111,6 +106,14 @@ export interface IElectronAPI {
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
 
+export interface IActiveAppAPI {
+  getPreviousApp: () => Promise<string>;
+  getPreviousAppContent: () => Promise<string>;
+  getPreviousAppID: () => Promise<number>;
+  getPlatform: () => Promise<string>;
+  getOpenedApps: () => Promise<string[]>;
+}
+
 // Define the Environment API interface
 export interface IEnvAPI {
   isProduction: () => boolean;
@@ -120,6 +123,7 @@ export interface IEnvAPI {
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
+    activeAppAPI: IActiveAppAPI;
     mcpAPI: IMcpAPI;
     envApi: IEnvAPI;
     logger: WindowLogger;

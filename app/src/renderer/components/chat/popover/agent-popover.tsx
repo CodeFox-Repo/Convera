@@ -1,6 +1,7 @@
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { Agent, useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
+import { useModelStore } from "@/renderer/libs/stores/model-store";
 import {
   ConnectionStatus,
   MCPServerConfig,
@@ -70,6 +71,7 @@ export default function AgentPopover() {
   const subscribeMcpChanges = useMcpStore((state) => state.subscribeMcpChanges);
   const refreshMcpData = useMcpStore((state) => state.refreshAll);
   useThemeSync();
+  const { setSelectedModelId } = useModelStore();
 
   // Get server info by ID
   const getServerInfo = (serverId: string) => {
@@ -164,9 +166,7 @@ export default function AgentPopover() {
   // Set default agent when agents are loaded and no agent is selected
   useEffect(() => {
     if (availableAgents.length > 0 && !selectedAgent) {
-      const defaultAgent = availableAgents.find(
-        (agent) => agent.id === "DefaultAssistant",
-      );
+      const defaultAgent = availableAgents.find((agent) => agent.id === "");
       if (defaultAgent) {
         setSelectedAgent(defaultAgent);
         console.log("Set default agent: DefaultAssistant");
@@ -217,6 +217,10 @@ export default function AgentPopover() {
 
     setSelectedAgent(agent);
     localStorage.setItem("selectedAgent", JSON.stringify(agent));
+
+    if (agent.id === "") {
+      setSelectedModelId("");
+    }
 
     // Force immediate recalculation of built-in tools state for the new agent
     setBasicTools((prev) =>
