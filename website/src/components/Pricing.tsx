@@ -35,58 +35,6 @@ const Pricing: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Add custom CSS animations
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      
-      @keyframes float {
-        0%, 100% {
-          transform: translateY(0px);
-        }
-        50% {
-          transform: translateY(-20px);
-        }
-      }
-      
-      @keyframes pulse {
-        0%, 100% {
-          opacity: 0.4;
-        }
-        50% {
-          opacity: 0.8;
-        }
-      }
-      
-      .animate-fadeInUp {
-        animation: fadeInUp 0.6s ease-out both;
-      }
-      
-      .animate-float {
-        animation: float 6s ease-in-out infinite;
-      }
-      
-      .animate-pulse-slow {
-        animation: pulse 4s ease-in-out infinite;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
   const handleFree = () => {
     // Redirect to download page
     router.navigate({ to: "/download" });
