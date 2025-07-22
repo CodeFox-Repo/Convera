@@ -24,8 +24,11 @@ export function useAppIcon(appName?: string, pid?: number): UseAppIconReturn {
       setError(null);
 
       try {
-        const result = await window.electronAPI.getProcessIcon(pid || 0, appName);
-        
+        const result = await window.electronAPI.getProcessIcon(
+          pid || 0,
+          appName,
+        );
+
         if (result.success && result.iconData) {
           setIconData(result.iconData);
           setError(null);

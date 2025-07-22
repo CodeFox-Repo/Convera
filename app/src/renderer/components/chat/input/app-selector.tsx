@@ -48,16 +48,16 @@ export function AppSelector({
                 const result = await window.electronAPI.getProcessIcon(0, name);
                 return {
                   name,
-                  iconUrl: result.success ? result.iconData : undefined
+                  iconUrl: result.success ? result.iconData : undefined,
                 };
               } catch (error) {
                 console.error(`Failed to get icon for ${name}:`, error);
                 return {
                   name,
-                  iconUrl: undefined
+                  iconUrl: undefined,
                 };
               }
-            })
+            }),
           );
           setApps(appInfos);
         })
@@ -74,9 +74,16 @@ export function AppSelector({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-80 p-0 z-50 border-0 shadow-2xl bg-gradient-to-br from-background/95 to-background/90 backdrop-blur-xl rounded-2xl ring-1 ring-white/10 overflow-hidden" align="start" sideOffset={5}>
+      <PopoverContent
+        className="w-80 p-0 z-50 border-0 shadow-2xl bg-gradient-to-br from-background/95 to-background/90 backdrop-blur-xl rounded-2xl ring-1 ring-white/10 overflow-hidden"
+        align="start"
+        sideOffset={5}
+      >
         <Command className="bg-transparent">
-          <CommandInput placeholder="Search opened apps..." className="border-0 bg-transparent" />
+          <CommandInput
+            placeholder="Search opened apps..."
+            className="border-0 bg-transparent"
+          />
           <CommandList>
             <CommandEmpty>
               {isLoading ? "Loading apps..." : "No apps found."}
@@ -99,24 +106,27 @@ export function AppSelector({
                   >
                     {/* App icon or fallback */}
                     {app.iconUrl ? (
-                      <img 
-                        src={app.iconUrl} 
+                      <img
+                        src={app.iconUrl}
                         alt={`${app.name} icon`}
                         className="w-7 h-7 rounded-lg object-cover shadow-sm"
                         onError={(e) => {
                           // If icon fails to load, show fallback
-                          e.currentTarget.style.display = 'none';
-                          const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget
+                            .nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = "flex";
                         }}
                       />
                     ) : null}
-                    <div 
-                      className={`w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-xs font-semibold text-primary shadow-sm border border-primary/10 ${app.iconUrl ? 'hidden' : ''}`}
+                    <div
+                      className={`w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-xs font-semibold text-primary shadow-sm border border-primary/10 ${app.iconUrl ? "hidden" : ""}`}
                     >
                       {app.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium text-sm text-foreground/90">{app.name}</span>
+                    <span className="font-medium text-sm text-foreground/90">
+                      {app.name}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>

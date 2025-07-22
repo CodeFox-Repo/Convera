@@ -216,7 +216,7 @@ export function getAppIcon(appName: string): Promise<string> {
     if (process.platform !== "darwin") {
       return resolve("");
     }
-    
+
     const script = `
       try
         tell application "System Events"
@@ -229,23 +229,26 @@ export function getAppIcon(appName: string): Promise<string> {
         return ""
       end try
     `;
-    
+
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err || !stdout.trim()) {
         return resolve("");
       }
-      
+
       const appPath = stdout.trim();
       const iconPath = `${appPath}/Contents/Resources/AppIcon.icns`;
-      
+
       // Convert ICNS to base64 PNG using sips
-      exec(`sips -s format png "${iconPath}" --out /tmp/temp_icon.png && base64 -i /tmp/temp_icon.png && rm /tmp/temp_icon.png`, (error, iconData) => {
-        if (error) {
-          console.error(`Error getting icon for ${appName}:`, error);
-          return resolve("");
-        }
-        resolve(`data:image/png;base64,${iconData.trim()}`);
-      });
+      exec(
+        `sips -s format png "${iconPath}" --out /tmp/temp_icon.png && base64 -i /tmp/temp_icon.png && rm /tmp/temp_icon.png`,
+        (error, iconData) => {
+          if (error) {
+            console.error(`Error getting icon for ${appName}:`, error);
+            return resolve("");
+          }
+          resolve(`data:image/png;base64,${iconData.trim()}`);
+        },
+      );
     });
   });
 }

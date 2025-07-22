@@ -69,7 +69,10 @@ export interface IPCServer {
   openPath(path: string): void;
 
   // Process icon operations
-  getProcessIcon(pid: number, appName?: string): Promise<{
+  getProcessIcon(
+    pid: number,
+    appName?: string,
+  ): Promise<{
     success: boolean;
     iconData?: string;
     error?: string;

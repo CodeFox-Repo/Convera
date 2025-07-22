@@ -1,4 +1,11 @@
-import { BrowserWindow, clipboard, nativeTheme, screen, shell, app } from "electron";
+import {
+  BrowserWindow,
+  clipboard,
+  nativeTheme,
+  screen,
+  shell,
+  app,
+} from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
@@ -453,7 +460,10 @@ export function openPath(targetPath: string): void {
 /**
  * Get process icon using sips command (simplified stable method)
  */
-export async function getProcessIcon(pid: number, appName?: string): Promise<{
+export async function getProcessIcon(
+  pid: number,
+  appName?: string,
+): Promise<{
   success: boolean;
   iconData?: string;
   error?: string;
@@ -463,7 +473,7 @@ export async function getProcessIcon(pid: number, appName?: string): Promise<{
     if (process.platform !== "darwin") {
       return {
         success: false,
-        error: "macOS only supported"
+        error: "macOS only supported",
       };
     }
 
@@ -472,25 +482,25 @@ export async function getProcessIcon(pid: number, appName?: string): Promise<{
     if (!appName) {
       return {
         success: false,
-        error: "Application name required"
+        error: "Application name required",
       };
     }
 
-    const fs = await import('fs');
-    const path = await import('path');
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
+    const fs = await import("fs");
+    const path = await import("path");
+    const { exec } = await import("child_process");
+    const { promisify } = await import("util");
     const execAsync = promisify(exec);
-    const os = await import('os');
-    
+    const os = await import("os");
+
     // Skip Electron to avoid crashes
     if (appName === "Electron") {
       return {
         success: false,
-        error: "Electron icon skipped"
+        error: "Electron icon skipped",
       };
     }
-    
+
     // Find the app bundle path
     const appPaths = [
       `/Applications/${appName}.app`,
@@ -503,28 +513,30 @@ export async function getProcessIcon(pid: number, appName?: string): Promise<{
       if (!fs.existsSync(appPath)) {
         continue;
       }
-      
+
       console.log(`Found ${appName} at: ${appPath}`);
-      
+
       // Only try to process ICNS files (simple and stable)
-      const resourcesPath = path.join(appPath, 'Contents', 'Resources');
+      const resourcesPath = path.join(appPath, "Contents", "Resources");
       if (!fs.existsSync(resourcesPath)) {
         continue;
       }
-      
+
       // Look for ICNS files
       let iconPaths = [];
-      
+
       // Try to get icon name from Info.plist
-      const infoPlistPath = path.join(appPath, 'Contents', 'Info.plist');
+      const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
       if (fs.existsSync(infoPlistPath)) {
         try {
-          const plistContent = fs.readFileSync(infoPlistPath, 'utf8');
-          const iconMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
+          const plistContent = fs.readFileSync(infoPlistPath, "utf8");
+          const iconMatch = plistContent.match(
+            /<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/,
+          );
           if (iconMatch) {
             let iconFileName = iconMatch[1];
-            if (!iconFileName.endsWith('.icns')) {
-              iconFileName += '.icns';
+            if (!iconFileName.endsWith(".icns")) {
+              iconFileName += ".icns";
             }
             iconPaths.push(path.join(resourcesPath, iconFileName));
           }
@@ -532,40 +544,43 @@ export async function getProcessIcon(pid: number, appName?: string): Promise<{
           console.log(`Could not read Info.plist for ${appName}`);
         }
       }
-      
+
       // Add common ICNS file names
       iconPaths.push(
-        path.join(resourcesPath, 'AppIcon.icns'),
-        path.join(resourcesPath, 'icon.icns'),
-        path.join(resourcesPath, 'Icon.icns'),
-        path.join(resourcesPath, 'app.icns'),
-        path.join(resourcesPath, `${appName}.icns`)
+        path.join(resourcesPath, "AppIcon.icns"),
+        path.join(resourcesPath, "icon.icns"),
+        path.join(resourcesPath, "Icon.icns"),
+        path.join(resourcesPath, "app.icns"),
+        path.join(resourcesPath, `${appName}.icns`),
       );
-      
+
       // Try each ICNS file
       for (const iconPath of iconPaths) {
         if (fs.existsSync(iconPath)) {
           console.log(`Found ICNS: ${iconPath}`);
-          
+
           try {
             const tmpDir = os.tmpdir();
             const tmpPngPath = path.join(tmpDir, `icon_${Date.now()}.png`);
-            
+
             // Convert ICNS to PNG using sips
-            await execAsync(`sips -s format png -z 64 64 "${iconPath}" --out "${tmpPngPath}"`);
-            
+            await execAsync(
+              `sips -s format png -z 64 64 "${iconPath}" --out "${tmpPngPath}"`,
+            );
+
             if (fs.existsSync(tmpPngPath)) {
               const pngBuffer = fs.readFileSync(tmpPngPath);
-              
+
               // Clean up immediately
               fs.unlinkSync(tmpPngPath);
-              
-              if (pngBuffer.length > 100) { // Valid image
-                const base64Data = pngBuffer.toString('base64');
+
+              if (pngBuffer.length > 100) {
+                // Valid image
+                const base64Data = pngBuffer.toString("base64");
                 console.log(`Got ${appName} icon: ${pngBuffer.length} bytes`);
                 return {
                   success: true,
-                  iconData: `data:image/png;base64,${base64Data}`
+                  iconData: `data:image/png;base64,${base64Data}`,
                 };
               }
             }
@@ -575,31 +590,32 @@ export async function getProcessIcon(pid: number, appName?: string): Promise<{
           }
         }
       }
-      
+
       // Check if this app uses Assets.car (modern macOS apps)
-      const assetsCarPath = path.join(resourcesPath, 'Assets.car');
+      const assetsCarPath = path.join(resourcesPath, "Assets.car");
       if (fs.existsSync(assetsCarPath)) {
-        console.log(`${appName} uses Assets.car format - falling back to text icon`);
+        console.log(
+          `${appName} uses Assets.car format - falling back to text icon`,
+        );
         return {
           success: false,
-          error: "Uses Assets.car format, fallback to text icon"
+          error: "Uses Assets.car format, fallback to text icon",
         };
       }
-      
+
       break; // Found app path, no need to check others
     }
 
     console.log(`No icon found for ${appName}`);
     return {
       success: false,
-      error: "Icon file not found"
+      error: "Icon file not found",
     };
-
   } catch (error) {
     console.error(`Error getting icon for ${appName}:`, error);
     return {
       success: false,
-      error: "Icon extraction failed"
+      error: "Icon extraction failed",
     };
   }
 }
