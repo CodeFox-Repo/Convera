@@ -4,6 +4,7 @@ import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import {
   getAppContent,
+  getAppIcon,
   getOpenedApps,
   getPlatform,
   getPreviousApp,
@@ -18,6 +19,7 @@ import {
   getCurrentTheme,
   getCurrentWindowPosition,
   getCurrentWindowSize,
+  getProcessIcon,
   hideAgentPopoverWindow,
   hideModelSelectorWindow,
   initGlobalShortcut,
@@ -172,6 +174,9 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     getAppContent(appName),
   );
   ipcMain.handle(CHANNELS.APP.GET_OPENED, getOpenedApps);
+  ipcMain.handle(CHANNELS.APP.GET_ICON, (_event, appName: string) =>
+    getAppIcon(appName),
+  );
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
     return getClipboardText();
@@ -262,6 +267,11 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   // File operations
   ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (_event, path: string) => {
     return openPath(path);
+  });
+  
+  // Process icon operations
+  ipcMain.handle(CHANNELS.PROCESS_ICON.GET, (_event, pid: number, appName?: string) => {
+    return getProcessIcon(pid, appName);
   });
 
   // Model selector functionality

@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld("activeAppAPI", {
   getPreviousAppID: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_ID),
   getPlatform: () => ipcRenderer.invoke(CHANNELS.PLATFORM.GET),
   getOpenedApps: () => ipcRenderer.invoke(CHANNELS.APP.GET_OPENED),
+  getAppIcon: (appName: string) =>
+    ipcRenderer.invoke(CHANNELS.APP.GET_ICON, appName),
 });
 
 // Listen for the custom event to relay agent list updates via IPC

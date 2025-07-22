@@ -93,6 +93,13 @@ export interface IElectronAPI {
   // File operations
   openPath: (path: string) => Promise<void>;
 
+  // Process icon operations
+  getProcessIcon: (pid: number, appName?: string) => Promise<{
+    success: boolean;
+    iconData?: string;
+    error?: string;
+  }>;
+
   // Event listeners (Main -> Renderer)
   onFocusChatInput: (callback: () => void) => () => void;
   onAppChanged: (
@@ -113,6 +120,7 @@ export interface IActiveAppAPI {
   getPreviousAppID: () => Promise<number>;
   getPlatform: () => Promise<string>;
   getOpenedApps: () => Promise<string[]>;
+  getAppIcon: (appName: string) => Promise<string>;
 }
 
 // Define the Environment API interface

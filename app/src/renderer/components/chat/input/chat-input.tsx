@@ -285,7 +285,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 <button
                   type="button"
                   onClick={handleToggleAppSelector}
-                  className="absolute bottom-2 right-2 p-1 rounded bg-background/80 hover:bg-accent text-muted-foreground hover:text-foreground"
+                  className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary-foreground transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md"
                   title="Insert app content"
                 >
                   @

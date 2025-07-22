@@ -23,6 +23,7 @@ export interface IPCServer {
   getPreviousAppContent(): Promise<string>;
   getAppContent(appName: string): Promise<string>;
   getOpenedApps(): Promise<string[]>;
+  getAppIcon(appName: string): Promise<string>;
 
   // Platform detection
   getPlatform(): string;
@@ -66,6 +67,13 @@ export interface IPCServer {
 
   // File operations
   openPath(path: string): void;
+
+  // Process icon operations
+  getProcessIcon(pid: number, appName?: string): Promise<{
+    success: boolean;
+    iconData?: string;
+    error?: string;
+  }>;
 }
 
 export const CHANNELS = {
@@ -94,6 +102,7 @@ export const CHANNELS = {
     GET_PREVIOUS_CONTENT: "app:get-previous-content",
     GET_CONTENT: "app:get-content",
     GET_OPENED: "app:get-opened",
+    GET_ICON: "app:get-icon",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -119,6 +128,9 @@ export const CHANNELS = {
   FILE: {
     OPEN_PATH: "file:open-path",
   },
+  PROCESS_ICON: {
+    GET: "process-icon:get",
+  },
   // Legacy channels for backwards compatibility during transition
   SETTINGS: {
     TOGGLE: "settings:toggle",
@@ -143,6 +155,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
   getOpenedApps: CHANNELS.APP.GET_OPENED,
+  getAppIcon: CHANNELS.APP.GET_ICON,
 
   // Platform detection
   getPlatform: CHANNELS.PLATFORM.GET,
@@ -173,4 +186,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // File operations
   openPath: CHANNELS.FILE.OPEN_PATH,
+
+  // Process icon operations
+  getProcessIcon: CHANNELS.PROCESS_ICON.GET,
 };
