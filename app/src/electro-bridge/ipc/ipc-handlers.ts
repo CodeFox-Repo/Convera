@@ -4,7 +4,6 @@ import {
   nativeTheme,
   screen,
   shell,
-  app,
 } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
@@ -523,7 +522,7 @@ export async function getProcessIcon(
       }
 
       // Look for ICNS files
-      let iconPaths = [];
+      const iconPaths = [];
 
       // Try to get icon name from Info.plist
       const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
@@ -540,7 +539,7 @@ export async function getProcessIcon(
             }
             iconPaths.push(path.join(resourcesPath, iconFileName));
           }
-        } catch (plistError) {
+        } catch {
           console.log(`Could not read Info.plist for ${appName}`);
         }
       }
@@ -584,7 +583,7 @@ export async function getProcessIcon(
                 };
               }
             }
-          } catch (sipsError) {
+          } catch {
             console.log(`sips failed for ${iconPath}`);
             continue;
           }
