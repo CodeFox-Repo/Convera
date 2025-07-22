@@ -1,10 +1,4 @@
-import {
-  BrowserWindow,
-  clipboard,
-  nativeTheme,
-  screen,
-  shell,
-} from "electron";
+import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import {
