@@ -170,7 +170,7 @@ if (!robotjs) {
   console.warn(
     "⚠️  RobotJS could not be loaded. Keyboard/mouse automation will be disabled.",
   );
-  
+
   // Create a stub that logs warnings instead of throwing errors
   robotjs = {
     keyTap: (...args: any[]) => {
