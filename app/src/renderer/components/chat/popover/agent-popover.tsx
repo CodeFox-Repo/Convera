@@ -164,7 +164,9 @@ export default function AgentPopover() {
   // Set default agent when agents are loaded and no agent is selected
   useEffect(() => {
     if (availableAgents.length > 0 && !selectedAgent) {
-      const defaultAgent = availableAgents.find((agent) => agent.id === "");
+      const defaultAgent = availableAgents.find(
+        (agent) => agent.id === "DefaultAssistant",
+      );
       if (defaultAgent) {
         setSelectedAgent(defaultAgent);
         console.log("Set default agent: DefaultAssistant");
