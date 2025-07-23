@@ -24,7 +24,6 @@ export function usePreviousApp() {
     }
   };
 
-
   useEffect(() => {
     // Initial fetch
     const fetchContent = async () => {

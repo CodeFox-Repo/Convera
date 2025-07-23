@@ -216,7 +216,6 @@ export default function AgentPopover() {
     setSelectedAgent(agent);
     localStorage.setItem("selectedAgent", JSON.stringify(agent));
 
-
     // Force immediate recalculation of built-in tools state for the new agent
     setBasicTools((prev) =>
       prev.map((tool) => {
