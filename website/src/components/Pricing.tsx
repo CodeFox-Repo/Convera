@@ -39,6 +39,14 @@ const Pricing: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 409) {
+          router.navigate({ to: "/settings" });
+          toast({
+            title: "Already Subscribed",
+            description: "You are already subscribed to this plan. Redirecting to your settings.",
+          });
+          return;
+        }
         throw new Error(errorData.error || "Failed to create checkout session");
       }
 
