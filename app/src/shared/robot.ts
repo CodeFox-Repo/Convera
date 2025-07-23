@@ -173,19 +173,19 @@ if (!robotjs) {
 
   // Create a stub that logs warnings instead of throwing errors
   robotjs = {
-    keyTap: (...args: any[]) => {
+    keyTap: (...args: unknown[]) => {
       console.warn("RobotJS not available: keyTap called with", args);
     },
-    keyToggle: (...args: any[]) => {
+    keyToggle: (...args: unknown[]) => {
       console.warn("RobotJS not available: keyToggle called with", args);
     },
-    typeString: (...args: any[]) => {
+    typeString: (...args: unknown[]) => {
       console.warn("RobotJS not available: typeString called with", args);
     },
-    mouseClick: (...args: any[]) => {
+    mouseClick: (...args: unknown[]) => {
       console.warn("RobotJS not available: mouseClick called with", args);
     },
-    moveMouse: (...args: any[]) => {
+    moveMouse: (...args: unknown[]) => {
       console.warn("RobotJS not available: moveMouse called with", args);
     },
     getMousePos: () => {
