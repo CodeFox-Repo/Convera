@@ -53,10 +53,10 @@ export const PricingCard: React.FC<PricingCardProps> = ({
 
         <div className="pt-4">
           <div className="flex flex-col items-start">
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-4xl font-bold text-gray-900">{price}</span>
               {couponLabel && (
-                <span className="inline-block rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+                <span className="inline-block rounded-md bg-orange-400 px-2 py-1 text-xs font-semibold text-white">
                   {couponLabel}
                 </span>
               )}

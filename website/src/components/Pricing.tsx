@@ -109,7 +109,7 @@ const Pricing: React.FC = () => {
               title="Pro"
               description="For power users and professionals"
               price="$12.00"
-              couponLabel="1st-Month Discount"
+              couponLabel="1st Month Discount"
               priceSubtitle="$19.00 from the second month, billed monthly"
               features={[
                 "All feature in Free",
