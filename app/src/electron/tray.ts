@@ -16,7 +16,6 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
   if (app.isPackaged) {
     trayIconPath = path.join(process.resourcesPath, "images", "tray-icon.png");
   } else {
-    
     trayIconPath = path.join(app.getAppPath(), "images", "tray-icon.png");
   }
 
@@ -39,7 +38,7 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
   }
 
   tray.setToolTip("FoxyChat");
-  
+
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
     {
