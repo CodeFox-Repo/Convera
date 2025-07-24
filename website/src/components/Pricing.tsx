@@ -18,7 +18,11 @@ const Pricing: React.FC = () => {
     // Check if user is authenticated
     if (!session?.user) {
       // Redirect to login
-      router.navigate({ to: "/auth/$pathname", params: { pathname: "sign-in" } });
+      router.navigate({
+        to: "/auth/$pathname",
+        params: { pathname: "sign-in" },
+        search: { redirect: router.state.location.pathname },
+      });
       return;
     }
 
@@ -88,13 +92,13 @@ const Pricing: React.FC = () => {
           </div>
 
           {/* Pricing Cards */}
-          <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3 md:gap-6 lg:gap-8">
+          <div className="mx-auto grid max-w-4xl justify-center gap-8 md:grid-cols-2 md:gap-6 lg:gap-8">
             {/* Free */}
             <PricingCard
               title="Free"
               description="Start here and try our product"
               price="Free"
-              features={["Basic AI models", "Basic chat history"]}
+              features={["All basic features", "base rate limit"]}
               buttonText="Download"
               buttonVariant="outline"
               onButtonClick={handleFree}
@@ -102,35 +106,19 @@ const Pricing: React.FC = () => {
 
             {/* Pro Plan */}
             <PricingCard
-              title="Basic"
+              title="Pro"
               description="For power users and professionals"
-              price="$9.99"
-              period="month"
+              price="$12.00"
+              couponLabel="1st-Month Discount"
+              priceSubtitle="$19.00 from the second month, billed monthly"
               features={[
-                "Advanced AI models (GPT-4.1-mini)",
+                "All feature in Free",
+                "Boosted AI Model rate limits for advanced usage",
                 "Priority response time",
-                "API access",
-                "Advanced integrations",
               ]}
               buttonText="Upgrade to Pro"
               isPopular={true}
               onButtonClick={() => handleUpgrade("Basic")}
-            />
-
-            {/* Pro Plus */}
-            <PricingCard
-              title="Pro"
-              description="The most powerful plan"
-              price="$20"
-              period="month"
-              features={[
-                "Everything in Pro",
-                "Premium AI models (Claude Sonnet 4.....)",
-                "24/7 priority support",
-              ]}
-              buttonText="Upgrade to Pro Plus"
-              buttonVariant="outline"
-              onButtonClick={() => handleUpgrade("Pro")}
             />
           </div>
         </div>
