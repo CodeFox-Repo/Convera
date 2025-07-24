@@ -112,6 +112,7 @@ export interface IActiveAppAPI {
   getPreviousAppID: () => Promise<number>;
   getPlatform: () => Promise<string>;
   getOpenedApps: () => Promise<string[]>;
+  onContentUpdate: (callback: (content: string) => void) => () => void;
 }
 
 // Define the Environment API interface

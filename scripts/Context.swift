@@ -3,17 +3,22 @@ import Foundation
 import ApplicationServices
 import AppKit
 
-// 检查并请求辅助功能权限
+// MARK: - Global State
+var observer: AXObserver?
+var currentAppElem: AXUIElement?
+var seen = Set<String>()
+var currentAppName = "Unknown"
+
+// MARK: - Accessibility Helper Functions
+
+func log(_ message: String) {
+    fputs("\(message)\n", stderr)
+}
+
 func checkAccessibilityPermissions() -> Bool {
     let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: kCFBooleanTrue!]
     let isTrusted = AXIsProcessTrustedWithOptions(options)
     return isTrusted
-}
-
-// 如果没有权限，则提示并退出
-guard checkAccessibilityPermissions() else {
-    print("错误：需要辅助功能权限。请在系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能中为本应用授权。")
-    exit(1)
 }
 
 func cfString(_ cf: CFTypeRef?) -> String? {
@@ -32,7 +37,6 @@ func cfString(_ cf: CFTypeRef?) -> String? {
         ? String(cString: buf) : nil
 }
 
-/// 返回子元素的数组
 func fetchChildren(of element: AXUIElement) -> [AXUIElement] {
     var cf: CFTypeRef?
     guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &cf) == .success,
@@ -53,50 +57,6 @@ func fetchChildren(of element: AXUIElement) -> [AXUIElement] {
     return children
 }
 
-// 获取元素的 kAXValueAttribute 属性值
-func fetchValueAttribute(of element: AXUIElement) -> Any? {
-    var valueRef: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success,
-          let value = valueRef else {
-        return nil
-    }
-    
-    // 根据值的类型进行适当的转换
-    let typeID = CFGetTypeID(value)
-    
-    if typeID == CFStringGetTypeID() {
-        return cfString(value)
-    } else if typeID == CFNumberGetTypeID() {
-        var number: Double = 0
-        CFNumberGetValue(value as! CFNumber, CFNumberType.doubleType, &number)
-        return number
-    } else if typeID == CFBooleanGetTypeID() {
-        return CFBooleanGetValue(value as! CFBoolean)
-    } else {
-        // 对于其他类型，返回字符串表示
-        return cfString(value) ?? "[无法转换的值类型]"
-    }
-}
-
-// 递归查找特定角色的元素
-func findElement(of element: AXUIElement, withRole role: String) -> AXUIElement? {
-    var roleValue: CFTypeRef?
-    if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue) == .success,
-       let roleString = cfString(roleValue),
-       roleString == role {
-        return element
-    }
-    
-    for child in fetchChildren(of: element) {
-        if let found = findElement(of: child, withRole: role) {
-            return found
-        }
-    }
-    
-    return nil
-}
-
-// 要过滤掉的属性列表
 let filteredAttributes: Set<String> = [
     "AXFrame", "AXPosition", "AXSize", "AXChildren", "AXChildrenInNavigationOrder",
     "AXTopLevelUIElement", "AXParent", "AXRole", "AXSubrole", "AXRoleDescription",
@@ -107,7 +67,6 @@ let filteredAttributes: Set<String> = [
     "AXVisibleCharacterRange", "AXNumberOfCharacters", "AXSelectedTextRange", "AXSelectedTextRanges", "AXLanguage", "AXKeyShortcutsValue", "AXPopupValue"
 ]
 
-var seen = Set<String>()
 // 递归打印元素及其所有属性
 func dump(element: AXUIElement, depth: Int = 0) {
     let indent = String(repeating: "  ", count: depth)
@@ -128,7 +87,6 @@ func dump(element: AXUIElement, depth: Int = 0) {
                 }
             }
         }
-        print(output, terminator: "")
     }
 
     for child in fetchChildren(of: element) {
@@ -136,46 +94,136 @@ func dump(element: AXUIElement, depth: Int = 0) {
     }
 }
 
+// MARK: - Observer Logic
+
+func axCallback(_ observer: AXObserver, _ element: AXUIElement, _ notification: CFString, _ refcon: UnsafeMutableRawPointer?) {
+    log("Notification: \(notification as String)")
+    
+    guard let appElem = currentAppElem else { return }
+
+    let appName = currentAppName
+
+    var winCF: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(appElem, kAXFocusedWindowAttribute as CFString, &winCF) == .success,
+          let win = winCF else {
+        return
+    }
+    let windowElem = win as! AXUIElement
+
+    seen.removeAll()
+    let content = dumpToString(element: windowElem)
+    
+    let jsonOutput: [String: Any] = [
+        "type": "context_update",
+        "timestamp": ISO8601DateFormatter().string(from: Date()),
+        "notification": notification as String,
+        "appName": appName,
+        "content": content
+    ]
+    
+    if let jsonData = try? JSONSerialization.data(withJSONObject: jsonOutput, options: []),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+        print(jsonString)
+        fflush(stdout)
+    }
+}
+
+func startObserving(app: NSRunningApplication) {
+    let pid = app.processIdentifier
+    let appElem = AXUIElementCreateApplication(pid)
+    currentAppElem = appElem
+    currentAppName = app.localizedName ?? "Unknown"
+    
+    var axObs: AXObserver?
+    let result = AXObserverCreate(pid, axCallback, &axObs)
+    guard result == .success, let observerInstance = axObs else {
+        log("Failed to create AXObserver")
+        return
+    }
+    
+    observer = observerInstance
+
+    AXObserverAddNotification(observerInstance, appElem, kAXFocusedWindowChangedNotification as CFString, nil)
+    AXObserverAddNotification(observerInstance, appElem, kAXValueChangedNotification as CFString, nil)
+    AXObserverAddNotification(observerInstance, appElem, kAXUIElementDestroyedNotification as CFString, nil)
+
+    let runLoopSource = AXObserverGetRunLoopSource(observerInstance)
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
+
+    axCallback(observerInstance, appElem, "InitialDump" as CFString, nil)
+}
+
+func stopObserving() {
+    if let axObs = observer, let elem = currentAppElem {
+        let runLoopSource = AXObserverGetRunLoopSource(axObs)
+        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
+        
+        AXObserverRemoveNotification(axObs, elem, kAXFocusedWindowChangedNotification as CFString)
+        AXObserverRemoveNotification(axObs, elem, kAXValueChangedNotification as CFString)
+        AXObserverRemoveNotification(axObs, elem, kAXUIElementDestroyedNotification as CFString)
+        
+        observer = nil
+        currentAppElem = nil
+    }
+}
+
+// MARK: - Main Execution
+
+guard checkAccessibilityPermissions() else {
+    exit(1)
+}
+
 guard CommandLine.arguments.count >= 2 else {
-    print("用法: swift Context.swift <AppName>")
     exit(1)
 }
-let target = CommandLine.arguments[1]
+let initialName = CommandLine.arguments[1]
 
-guard let app = NSWorkspace.shared.runningApplications
-        .first(where: { $0.localizedName == target }) else {
-    print("找不到名为 \(target) 的正在运行的应用")
+guard let app = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == initialName }) else {
     exit(1)
 }
-let appElem = AXUIElementCreateApplication(app.processIdentifier)
 
-// 获取焦点窗口
-var winCF: CFTypeRef?
-guard AXUIElementCopyAttributeValue(appElem, kAXFocusedWindowAttribute as CFString, &winCF) == .success,
-      let win = winCF
-else {
-    print("无法获取焦点窗口")
-    exit(1)
-}
-let windowElem = win as! AXUIElement
+startObserving(app: app)
 
-let manualAccessabilityAttribute = "AXManualAccessibility"
-let enhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
+let initialStatus: [String: Any] = [
+    "type": "status",
+    "timestamp": ISO8601DateFormatter().string(from: Date()),
+    "message": "Monitoring: \(app.localizedName ?? "")",
+    "appName": app.localizedName ?? "",
+    "pid": app.processIdentifier
+]
 
-var manualResult = AXUIElementSetAttributeValue(appElem, manualAccessabilityAttribute as CFString, kCFBooleanTrue)
-if manualResult == .success {
-    print("成功设置 \(manualAccessabilityAttribute)")
-} else {
-    // 静默失败，因为不是所有应用都支持
+if let jsonData = try? JSONSerialization.data(withJSONObject: initialStatus, options: []),
+   let jsonString = String(data: jsonData, encoding: .utf8) {
+    print(jsonString)
+    fflush(stdout)
 }
 
-var enhancedResult = AXUIElementSetAttributeValue(appElem, enhancedUserInterfaceAttribute as CFString, kCFBooleanTrue)
-if enhancedResult == .success {
-    print("成功设置 \(enhancedUserInterfaceAttribute)")
-} else {
-    // 静默失败，因为不是所有应用都支持
+CFRunLoopRun()
+
+func dumpToString(element: AXUIElement, depth: Int = 0) -> String {
+    var result = ""
+    let indent = String(repeating: "  ", count: depth)
+    var attributeNames: CFArray?
+    let error = AXUIElementCopyAttributeNames(element, &attributeNames)
+
+    if error == .success, let names = attributeNames as? [String] {
+        for name in names {
+            if filteredAttributes.contains(name) { continue }
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success {
+                if let strValue = cfString(value), !strValue.isEmpty {
+                    let line = "\(strValue)"
+                    if seen.insert(line).inserted {
+                        result += "\(indent)\(name): \(strValue)\n"
+                    }
+                }
+            }
+        }
+    }
+
+    for child in fetchChildren(of: element) {
+        result += dumpToString(element: child, depth: depth + 1)
+    }
+    
+    return result
 }
-Thread.sleep(forTimeInterval: 1)
-print("开始转储 \(target) 的可访问性树（已过滤）...")
-dump(element: windowElem)
-print("转储完成。")

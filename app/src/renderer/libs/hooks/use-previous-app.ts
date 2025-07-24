@@ -37,13 +37,14 @@ export function usePreviousApp() {
   };
 
   useEffect(() => {
-    // Initial fetch
-    const fetchContent = async () => {
-      const content = await window.activeAppAPI.getPreviousAppContent();
-      console.log("Previous app content:", content);
-      setPreviousAppContent(content);
-    };
-    fetchContent();
+    const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
+      setPreviousAppContent(newContent);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     fetchOpenedApps();
   }, [previousApp]);
 

@@ -6,7 +6,6 @@ import {
   getOpenedApps,
   getPlatform,
   getPreviousApp,
-  getPreviousAppContent,
   getPreviousAppID,
 } from "./active-app-context";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
@@ -131,7 +130,6 @@ export interface ListenerOptions {
  */
 export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   const { chatWindow, registerGlobalShortcuts } = options;
-
   // Unified Window Control
   ipcMain.handle(CHANNELS.WINDOW.TOGGLE, (_event, type: WindowType) => {
     return toggleWindow(type);
@@ -166,7 +164,6 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   // App functionality
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, getPreviousApp);
   ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, getPreviousAppID);
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_CONTENT, getPreviousAppContent);
   ipcMain.handle(CHANNELS.APP.GET_OPENED, getOpenedApps);
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
