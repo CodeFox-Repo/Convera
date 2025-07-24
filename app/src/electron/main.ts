@@ -5,7 +5,6 @@ import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
   isHiddenOffscreen,
-  toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
@@ -31,7 +30,7 @@ import {
 } from "@/electro-bridge/ipc/listeners-register";
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
-import { getChatWindow } from "./windows/chat-window";
+import { getMainWindow } from "./windows/main-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
 import { preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
@@ -228,8 +227,15 @@ function registerGlobalShortcuts() {
         const noContent =
           !selectedText && (!selectedImage || selectedImage.isEmpty());
 
-        if (getChatWindow()) {
-          toggleChatWindowVisibility(getChatWindow());
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          // Toggle main window visibility
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
 
           // Process content immediately if we have new content
           if (!allContentDuplicate && !noContent) {
@@ -252,7 +258,7 @@ function registerGlobalShortcuts() {
             }
 
             if (contentToSend.imageData || contentToSend.text) {
-              setInputContent(getChatWindow(), contentToSend);
+              setInputContent(mainWindow, contentToSend);
             }
           }
         }
@@ -309,12 +315,13 @@ function setupScreenResizeHandlers() {
       }
 
       resizeTimeout = setTimeout(() => {
-        // Update chat window if it exists
-        if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
+        // Update main window if it exists
+        const mainWindow = getMainWindow();
+        if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
           const dimensions = expectedPosition
             ? expectedPosition
             : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
-          getChatWindow().setBounds(dimensions);
+          mainWindow.setBounds(dimensions);
         }
 
         // Update settings window if visible
@@ -364,7 +371,7 @@ app.whenReady().then(async () => {
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => getChatWindow(),
+      chatWindow: () => getMainWindow(),
       registerGlobalShortcuts,
     };
 
@@ -395,7 +402,7 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" && getChatWindow() === null) {
+  if (process.platform !== "darwin" && getMainWindow() === null) {
     app.quit();
   }
 });

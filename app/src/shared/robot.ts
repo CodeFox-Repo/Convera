@@ -167,36 +167,9 @@ if (!robotjs) {
     console.warn("❌ Debug directory listing failed:", debugError);
   }
 
-  console.warn(
-    "⚠️  RobotJS could not be loaded. Keyboard/mouse automation will be disabled.",
+  throw new Error(
+    "🚫 RobotJS is required but could not be loaded from any location. Please check the console for debugging information.",
   );
-
-  // Create a stub that logs warnings instead of throwing errors
-  robotjs = {
-    keyTap: (...args: unknown[]) => {
-      console.warn("RobotJS not available: keyTap called with", args);
-    },
-    keyToggle: (...args: unknown[]) => {
-      console.warn("RobotJS not available: keyToggle called with", args);
-    },
-    typeString: (...args: unknown[]) => {
-      console.warn("RobotJS not available: typeString called with", args);
-    },
-    mouseClick: (...args: unknown[]) => {
-      console.warn("RobotJS not available: mouseClick called with", args);
-    },
-    moveMouse: (...args: unknown[]) => {
-      console.warn("RobotJS not available: moveMouse called with", args);
-    },
-    getMousePos: () => {
-      console.warn("RobotJS not available: getMousePos called");
-      return { x: 0, y: 0 };
-    },
-    getScreenSize: () => {
-      console.warn("RobotJS not available: getScreenSize called");
-      return { width: 1920, height: 1080 };
-    },
-  } as typeof RobotJS;
 }
 
 export default robotjs;
