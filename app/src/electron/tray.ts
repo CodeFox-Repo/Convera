@@ -1,5 +1,4 @@
-import { toggleChatWindowVisibility } from "@/electron/windows/window-position";
-import { BrowserWindow, Menu, Tray, app, nativeImage } from "electron";
+import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
 
@@ -8,7 +7,7 @@ let tray: Tray | null = null;
 /**
  * Create and configure the system tray
  */
-export function createSystemTray(chatWindow: BrowserWindow | null) {
+export function createSystemTray() {
   let trayIcon: Electron.NativeImage;
 
   let trayIconPath: string;

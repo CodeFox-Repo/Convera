@@ -378,7 +378,7 @@ app.whenReady().then(async () => {
       }
     });
 
-    createSystemTray(getChatWindow());
+    createSystemTray();
   } catch (error) {
     logger.error("Error during app initialization", error);
   }
