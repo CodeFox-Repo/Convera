@@ -97,7 +97,7 @@ const Pricing: React.FC = () => {
             <PricingCard
               title="Free"
               description="Start here and try our product"
-              price="Free"
+              price="$0"
               features={["All basic features", "base rate limit"]}
               buttonText="Download"
               buttonVariant="outline"

@@ -47,26 +47,26 @@ export const PricingCard: React.FC<PricingCardProps> = ({
         </div>
       )}
 
-      <CardHeader className="pb-2 text-center">
+      <CardHeader className="pb-6 text-left">
         <CardTitle className="text-xl font-bold text-gray-900">{title}</CardTitle>
         <CardDescription className="text-gray-600">{description}</CardDescription>
 
         <div className="pt-4">
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-4xl font-bold text-gray-900">{price}</span>
-            {couponLabel && (
-              <span className="inline-block self-center rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
-                {couponLabel}
-              </span>
-            )}
+          <div className="flex flex-col items-start">
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-gray-900">{price}</span>
+              {couponLabel && (
+                <span className="inline-block rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+                  {couponLabel}
+                </span>
+              )}
+            </div>
+            {priceSubtitle && <p className="mt-1 text-sm text-gray-600">{priceSubtitle}</p>}
           </div>
-          {priceSubtitle && (
-            <p className="mt-1 text-sm text-gray-600">{priceSubtitle}</p>
-          )}
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col">
+      <CardContent className="flex flex-1 flex-col pt-2">
         <ul className="mb-6 flex-1 space-y-3">
           {features.map((feature, index) => (
             <li key={index} className="flex items-start gap-3">
