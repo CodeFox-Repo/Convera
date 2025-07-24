@@ -1,5 +1,5 @@
 import { toggleChatWindowVisibility } from "@/electron/windows/window-position";
-import { BrowserWindow, Tray, app, nativeImage } from "electron";
+import { BrowserWindow, Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
 
@@ -16,6 +16,7 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
   if (app.isPackaged) {
     trayIconPath = path.join(process.resourcesPath, "images", "tray-icon.png");
   } else {
+    
     trayIconPath = path.join(app.getAppPath(), "images", "tray-icon.png");
   }
 
@@ -37,7 +38,32 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
     tray.setIgnoreDoubleClickEvents(true);
   }
 
-  tray.setToolTip("FoxyChat - Click to toggle");
+  tray.setToolTip("FoxyChat");
+  
+  // Create context menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show/Hide FoxyChat",
+      click: () => {
+        if (chatWindow) {
+          toggleChatWindowVisibility(chatWindow);
+        }
+      },
+    },
+    {
+      type: "separator",
+    },
+    {
+      label: "Quit FoxyChat",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Left click to toggle window
   tray.on("click", () => {
     if (chatWindow) {
       toggleChatWindowVisibility(chatWindow);
