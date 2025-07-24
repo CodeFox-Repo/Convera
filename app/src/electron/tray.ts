@@ -42,17 +42,6 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Show/Hide FoxyChat",
-      click: () => {
-        if (chatWindow) {
-          toggleChatWindowVisibility(chatWindow);
-        }
-      },
-    },
-    {
-      type: "separator",
-    },
-    {
       label: "Quit FoxyChat",
       click: () => {
         app.quit();
@@ -62,11 +51,9 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
 
   tray.setContextMenu(contextMenu);
 
-  // Left click to toggle window
+  // Left click to show menu (same as right click)
   tray.on("click", () => {
-    if (chatWindow) {
-      toggleChatWindowVisibility(chatWindow);
-    }
+    tray.popUpContextMenu();
   });
 }
 
