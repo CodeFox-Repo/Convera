@@ -118,7 +118,7 @@ const Pricing: React.FC = () => {
               ]}
               buttonText="Upgrade to Pro"
               isPopular={true}
-              onButtonClick={() => handleUpgrade("Basic")}
+              onButtonClick={() => handleUpgrade("Pro")}
             />
           </div>
         </div>
