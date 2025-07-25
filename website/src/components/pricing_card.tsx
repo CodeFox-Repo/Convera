@@ -7,7 +7,8 @@ interface PricingCardProps {
   title: string;
   description: string;
   price: string;
-  period?: string;
+  couponLabel?: string;
+  priceSubtitle?: string;
   features: string[];
   buttonText: string;
   buttonVariant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link";
@@ -20,7 +21,8 @@ export const PricingCard: React.FC<PricingCardProps> = ({
   title,
   description,
   price,
-  period = "month",
+  couponLabel,
+  priceSubtitle,
   features,
   buttonText,
   buttonVariant = "default",
@@ -45,19 +47,26 @@ export const PricingCard: React.FC<PricingCardProps> = ({
         </div>
       )}
 
-      <CardHeader className="pb-2 text-center">
+      <CardHeader className="pb-6 text-left">
         <CardTitle className="text-xl font-bold text-gray-900">{title}</CardTitle>
         <CardDescription className="text-gray-600">{description}</CardDescription>
 
         <div className="pt-4">
-          <div className="flex items-baseline justify-center gap-1">
-            <span className="text-4xl font-bold text-gray-900">{price}</span>
-            {price !== "Free" && <span className="text-gray-600">/{period}</span>}
+          <div className="flex flex-col items-start">
+            <div className="flex items-center gap-2">
+              <span className="text-4xl font-bold text-gray-900">{price}</span>
+              {couponLabel && (
+                <span className="inline-block rounded-md bg-orange-400 px-2 py-1 text-xs font-semibold text-white">
+                  {couponLabel}
+                </span>
+              )}
+            </div>
+            {priceSubtitle && <p className="mt-1 text-sm text-gray-600">{priceSubtitle}</p>}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col">
+      <CardContent className="flex flex-1 flex-col pt-2">
         <ul className="mb-6 flex-1 space-y-3">
           {features.map((feature, index) => (
             <li key={index} className="flex items-start gap-3">
