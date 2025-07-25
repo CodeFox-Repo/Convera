@@ -28,7 +28,6 @@ let manualAccessabilityAttribute = "AXManualAccessibility"
 let enhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
 
 var manualResult = AXUIElementSetAttributeValue(appElem, manualAccessabilityAttribute as CFString, kCFBooleanTrue)
-}
 
 var enhancedResult = AXUIElementSetAttributeValue(appElem, enhancedUserInterfaceAttribute as CFString, kCFBooleanTrue)
 Thread.sleep(forTimeInterval: 1)
