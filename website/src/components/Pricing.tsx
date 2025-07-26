@@ -2,12 +2,43 @@ import { PricingCard } from "@/components/pricing_card";
 import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 
 const Pricing: React.FC = () => {
   const router = useRouter();
   const { data: session } = useSession();
+  const [subscriptionData, setSubscriptionData] = useState<{
+    hasSubscribedBefore: boolean;
+  } | null>(null);
+
+  // Fetch user subscription data
+  useEffect(() => {
+    const fetchSubscriptionData = async () => {
+      if (!session?.user) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${getBaseURL()}/api/subscription/user-subscription`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSubscriptionData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch subscription data:", error);
+      }
+    };
+
+    fetchSubscriptionData();
+  }, [session]);
 
   const handleFree = () => {
     // Redirect to download page
@@ -108,9 +139,15 @@ const Pricing: React.FC = () => {
             <PricingCard
               title="Pro"
               description="For power users and professionals"
-              price="$12.00"
-              couponLabel="1st Month Discount"
-              priceSubtitle="$19.00 from the second month, billed monthly"
+              price={!subscriptionData?.hasSubscribedBefore ? "$12.00" : "$19.00"}
+              couponLabel={
+                !subscriptionData?.hasSubscribedBefore ? "1st Month Discount" : undefined
+              }
+              priceSubtitle={
+                !subscriptionData?.hasSubscribedBefore
+                  ? "$19.00 from the second month, billed monthly"
+                  : ""
+              }
               features={[
                 "All feature in Free",
                 "Boosted AI Model rate limits for advanced usage",
