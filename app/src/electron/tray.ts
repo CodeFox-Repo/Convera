@@ -1,5 +1,4 @@
-import { toggleChatWindowVisibility } from "@/electron/windows/window-position";
-import { BrowserWindow, Tray, app, nativeImage } from "electron";
+import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
 
@@ -8,7 +7,7 @@ let tray: Tray | null = null;
 /**
  * Create and configure the system tray
  */
-export function createSystemTray(chatWindow: BrowserWindow | null) {
+export function createSystemTray() {
   let trayIcon: Electron.NativeImage;
 
   let trayIconPath: string;
@@ -37,11 +36,23 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
     tray.setIgnoreDoubleClickEvents(true);
   }
 
-  tray.setToolTip("FoxyChat - Click to toggle");
+  tray.setToolTip("FoxyChat");
+
+  // Create context menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Quit FoxyChat",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Left click to show menu (same as right click)
   tray.on("click", () => {
-    if (chatWindow) {
-      toggleChatWindowVisibility(chatWindow);
-    }
+    tray.popUpContextMenu();
   });
 }
 

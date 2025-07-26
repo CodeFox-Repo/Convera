@@ -18,6 +18,10 @@ const config: ForgeConfig = {
     asar: {
       unpack: "**/@hurdlegroup/**",
     },
+    // Configure app to run in background
+    extendInfo: {
+      LSUIElement: true, // Hide from Dock and Command+Tab
+    },
   },
 
   rebuildConfig: {},
