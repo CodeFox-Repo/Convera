@@ -5,14 +5,9 @@ import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
   isHiddenOffscreen,
-  toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
-import {
-  installExtension,
-  REACT_DEVELOPER_TOOLS,
-} from "electron-devtools-installer";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
@@ -33,7 +28,7 @@ import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
 import { getChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
-import { preCreateMainWindow } from "./windows/main-window";
+import { getMainWindow, preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
 import {
   getSettingsWindow,
@@ -46,9 +41,6 @@ const { activeWindowSync } =
     ? // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("get-windows")
     : { activeWindowSync: null };
-
-// Determine if the app is running from source or packaged
-const inDevelopment = !app.isPackaged;
 
 let trackingAppFocus = false;
 
@@ -198,8 +190,15 @@ function registerGlobalShortcuts() {
         // Skip content processing if all content is duplicate or no content
         const noContent = !selectedText;
 
-        if (getChatWindow()) {
-          toggleChatWindowVisibility(getChatWindow());
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          // Toggle main window visibility
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
 
           // Process content immediately if we have new content
           if (!isTextDuplicate && !noContent) {
@@ -245,15 +244,6 @@ function registerGlobalShortcuts() {
   }
 }
 
-async function installExtensions() {
-  try {
-    const result = await installExtension(REACT_DEVELOPER_TOOLS);
-    console.log(`Extensions installed successfully: ${result.name}`);
-  } catch {
-    console.error("Failed to install extensions");
-  }
-}
-
 // Handle screen resize events
 function setupScreenResizeHandlers() {
   let resizeTimeout: NodeJS.Timeout | null = null;
@@ -268,8 +258,9 @@ function setupScreenResizeHandlers() {
       }
 
       resizeTimeout = setTimeout(() => {
-        // Update chat window if it exists
-        if (getChatWindow() && !isHiddenOffscreen && !isInExpandedViewMode()) {
+        // Update main window if it exists
+        const mainWindow = getMainWindow();
+        if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
           const dimensions = expectedPosition
             ? expectedPosition
             : calculateWindowDimensions(WINDOW_SIZE_PRESETS.CHAT);
@@ -322,7 +313,7 @@ app.whenReady().then(async () => {
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => getChatWindow(),
+      chatWindow: () => getMainWindow(),
       registerGlobalShortcuts,
     };
 
@@ -335,14 +326,7 @@ app.whenReady().then(async () => {
       }
     });
 
-    createSystemTray(getChatWindow());
-
-    // Install extensions in background for development (non-blocking)
-    if (inDevelopment) {
-      installExtensions().catch((error) =>
-        console.error("Failed to install extensions:", error),
-      );
-    }
+    createSystemTray();
   } catch (error) {
     logger.error("Error during app initialization", error);
   }
@@ -359,7 +343,7 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" && getChatWindow() === null) {
+  if (process.platform !== "darwin" && getMainWindow() === null) {
     app.quit();
   }
 });

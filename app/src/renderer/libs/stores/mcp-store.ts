@@ -360,7 +360,8 @@ export const useMcpStore = create<McpState>()(
 
       subscribeMcpChanges: () => {
         const customEventHandler = (() => {
-          // Just trigger a re-render, actual data is already updated
+          // Trigger a refresh when MCP servers are modified
+          get().refreshAll();
         }) as EventListener;
 
         const storageEventHandler = ((event: StorageEvent) => {
