@@ -7,16 +7,37 @@ import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import pkg from "./package.json";
 
+const shouldSign =
+  process.env.ENABLE_CODE_SIGNING === "true" && process.env.APPLE_IDENTITY;
+
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: pkg.name,
     name: pkg.productName,
     icon: "./public/images/icon",
-    // Include images directory in the packaged app
-    extraResource: ["./public/images"],
+    // Include images and scripts directories in the packaged app
+    extraResource: ["./public/images", "./scripts"],
     // Force unpack robotjs using different syntax
     asar: {
       unpack: "**/@hurdlegroup/**",
+    },
+    ...(shouldSign && {
+      osxSign: {
+        identity: process.env.APPLE_IDENTITY,
+        optionsForFile: (file) => ({
+          hardenedRuntime: true,
+          entitlements: "entitlements.plist",
+          entitlemenherit: "entitlements.plist",
+          signatureFlags: "library",
+        }),
+      },
+      osxNotarize: { keychainProfile: "notary-profile" },
+    }),
+    extendInfo: {
+      NSAppleEventsUsageDescription:
+        "FoxyChat needs access to control other applications for seamless integration.",
+      NSAccessibilityUsageDescription:
+        "FoxyChat needs accessibility permissions to read content from other applications.",
     },
   },
 
@@ -71,7 +92,7 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
       [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
