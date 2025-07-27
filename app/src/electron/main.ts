@@ -297,30 +297,27 @@ app.whenReady().then(async () => {
   try {
     logger.info("Application ready, starting initialization");
 
-    if (inDevelopment) {
-      await installExtensions();
-    }
-
-    // Initialize Simple Logger
+    // Initialize synchronous components first
     initializeLogger();
+    
+    // Initialize MCP Hub asynchronously but don't block startup
+    initializeMCPHub().then(() => {
+      logger.info("MCP Hub initialization completed");
+    }).catch(error => {
+      logger.error("MCP Hub initialization failed:", error);
+    });
 
-    // Initialize MCP Hub
-    initializeMCPHub();
-    logger.info("MCP Hub initialization completed");
-
-    logger.debug("Starting app focus tracking");
+    // Start background processes that don't block UI
     startAppFocusTracking();
-
-    logger.debug("Registering global shortcuts");
     registerGlobalShortcuts();
+    setupScreenResizeHandlers();
 
-    logger.debug("Pre-creating windows");
+    // Pre-create windows
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
-    preCreateModelSelectorWindow(); // Pre-create model selector window
-    preCreateHistoryWindow(); // Pre-create history window
-    setupScreenResizeHandlers(); // Setup screen resize handlers
-    preCreateMainWindow(); // Pre-create main window
+    preCreateModelSelectorWindow();
+    preCreateHistoryWindow();
+    preCreateMainWindow();
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
@@ -329,7 +326,6 @@ app.whenReady().then(async () => {
     };
 
     logger.debug("Registering IPC listeners");
-    // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
 
     app.on("activate", () => {
@@ -339,6 +335,13 @@ app.whenReady().then(async () => {
     });
 
     createSystemTray(getChatWindow());
+
+    // Install extensions in background for development (non-blocking)
+    if (inDevelopment) {
+      installExtensions().catch(error => 
+        console.error("Failed to install extensions:", error)
+      );
+    }
   } catch (error) {
     logger.error("Error during app initialization", error);
   }

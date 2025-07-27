@@ -723,13 +723,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const shouldUseRemoteServer = isUserLoggedIn;
           // const shouldUseCustomApi =
           //   !shouldUseRemoteServer && hasValidCustomApi;
-
-          // const customApiSettings = shouldUseCustomApi
-          //   ? {
-          //       endpoint: currentSettings.openai.endpoint,
-          //       apiKey: currentSettings.openai.apiKey,
-          //     }
-          //   : undefined;
           const customApiSettings = undefined; // Always undefined - no local API
 
           // If remote server is not available, show error
@@ -737,9 +730,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             console.error(
               "Remote server required. Please log in and enable remote store.",
             );
-            alert(
-              "Please log in and enable remote store to use the chat functionality.",
-            );
+            alert("Please log in to use the chat.");
             return;
           }
           // Get fresh previousAppContent before sending

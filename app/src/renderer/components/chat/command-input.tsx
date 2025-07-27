@@ -4,6 +4,8 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import React, { forwardRef } from "react";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { X } from "lucide-react";
 
 interface CommandInputProps {
   value: string;
@@ -38,6 +40,7 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
     ref,
   ) => {
     const { previousApp, formatAppName } = usePreviousApp();
+    const { selectedContent, setSelectedContent } = useChatContext();
 
     return (
       <div className="relative w-full">
@@ -49,6 +52,21 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
             disabled && "opacity-50 cursor-not-allowed",
           )}
         >
+          {/* Selected Content Display Inside Input */}
+          {selectedContent && selectedContent.text && (
+            <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/10 animate-in fade-in slide-in-from-top-1 duration-200">
+              <p className="text-sm text-foreground/70 line-clamp-2 flex-1 mr-2">
+                {selectedContent.text}
+              </p>
+              <button
+                onClick={() => setSelectedContent(null)}
+                className="flex-shrink-0 p-1 rounded hover:bg-foreground/10 transition-colors"
+                aria-label="Clear selected content"
+              >
+                <X className="w-3 h-3 text-foreground/50" />
+              </button>
+            </div>
+          )}
           <div className="flex items-center ">
             {/* Command mode indicator - shows when user types "/" or in command input mode */}
             {(isCommandMode || selectedCommand) && (

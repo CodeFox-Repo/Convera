@@ -16,9 +16,10 @@ import { getLogger } from "../logger";
 // Initialize logger for chat window
 const logger = getLogger("chat-window");
 
+// Dynamic window sizing - initial dimensions only
 const CHAT_WINDOW_DIMENSIONS = {
   width: 600,
-  height: 700,
+  height: 100, // Start small, will be resized dynamically
 };
 
 // Extract platform-specific configurations for chat window
@@ -38,7 +39,7 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
     frame: false,
     autoHideMenuBar: true,
     hasShadow: true,
-    resizable: false,
+    resizable: true, // Allow dynamic resizing
     maximizable: false,
     fullscreenable: false,
     show: false,

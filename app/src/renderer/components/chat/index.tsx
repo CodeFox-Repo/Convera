@@ -33,6 +33,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const {
     messages,
+    selectedContent,
     setSelectedContent,
     sendMessage,
     isLoading,
@@ -98,6 +99,63 @@ export default function Chat() {
     },
   ];
 
+  /**
+   * Calculate dynamic height for selected content based on text length and wrapping
+   * 
+   * SOLUTION: Dynamic height calculation instead of fixed 48px
+   * - 1 line text ≈ 35px (16px padding + 18px text + 1px border)
+   * - 2 line text ≈ 53px (16px padding + 36px text + 1px border)
+   * 
+   * Implementation:
+   * - Reverse-engineers from actual CSS classes in command-input.tsx
+   * - Simulates browser text wrapping by splitting on words
+   * - Respects line-clamp-2 CSS constraint (max 2 lines)
+   * - Uses precise pixel values derived from Tailwind classes
+   * 
+   * This replaces the previous fixed 48px approach with content-aware sizing
+   */
+  const calculateSelectedContentHeight = useCallback((text: string) => {
+    if (!text) return 0;
+    
+    // Based on actual CSS in command-input.tsx:
+    // - py-2: 8px top + 8px bottom = 16px padding
+    // - text-sm: ~14px font-size with ~1.25 line-height = ~18px per line
+    // - line-clamp-2: maximum 2 lines
+    // - Available width for text: ~520px
+    
+    const verticalPadding = 16; // py-2 
+    const lineHeight = 18; // text-sm line height
+    const borderHeight = 1; // border-b
+    
+    // More accurate line calculation: consider word breaks
+    // Rough estimate: 65-75 characters per line for 520px width with text-sm
+    const charsPerLine = 70;
+    
+    // Split into words and calculate lines more accurately
+    const words = text.split(/\s+/);
+    let currentLineLength = 0;
+    let lines = 1;
+    
+    for (const word of words) {
+      const wordLength = word.length + 1; // +1 for space
+      
+      if (currentLineLength + wordLength > charsPerLine) {
+        lines++;
+        currentLineLength = wordLength;
+        
+        // Cap at 2 lines due to line-clamp-2
+        if (lines >= 2) break;
+      } else {
+        currentLineLength += wordLength;
+      }
+    }
+    
+    // Ensure at least 1 line, max 2 lines
+    const actualLines = Math.min(Math.max(lines, 1), 2);
+    
+    return verticalPadding + (actualLines * lineHeight) + borderHeight;
+  }, []);
+
   // Calculate dynamic window height based on results and content
   const calculateDynamicHeight = useCallback(
     (
@@ -105,6 +163,7 @@ export default function Chat() {
       hasInput: boolean,
       hasActiveBadge: boolean = false,
       hasContent: boolean = false,
+      selectedContentText: string = "",
     ) => {
       /**
        * Dynamic base height calculation to prevent excessive bottom margin
@@ -118,7 +177,12 @@ export default function Chat() {
        *
        * This ensures the window fits content precisely without unwanted bottom space.
        */
-      const baseHeight = hasActiveBadge ? 98 : 78; // Dynamic height based on badge presence
+      // Dynamic base height calculation
+      let baseHeight = hasActiveBadge ? 98 : 78;
+      
+      // Add dynamic height for selected content based on actual text
+      const selectedContentHeight = calculateSelectedContentHeight(selectedContentText);
+      baseHeight += selectedContentHeight;
       const containerPadding = 24; // Padding around container
       const resultHeight = 48; // Height per result item
       const resultsPadding = 8; // Padding around results
@@ -135,7 +199,10 @@ export default function Chat() {
       if (!hasInput && resultCount === 0) {
         // Minimal height for empty state - use minHeight from window config for consistency
         // This ensures the window shrinks back to the compact initial size
-        return hasActiveBadge ? 100 : 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
+        const minHeight = hasActiveBadge ? 100 : 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
+        
+        // baseHeight already includes selected content height, so just use that or minHeight
+        return Math.max(baseHeight, minHeight);
       }
 
       if (hasInput && resultCount === 0) {
@@ -159,7 +226,7 @@ export default function Chat() {
         mainContainerPadding
       );
     },
-    [],
+    [calculateSelectedContentHeight],
   );
 
   // Helper function to create selected content with deduplication
@@ -459,11 +526,23 @@ export default function Chat() {
     const mountTimer = setTimeout(() => {
       if (window.electronAPI && messages.length === 0) {
         try {
+          // Calculate initial height based on current state
+          const selectedContentText = selectedContent?.text || "";
+          const hasActiveBadge = !!previousApp;
+          
+          const initialHeight = calculateDynamicHeight(
+            0, // no results
+            false, // no input
+            hasActiveBadge,
+            false, // no content
+            selectedContentText
+          );
+          
           window.electronAPI
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
             .then((res) => {
               requestAnimationFrame(() => {
-                window.electronAPI.resizeWindow(res.width, res.height, true);
+                window.electronAPI.resizeWindow(res.width, initialHeight, true);
               });
             });
         } catch (error) {
@@ -481,7 +560,7 @@ export default function Chat() {
     return () => {
       clearTimeout(mountTimer);
     };
-  }, [messages.length]);
+  }, [messages.length, selectedContent, previousApp, calculateDynamicHeight]);
 
   // Dynamic window resizing based on results and content
   useEffect(() => {
@@ -489,12 +568,14 @@ export default function Chat() {
       const hasInput = inputValue.trim().length > 0;
       const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
       const hasActiveBadge = !!previousApp;
-
+      const selectedContentText = selectedContent?.text || "";
+      
       const newHeight = calculateDynamicHeight(
         resultCount,
         hasInput,
         hasActiveBadge,
         showContent,
+        selectedContentText,
       );
 
       // Get current window size to preserve width
@@ -517,6 +598,7 @@ export default function Chat() {
     initializing,
     previousApp,
     showContent,
+    selectedContent,
     calculateDynamicHeight,
   ]);
 
@@ -537,6 +619,33 @@ export default function Chat() {
           } else {
             setSelectedContent(null);
           }
+          
+          // Trigger window resize after selected content changes
+          if (!initializing) {
+            const hasInput = inputValue.trim().length > 0;
+            const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
+            const hasActiveBadge = !!previousApp;
+            const selectedContentText = content.text || "";
+            
+            const newHeight = calculateDynamicHeight(
+              resultCount,
+              hasInput,
+              hasActiveBadge,
+              showContent,
+              selectedContentText,
+            );
+            
+            window.electronAPI
+              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+              .then((currentSize) => {
+                if (Math.abs(currentSize.height - newHeight) > 10) {
+                  window.electronAPI.resizeWindow(currentSize.width, newHeight, true);
+                }
+              })
+              .catch((error) => {
+                console.error("Failed to resize on selected content change:", error);
+              });
+          }
         },
       );
 
@@ -545,7 +654,17 @@ export default function Chat() {
         unsubscribe?.();
       };
     }
-  }, [setSelectedContent, createSelectedContent]);
+  }, [
+    setSelectedContent,
+    createSelectedContent,
+    initializing,
+    inputValue,
+    isCommandMode,
+    results.length,
+    previousApp,
+    calculateDynamicHeight,
+    showContent,
+  ]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
