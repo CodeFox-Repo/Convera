@@ -97,11 +97,8 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onSetInputContent = (
-    callback: (content: { text?: string }) => void,
-  ) => {
-    const handler = (_: any, content: { text?: string }) =>
-      callback(content);
+  api.onSetInputContent = (callback: (content: { text?: string }) => void) => {
+    const handler = (_: any, content: { text?: string }) => callback(content);
     ipcRenderer.on(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_CONTENT, handler);

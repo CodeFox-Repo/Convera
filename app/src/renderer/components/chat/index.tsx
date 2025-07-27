@@ -101,59 +101,59 @@ export default function Chat() {
 
   /**
    * Calculate dynamic height for selected content based on text length and wrapping
-   * 
+   *
    * SOLUTION: Dynamic height calculation instead of fixed 48px
    * - 1 line text ≈ 35px (16px padding + 18px text + 1px border)
    * - 2 line text ≈ 53px (16px padding + 36px text + 1px border)
-   * 
+   *
    * Implementation:
    * - Reverse-engineers from actual CSS classes in command-input.tsx
    * - Simulates browser text wrapping by splitting on words
    * - Respects line-clamp-2 CSS constraint (max 2 lines)
    * - Uses precise pixel values derived from Tailwind classes
-   * 
+   *
    * This replaces the previous fixed 48px approach with content-aware sizing
    */
   const calculateSelectedContentHeight = useCallback((text: string) => {
     if (!text) return 0;
-    
+
     // Based on actual CSS in command-input.tsx:
     // - py-2: 8px top + 8px bottom = 16px padding
     // - text-sm: ~14px font-size with ~1.25 line-height = ~18px per line
     // - line-clamp-2: maximum 2 lines
     // - Available width for text: ~520px
-    
-    const verticalPadding = 16; // py-2 
+
+    const verticalPadding = 16; // py-2
     const lineHeight = 18; // text-sm line height
     const borderHeight = 1; // border-b
-    
+
     // More accurate line calculation: consider word breaks
     // Rough estimate: 65-75 characters per line for 520px width with text-sm
     const charsPerLine = 70;
-    
+
     // Split into words and calculate lines more accurately
     const words = text.split(/\s+/);
     let currentLineLength = 0;
     let lines = 1;
-    
+
     for (const word of words) {
       const wordLength = word.length + 1; // +1 for space
-      
+
       if (currentLineLength + wordLength > charsPerLine) {
         lines++;
         currentLineLength = wordLength;
-        
+
         // Cap at 2 lines due to line-clamp-2
         if (lines >= 2) break;
       } else {
         currentLineLength += wordLength;
       }
     }
-    
+
     // Ensure at least 1 line, max 2 lines
     const actualLines = Math.min(Math.max(lines, 1), 2);
-    
-    return verticalPadding + (actualLines * lineHeight) + borderHeight;
+
+    return verticalPadding + actualLines * lineHeight + borderHeight;
   }, []);
 
   // Calculate dynamic window height based on results and content
@@ -179,9 +179,10 @@ export default function Chat() {
        */
       // Dynamic base height calculation
       let baseHeight = hasActiveBadge ? 98 : 78;
-      
+
       // Add dynamic height for selected content based on actual text
-      const selectedContentHeight = calculateSelectedContentHeight(selectedContentText);
+      const selectedContentHeight =
+        calculateSelectedContentHeight(selectedContentText);
       baseHeight += selectedContentHeight;
       const containerPadding = 24; // Padding around container
       const resultHeight = 48; // Height per result item
@@ -200,7 +201,7 @@ export default function Chat() {
         // Minimal height for empty state - use minHeight from window config for consistency
         // This ensures the window shrinks back to the compact initial size
         const minHeight = hasActiveBadge ? 100 : 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
-        
+
         // baseHeight already includes selected content height, so just use that or minHeight
         return Math.max(baseHeight, minHeight);
       }
@@ -230,17 +231,14 @@ export default function Chat() {
   );
 
   // Helper function to create selected content with deduplication
-  const createSelectedContent = useCallback(
-    (content: { text?: string }) => {
-      const timestamp = Date.now();
-      return {
-        ...content,
-        timestamp,
-        source: "shortcut" as const,
-      };
-    },
-    [],
-  );
+  const createSelectedContent = useCallback((content: { text?: string }) => {
+    const timestamp = Date.now();
+    return {
+      ...content,
+      timestamp,
+      source: "shortcut" as const,
+    };
+  }, []);
 
   // Listen for theme changes from settings
   useThemeSync();
@@ -529,15 +527,15 @@ export default function Chat() {
           // Calculate initial height based on current state
           const selectedContentText = selectedContent?.text || "";
           const hasActiveBadge = !!previousApp;
-          
+
           const initialHeight = calculateDynamicHeight(
             0, // no results
             false, // no input
             hasActiveBadge,
             false, // no content
-            selectedContentText
+            selectedContentText,
           );
-          
+
           window.electronAPI
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
             .then((res) => {
@@ -569,7 +567,7 @@ export default function Chat() {
       const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
       const hasActiveBadge = !!previousApp;
       const selectedContentText = selectedContent?.text || "";
-      
+
       const newHeight = calculateDynamicHeight(
         resultCount,
         hasInput,
@@ -619,14 +617,18 @@ export default function Chat() {
           } else {
             setSelectedContent(null);
           }
-          
+
           // Trigger window resize after selected content changes
           if (!initializing) {
             const hasInput = inputValue.trim().length > 0;
-            const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
+            const resultCount = isCommandMode
+              ? results.length
+              : hasInput
+                ? 1
+                : 0;
             const hasActiveBadge = !!previousApp;
             const selectedContentText = content.text || "";
-            
+
             const newHeight = calculateDynamicHeight(
               resultCount,
               hasInput,
@@ -634,16 +636,23 @@ export default function Chat() {
               showContent,
               selectedContentText,
             );
-            
+
             window.electronAPI
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
               .then((currentSize) => {
                 if (Math.abs(currentSize.height - newHeight) > 10) {
-                  window.electronAPI.resizeWindow(currentSize.width, newHeight, true);
+                  window.electronAPI.resizeWindow(
+                    currentSize.width,
+                    newHeight,
+                    true,
+                  );
                 }
               })
               .catch((error) => {
-                console.error("Failed to resize on selected content change:", error);
+                console.error(
+                  "Failed to resize on selected content change:",
+                  error,
+                );
               });
           }
         },

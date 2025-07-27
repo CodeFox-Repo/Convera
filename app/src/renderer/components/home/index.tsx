@@ -61,12 +61,15 @@ export function HomePage() {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "switchToConversation" && event.newValue) {
         const conversationId = event.newValue;
-        console.log("Main window received switchToConversation:", conversationId);
-        
+        console.log(
+          "Main window received switchToConversation:",
+          conversationId,
+        );
+
         // Load the conversation using existing selectChat method
         // Clean up immediately to prevent other windows from processing this event
         localStorage.removeItem("switchToConversation");
-        
+
         const loadConversation = async () => {
           try {
             console.log("Loading conversation:", conversationId);
@@ -77,14 +80,14 @@ export function HomePage() {
             console.error("Failed to load conversation in main window:", error);
           }
         };
-        
+
         loadConversation();
       }
     };
 
     // Listen for storage events from other windows
     window.addEventListener("storage", handleStorageChange);
-    
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };

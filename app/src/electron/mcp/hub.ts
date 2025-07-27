@@ -1,4 +1,9 @@
-import { MCPConfig, MCPServerConfig, ServerInfo, ToolDefinition } from "@/shared/types/mcp";
+import {
+  MCPConfig,
+  MCPServerConfig,
+  ServerInfo,
+  ToolDefinition,
+} from "@/shared/types/mcp";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
@@ -78,7 +83,7 @@ export class MCPHub extends EventEmitter {
         });
       }
     }
-    
+
     this.toolsCacheLastUpdate = Date.now();
   }
 
@@ -96,15 +101,18 @@ export class MCPHub extends EventEmitter {
   public getAllNonInputParamTool(): ToolDefinition[] {
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
     const now = Date.now();
-    
+
     // Check if cache is fresh
-    if (this.toolsCacheLastUpdate && (now - this.toolsCacheLastUpdate) < CACHE_DURATION) {
+    if (
+      this.toolsCacheLastUpdate &&
+      now - this.toolsCacheLastUpdate < CACHE_DURATION
+    ) {
       return this.filterNonInputParamTools(this.toolsCache);
     }
-    
+
     // Update cache if it's stale
     this.updateToolCache();
-    
+
     return this.filterNonInputParamTools(this.toolsCache);
   }
 
@@ -115,25 +123,29 @@ export class MCPHub extends EventEmitter {
     return tools.filter((tool) => {
       // Check inputSchema first, then fallback to parameters
       const schema = tool.inputSchema || tool.parameters;
-      
-      if (!schema || typeof schema !== 'object') {
+
+      if (!schema || typeof schema !== "object") {
         return true; // No schema means no parameters required
       }
-      
+
       // Handle different schema formats
-      if ('properties' in schema && 'required' in schema) {
+      if ("properties" in schema && "required" in schema) {
         // JSON Schema format
         const required = Array.isArray(schema.required) ? schema.required : [];
         return required.length === 0;
       }
-      
-      if ('type' in schema && schema.type === 'object') {
+
+      if ("type" in schema && schema.type === "object") {
         // JSON Schema object without required field
-        const schemaWithRequired = schema as Record<string, unknown> & { required?: unknown };
-        const required = Array.isArray(schemaWithRequired.required) ? schemaWithRequired.required : [];
+        const schemaWithRequired = schema as Record<string, unknown> & {
+          required?: unknown;
+        };
+        const required = Array.isArray(schemaWithRequired.required)
+          ? schemaWithRequired.required
+          : [];
         return required.length === 0;
       }
-      
+
       // If we can't determine the structure, assume it has no required params
       return true;
     });

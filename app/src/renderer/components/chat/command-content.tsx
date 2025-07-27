@@ -250,24 +250,35 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
                           <Bot size={12} />
                           <span>GPT-4o mini</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
-                            if (currentConversationId && window.electronAPI?.toggleWindow) {
-                              console.log("Continue in Chat button - switching with conversation:", currentConversationId);
-                              
+                            if (
+                              currentConversationId &&
+                              window.electronAPI?.toggleWindow
+                            ) {
+                              console.log(
+                                "Continue in Chat button - switching with conversation:",
+                                currentConversationId,
+                              );
+
                               // Pass conversation ID to main window via localStorage
-                              localStorage.setItem("switchToConversation", currentConversationId);
-                              
+                              localStorage.setItem(
+                                "switchToConversation",
+                                currentConversationId,
+                              );
+
                               // Trigger storage event for same-window detection
-                              window.dispatchEvent(new StorageEvent("storage", {
-                                key: "switchToConversation",
-                                newValue: currentConversationId,
-                                oldValue: null
-                              }));
-                              
+                              window.dispatchEvent(
+                                new StorageEvent("storage", {
+                                  key: "switchToConversation",
+                                  newValue: currentConversationId,
+                                  oldValue: null,
+                                }),
+                              );
+
                               // Hide current chat window and show main window
                               window.electronAPI.toggleWindow("chat"); // Hide chat
-                              window.electronAPI.toggleWindow("main");  // Show main
+                              window.electronAPI.toggleWindow("main"); // Show main
                             }
                           }}
                           className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors flex items-center gap-1"
@@ -303,7 +314,9 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
             </div>
             <button className="flex items-center gap-1 text-xs text-foreground/50 hover:text-foreground/70 transition-colors">
               <span>Cancel</span>
-              <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">ESC</span>
+              <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">
+                ESC
+              </span>
             </button>
           </div>
         </div>

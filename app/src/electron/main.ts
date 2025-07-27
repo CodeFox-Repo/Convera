@@ -165,7 +165,6 @@ function startAppFocusTracking() {
   }, 500);
 }
 
-
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
 
@@ -299,13 +298,15 @@ app.whenReady().then(async () => {
 
     // Initialize synchronous components first
     initializeLogger();
-    
+
     // Initialize MCP Hub asynchronously but don't block startup
-    initializeMCPHub().then(() => {
-      logger.info("MCP Hub initialization completed");
-    }).catch(error => {
-      logger.error("MCP Hub initialization failed:", error);
-    });
+    initializeMCPHub()
+      .then(() => {
+        logger.info("MCP Hub initialization completed");
+      })
+      .catch((error) => {
+        logger.error("MCP Hub initialization failed:", error);
+      });
 
     // Start background processes that don't block UI
     startAppFocusTracking();
@@ -338,8 +339,8 @@ app.whenReady().then(async () => {
 
     // Install extensions in background for development (non-blocking)
     if (inDevelopment) {
-      installExtensions().catch(error => 
-        console.error("Failed to install extensions:", error)
+      installExtensions().catch((error) =>
+        console.error("Failed to install extensions:", error),
       );
     }
   } catch (error) {
