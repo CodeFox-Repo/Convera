@@ -82,7 +82,8 @@ func dump(element: AXUIElement, depth: Int = 0) {
                 if let strValue = cfString(value), !strValue.isEmpty {
                     let line = "\(strValue)"
                     if seen.insert(line).inserted {
-                        output += "\(indent)\(name): \(strValue)\n"
+                        //output += "\(indent)\(name): \(strValue)\n"
+                        output += "\(strValue)\n"
                     }
                 }
             }
@@ -214,7 +215,8 @@ func dumpToString(element: AXUIElement, depth: Int = 0) -> String {
                 if let strValue = cfString(value), !strValue.isEmpty {
                     let line = "\(strValue)"
                     if seen.insert(line).inserted {
-                        result += "\(indent)\(name): \(strValue)\n"
+                        //result += "\(indent)\(name): \(strValue)\n"
+                        result += "\(strValue)"
                     }
                 }
             }
