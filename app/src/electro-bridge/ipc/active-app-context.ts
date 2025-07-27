@@ -47,7 +47,7 @@ export function startAppContentMonitoring(appName: string): void {
 
   console.log("monitoring : ", appName);
 
-  const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath(); // 修复这里
+  const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
   swiftProcess = spawn("swift", [swiftScriptPath, appName], {
     stdio: ["pipe", "pipe", "pipe"],

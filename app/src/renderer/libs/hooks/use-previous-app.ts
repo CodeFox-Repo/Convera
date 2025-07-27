@@ -38,7 +38,6 @@ export function usePreviousApp() {
 
   useEffect(() => {
     const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
-      console.log("onContentUpdate", newContent);
       setPreviousAppContent(newContent);
     });
 
