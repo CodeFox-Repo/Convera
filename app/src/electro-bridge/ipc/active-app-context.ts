@@ -19,7 +19,7 @@ export function grantAccess(): Promise<string> {
     if (!accessGrantedApps.has(previousAppName)) {
       const projectRoot = app.isPackaged
         ? process.resourcesPath
-        : path.dirname(app.getAppPath());
+        : app.getAppPath();
       const openAccessPath = path.join(
         projectRoot,
         "scripts",
@@ -47,11 +47,8 @@ export function startAppContentMonitoring(appName: string): void {
 
   console.log("monitoring : ", appName);
 
-  const projectRoot = app.isPackaged
-    ? process.resourcesPath
-    : path.dirname(app.getAppPath());
+  const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath(); // 修复这里
   const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
-
   swiftProcess = spawn("swift", [swiftScriptPath, appName], {
     stdio: ["pipe", "pipe", "pipe"],
   });
