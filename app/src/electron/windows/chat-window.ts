@@ -1,5 +1,5 @@
 import {
-  positionWindowAtCenterBottom,
+  positionWindowAtCenterTop,
   setWindowHidden,
   setupWindowPositionTracking,
 } from "@/electron/windows/window-position";
@@ -16,9 +16,10 @@ import { getLogger } from "../logger";
 // Initialize logger for chat window
 const logger = getLogger("chat-window");
 
+// Dynamic window sizing - initial dimensions only
 const CHAT_WINDOW_DIMENSIONS = {
   width: 600,
-  height: 700,
+  height: 100, // Start small, will be resized dynamically
 };
 
 // Extract platform-specific configurations for chat window
@@ -38,7 +39,7 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
     frame: false,
     autoHideMenuBar: true,
     hasShadow: true,
-    resizable: false,
+    resizable: true, // Allow dynamic resizing
     maximizable: false,
     fullscreenable: false,
     show: false,
@@ -98,8 +99,8 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   // Handle ready-to-show event
   window.once("ready-to-show", () => {
     logger.info("Chat window ready, positioning and hiding");
-    // Position the window at center bottom without changing size
-    positionWindowAtCenterBottom(window);
+    // Position the window at center top without changing size
+    positionWindowAtCenterTop(window);
     setWindowHidden(window);
     logger.debug("Chat window positioned and hidden");
   });
@@ -139,7 +140,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
         clearTimeout(repositionTimeout);
       }
       repositionTimeout = setTimeout(() => {
-        positionWindowAtCenterBottom(window);
+        positionWindowAtCenterTop(window);
         repositionTimeout = null;
       }, 100);
     }
