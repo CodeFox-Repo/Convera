@@ -24,7 +24,7 @@ const config: ForgeConfig = {
     ...(shouldSign && {
       osxSign: {
         identity: process.env.APPLE_IDENTITY,
-        optionsForFile: (file) => ({
+        optionsForFile: () => ({
           hardenedRuntime: true,
           entitlements: "entitlements.plist",
           entitlemenherit: "entitlements.plist",
