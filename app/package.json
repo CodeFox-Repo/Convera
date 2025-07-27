@@ -10,7 +10,7 @@
     "dev:start": "NODE_ENV=development electron-forge start",
     "package": "electron-forge package",
     "package:robotjs": "electron-forge package && ../scripts/post-package-robotjs.sh",
-    "package:sign": "ENABLE_CODE_SIGNING=true electron-forge package && ../scripts/post-package-robotjs-and-sign.sh",
+    "package:sign": "ENABLE_CODE_SIGNING=true pnpm run package:robotjs && ../scripts/apple-sign.sh",
     "make:robotjs": "pnpm run package:robotjs && electron-forge make --skip-package",
     "make:sign": "ENABLE_CODE_SIGNING=true pnpm run package:sign && electron-forge make --skip-package",
     "make": "pnpm run make:robotjs",
