@@ -43,6 +43,7 @@
 - Fix MCP server startup issues in packaged applications
 
   This patch fixes two critical bugs that prevented MCP servers from starting properly in packaged applications:
+
   1. **Fixed PATH resolution for npx commands in packaged apps**: Enhanced the environment PATH to include common Node.js installation directories (`/usr/local/bin`, `/opt/homebrew/bin`, etc.) on macOS, Windows, and Linux. This ensures that `npx` commands can be found and executed when the app is packaged as an ASAR bundle.
   2. **Fixed server filtering logic for undefined disabled property**: Changed the server initialization filter from `serverConfig.disabled === false` to `serverConfig.disabled !== true`. This allows servers without an explicit `disabled` property (which defaults to undefined) to start automatically, matching the expected behavior where only explicitly disabled servers (`disabled: true`) should be prevented from starting.
 
@@ -59,18 +60,21 @@
   ## 🎤 New Features
 
   ### Voice Input Integration
+
   - **Real-time speech recognition** with live transcription display
   - **Visual recording indicator** with animated red pulsing microphone button
   - **Smart text merging** that appends speech to existing chat input
   - **Auto-stop functionality** after configurable silence timeout (5-8 seconds)
 
   ### User Experience Enhancements
+
   - **One-click voice activation** via microphone button in chat input
   - **Toast notifications** for recording status and completion feedback
   - **State-aware UI** with different mic icons (Mic/MicOff) based on recording state
   - **Seamless editor integration** with real-time text insertion
 
   ### Technical Implementation
+
   - **WebSocket integration** for real-time transcription updates
   - **Session management** with proper cleanup and error handling
   - **Authentication integration** with better-auth system
@@ -80,18 +84,21 @@
   ## 🔧 Technical Changes
 
   ### New Dependencies
+
   - `@google-cloud/speech@^7.1.0` - Google Cloud Speech API integration
   - `node-record-lpcm16@^1.0.1` - Audio recording capabilities
   - `bufferutil@^4.0.9` & `utf-8-validate@^6.0.5` - WebSocket optimizations
   - Updated `dotenv` to v17.0.0
 
   ### New Components & Hooks
+
   - **`use-speech-to-text.ts`** - 489-line comprehensive speech recognition hook
   - Enhanced chat input components with speech state management
   - Extended editor with `insertContent()` and `isFocused()` methods
   - Integrated speech state into global chat context
 
   ### Enhanced Features
+
   - **Real-time transcript updates** in chat editor
   - **Configurable speech settings** (language, timeout, encoding)
   - **Session state persistence** across component re-renders
@@ -99,11 +106,13 @@
   - **WebSocket connection management** with reconnection handling
 
   ## 🛡️ Security & Authentication
+
   - Requires user authentication for speech service access
   - Session-based API requests with credential management
   - Secure WebSocket connections with authentication validation
 
   ## 🌐 Configuration Options
+
   - **Language support**: Configurable language codes (default: en-US)
   - **Audio settings**: Sample rate (16kHz), LINEAR16 encoding
   - **Timeout settings**: Customizable silence detection (5-8 seconds)
@@ -132,6 +141,7 @@
 
 - 23e6edc: adding remark markdown render support with css styling
 - Refactor MCP and agent architecture to use remote server
+
   - Migrated all server-side logic to remote server, removing local chat-server, agents, and API modules
   - Updated MCP integration to use AI SDK experimental client for better compatibility
   - Implemented cross-window state synchronization using localStorage and storage events
@@ -264,22 +274,26 @@
   ```
 
   ### 4. Removed Unused Methods
+
   - `getPlatform()` - No usage found in codebase
 
   ## 🛠️ Technical Improvements
 
   ### Type Safety Enhancements
+
   - Added proper TypeScript enums for window types and theme modes
   - Eliminated `any` types and used proper error handling with `unknown`
   - Created unified interfaces for window control options
 
   ### Code Architecture Benefits
+
   - **Reduced API surface**: From 15+ methods to 8 core methods
   - **Better semantics**: Method names clearly indicate their purpose
   - **Consistent patterns**: All similar operations follow the same API pattern
   - **Future-proof**: Easy to add new window types or theme modes
 
   ### IPC Channel Optimization
+
   - Consolidated IPC channels from 20+ to 12 core channels
   - Simplified channel mapping and registration
   - Cleaner error handling and logging
@@ -287,15 +301,18 @@
   ## 📁 Files Updated
 
   ### Core API Files:
+
   - `app/src/shared/types/electron.d.ts` - New unified interface
   - `app/src/electro-bridge/ipc/channels.ts` - Consolidated channels
   - `app/src/electro-bridge/ipc/ipc-handlers.ts` - Unified handlers
   - `app/src/electro-bridge/ipc/listeners-register.ts` - Simplified registration
 
   ### Theme System:
+
   - `app/src/renderer/libs/helper/theme_helpers.ts` - Updated to use unified API
 
   ### Component Updates:
+
   - `app/src/renderer/pages/settings.tsx` - Developer mode controls
   - `app/src/renderer/libs/stores/chat-store.tsx` - Settings toggle
   - `app/src/renderer/components/chat/index.tsx` - Window resizing
@@ -305,27 +322,33 @@
   ## 🔄 Migration Impact
 
   ### Breaking Changes:
+
   - Old API methods no longer exist
   - IPC channel names have changed
   - Method signatures are now type-safe
 
   ### Backwards Compatibility:
+
   - Legacy handler functions maintained for transition period
   - All existing functionality preserved
   - No feature regressions
 
   ## 🎯 Benefits Achieved
+
   1. **Developer Experience**:
+
      - Cleaner, more intuitive API
      - Better TypeScript support and autocomplete
      - Reduced cognitive load when working with window management
 
   2. **Maintainability**:
+
      - Less code duplication
      - Centralized window management logic
      - Easier to add new features
 
   3. **Performance**:
+
      - Fewer IPC channels to manage
      - More efficient handler registration
      - Reduced bundle size from eliminated duplicate code
@@ -338,6 +361,7 @@
   ## ✨ Future Enhancements Enabled
 
   The new unified API makes it trivial to:
+
   - Add new window types by extending the `WindowType` enum
   - Add new theme modes by extending the `ThemeMode` enum
   - Implement window-specific options through `WindowControlOptions`
@@ -347,6 +371,7 @@
 
 - c87d764: adding type safe zod validation in chat-server
 - f5447a7: Optimize RobotJS packaging and CI/CD workflow
+
   - Simplified robotjs loading logic with better TypeScript support
   - Added comprehensive type definitions for @hurdlegroup/robotjs
   - Removed fallback implementation for cleaner error handling
