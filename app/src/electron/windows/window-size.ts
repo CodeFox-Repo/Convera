@@ -4,7 +4,7 @@
  */
 export interface WindowSizeConfig {
   widthProportion: number;
-  heightProportion: number;
+  heightProportion?: number; // Optional: allows disabling initial height proportion for dynamic sizing
   minWidth: number;
   minHeight: number;
   maxWidth?: number;
@@ -25,31 +25,35 @@ export interface WindowDimensions {
  * Window size presets for different window types
  */
 export const WINDOW_SIZE_PRESETS = {
-  COMPACT_CHAT: {
-    widthProportion: 0.3,
-    heightProportion: 0.15,
-    minWidth: 500,
-    minHeight: 90,
+  // Raycast-style chat window with dynamic sizing
+  // DISABLED: heightProportion to prevent initial window size interference
+  // The window size will be controlled by React's dynamic height calculation instead
+  CHAT: {
+    widthProportion: 0.35,
+    // heightProportion: 0.06, // DISABLED: Let React handle height dynamically
+    minWidth: 600,
+    minHeight: 80,
     maxWidth: 800,
+    maxHeight: 600,
   },
-  EXPANDED_CHAT: {
-    widthProportion: 0.3,
-    heightProportion: 0.6,
-    minWidth: 500,
-    minHeight: 400,
-    maxWidth: 800,
-    maxHeight: 800,
-  },
-  CHAT_PAGE: {
-    widthProportion: 0.4,
-    heightProportion: 0.7,
-    minWidth: 500,
-    minHeight: 400,
-    maxWidth: 800,
-    maxHeight: 800,
-  },
+  // Legacy presets - commented for reference
+  // COMPACT_CHAT: {
+  //   widthProportion: 0.3,
+  //   heightProportion: 0.15,
+  //   minWidth: 500,
+  //   minHeight: 90,
+  //   maxWidth: 800,
+  // },
+  // EXPANDED_CHAT: {
+  //   widthProportion: 0.3,
+  //   heightProportion: 0.6,
+  //   minWidth: 500,
+  //   minHeight: 400,
+  //   maxWidth: 800,
+  //   maxHeight: 800,
+  // },
   SETTINGS: {
-    widthProportion: 0.6,
+    widthProportion: 0.4,
     heightProportion: 0.7,
     minWidth: 800,
     minHeight: 600,

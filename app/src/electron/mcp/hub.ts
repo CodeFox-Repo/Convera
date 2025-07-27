@@ -1,4 +1,9 @@
-import { MCPConfig, MCPServerConfig, ServerInfo } from "@/shared/types/mcp";
+import {
+  MCPConfig,
+  MCPServerConfig,
+  ServerInfo,
+  ToolDefinition,
+} from "@/shared/types/mcp";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
@@ -14,6 +19,8 @@ export class MCPHub extends EventEmitter {
   private config: MCPConfig;
   private configPath: string;
   private allToolNames: Set<string> = new Set();
+  private toolsCache: ToolDefinition[] = [];
+  private toolsCacheLastUpdate: number = 0;
 
   constructor(configPath?: string) {
     super();
@@ -65,15 +72,19 @@ export class MCPHub extends EventEmitter {
    */
   private updateToolCache(): void {
     this.allToolNames.clear();
+    this.toolsCache = [];
 
     for (const connection of this.connections.values()) {
       const serverInfo = connection.getServerInfo();
       if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
         serverInfo.capabilities.tools.forEach((tool) => {
           this.allToolNames.add(tool.name);
+          this.toolsCache.push(tool);
         });
       }
     }
+
+    this.toolsCacheLastUpdate = Date.now();
   }
 
   /**
@@ -81,6 +92,63 @@ export class MCPHub extends EventEmitter {
    */
   public hasToolAvailable(toolName: string): boolean {
     return this.allToolNames.has(toolName);
+  }
+
+  /**
+   * Get all tools that don't require input parameters
+   * Returns cached result if cache is fresh (within 5 minutes)
+   */
+  public getAllNonInputParamTool(): ToolDefinition[] {
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+
+    // Check if cache is fresh
+    if (
+      this.toolsCacheLastUpdate &&
+      now - this.toolsCacheLastUpdate < CACHE_DURATION
+    ) {
+      return this.filterNonInputParamTools(this.toolsCache);
+    }
+
+    // Update cache if it's stale
+    this.updateToolCache();
+
+    return this.filterNonInputParamTools(this.toolsCache);
+  }
+
+  /**
+   * Filter tools that don't require input parameters
+   */
+  private filterNonInputParamTools(tools: ToolDefinition[]): ToolDefinition[] {
+    return tools.filter((tool) => {
+      // Check inputSchema first, then fallback to parameters
+      const schema = tool.inputSchema || tool.parameters;
+
+      if (!schema || typeof schema !== "object") {
+        return true; // No schema means no parameters required
+      }
+
+      // Handle different schema formats
+      if ("properties" in schema && "required" in schema) {
+        // JSON Schema format
+        const required = Array.isArray(schema.required) ? schema.required : [];
+        return required.length === 0;
+      }
+
+      if ("type" in schema && schema.type === "object") {
+        // JSON Schema object without required field
+        const schemaWithRequired = schema as Record<string, unknown> & {
+          required?: unknown;
+        };
+        const required = Array.isArray(schemaWithRequired.required)
+          ? schemaWithRequired.required
+          : [];
+        return required.length === 0;
+      }
+
+      // If we can't determine the structure, assume it has no required params
+      return true;
+    });
   }
 
   /**

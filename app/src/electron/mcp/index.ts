@@ -124,6 +124,17 @@ export function getAllTools(): Array<{
 }
 
 /**
+ * Get all tools that don't require input parameters
+ * Uses cached results for better performance
+ */
+export function getAllNonInputParamTool(): ToolDefinition[] {
+  if (!globalHub) {
+    return [];
+  }
+  return globalHub.getAllNonInputParamTool();
+}
+
+/**
  * Get server status summary
  */
 export function getServerStatusSummary(): {

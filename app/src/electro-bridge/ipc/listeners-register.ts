@@ -47,7 +47,7 @@ interface ElectronAPI extends IPCServer {
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputContent: (
-    callback: (content: { text?: string; imageData?: string }) => void,
+    callback: (content: { text?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
@@ -97,11 +97,8 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     };
   };
 
-  api.onSetInputContent = (
-    callback: (content: { text?: string; imageData?: string }) => void,
-  ) => {
-    const handler = (_: any, content: { text?: string; imageData?: string }) =>
-      callback(content);
+  api.onSetInputContent = (callback: (content: { text?: string }) => void) => {
+    const handler = (_: any, content: { text?: string }) => callback(content);
     ipcRenderer.on(CHANNELS.APP.SET_INPUT_CONTENT, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.SET_INPUT_CONTENT, handler);
@@ -175,7 +172,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
   ipcMain.handle(
     CHANNELS.APP.SET_INPUT_CONTENT,
-    (_event, content: { text?: string; imageData?: string }) => {
+    (_event, content: { text?: string }) => {
       const window = chatWindow?.() || null;
       return setInputContent(window, content);
     },

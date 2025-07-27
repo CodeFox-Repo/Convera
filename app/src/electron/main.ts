@@ -8,10 +8,6 @@ import {
 } from "@/electron/windows/window-position";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
-import {
-  installExtension,
-  REACT_DEVELOPER_TOOLS,
-} from "electron-devtools-installer";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
@@ -30,9 +26,9 @@ import {
 } from "@/electro-bridge/ipc/listeners-register";
 import { createSystemTray, destroySystemTray } from "./tray";
 import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
-import { getMainWindow } from "./windows/main-window";
+import { getChatWindow } from "./windows/chat-window";
 import { preCreateHistoryWindow } from "./windows/history-window";
-import { preCreateMainWindow } from "./windows/main-window";
+import { getMainWindow, preCreateMainWindow } from "./windows/main-window";
 import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
 import {
   getSettingsWindow,
@@ -46,18 +42,13 @@ const { activeWindowSync } =
       require("get-windows")
     : { activeWindowSync: null };
 
-// Determine if the app is running from source or packaged
-const inDevelopment = !app.isPackaged;
-
 let trackingAppFocus = false;
 
 // Clipboard buffer for restoring original content
 let originalClipboardContent = "";
-let originalClipboardImage: Electron.NativeImage | null = null;
 
 // Previous clipboard buffer to avoid duplicates
 let prevClipboardContent = "";
-let prevClipboardImageHash = "";
 
 // Prevent duplicate shortcut processing
 let shortcutInProgress = false;
@@ -65,16 +56,9 @@ let shortcutInProgress = false;
 // Initialize logger for main process
 const logger = getLogger("main-process");
 
-function createImageHash(imageBuffer: Buffer): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const crypto = require("crypto");
-  return crypto.createHash("md5").update(imageBuffer).digest("hex");
-}
-
 async function simulateClipboardCopy(): Promise<void> {
   try {
     originalClipboardContent = clipboard.readText();
-    originalClipboardImage = clipboard.readImage();
 
     robot?.keyToggle("shift", "up");
     robot?.keyToggle("control", "up");
@@ -99,14 +83,11 @@ async function simulateClipboardCopy(): Promise<void> {
 
 function restoreClipboard(): void {
   try {
-    if (originalClipboardImage && !originalClipboardImage.isEmpty()) {
-      clipboard.writeImage(originalClipboardImage);
-    } else if (originalClipboardContent !== undefined) {
+    if (originalClipboardContent !== undefined) {
       clipboard.writeText(originalClipboardContent);
     }
 
     originalClipboardContent = "";
-    originalClipboardImage = null;
   } catch (error) {
     logger.error("Error restoring clipboard:", error);
   }
@@ -198,34 +179,16 @@ function registerGlobalShortcuts() {
         await simulateClipboardCopy();
 
         const selectedText = clipboard.readText();
-        const selectedImage = clipboard.readImage();
 
         // Check for duplicates
         let isTextDuplicate = false;
-        let isImageDuplicate = false;
 
         if (selectedText && selectedText === prevClipboardContent) {
           isTextDuplicate = true;
         }
 
-        let currentImageHash = "";
-        if (selectedImage && !selectedImage.isEmpty()) {
-          const imageBuffer = selectedImage.toPNG();
-          currentImageHash = createImageHash(imageBuffer);
-          if (currentImageHash === prevClipboardImageHash) {
-            isImageDuplicate = true;
-          }
-        }
-
         // Skip content processing if all content is duplicate or no content
-        const allContentDuplicate =
-          selectedText &&
-          isTextDuplicate &&
-          selectedImage &&
-          !selectedImage.isEmpty() &&
-          isImageDuplicate;
-        const noContent =
-          !selectedText && (!selectedImage || selectedImage.isEmpty());
+        const noContent = !selectedText;
 
         const mainWindow = getMainWindow();
         if (mainWindow) {
@@ -238,27 +201,16 @@ function registerGlobalShortcuts() {
           }
 
           // Process content immediately if we have new content
-          if (!allContentDuplicate && !noContent) {
-            const contentToSend: { text?: string; imageData?: string } = {};
-
-            if (
-              selectedImage &&
-              !selectedImage.isEmpty() &&
-              !isImageDuplicate
-            ) {
-              const imageBuffer = selectedImage.toPNG();
-              const base64Image = imageBuffer.toString("base64");
-              contentToSend.imageData = base64Image;
-              prevClipboardImageHash = currentImageHash;
-            }
+          if (!isTextDuplicate && !noContent) {
+            const contentToSend: { text?: string } = {};
 
             if (selectedText && !isTextDuplicate) {
               contentToSend.text = selectedText;
               prevClipboardContent = selectedText;
             }
 
-            if (contentToSend.imageData || contentToSend.text) {
-              setInputContent(mainWindow, contentToSend);
+            if (contentToSend.text) {
+              setInputContent(getChatWindow(), contentToSend);
             }
           }
         }
@@ -292,15 +244,6 @@ function registerGlobalShortcuts() {
   }
 }
 
-async function installExtensions() {
-  try {
-    const result = await installExtension(REACT_DEVELOPER_TOOLS);
-    console.log(`Extensions installed successfully: ${result.name}`);
-  } catch {
-    console.error("Failed to install extensions");
-  }
-}
-
 // Handle screen resize events
 function setupScreenResizeHandlers() {
   let resizeTimeout: NodeJS.Timeout | null = null;
@@ -320,8 +263,8 @@ function setupScreenResizeHandlers() {
         if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
           const dimensions = expectedPosition
             ? expectedPosition
-            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.COMPACT_CHAT);
-          mainWindow.setBounds(dimensions);
+            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.CHAT);
+          getChatWindow().setBounds(dimensions);
         }
 
         // Update settings window if visible
@@ -344,30 +287,29 @@ app.whenReady().then(async () => {
   try {
     logger.info("Application ready, starting initialization");
 
-    if (inDevelopment) {
-      await installExtensions();
-    }
-
-    // Initialize Simple Logger
+    // Initialize synchronous components first
     initializeLogger();
 
-    // Initialize MCP Hub
-    initializeMCPHub();
-    logger.info("MCP Hub initialization completed");
+    // Initialize MCP Hub asynchronously but don't block startup
+    initializeMCPHub()
+      .then(() => {
+        logger.info("MCP Hub initialization completed");
+      })
+      .catch((error) => {
+        logger.error("MCP Hub initialization failed:", error);
+      });
 
-    logger.debug("Starting app focus tracking");
+    // Start background processes that don't block UI
     startAppFocusTracking();
-
-    logger.debug("Registering global shortcuts");
     registerGlobalShortcuts();
+    setupScreenResizeHandlers();
 
-    logger.debug("Pre-creating windows");
+    // Pre-create windows
     preCreateAgentPopoverWindow();
     preCreateSettingsWindow();
-    preCreateModelSelectorWindow(); // Pre-create model selector window
-    preCreateHistoryWindow(); // Pre-create history window
-    setupScreenResizeHandlers(); // Setup screen resize handlers
-    preCreateMainWindow(); // Pre-create main window
+    preCreateModelSelectorWindow();
+    preCreateHistoryWindow();
+    preCreateMainWindow();
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
@@ -376,7 +318,6 @@ app.whenReady().then(async () => {
     };
 
     logger.debug("Registering IPC listeners");
-    // Register IPC listeners with the new unified system
     registerListeners(listenerOptions);
 
     app.on("activate", () => {

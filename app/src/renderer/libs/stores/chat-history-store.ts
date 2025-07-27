@@ -265,9 +265,13 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           });
           localStorage.setItem("selectedConversation", eventData);
 
-          // Close history window if in Electron
+          // Close history window if in Electron and it's currently open
           if (window.electronAPI) {
-            window.electronAPI.toggleWindow("history");
+            // Check if history window is open before toggling
+            // Only toggle if we're in the history window context
+            if (window.location?.pathname === "/history") {
+              window.electronAPI.toggleWindow("history");
+            }
           }
         } else {
           set({ error: "Conversation not found" });

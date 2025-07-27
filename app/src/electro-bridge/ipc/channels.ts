@@ -18,7 +18,7 @@ export interface IPCServer {
   getPreviousApp(): string;
   getPreviousAppID(): number;
   getClipboardText(): string;
-  setInputContent(content: { text?: string; imageData?: string }): void;
+  setInputContent(content: { text?: string }): void;
   pasteModifiedContent(content: string): void;
   getPreviousAppContent(): Promise<string>;
   getOpenedApps(): Promise<string[]>;
