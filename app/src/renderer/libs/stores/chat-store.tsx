@@ -735,7 +735,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           // Get fresh previousAppContent before sending
           const freshPreviousAppContent =
-            await window.activeAppAPI.getPreviousAppContent();
+            await window.activeAppAPI.getPreviousApp();
 
           // Debug: Log the request body being sent
           const requestBody = {

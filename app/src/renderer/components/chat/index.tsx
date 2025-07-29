@@ -408,9 +408,9 @@ export default function Chat() {
   // Handle AI chat submission
   const handleAIChatSubmit = useCallback(
     (message: string) => {
-      console.log("AI Chat message:", message);
+      console.log("📤 handleAIChatSubmit called with message:", message);
       if (!message || message.trim() === "") {
-        console.error("Empty message submitted");
+        console.error("📤 Empty message submitted");
         return;
       }
 
@@ -419,6 +419,7 @@ export default function Chat() {
       setResults([]);
       setShowContent(true);
 
+      console.log("📤 About to call sendMessage with:", message);
       sendMessage(message);
     },
     [sendMessage],
@@ -428,12 +429,27 @@ export default function Chat() {
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
+        console.log("🔴 Enter pressed! State:", {
+          selectedInputCommand: selectedInputCommand?.id,
+          inputValue,
+          commandResult,
+          isCommandMode,
+          resultsLength: results.length,
+          selectedIndex
+        });
+        
         if (selectedInputCommand && inputValue.trim()) {
-          return;
+          // Handle input command submission with command result
+          console.log("🟡 Calling handleAIChatSubmit with commandResult:", commandResult);
+          handleAIChatSubmit(commandResult);
         } else if (isCommandMode && results.length > 0) {
+          console.log("🟢 Calling handleCommandExecute with:", results[selectedIndex]);
           handleCommandExecute(results[selectedIndex]);
         } else if (!isCommandMode && inputValue.trim()) {
+          console.log("🔵 Calling handleAIChatSubmit with inputValue:", inputValue.trim());
           handleAIChatSubmit(inputValue.trim());
+        } else {
+          console.log("🔴 No action taken - conditions not met");
         }
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
