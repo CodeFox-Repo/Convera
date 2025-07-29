@@ -161,7 +161,7 @@ export function preCreateMainWindow(
 
   // Ensure main window stays hidden after creation
   mainWindow.hide();
-  
+
   logger.info("Main window pre-creation completed");
 
   return mainWindow;

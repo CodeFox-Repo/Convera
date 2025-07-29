@@ -435,18 +435,27 @@ export default function Chat() {
           commandResult,
           isCommandMode,
           resultsLength: results.length,
-          selectedIndex
+          selectedIndex,
         });
-        
+
         if (selectedInputCommand && inputValue.trim()) {
           // Handle input command submission with command result
-          console.log("🟡 Calling handleAIChatSubmit with commandResult:", commandResult);
+          console.log(
+            "🟡 Calling handleAIChatSubmit with commandResult:",
+            commandResult,
+          );
           handleAIChatSubmit(commandResult);
         } else if (isCommandMode && results.length > 0) {
-          console.log("🟢 Calling handleCommandExecute with:", results[selectedIndex]);
+          console.log(
+            "🟢 Calling handleCommandExecute with:",
+            results[selectedIndex],
+          );
           handleCommandExecute(results[selectedIndex]);
         } else if (!isCommandMode && inputValue.trim()) {
-          console.log("🔵 Calling handleAIChatSubmit with inputValue:", inputValue.trim());
+          console.log(
+            "🔵 Calling handleAIChatSubmit with inputValue:",
+            inputValue.trim(),
+          );
           handleAIChatSubmit(inputValue.trim());
         } else {
           console.log("🔴 No action taken - conditions not met");
