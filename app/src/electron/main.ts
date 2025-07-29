@@ -5,6 +5,7 @@ import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 import {
   expectedPosition,
   isHiddenOffscreen,
+  toggleChatWindowVisibility,
 } from "@/electron/windows/window-position";
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
@@ -190,15 +191,10 @@ function registerGlobalShortcuts() {
         // Skip content processing if all content is duplicate or no content
         const noContent = !selectedText;
 
-        const mainWindow = getMainWindow();
-        if (mainWindow) {
-          // Toggle main window visibility
-          if (mainWindow.isVisible()) {
-            mainWindow.hide();
-          } else {
-            mainWindow.show();
-            mainWindow.focus();
-          }
+        const chatWindow = getChatWindow();
+        if (chatWindow) {
+          // Toggle chat window visibility using the proper function
+          toggleChatWindowVisibility(chatWindow);
 
           // Process content immediately if we have new content
           if (!isTextDuplicate && !noContent) {
@@ -210,7 +206,7 @@ function registerGlobalShortcuts() {
             }
 
             if (contentToSend.text) {
-              setInputContent(getChatWindow(), contentToSend);
+              setInputContent(chatWindow, contentToSend);
             }
           }
         }
@@ -313,7 +309,7 @@ app.whenReady().then(async () => {
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => getMainWindow(),
+      chatWindow: () => getChatWindow(),
       registerGlobalShortcuts,
     };
 
