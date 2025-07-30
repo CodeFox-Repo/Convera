@@ -32,9 +32,6 @@ export function usePreviousApp() {
       console.error("Error fetching previous app:", error);
     }
   };
-  useEffect(() => {
-    console.log("previousApp", previousApp);
-  }, [previousApp]);
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
