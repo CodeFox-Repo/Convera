@@ -53,14 +53,8 @@ export function usePreviousApp() {
         setPreviousAppContent(res);
       }
     });
-
-    console.log("listening onContentUpdate");
     return unsubscribe;
   }, [previousApp]);
-
-  useEffect(() => {
-    console.log("previousAppContent", previousAppContent);
-  }, [previousAppContent]);
 
   useEffect(() => {
     fetchOpenedApps();
