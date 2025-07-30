@@ -123,7 +123,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const { previousApp, openedApps } = usePreviousApp();
+  const { previousApp, openedApps, previousAppContent } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -733,11 +733,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             alert("Please log in to use the chat.");
             return;
           }
-          // Get fresh previousAppContent before sending
-          const freshPreviousAppContent =
-            await window.activeAppAPI.getPreviousApp();
-
-          // Debug: Log the request body being sent
           const requestBody = {
             agent: selectedAgent || undefined,
             // modelId: // Let backend use default model
@@ -751,7 +746,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               app: {
                 activeApp: previousApp,
                 openedApps: openedApps,
-                activeAppContent: freshPreviousAppContent,
+                activeAppContent: previousAppContent?.content,
               },
             },
           };
