@@ -1,6 +1,7 @@
 import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
+import { createSettingsWindow } from "./windows/settings-window";
 
 let tray: Tray | null = null;
 
@@ -32,14 +33,21 @@ export function createSystemTray() {
 
   tray = new Tray(trayIcon);
 
-  if (process.platform === "darwin") {
-    tray.setIgnoreDoubleClickEvents(true);
-  }
+  // Let system handle natural click behavior on macOS
 
   tray.setToolTip("FoxyChat");
 
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Settings",
+      click: () => {
+        createSettingsWindow();
+      },
+    },
+    {
+      type: "separator",
+    },
     {
       label: "Quit FoxyChat",
       click: () => {
@@ -50,9 +58,17 @@ export function createSystemTray() {
 
   tray.setContextMenu(contextMenu);
 
-  // Left click to show menu (same as right click)
+  // Left click to show menu with better state management
+  let menuShown = false;
   tray.on("click", () => {
-    tray.popUpContextMenu();
+    if (!menuShown) {
+      tray.popUpContextMenu();
+      menuShown = true;
+      // Reset flag after a short delay to allow for menu interaction
+      setTimeout(() => {
+        menuShown = false;
+      }, 100);
+    }
   });
 }
 
