@@ -49,9 +49,6 @@ export function usePreviousApp() {
   useEffect(() => {
     const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
       const res = newContent as unknown as PreviousAppContent;
-      console.log("res", res);
-      console.log("APP", res.appName);
-      console.log("APP2", previousApp); // 现在会获取到最新值
       if (res.appName === previousApp) {
         setPreviousAppContent(res);
       }
@@ -59,7 +56,7 @@ export function usePreviousApp() {
 
     console.log("listening onContentUpdate");
     return unsubscribe;
-  }, [previousApp]); // 添加 previousApp 作为依赖
+  }, [previousApp]);
 
   useEffect(() => {
     console.log("previousAppContent", previousAppContent);
