@@ -3,9 +3,17 @@ import { useEffect, useState } from "react";
 /**
  * Hook to track the previously active application
  */
+export interface PreviousAppContent {
+  appName: string;
+  content: string;
+  timestamp: number;
+  type: string;
+  notification: string;
+}
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
-  const [previousAppContent, setPreviousAppContent] = useState<string>();
+  const [previousAppContent, setPreviousAppContent] =
+    useState<PreviousAppContent>();
   const [openedApps, setOpenedApps] = useState<string[]>([]);
 
   // Function to fetch the previous active application
@@ -24,7 +32,9 @@ export function usePreviousApp() {
       console.error("Error fetching previous app:", error);
     }
   };
-
+  useEffect(() => {
+    console.log("previousApp", previousApp);
+  }, [previousApp]);
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
@@ -38,11 +48,22 @@ export function usePreviousApp() {
 
   useEffect(() => {
     const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
-      setPreviousAppContent(newContent);
+      const res = newContent as unknown as PreviousAppContent;
+      console.log("res", res);
+      console.log("APP", res.appName);
+      console.log("APP2", previousApp); // 现在会获取到最新值
+      if (res.appName === previousApp) {
+        setPreviousAppContent(res);
+      }
     });
 
+    console.log("listening onContentUpdate");
     return unsubscribe;
-  }, []);
+  }, [previousApp]); // 添加 previousApp 作为依赖
+
+  useEffect(() => {
+    console.log("previousAppContent", previousAppContent);
+  }, [previousAppContent]);
 
   useEffect(() => {
     fetchOpenedApps();

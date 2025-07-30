@@ -60,7 +60,6 @@ export function startAppContentMonitoring(appName: string): void {
 
     const lines = buffer.split("\n");
     buffer = lines.pop() || "";
-    console.log(lines);
 
     for (const line of lines) {
       if (line.trim()) {
