@@ -1,7 +1,6 @@
 // Chat Component - Main entry point for the Raycast-style command palette
 // This component provides a unified interface for both AI chat and command execution
 // Design philosophy follows Raycast's minimalist, keyboard-first approach
-import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
@@ -548,29 +547,8 @@ export default function Chat() {
   useEffect(() => {
     const mountTimer = setTimeout(() => {
       if (window.electronAPI && messages.length === 0) {
-        try {
-          // Calculate initial height based on current state
-          const selectedContentText = selectedContent?.text || "";
-          const hasActiveBadge = !!previousApp;
-
-          const initialHeight = calculateDynamicHeight(
-            0, // no results
-            false, // no input
-            hasActiveBadge,
-            false, // no content
-            selectedContentText,
-          );
-
-          window.electronAPI
-            .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
-            .then((res) => {
-              requestAnimationFrame(() => {
-                window.electronAPI.resizeWindow(res.width, initialHeight, true);
-              });
-            });
-        } catch (error) {
-          console.error("Chat: Error setting initial window size:", error);
-        }
+        // Skip initial resize - use fixed initial height from chat-window.ts
+        // This ensures first activation always uses the same height
       }
 
       const initTimer = setTimeout(() => {
@@ -603,7 +581,11 @@ export default function Chat() {
 
       // Get current window size to preserve width
       window.electronAPI
-        .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+        .getCurrentWindowSize({
+          widthProportion: 1,
+          minWidth: 600,
+          minHeight: 80,
+        })
         .then((currentSize) => {
           // Only resize if height changed significantly (> 10px difference)
           if (Math.abs(currentSize.height - newHeight) > 10) {
@@ -663,7 +645,11 @@ export default function Chat() {
             );
 
             window.electronAPI
-              .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+              .getCurrentWindowSize({
+                widthProportion: 0.35,
+                minWidth: 600,
+                minHeight: 80,
+              })
               .then((currentSize) => {
                 if (Math.abs(currentSize.height - newHeight) > 10) {
                   window.electronAPI.resizeWindow(

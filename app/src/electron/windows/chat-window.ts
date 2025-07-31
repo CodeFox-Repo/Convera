@@ -19,7 +19,7 @@ const logger = getLogger("chat-window");
 // Dynamic window sizing - initial dimensions only
 const CHAT_WINDOW_DIMENSIONS = {
   width: 600,
-  height: 100, // Start small, will be resized dynamically
+  height: 400, // Fixed initial height instead of 100
 };
 
 // Extract platform-specific configurations for chat window
@@ -131,7 +131,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
   });
 
-  // Handle display changes - just reposition, no resizing needed
+  // Handle display changes - reposition window to center (fixed size maintained)
   let repositionTimeout: NodeJS.Timeout | null = null;
   screen.on("display-metrics-changed", () => {
     if (!window.isDestroyed()) {
