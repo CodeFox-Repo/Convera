@@ -399,7 +399,7 @@ export class MCPHub extends EventEmitter {
     args: Record<string, unknown>,
   ): Promise<unknown> {
     // First check if it's a builtin tool
-    if (toolName === "executeCommand") {
+    if (toolName === "execute-command") {
       try {
         // Validate and transform args for executeCommand
         const command = args.command as string;
@@ -541,7 +541,7 @@ export class MCPHub extends EventEmitter {
   getBuiltinToolsDefinition(): ToolDefinition[] {
     const builtinTools = this.getBuiltinTools();
     return builtinTools.map((tool) => ({
-      name: "executeCommand", // We know this is executeCommand for now
+      name: "execute-command", // We know this is execute-command for now
       description: tool.description || "",
       inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
       parameters: this.zodSchemaToJsonSchema(tool.parameters),

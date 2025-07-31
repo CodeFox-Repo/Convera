@@ -3,41 +3,141 @@
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { Bot, Loader2, Sparkles } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-// Import highlight.js styles
-import "highlight.js/styles/github-dark.css";
-// Import KaTeX styles
-import { UIMessage } from "ai";
-import "katex/dist/katex.min.css";
+import { Markdown } from "../common/markdown";
+import { TOOL_COMPONENTS } from "./tools";
+import {
+  MessageContentRendererProps,
+  MessagePart,
+  MessagePartRendererProps,
+  ToolCallRendererProps,
+  UIMessage,
+  isTextPart,
+  isToolInvocationPart,
+} from "./types";
 
 /**
- * Advanced markdown renderer component with syntax highlighting, math, and more
+ * Component for rendering tool calls with styled output
  */
-const Markdown = memo(({ children }: { children: string }) => {
+const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
+  if (!toolInvocation) return null;
+
+  const toolName = toolInvocation.toolName || "Tool";
+
+  const SpecialComponent =
+    TOOL_COMPONENTS[toolName as keyof typeof TOOL_COMPONENTS];
+  if (SpecialComponent) {
+    return <SpecialComponent toolInvocation={toolInvocation} />;
+  }
+
+  // Default renderer
+  let result = "Pending result...";
+  let isCompleted = false;
+
+  // Check if the tool invocation has a result (AI SDK structure)
+  if (toolInvocation.state === "result" && "result" in toolInvocation) {
+    isCompleted = true;
+    const toolResult = toolInvocation.result;
+
+    if (typeof toolResult === "string") {
+      result = toolResult;
+    } else if (typeof toolResult === "object") {
+      // Try to extract message from result object if it exists
+      if (toolResult.message) {
+        result = toolResult.message as string;
+      } else {
+        result = JSON.stringify(toolResult, null, 2);
+      }
+    }
+  }
+
   return (
-    <div className="markdown no-drag-region max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
-        rehypePlugins={[
-          rehypeHighlight,
-          rehypeKatex,
-          [rehypeRaw, { passThrough: ["element"] }],
-        ]}
-        urlTransform={(value: string) => value}
-      >
-        {children}
-      </ReactMarkdown>
+    <div className="space-y-3">
+      {/* Tool Call */}
+      <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
+        <span>I&apos;ll use {toolName}</span>
+        {!isCompleted && <Loader2 className="h-3 w-3 animate-spin" />}
+      </div>
+
+      {/* Tool Result */}
+      {isCompleted && (
+        <div className="space-y-1">
+          <div className="text-xs text-foreground/60 font-medium">I got:</div>
+          <div className="text-sm text-foreground pl-4">
+            {typeof result === "string" ? (
+              <Markdown>{result}</Markdown>
+            ) : (
+              <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/70">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
 
-Markdown.displayName = "Markdown";
+ToolCallRenderer.displayName = "ToolCallRenderer";
+
+/**
+ * Component for rendering individual message parts
+ */
+const MessagePartRenderer = memo(
+  ({ part, index }: MessagePartRendererProps) => {
+    if (isTextPart(part)) {
+      return (
+        <div key={`text-${index}`} className="my-2">
+          <Markdown>{part.text}</Markdown>
+        </div>
+      );
+    }
+
+    if (isToolInvocationPart(part)) {
+      return (
+        <ToolCallRenderer
+          key={`tool-${index}`}
+          toolInvocation={part.toolInvocation}
+          index={index}
+        />
+      );
+    }
+
+    return null;
+  },
+);
+
+MessagePartRenderer.displayName = "MessagePartRenderer";
+
+/**
+ * Component for rendering complete message content based on UIMessage structure
+ */
+const MessageContentRenderer = memo(
+  ({ message }: MessageContentRendererProps) => {
+    // If message has parts, render each part
+    if (message.parts && message.parts.length > 0) {
+      return (
+        <div className="space-y-2">
+          {message.parts.map((part, index) => (
+            <MessagePartRenderer
+              key={`part-${index}`}
+              part={part as MessagePart}
+              index={index}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // Fallback to rendering content as text
+    if (message.content) {
+      return <Markdown>{message.content}</Markdown>;
+    }
+
+    return null;
+  },
+);
+
+MessageContentRenderer.displayName = "MessageContentRenderer";
 
 interface CommandContentProps {
   isVisible: boolean;
@@ -79,105 +179,10 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
     }
   }, [messages.length, isLoading, isVisible, scrollToBottom]);
 
-  // Render message content with markdown support
-  const renderMessageContent = useCallback((content: string) => {
-    if (!content) return null;
-
-    // Handle different content types
-    if (typeof content === "string") {
-      return <Markdown>{content}</Markdown>;
-    }
-
-    return (
-      <div className="whitespace-pre-wrap break-words">{String(content)}</div>
-    );
+  // Render message content using the new structured approach
+  const renderMessageContent = useCallback((message: UIMessage) => {
+    return <MessageContentRenderer message={message} />;
   }, []);
-
-  // Render tool calls and results
-  const renderToolContent = useCallback(
-    (message: UIMessage | { toolName?: string; content: unknown }) => {
-      if ("toolName" in message && message.toolName) {
-        // This is a tool result
-        return (
-          <div className="bg-orange-500/10 rounded-md p-3 border-l-2 border-orange-500/30">
-            <div className="text-xs font-medium text-orange-400 mb-2">
-              Tool Result:{" "}
-              {"toolName" in message ? message.toolName : "Unknown Tool"}
-            </div>
-            <div className="text-sm text-foreground/90">
-              {typeof message.content === "string" ? (
-                renderMessageContent(message.content)
-              ) : (
-                <pre className="text-xs font-mono whitespace-pre-wrap">
-                  {JSON.stringify(message.content, null, 2)}
-                </pre>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // Handle assistant messages with tool calls
-      if (message.content && Array.isArray(message.content)) {
-        return (
-          <div className="space-y-2">
-            {message.content.map(
-              (
-                content: {
-                  type: string;
-                  text?: string;
-                  toolName?: string;
-                  args?: unknown;
-                  result?: unknown;
-                },
-                i: number,
-              ) => (
-                <div key={i}>
-                  {content.type === "text" &&
-                    content.text &&
-                    renderMessageContent(content.text)}
-                  {content.type === "tool-call" && (
-                    <div className="bg-blue-500/10 rounded-md p-3 border-l-2 border-blue-500/30">
-                      <div className="text-xs font-medium text-blue-400 mb-1">
-                        Tool Call: {content.toolName}
-                      </div>
-                      <div className="text-xs text-foreground/70 font-mono">
-                        {JSON.stringify(content.args, null, 2)}
-                      </div>
-                    </div>
-                  )}
-                  {content.type === "tool-result" && (
-                    <div className="bg-green-500/10 rounded-md p-3 border-l-2 border-green-500/30">
-                      <div className="text-xs font-medium text-green-400 mb-1">
-                        Tool Result
-                      </div>
-                      <div className="text-sm text-foreground/90">
-                        {typeof content.result === "string" ? (
-                          renderMessageContent(content.result)
-                        ) : (
-                          <pre className="text-xs font-mono whitespace-pre-wrap">
-                            {JSON.stringify(content.result, null, 2)}
-                          </pre>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ),
-            )}
-          </div>
-        );
-      }
-
-      // Default text content
-      const content =
-        typeof message.content === "string"
-          ? message.content
-          : JSON.stringify(message.content || "");
-      return renderMessageContent(content);
-    },
-    [renderMessageContent],
-  );
 
   if (!isVisible) return null;
 
@@ -220,13 +225,13 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
                     <div className="rounded-lg border border-foreground/10 px-4 py-2 space-y-0">
                       {/* User message */}
                       <div className="text-muted-foreground">
-                        {renderToolContent(pair.user)}
+                        {renderMessageContent(pair.user)}
                       </div>
 
                       {/* Assistant message (if exists) */}
                       {pair.assistant && (
                         <div className="text-foreground leading-relaxed">
-                          {renderToolContent(pair.assistant)}
+                          {renderMessageContent(pair.assistant)}
                         </div>
                       )}
 
