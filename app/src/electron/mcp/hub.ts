@@ -9,8 +9,23 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { executeCommand } from "../tools/execute-command";
+import { BUILTIN_TOOLS_REGISTRY } from "../tools";
 import { MCPConnection } from "./connection";
+
+/**
+ * Generic wrapper for builtin tool calls
+ */
+function wrapToolCall(
+  toolName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tool: any,
+  args: Record<string, unknown>,
+) {
+  return tool.execute(args as Parameters<typeof tool.execute>[0], {
+    toolCallId: `builtin-${toolName}-${Date.now()}`,
+    messages: [],
+  });
+}
 
 /**
  * MCPHub - Clean MCP connection manager
@@ -94,10 +109,7 @@ export class MCPHub extends EventEmitter {
    */
   public hasToolAvailable(toolName: string): boolean {
     // Check builtin tools first
-    const builtinToolNames = this.getBuiltinToolsDefinition().map(
-      (tool) => tool.name,
-    );
-    if (builtinToolNames.includes(toolName)) {
+    if (toolName in BUILTIN_TOOLS_REGISTRY) {
       return true;
     }
 
@@ -349,7 +361,7 @@ export class MCPHub extends EventEmitter {
   getAllServerStatusesWithBuiltin(): ServerInfo[] {
     const mcpServers = this.getAllServerStatuses();
     const builtinServer = this.getBuiltinServerInfo();
-    
+
     return [...mcpServers, builtinServer];
   }
 
@@ -398,24 +410,12 @@ export class MCPHub extends EventEmitter {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    // First check if it's a builtin tool
-    if (toolName === "execute-command") {
+    // Check if it's a builtin tool
+    const builtinTool =
+      BUILTIN_TOOLS_REGISTRY[toolName as keyof typeof BUILTIN_TOOLS_REGISTRY];
+    if (builtinTool) {
       try {
-        // Validate and transform args for executeCommand
-        const command = args.command as string;
-        const timeout = (args.timeout as number) || 10000;
-
-        if (!command || typeof command !== "string") {
-          throw new Error("Missing or invalid command parameter");
-        }
-
-        return await executeCommand.execute(
-          { command, timeout },
-          {
-            toolCallId: `builtin-${toolName}-${Date.now()}`,
-            messages: [],
-          },
-        );
+        return await wrapToolCall(toolName, builtinTool, args);
       } catch (error) {
         return `Builtin tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`;
       }
@@ -539,9 +539,8 @@ export class MCPHub extends EventEmitter {
    * Get builtin tools as ToolDefinition format for UI display
    */
   getBuiltinToolsDefinition(): ToolDefinition[] {
-    const builtinTools = this.getBuiltinTools();
-    return builtinTools.map((tool) => ({
-      name: "execute-command", // We know this is execute-command for now
+    return Object.entries(BUILTIN_TOOLS_REGISTRY).map(([name, tool]) => ({
+      name,
       description: tool.description || "",
       inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
       parameters: this.zodSchemaToJsonSchema(tool.parameters),
@@ -552,7 +551,7 @@ export class MCPHub extends EventEmitter {
    * Get builtin tools for direct use with AI SDK
    */
   getBuiltinTools() {
-    return [executeCommand];
+    return Object.values(BUILTIN_TOOLS_REGISTRY);
   }
 
   /**
