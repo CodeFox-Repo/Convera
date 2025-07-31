@@ -238,7 +238,9 @@ export function getOpenedApps(): Promise<string[]> {
         return resolve([]);
       }
       const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
-      resolve(apps);
+      // Remove duplicates only
+      const uniqueApps = [...new Set(apps)];
+      resolve(uniqueApps);
     });
   });
 }

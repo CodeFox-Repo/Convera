@@ -12,6 +12,7 @@ import { LanguagesIcon } from "lucide-react";
 import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
+import { AppMentionDropdown } from "./input/app-mention-dropdown";
 
 // Types are imported from other components
 
@@ -51,6 +52,11 @@ export default function Chat() {
   const [selectedInputCommand, setSelectedInputCommand] =
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
+  
+  // App mention states
+  const [showAppMention, setShowAppMention] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPosition, setMentionPosition] = useState({ x: 0, y: 0 });
 
   interface CommandResult {
     id: string;
@@ -288,6 +294,26 @@ export default function Chat() {
       return;
     }
 
+    // Check for @ mention trigger
+    const atMatch = value.match(/@(\w*)$/);
+    if (atMatch) {
+      const query = atMatch[1];
+      setMentionQuery(query);
+      setShowAppMention(true);
+      
+      // Get input position for dropdown placement
+      if (inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        setMentionPosition({
+          x: rect.left,
+          y: rect.bottom + 4,
+        });
+      }
+    } else {
+      setShowAppMention(false);
+      setMentionQuery("");
+    }
+
     setIsCommandMode(value.startsWith("/"));
 
     if (value.startsWith("/")) {
@@ -300,6 +326,18 @@ export default function Chat() {
       setResults([]);
     }
   };
+
+  // Handle app selection from mention dropdown
+  const handleAppSelect = useCallback((appName: string) => {
+    const atMatch = inputValue.match(/@(\w*)$/);
+    if (atMatch) {
+      const beforeAt = inputValue.slice(0, inputValue.length - atMatch[0].length);
+      const newValue = beforeAt + `@${appName} `;
+      setInputValue(newValue);
+    }
+    setShowAppMention(false);
+    setMentionQuery("");
+  }, [inputValue]);
 
   // Handle command search
   const handleCommandSearch = useCallback(async (query: string) => {
@@ -825,6 +863,13 @@ export default function Chat() {
                   ? "AI is thinking..."
                   : "Ask FoxyChat AI anything or type / for commands"
           }
+        />
+        <AppMentionDropdown
+          isOpen={showAppMention}
+          onClose={() => setShowAppMention(false)}
+          onSelect={handleAppSelect}
+          searchQuery={mentionQuery}
+          position={mentionPosition}
         />
       </div>
 
