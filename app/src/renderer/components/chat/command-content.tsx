@@ -23,10 +23,6 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
 
   const toolName = toolInvocation.toolName || "Tool";
 
-  // Check if there's a special component for this tool
-  window.logger
-    .getLogger("test")
-    .info("Rendering tool call for:", toolInvocation);
   const SpecialComponent =
     TOOL_COMPONENTS[toolName as keyof typeof TOOL_COMPONENTS];
   if (SpecialComponent) {

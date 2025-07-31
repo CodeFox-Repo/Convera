@@ -1,3 +1,4 @@
+import { ExecuteCommandRenderer } from "./execute-command";
 import { WebSearchRenderer } from "./web-search";
 
 /**
@@ -5,4 +6,5 @@ import { WebSearchRenderer } from "./web-search";
  */
 export const TOOL_COMPONENTS = {
   web_search: WebSearchRenderer,
+  execute_command: ExecuteCommandRenderer,
 } as const;
