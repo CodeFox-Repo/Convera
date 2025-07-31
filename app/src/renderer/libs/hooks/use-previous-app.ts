@@ -9,11 +9,11 @@ export interface PreviousAppContent {
   timestamp: number;
   type: string;
   notification: string;
+  currentURL?: string;
 }
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
-  const [previousAppContent, setPreviousAppContent] =
-    useState<PreviousAppContent>();
+  const [previousAppContent, setPreviousAppContent] = useState<string>();
   const [openedApps, setOpenedApps] = useState<string[]>([]);
 
   // Function to fetch the previous active application
@@ -47,7 +47,9 @@ export function usePreviousApp() {
     const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
       const res = newContent as unknown as PreviousAppContent;
       if (res.appName === previousApp) {
-        setPreviousAppContent(res);
+        setPreviousAppContent(
+          res.content + (res.currentURL ?? "[currentURL]" + res.currentURL),
+        );
       }
     });
     return unsubscribe;
