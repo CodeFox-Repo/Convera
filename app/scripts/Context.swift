@@ -8,6 +8,12 @@ var observer: AXObserver?
 var currentAppElem: AXUIElement?
 var seen = Set<String>()
 var currentAppName = "Unknown"
+let commonBrowsers: Set<String> = [
+    "Google Chrome", "Safari", "Firefox", "Microsoft Edge", 
+    "Opera", "Brave Browser", "Arc", "Vivaldi"
+]
+var currentURL: String = ""
+var hasFoundDocument = false
 
 // MARK: - Accessibility Helper Functions
 
@@ -64,39 +70,10 @@ let filteredAttributes: Set<String> = [
     "AXFullScreenButton", "AXZoomButton", "AXActivationPoint", "AXModal", "AXMain",
     "AXRequired", "AXVisited", "AXElementBusy", "AXInvalid", "ChromeAXNodeId",
     "AXBlockQuoteLevel", "AXDOMIdentifier", "AXDOMClassList", "AXInsertionPointLineNumber",
-    "AXVisibleCharacterRange", "AXNumberOfCharacters", "AXSelectedTextRange", "AXSelectedTextRanges", "AXLanguage", "AXKeyShortcutsValue", "AXPopupValue"
+    "AXVisibleCharacterRange", "AXNumberOfCharacters", "AXSelectedTextRange", 
+    "AXSelectedTextRanges", "AXLanguage", "AXKeyShortcutsValue", "AXPopupValue", "AXDescription",
+    "AXAutocompleteValue", "AXPlaceholderValue", "AXOrientation","AXARIALive","AXARIARelevant","AXHelp"
 ]
-
-// 递归打印元素及其所有属性
-func dump(element: AXUIElement, depth: Int = 0) {
-    let indent = String(repeating: "  ", count: depth)
-    var attributeNames: CFArray?
-    let error = AXUIElementCopyAttributeNames(element, &attributeNames)
-
-    if error == .success, let names = attributeNames as? [String] {
-        var output = ""
-        for name in names {
-            if filteredAttributes.contains(name) { continue }
-            var value: CFTypeRef?
-            if AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success {
-                if let strValue = cfString(value), !strValue.isEmpty {
-                    let line = "\(strValue)"
-                    if seen.insert(line).inserted {
-                        //output += "\(indent)\(name): \(strValue)\n"
-                        output += "\(strValue)\n"
-                    }
-                }
-            }
-        }
-    }
-
-    for child in fetchChildren(of: element) {
-        dump(element: child, depth: depth + 1)
-    }
-}
-
-// MARK: - Observer Logic
-
 func axCallback(_ observer: AXObserver, _ element: AXUIElement, _ notification: CFString, _ refcon: UnsafeMutableRawPointer?) {
     log("Notification: \(notification as String)")
     
@@ -112,15 +89,22 @@ func axCallback(_ observer: AXObserver, _ element: AXUIElement, _ notification: 
     let windowElem = win as! AXUIElement
 
     seen.removeAll()
+    hasFoundDocument = false
+    currentURL = ""
+    
     let content = dumpToString(element: windowElem)
     
-    let jsonOutput: [String: Any] = [
+    var jsonOutput: [String: Any] = [
         "type": "context_update",
         "timestamp": ISO8601DateFormatter().string(from: Date()),
         "notification": notification as String,
         "appName": appName,
         "content": content
     ]
+    
+    if commonBrowsers.contains(appName) && !currentURL.isEmpty {
+        jsonOutput["currentURL"] = currentURL
+    }
     
     if let jsonData = try? JSONSerialization.data(withJSONObject: jsonOutput, options: []),
        let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -201,15 +185,40 @@ if let jsonData = try? JSONSerialization.data(withJSONObject: initialStatus, opt
 
 CFRunLoopRun()
 
+
+
 func dumpToString(element: AXUIElement, depth: Int = 0) -> String {
     var result = ""
     let indent = String(repeating: "  ", count: depth)
     var attributeNames: CFArray?
     let error = AXUIElementCopyAttributeNames(element, &attributeNames)
-
+    
+    let isBrowser = commonBrowsers.contains(currentAppName)
+    
     if error == .success, let names = attributeNames as? [String] {
         for name in names {
             if filteredAttributes.contains(name) { continue }
+            
+            if isBrowser && name == "AXDocument" && !hasFoundDocument {
+                var value: CFTypeRef?
+                if AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success {
+                    if let strValue = cfString(value), !strValue.isEmpty {
+                        currentURL = strValue
+                        hasFoundDocument = true
+                        
+                        let line = "\(strValue)"
+                        if seen.insert(line).inserted {
+                            result += "[URL] \(strValue)"
+                        }
+                    }
+                }
+                continue
+            }
+            
+            if isBrowser && name == "AXDocument" && hasFoundDocument {
+                continue
+            }
+            
             var value: CFTypeRef?
             if AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success {
                 if let strValue = cfString(value), !strValue.isEmpty {
@@ -222,7 +231,7 @@ func dumpToString(element: AXUIElement, depth: Int = 0) -> String {
             }
         }
     }
-
+    
     for child in fetchChildren(of: element) {
         result += dumpToString(element: child, depth: depth + 1)
     }
