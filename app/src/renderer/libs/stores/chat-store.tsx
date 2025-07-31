@@ -14,7 +14,6 @@ import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
 import { usePreviousApp } from "../hooks/use-previous-app";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
-import { parseApiError, type GenericError } from "../utils/error-handler";
 import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
@@ -271,29 +270,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!body.mcpServers || body.mcpServers.length === 0) {
             const currentSettings = settingsRef.current;
             if (currentSettings) {
-              // Get fresh MCP servers data
-              const serversResponse = await window.mcpAPI.getServers();
-              const mcpServers: Array<{
+              // Get fresh MCP tools data (includes builtin tools)
+              const toolsResponse = await window.mcpAPI.getAllTools();
+              let mcpServers: Array<{
                 name: string;
                 tools: ToolDefinition[];
               }> = [];
 
-              if (serversResponse.success && serversResponse.data) {
-                const connectedServers = serversResponse.data.filter(
-                  (server) => server.status === "connected",
-                );
-
-                connectedServers.forEach((server) => {
-                  if (
-                    server.capabilities.tools &&
-                    server.capabilities.tools.length > 0
-                  ) {
-                    mcpServers.push({
-                      name: server.name,
-                      tools: server.capabilities.tools,
-                    });
-                  }
-                });
+              if (toolsResponse.success && toolsResponse.data) {
+                mcpServers = toolsResponse.data.map(server => ({
+                  name: server.serverName,
+                  tools: server.tools,
+                }));
               }
 
               // Supplement missing configuration with correct logic
@@ -327,6 +315,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }
 
               body.mcpServers = mcpServers;
+              window.logger.getLogger("asd").info("mcpServers", mcpServers);
 
               options.body = JSON.stringify(body);
             }
@@ -343,10 +332,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     },
     onError: (error) => {
-      const parsedError = parseApiError(error as unknown as GenericError);
-      console.error("Chat API error:", parsedError);
-      console.error("Full error object:", error);
-      // Check if it's a network error
       if (error instanceof Error && error.message.includes("fetch")) {
         console.error(
           "Network error - is the backend server running on port 3001?",
@@ -354,22 +339,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     onToolCall: async ({ toolCall }) => {
-      console.log("🔧 Frontend: Tool call received:", {
-        toolName: toolCall.toolName,
-        args: toolCall.args,
-      });
-
       // Use simplified MCP tool call that finds first server with the tool
       const result = await window.mcpAPI.mcpToolCall(
         toolCall.toolName,
         toolCall.args as Record<string, unknown>,
       );
-
-      console.log("🔧 Frontend: Tool call result:", {
-        success: result.success,
-        hasData: !!result.data,
-        error: result.error,
-      });
 
       if (!result.success) {
         throw new Error(result.error || "Tool call failed");
@@ -498,37 +472,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     mcpLogger.info("Fetching available MCP tools");
 
     try {
-      // Get all servers and their capabilities
-      const serversResponse = await window.mcpAPI.getServers();
+      // Get all tools from all connected servers (includes builtin tools)
+      const toolsResponse = await window.mcpAPI.getAllTools();
 
-      if (!serversResponse.success) {
-        throw new Error(serversResponse.error || "Failed to get MCP servers");
+      if (!toolsResponse.success) {
+        throw new Error(toolsResponse.error || "Failed to get MCP tools");
       }
 
-      const servers = serversResponse.data || [];
-      setMcpServers(servers);
+      const toolServers = toolsResponse.data || [];
+      
+      // Also get server info for state management
+      const serversResponse = await window.mcpAPI.getServers();
+      if (serversResponse.success && serversResponse.data) {
+        setMcpServers(serversResponse.data);
+      }
 
-      mcpLogger.info("MCP servers fetched", {
-        totalServers: servers.length,
-        connectedServers: servers.filter((s) => s.status === "connected")
-          .length,
+      mcpLogger.info("MCP tools fetched", {
+        totalServers: toolServers.length,
+        toolServers: toolServers.map(s => ({ name: s.serverName, toolCount: s.tools.length })),
       });
 
-      // Collect all tools from all connected servers
+      // Collect all tools from all servers
       const allTools: ToolDefinition[] = [];
-      servers.forEach((server) => {
-        if (server.status === "connected" && server.capabilities.tools) {
-          mcpLogger.debug("Adding tools from server", {
-            serverName: server.name,
-            toolsCount: server.capabilities.tools.length,
-          });
-          allTools.push(...server.capabilities.tools);
-        } else {
-          mcpLogger.warn("Server not available for tools", {
-            serverName: server.name,
-            status: server.status,
-          });
-        }
+      toolServers.forEach((server) => {
+        mcpLogger.debug("Adding tools from server", {
+          serverName: server.serverName,
+          toolsCount: server.tools.length,
+        });
+        allTools.push(...server.tools);
       });
 
       setAvailableTools(allTools);
@@ -688,27 +659,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          // Get fresh MCP servers data for this request
-          const serversResponse = await window.mcpAPI.getServers();
-          const mcpServers: Array<{ name: string; tools: ToolDefinition[] }> =
-            [];
+          // Get fresh MCP tools data for this request (includes builtin tools)
+          const toolsResponse = await window.mcpAPI.getAllTools();
+          let mcpServers: Array<{ name: string; tools: ToolDefinition[] }> = [];
 
-          if (serversResponse.success && serversResponse.data) {
-            const connectedServers = serversResponse.data.filter(
-              (server) => server.status === "connected",
-            );
-
-            connectedServers.forEach((server) => {
-              if (
-                server.capabilities.tools &&
-                server.capabilities.tools.length > 0
-              ) {
-                mcpServers.push({
-                  name: server.name,
-                  tools: server.capabilities.tools,
-                });
-              }
-            });
+          if (toolsResponse.success && toolsResponse.data) {
+            mcpServers = toolsResponse.data.map(server => ({
+              name: server.serverName,
+              tools: server.tools,
+            }));
           }
 
           // TODO: DISABLED LOCAL API - Only use remote server now
