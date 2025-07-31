@@ -278,7 +278,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }> = [];
 
               if (toolsResponse.success && toolsResponse.data) {
-                mcpServers = toolsResponse.data.map(server => ({
+                mcpServers = toolsResponse.data.map((server) => ({
                   name: server.serverName,
                   tools: server.tools,
                 }));
@@ -480,7 +480,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const toolServers = toolsResponse.data || [];
-      
+
       // Also get server info for state management
       const serversResponse = await window.mcpAPI.getServers();
       if (serversResponse.success && serversResponse.data) {
@@ -489,7 +489,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       mcpLogger.info("MCP tools fetched", {
         totalServers: toolServers.length,
-        toolServers: toolServers.map(s => ({ name: s.serverName, toolCount: s.tools.length })),
+        toolServers: toolServers.map((s) => ({
+          name: s.serverName,
+          toolCount: s.tools.length,
+        })),
       });
 
       // Collect all tools from all servers
@@ -664,7 +667,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           let mcpServers: Array<{ name: string; tools: ToolDefinition[] }> = [];
 
           if (toolsResponse.success && toolsResponse.data) {
-            mcpServers = toolsResponse.data.map(server => ({
+            mcpServers = toolsResponse.data.map((server) => ({
               name: server.serverName,
               tools: server.tools,
             }));

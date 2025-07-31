@@ -1,4 +1,7 @@
-import type { UIMessage as AISDKUIMessage, ToolInvocation as AISDKToolInvocation } from "ai";
+import type {
+  UIMessage as AISDKUIMessage,
+  ToolInvocation as AISDKToolInvocation,
+} from "ai";
 
 /**
  * Re-export AI SDK types for consistency
@@ -15,11 +18,15 @@ export type MessagePart = NonNullable<UIMessage["parts"]>[number];
 /**
  * Type guards for different part types
  */
-export function isTextPart(part: MessagePart): part is Extract<MessagePart, { type: "text" }> {
+export function isTextPart(
+  part: MessagePart,
+): part is Extract<MessagePart, { type: "text" }> {
   return part.type === "text";
 }
 
-export function isToolInvocationPart(part: MessagePart): part is Extract<MessagePart, { type: "tool-invocation" }> {
+export function isToolInvocationPart(
+  part: MessagePart,
+): part is Extract<MessagePart, { type: "tool-invocation" }> {
   return part.type === "tool-invocation";
 }
 

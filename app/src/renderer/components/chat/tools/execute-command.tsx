@@ -63,7 +63,7 @@ export const ExecuteCommandRenderer = memo(
 
         {/* Combined command and output in single code block */}
         <CodeBlock
-          code={`${command ? `$ ${command}` : ''}${!isCompleted && command ? '\n\n[executing...]' : ''}${isCompleted && result ? '\n' + result : ''}`}
+          code={`${command ? `$ ${command}` : ""}${!isCompleted && command ? "\n\n[executing...]" : ""}${isCompleted && result ? "\n" + result : ""}`}
           language="bash"
           title="Terminal"
           showCopyButton={isCompleted}
