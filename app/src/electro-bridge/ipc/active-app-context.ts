@@ -222,9 +222,13 @@ export function activatePreviousApp(): void {
 
 export function getOpenedApps(): Promise<string[]> {
   return new Promise((resolve) => {
+    console.log("🔍 getOpenedApps called, platform:", process.platform);
+    
     if (process.platform !== "darwin") {
+      console.log("❌ Not on macOS, returning empty array");
       return resolve([]);
     }
+    
     const script = `
       try
         tell application "System Events" to get name of every process whose background only is false
@@ -232,13 +236,97 @@ export function getOpenedApps(): Promise<string[]> {
         return ""
       end try
     `;
+    
+    console.log("🍎 Running AppleScript to get opened apps...");
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
-        console.error("Error getting opened apps:", err);
+        console.error("❌ Error getting opened apps:", err);
         return resolve([]);
       }
+      
+      console.log("📋 Raw AppleScript output:", stdout);
       const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
+      console.log("📱 Parsed apps:", apps);
       resolve(apps);
+    });
+  });
+}
+
+export function getAppIcon(appName: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    console.log(`🎨 getAppIcon called for: ${appName}`);
+    
+    if (process.platform !== "darwin") {
+      console.log("❌ Not on macOS, returning null");
+      return resolve(null);
+    }
+    
+    const script = `
+      try
+        tell application "System Events"
+          set appPath to POSIX path of (file of process "${appName}" as alias)
+          return appPath
+        end tell
+      on error
+        return ""
+      end try
+    `;
+    
+    console.log(`🍎 Getting app path for: ${appName}`);
+    execFile("osascript", ["-e", script], (err, stdout) => {
+      if (err) {
+        console.error(`❌ Error getting app path for ${appName}:`, err);
+        return resolve(null);
+      }
+      
+      const appPath = stdout.trim();
+      console.log(`📁 App path for ${appName}:`, appPath);
+      
+      if (!appPath || appPath === "") {
+        console.log(`❌ No app path found for ${appName}`);
+        return resolve(null);
+      }
+      
+      // Get app icon using macOS APIs - try multiple common icon file names
+      const iconScript = `
+        try
+          set possibleIcons to {"AppIcon.icns", "app.icns", "Icon.icns", "icon.icns"}
+          set appPath to "${appPath}"
+          set iconConverted to false
+          
+          repeat with iconName in possibleIcons
+            try
+              set iconPath to appPath & "/Contents/Resources/" & iconName
+              tell application "System Events"
+                if exists file iconPath then
+                  set outputPath to "/tmp/app_icon_temp_${appName.replace(/\s+/g, '_')}.png"
+                  do shell script "sips -s format png --out '" & outputPath & "' '" & iconPath & "'"
+                  set iconConverted to true
+                  return outputPath
+                end if
+              end tell
+            end try
+          end repeat
+          
+          if not iconConverted then
+            return ""
+          end if
+        on error
+          return ""
+        end try
+      `;
+      
+      console.log(`🎨 Converting icon for ${appName}...`);
+      execFile("osascript", ["-e", iconScript], (iconErr, iconStdout) => {
+        if (iconErr) {
+          console.error(`❌ Error converting icon for ${appName}:`, iconErr);
+          return resolve(null);
+        }
+        
+        const iconPath = iconStdout.trim();
+        console.log(`✅ Icon path for ${appName}:`, iconPath);
+        resolve(iconPath || null);
+      });
     });
   });
 }

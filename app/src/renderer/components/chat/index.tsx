@@ -12,6 +12,7 @@ import { LanguagesIcon } from "lucide-react";
 import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
+import { AppMentionDropdown } from "./input/app-mention-dropdown";
 
 // Types are imported from other components
 
@@ -51,6 +52,11 @@ export default function Chat() {
   const [selectedInputCommand, setSelectedInputCommand] =
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
+  
+  // App mention states
+  const [showAppMention, setShowAppMention] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPosition, setMentionPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   interface CommandResult {
     id: string;
@@ -240,8 +246,42 @@ export default function Chat() {
     };
   }, []);
 
+  // Handle app selection from mention dropdown
+  const handleAppSelect = useCallback((appName: string) => {
+    const atMatch = inputValue.match(/@(\w*)$/);
+    if (atMatch) {
+      const beforeAt = inputValue.slice(0, inputValue.length - atMatch[0].length);
+      const newValue = beforeAt + `@${appName} `;
+      setInputValue(newValue);
+    }
+    setShowAppMention(false);
+    setMentionQuery("");
+    
+    // Focus back to input
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [inputValue]);
+
   // Listen for theme changes from settings
   useThemeSync();
+
+  // Debug: Test getOpenedApps on component mount
+  useEffect(() => {
+    const testGetOpenedApps = async () => {
+      if (window.activeAppAPI) {
+        console.log("🧪 Testing getOpenedApps...");
+        try {
+          const apps = await window.activeAppAPI.getOpenedApps();
+          console.log("🧪 Test result - apps:", apps);
+        } catch (error) {
+          console.error("🧪 Test error:", error);
+        }
+      }
+    };
+    
+    testGetOpenedApps();
+  }, []);
 
   // Handle Command+W for chat window deactivation
   useWindowClose({ type: "close" });
@@ -253,6 +293,23 @@ export default function Chat() {
 
     setInputValue(value);
     setSelectedIndex(0); // Reset selection when input changes
+
+    // Check for @ mention trigger
+    const atMatch = value.match(/@(\w*)$/);
+    if (atMatch) {
+      const query = atMatch[1];
+      setMentionQuery(query);
+      setShowAppMention(true);
+      
+      // Get input position for dropdown placement
+      if (inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        setMentionPosition({ x: rect.left, y: rect.bottom + 5 });
+      }
+    } else {
+      setShowAppMention(false);
+      setMentionQuery("");
+    }
 
     // Check if we're in input change command mode
     if (selectedInputCommand) {
@@ -825,6 +882,13 @@ export default function Chat() {
                   ? "AI is thinking..."
                   : "Ask FoxyChat AI anything or type / for commands"
           }
+        />
+        <AppMentionDropdown
+          isOpen={showAppMention}
+          onClose={() => setShowAppMention(false)}
+          onSelect={handleAppSelect}
+          searchQuery={mentionQuery}
+          position={mentionPosition}
         />
       </div>
 

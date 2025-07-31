@@ -35,8 +35,12 @@ export function usePreviousApp() {
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
+        console.log("🔍 Fetching opened apps...");
         const apps = await window.activeAppAPI.getOpenedApps();
+        console.log("📱 Opened apps:", apps);
         setOpenedApps(apps);
+      } else {
+        console.error("❌ window.activeAppAPI is not available");
       }
     } catch (error) {
       console.error("Error fetching opened apps:", error);
