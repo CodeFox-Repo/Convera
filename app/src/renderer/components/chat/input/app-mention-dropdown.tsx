@@ -29,7 +29,7 @@ export function AppMentionDropdown({
       setFilteredApps(openedApps);
     } else {
       const filtered = openedApps.filter((app) =>
-        app.toLowerCase().includes(searchQuery.toLowerCase())
+        app.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredApps(filtered);
     }
@@ -42,11 +42,11 @@ export function AppMentionDropdown({
 
     const container = scrollContainerRef.current;
     const selectedElement = container.children[selectedIndex] as HTMLElement;
-    
+
     if (selectedElement) {
       selectedElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
+        behavior: "smooth",
+        block: "nearest",
       });
     }
   }, [selectedIndex, filteredApps.length]);
@@ -57,31 +57,33 @@ export function AppMentionDropdown({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle specific keys when dropdown is open
-      if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+      if (!["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) {
         return;
       }
-      
-      console.log('AppMentionDropdown handling key:', e.key, 'isOpen:', isOpen);
-      
+
+      console.log("AppMentionDropdown handling key:", e.key, "isOpen:", isOpen);
+
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex(prev => Math.min(prev + 1, filteredApps.length - 1));
+          setSelectedIndex((prev) =>
+            Math.min(prev + 1, filteredApps.length - 1),
+          );
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex(prev => Math.max(prev - 1, 0));
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           e.stopPropagation();
           if (filteredApps[selectedIndex]) {
             handleSelect(filteredApps[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           e.stopPropagation(); // Prevent event from bubbling up
           onClose();
@@ -90,8 +92,8 @@ export function AppMentionDropdown({
     };
 
     // Use capture phase to ensure we handle the event before React's synthetic events
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [isOpen, filteredApps, selectedIndex, onClose]);
 
   // Cleanup timeout on unmount
@@ -110,12 +112,12 @@ export function AppMentionDropdown({
 
   const handleScroll = () => {
     setIsScrolling(true);
-    
+
     // Clear existing timeout
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
-    
+
     // Set timeout to hide scrollbar after scrolling stops
     scrollTimeoutRef.current = setTimeout(() => {
       setIsScrolling(false);
@@ -134,20 +136,24 @@ export function AppMentionDropdown({
     >
       <div className="p-2">
         {filteredApps.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-4">No apps found</div>
+          <div className="text-sm text-muted-foreground text-center py-4">
+            No apps found
+          </div>
         ) : (
           <div>
-            <div className="text-xs font-medium text-muted-foreground mb-2 px-2">Open Apps</div>
-            <div 
+            <div className="text-xs font-medium text-muted-foreground mb-2 px-2">
+              Open Apps
+            </div>
+            <div
               ref={scrollContainerRef}
               className={`max-h-64 overflow-y-auto scrollbar-thin scrollbar-track-transparent transition-all duration-200 space-y-1 ${
-                isScrolling 
-                  ? 'scrollbar-thumb-accent/40' 
-                  : 'scrollbar-thumb-transparent hover:scrollbar-thumb-accent/20'
+                isScrolling
+                  ? "scrollbar-thumb-accent/40"
+                  : "scrollbar-thumb-transparent hover:scrollbar-thumb-accent/20"
               }`}
-              style={{ 
-                overscrollBehavior: 'contain',
-                WebkitOverflowScrolling: 'touch'
+              style={{
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
               }}
               onScroll={handleScroll}
             >
@@ -173,15 +179,17 @@ interface AppMentionItemProps {
   onSelect: () => void;
 }
 
-function AppMentionItem({ appName, isSelected, onSelect }: AppMentionItemProps) {
+function AppMentionItem({
+  appName,
+  isSelected,
+  onSelect,
+}: AppMentionItemProps) {
   return (
     <div
       onClick={onSelect}
       className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 text-sm rounded-md transition-colors ${
-        isSelected 
-          ? 'bg-accent text-accent-foreground' 
-          : 'text-foreground'
-      } ${!isSelected ? 'hover:bg-accent/30' : ''}`}
+        isSelected ? "bg-accent text-accent-foreground" : "text-foreground"
+      } ${!isSelected ? "hover:bg-accent/30" : ""}`}
     >
       <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
       <span>{appName}</span>
