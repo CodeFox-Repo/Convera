@@ -1,15 +1,10 @@
 import { Loader2 } from "lucide-react";
 import React, { memo } from "react";
 import { Markdown } from "../../common/markdown";
+import { ToolInvocation } from "../types";
 
 export interface WebSearchRendererProps {
-  toolInvocation: {
-    toolCallId: string;
-    toolName: string;
-    state: string;
-    args?: Record<string, unknown>;
-    result?: string | { message?: string; [key: string]: unknown };
-  };
+  toolInvocation: ToolInvocation;
 }
 
 /**
@@ -17,26 +12,26 @@ export interface WebSearchRendererProps {
  */
 export const WebSearchRenderer = memo(
   ({ toolInvocation }: WebSearchRendererProps) => {
-    const isCompleted =
-      toolInvocation.state === "complete" ||
-      toolInvocation.state === "result" ||
-      !!toolInvocation.result;
+    let isCompleted = false;
+    let result = "";
 
     // Extract search query from args
     const searchQuery = String(
       toolInvocation.args?.query || toolInvocation.args?.url || "",
     );
 
-    // Process result
-    let result = "";
-    if (toolInvocation.result) {
-      if (typeof toolInvocation.result === "string") {
-        result = toolInvocation.result;
-      } else if (typeof toolInvocation.result === "object") {
-        if (toolInvocation.result.message) {
-          result = toolInvocation.result.message as string;
+    // Check if the tool invocation has a result (AI SDK structure)
+    if (toolInvocation.state === "result" && "result" in toolInvocation) {
+      isCompleted = true;
+      const toolResult = toolInvocation.result;
+
+      if (typeof toolResult === "string") {
+        result = toolResult;
+      } else if (typeof toolResult === "object") {
+        if (toolResult.message) {
+          result = toolResult.message as string;
         } else {
-          result = JSON.stringify(toolInvocation.result, null, 2);
+          result = JSON.stringify(toolResult, null, 2);
         }
       }
     }
@@ -45,7 +40,7 @@ export const WebSearchRenderer = memo(
       <div className="space-y-3">
         {/* Tool Call */}
         <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
-          <span>🔍 Searching for &ldquo;{searchQuery}&rdquo; online</span>
+          <span>I will search {searchQuery}</span>
           {!isCompleted && <Loader2 className="h-3 w-3 animate-spin" />}
         </div>
 
@@ -53,7 +48,7 @@ export const WebSearchRenderer = memo(
         {isCompleted && (
           <div className="space-y-1">
             <div className="text-xs text-foreground/60 font-medium">
-              I found:
+              I found online:
             </div>
             <div className="text-sm text-foreground pl-4">
               {typeof result === "string" ? (
@@ -71,4 +66,4 @@ export const WebSearchRenderer = memo(
   },
 );
 
-WebSearchRenderer.displayName = "WebFetchRenderer";
+WebSearchRenderer.displayName = "WebSearchRenderer";

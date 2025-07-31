@@ -1,51 +1,19 @@
 // Command Content Component
 // Displays MCP command results and AI chat responses in a larger content area
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
-import { UIMessage } from "ai";
 import { Bot, Loader2, Sparkles } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
 import { Markdown } from "../common/markdown";
 import { TOOL_COMPONENTS } from "./tools";
-
-/**
- * Type definitions for UIMessage parts
- */
-interface ToolInvocation {
-  toolCallId: string;
-  toolName: string;
-  state: string;
-  args?: Record<string, unknown>;
-  result?: string | { message?: string; [key: string]: unknown };
-}
-
-interface ToolPart {
-  type: "tool-invocation";
-  toolInvocation: ToolInvocation;
-}
-
-interface TextPart {
-  type: "text";
-  text: string;
-}
-
-type MessagePart = TextPart | ToolPart;
-
-/**
- * Component props for message rendering
- */
-interface MessagePartRendererProps {
-  part: MessagePart;
-  index: number;
-}
-
-interface ToolCallRendererProps {
-  toolInvocation: ToolInvocation;
-  index: number;
-}
-
-interface MessageContentRendererProps {
-  message: UIMessage;
-}
+import {
+  MessageContentRendererProps,
+  MessagePart,
+  MessagePartRendererProps,
+  ToolCallRendererProps,
+  UIMessage,
+  isTextPart,
+  isToolInvocationPart,
+} from "./types";
 
 /**
  * Component for rendering tool calls with styled output
@@ -67,24 +35,24 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
 
   // Default renderer
   let result = "Pending result...";
+  let isCompleted = false;
 
-  if (toolInvocation.result) {
-    if (typeof toolInvocation.result === "string") {
-      result = toolInvocation.result;
-    } else if (typeof toolInvocation.result === "object") {
+  // Check if the tool invocation has a result (AI SDK structure)
+  if (toolInvocation.state === "result" && "result" in toolInvocation) {
+    isCompleted = true;
+    const toolResult = toolInvocation.result;
+
+    if (typeof toolResult === "string") {
+      result = toolResult;
+    } else if (typeof toolResult === "object") {
       // Try to extract message from result object if it exists
-      if (toolInvocation.result.message) {
-        result = toolInvocation.result.message as string;
+      if (toolResult.message) {
+        result = toolResult.message as string;
       } else {
-        result = JSON.stringify(toolInvocation.result, null, 2);
+        result = JSON.stringify(toolResult, null, 2);
       }
     }
   }
-
-  const isCompleted =
-    toolInvocation.state === "complete" ||
-    toolInvocation.state === "result" ||
-    !!toolInvocation.result;
 
   return (
     <div className="space-y-3">
@@ -120,7 +88,7 @@ ToolCallRenderer.displayName = "ToolCallRenderer";
  */
 const MessagePartRenderer = memo(
   ({ part, index }: MessagePartRendererProps) => {
-    if (part.type === "text") {
+    if (isTextPart(part)) {
       return (
         <div key={`text-${index}`} className="my-2">
           <Markdown>{part.text}</Markdown>
@@ -128,7 +96,7 @@ const MessagePartRenderer = memo(
       );
     }
 
-    if (part.type === "tool-invocation") {
+    if (isToolInvocationPart(part)) {
       return (
         <ToolCallRenderer
           key={`tool-${index}`}
