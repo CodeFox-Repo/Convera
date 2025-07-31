@@ -8,6 +8,8 @@ import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { executeCommand } from "../tools/execute-command";
 import { MCPConnection } from "./connection";
 
 /**
@@ -88,9 +90,18 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
-   * Check if a tool exists in any connected server
+   * Check if a tool exists in any connected server or as a builtin tool
    */
   public hasToolAvailable(toolName: string): boolean {
+    // Check builtin tools first
+    const builtinToolNames = this.getBuiltinToolsDefinition().map(
+      (tool) => tool.name,
+    );
+    if (builtinToolNames.includes(toolName)) {
+      return true;
+    }
+
+    // Check MCP server tools cache
     return this.allToolNames.has(toolName);
   }
 
@@ -333,6 +344,38 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
+   * Get all server statuses including builtin tools as virtual server
+   */
+  getAllServerStatusesWithBuiltin(): ServerInfo[] {
+    const mcpServers = this.getAllServerStatuses();
+    const builtinServer = this.getBuiltinServerInfo();
+    
+    return [...mcpServers, builtinServer];
+  }
+
+  /**
+   * Create a virtual ServerInfo for builtin tools
+   */
+  private getBuiltinServerInfo(): ServerInfo {
+    return {
+      name: "builtin",
+      displayName: "Builtin Tools",
+      description: "Built-in system tools available in FoxyChat",
+      transportType: "builtin",
+      status: "connected",
+      capabilities: {
+        tools: this.getBuiltinToolsDefinition(),
+        resources: [],
+        resourceTemplates: [],
+        prompts: [],
+      },
+      uptime: 0, // Always available
+      lastStarted: new Date().toISOString(),
+      isApp: false,
+    };
+  }
+
+  /**
    * Call tool
    */
   async callTool(
@@ -348,15 +391,38 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
-   * Simplified tool call method - finds first server with the tool name
+   * Simplified tool call method - finds first server with the tool name or builtin tool
    * Returns null if tool is not found, so caller can decide what to do
    */
   async mcpToolCall(
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    // Quick check: if tool doesn't exist in cache, return null (not an MCP tool)
-    if (!this.hasToolAvailable(toolName)) {
+    // First check if it's a builtin tool
+    if (toolName === "executeCommand") {
+      try {
+        // Validate and transform args for executeCommand
+        const command = args.command as string;
+        const timeout = (args.timeout as number) || 10000;
+
+        if (!command || typeof command !== "string") {
+          throw new Error("Missing or invalid command parameter");
+        }
+
+        return await executeCommand.execute(
+          { command, timeout },
+          {
+            toolCallId: `builtin-${toolName}-${Date.now()}`,
+            messages: [],
+          },
+        );
+      } catch (error) {
+        return `Builtin tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+    }
+
+    // Quick check: if tool doesn't exist in MCP cache, check MCP servers
+    if (!this.allToolNames.has(toolName)) {
       return null;
     }
 
@@ -468,5 +534,38 @@ export class MCPHub extends EventEmitter {
     return Array.from(this.connections.values()).filter(
       (conn) => conn.getServerInfo().status === "connected",
     ).length;
+  }
+  /**
+   * Get builtin tools as ToolDefinition format for UI display
+   */
+  getBuiltinToolsDefinition(): ToolDefinition[] {
+    const builtinTools = this.getBuiltinTools();
+    return builtinTools.map((tool) => ({
+      name: "executeCommand", // We know this is executeCommand for now
+      description: tool.description || "",
+      inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
+      parameters: this.zodSchemaToJsonSchema(tool.parameters),
+    }));
+  }
+
+  /**
+   * Get builtin tools for direct use with AI SDK
+   */
+  getBuiltinTools() {
+    return [executeCommand];
+  }
+
+  /**
+   * Convert Zod schema to JSON Schema using zod-to-json-schema
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private zodSchemaToJsonSchema(zodSchema: any): Record<string, unknown> {
+    try {
+      return zodToJsonSchema(zodSchema);
+    } catch (e) {
+      console.error("Error converting zod schema to json schema", e);
+      // Fallback to empty object schema
+      return { type: "object", properties: {} };
+    }
   }
 }
