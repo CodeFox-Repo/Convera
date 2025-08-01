@@ -67,6 +67,8 @@ export function usePreviousApp() {
   useEffect(() => {
     // Initial fetch
     fetchPreviousApp();
+    // Also fetch opened apps initially
+    fetchOpenedApps();
 
     // Setup event listener for app changes
     if (window.electronAPI?.onAppChanged) {

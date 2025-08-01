@@ -519,18 +519,22 @@ export default function Chat() {
         }
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (isCommandMode && results.length > 0) {
+        if (!showAppMention && isCommandMode && results.length > 0) {
           setSelectedIndex((prev) => (prev + 1) % results.length);
         }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (isCommandMode && results.length > 0) {
+        if (!showAppMention && isCommandMode && results.length > 0) {
           setSelectedIndex(
             (prev) => (prev - 1 + results.length) % results.length,
           );
         }
       } else if (e.key === "Escape") {
-        if (selectedInputCommand) {
+        if (showAppMention) {
+          // Close app mention dropdown first
+          setShowAppMention(false);
+          setMentionQuery("");
+        } else if (selectedInputCommand) {
           // Exit input change command mode
           setSelectedInputCommand(null);
           setCommandResult("");
@@ -552,6 +556,7 @@ export default function Chat() {
       handleCommandExecute,
       handleAIChatSubmit,
       showContent,
+      showAppMention,
     ],
   );
 

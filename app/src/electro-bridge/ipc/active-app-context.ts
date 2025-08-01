@@ -222,10 +222,7 @@ export function activatePreviousApp(): void {
 
 export function getOpenedApps(): Promise<string[]> {
   return new Promise((resolve) => {
-    console.log("🔍 getOpenedApps called, platform:", process.platform);
-    
     if (process.platform !== "darwin") {
-      console.log("❌ Not on macOS, returning empty array");
       return resolve([]);
     }
     
@@ -237,17 +234,15 @@ export function getOpenedApps(): Promise<string[]> {
       end try
     `;
     
-    console.log("🍎 Running AppleScript to get opened apps...");
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
-        console.error("❌ Error getting opened apps:", err);
         return resolve([]);
       }
       
-      console.log("📋 Raw AppleScript output:", stdout);
       const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
-      console.log("📱 Parsed apps:", apps);
-      resolve(apps);
+      // Remove duplicates only
+      const uniqueApps = [...new Set(apps)];
+      resolve(uniqueApps);
     });
   });
 }
