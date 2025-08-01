@@ -2,6 +2,7 @@ import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
 import { createSettingsWindow } from "./windows/settings-window";
+import { toggleWindow } from "../electro-bridge/ipc/ipc-handlers";
 
 let tray: Tray | null = null;
 
@@ -39,6 +40,15 @@ export function createSystemTray() {
 
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Toggle Main Window",
+      click: () => {
+        toggleWindow("main");
+      },
+    },
+    {
+      type: "separator",
+    },
     {
       label: "Open Settings",
       click: () => {
