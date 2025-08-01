@@ -349,7 +349,7 @@ export class MCPHub extends EventEmitter {
   getAllServerStatusesWithBuiltin(): ServerInfo[] {
     const mcpServers = this.getAllServerStatuses();
     const builtinServer = this.getBuiltinServerInfo();
-    
+
     return [...mcpServers, builtinServer];
   }
 

@@ -101,7 +101,9 @@ export interface MCPIPCResponse<T = unknown> {
 export interface IMcpAPI {
   // Server management
   getServers(): Promise<MCPIPCResponse<ServerInfo[]>>;
-  getAllTools(): Promise<MCPIPCResponse<Array<{ serverName: string; tools: ToolDefinition[] }>>>;
+  getAllTools(): Promise<
+    MCPIPCResponse<Array<{ serverName: string; tools: ToolDefinition[] }>>
+  >;
   startServer(serverId: string): Promise<MCPIPCResponse<ServerInfo>>;
   stopServer(serverId: string): Promise<MCPIPCResponse<ServerInfo>>;
 

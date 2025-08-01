@@ -52,11 +52,14 @@ export default function Chat() {
   const [selectedInputCommand, setSelectedInputCommand] =
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
-  
+
   // App mention states
   const [showAppMention, setShowAppMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionPosition, setMentionPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mentionPosition, setMentionPosition] = useState<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
 
   interface CommandResult {
     id: string;
@@ -247,21 +250,27 @@ export default function Chat() {
   }, []);
 
   // Handle app selection from mention dropdown
-  const handleAppSelect = useCallback((appName: string) => {
-    const atMatch = inputValue.match(/@(\w*)$/);
-    if (atMatch) {
-      const beforeAt = inputValue.slice(0, inputValue.length - atMatch[0].length);
-      const newValue = beforeAt + `@${appName} `;
-      setInputValue(newValue);
-    }
-    setShowAppMention(false);
-    setMentionQuery("");
-    
-    // Focus back to input
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [inputValue]);
+  const handleAppSelect = useCallback(
+    (appName: string) => {
+      const atMatch = inputValue.match(/@(\w*)$/);
+      if (atMatch) {
+        const beforeAt = inputValue.slice(
+          0,
+          inputValue.length - atMatch[0].length,
+        );
+        const newValue = beforeAt + `@${appName} `;
+        setInputValue(newValue);
+      }
+      setShowAppMention(false);
+      setMentionQuery("");
+
+      // Focus back to input
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    },
+    [inputValue],
+  );
 
   // Listen for theme changes from settings
   useThemeSync();
@@ -279,7 +288,7 @@ export default function Chat() {
         }
       }
     };
-    
+
     testGetOpenedApps();
   }, []);
 
@@ -300,7 +309,7 @@ export default function Chat() {
       const query = atMatch[1];
       setMentionQuery(query);
       setShowAppMention(true);
-      
+
       // Get input position for dropdown placement
       if (inputRef.current) {
         const rect = inputRef.current.getBoundingClientRect();

@@ -225,7 +225,7 @@ export function getOpenedApps(): Promise<string[]> {
     if (process.platform !== "darwin") {
       return resolve([]);
     }
-    
+
     const script = `
       try
         tell application "System Events" to get name of every process whose background only is false
@@ -233,12 +233,12 @@ export function getOpenedApps(): Promise<string[]> {
         return ""
       end try
     `;
-    
+
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
         return resolve([]);
       }
-      
+
       const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
       // Remove duplicates only
       const uniqueApps = [...new Set(apps)];
@@ -250,12 +250,12 @@ export function getOpenedApps(): Promise<string[]> {
 export function getAppIcon(appName: string): Promise<string | null> {
   return new Promise((resolve) => {
     console.log(`🎨 getAppIcon called for: ${appName}`);
-    
+
     if (process.platform !== "darwin") {
       console.log("❌ Not on macOS, returning null");
       return resolve(null);
     }
-    
+
     const script = `
       try
         tell application "System Events"
@@ -266,22 +266,22 @@ export function getAppIcon(appName: string): Promise<string | null> {
         return ""
       end try
     `;
-    
+
     console.log(`🍎 Getting app path for: ${appName}`);
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
         console.error(`❌ Error getting app path for ${appName}:`, err);
         return resolve(null);
       }
-      
+
       const appPath = stdout.trim();
       console.log(`📁 App path for ${appName}:`, appPath);
-      
+
       if (!appPath || appPath === "") {
         console.log(`❌ No app path found for ${appName}`);
         return resolve(null);
       }
-      
+
       // Get app icon using macOS APIs - try multiple common icon file names
       const iconScript = `
         try
@@ -294,7 +294,7 @@ export function getAppIcon(appName: string): Promise<string | null> {
               set iconPath to appPath & "/Contents/Resources/" & iconName
               tell application "System Events"
                 if exists file iconPath then
-                  set outputPath to "/tmp/app_icon_temp_${appName.replace(/\s+/g, '_')}.png"
+                  set outputPath to "/tmp/app_icon_temp_${appName.replace(/\s+/g, "_")}.png"
                   do shell script "sips -s format png --out '" & outputPath & "' '" & iconPath & "'"
                   set iconConverted to true
                   return outputPath
@@ -310,14 +310,14 @@ export function getAppIcon(appName: string): Promise<string | null> {
           return ""
         end try
       `;
-      
+
       console.log(`🎨 Converting icon for ${appName}...`);
       execFile("osascript", ["-e", iconScript], (iconErr, iconStdout) => {
         if (iconErr) {
           console.error(`❌ Error converting icon for ${appName}:`, iconErr);
           return resolve(null);
         }
-        
+
         const iconPath = iconStdout.trim();
         console.log(`✅ Icon path for ${appName}:`, iconPath);
         resolve(iconPath || null);

@@ -22,7 +22,14 @@ export function AppMentionDropdown({
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Debug logging
-  console.log("🎯 AppMentionDropdown - isOpen:", isOpen, "openedApps:", openedApps, "searchQuery:", searchQuery);
+  console.log(
+    "🎯 AppMentionDropdown - isOpen:",
+    isOpen,
+    "openedApps:",
+    openedApps,
+    "searchQuery:",
+    searchQuery,
+  );
 
   // Filter apps based on search query
   useEffect(() => {
@@ -30,7 +37,7 @@ export function AppMentionDropdown({
       setFilteredApps(openedApps);
     } else {
       const filtered = openedApps.filter((app) =>
-        app.toLowerCase().includes(searchQuery.toLowerCase())
+        app.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredApps(filtered);
     }
@@ -43,8 +50,8 @@ export function AppMentionDropdown({
   useEffect(() => {
     if (selectedIndex >= 0 && itemRefs.current[selectedIndex]) {
       itemRefs.current[selectedIndex]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
+        behavior: "smooth",
+        block: "nearest",
       });
     }
   }, [selectedIndex]);
@@ -57,26 +64,26 @@ export function AppMentionDropdown({
       if (!isOpen) return; // Double check
 
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex((prev) => 
-            prev < filteredApps.length - 1 ? prev + 1 : prev
+          setSelectedIndex((prev) =>
+            prev < filteredApps.length - 1 ? prev + 1 : prev,
           );
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex((prev) => prev > 0 ? prev - 1 : prev);
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           e.stopPropagation();
           if (filteredApps[selectedIndex]) {
             handleSelect(filteredApps[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           e.stopPropagation();
           onClose();
@@ -85,8 +92,9 @@ export function AppMentionDropdown({
     };
 
     // Use capture phase to intercept events before they reach the main chat component
-    document.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [isOpen, filteredApps, selectedIndex]);
 
   const handleSelect = (appName: string) => {
@@ -106,10 +114,14 @@ export function AppMentionDropdown({
     >
       <div className="max-h-[300px] overflow-y-auto">
         {filteredApps.length === 0 ? (
-          <div className="py-6 text-center text-sm text-gray-500">No apps found</div>
+          <div className="py-6 text-center text-sm text-gray-500">
+            No apps found
+          </div>
         ) : (
           <div className="p-1">
-            <div className="px-2 py-1.5 text-xs font-medium text-gray-600">Open Apps</div>
+            <div className="px-2 py-1.5 text-xs font-medium text-gray-600">
+              Open Apps
+            </div>
             {filteredApps.map((app, index) => (
               <AppMentionItem
                 key={app}
@@ -142,12 +154,12 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         onClick={onSelect}
         onMouseEnter={onMouseEnter}
         className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 text-sm rounded-sm transition-colors ${
-          isSelected ? 'bg-gray-200' : 'hover:bg-gray-200'
+          isSelected ? "bg-gray-200" : "hover:bg-gray-200"
         }`}
       >
         <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
         <span>{appName}</span>
       </div>
     );
-  }
+  },
 );
