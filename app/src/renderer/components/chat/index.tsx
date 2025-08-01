@@ -64,7 +64,7 @@ export default function Chat() {
     execute?: (input?: string) => Promise<any>;
   }
 
-  const presetCommands: CommandResult[] = [
+  const inputNeededCommands: CommandResult[] = [
     {
       id: "translate",
       name: "Google Translate",
@@ -98,6 +98,9 @@ export default function Chat() {
         }
       },
     },
+  ];
+
+  const directCommands: CommandResult[] = [
     {
       id: "Summary",
       name: "Summary",
@@ -128,6 +131,11 @@ export default function Chat() {
         }
       },
     },
+  ];
+
+  const presetCommands: CommandResult[] = [
+    ...directCommands,
+    ...inputNeededCommands,
   ];
   /**
    * Calculate dynamic height for selected content based on text length and wrapping
