@@ -3,6 +3,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
+import Footer from "./Footer";
 import Navbar from "./Navbar";
 
 const Pricing: React.FC = () => {
@@ -11,6 +12,31 @@ const Pricing: React.FC = () => {
   const [subscriptionData, setSubscriptionData] = useState<{
     hasSubscribedBefore: boolean;
   } | null>(null);
+  const [isVisible, setIsVisible] = useState({
+    hero: false,
+  });
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target.getAttribute("data-section");
+            if (target) {
+              setIsVisible((prev) => ({ ...prev, [target]: true }));
+            }
+          }
+        });
+      },
+      { threshold: 0.1 },
+    );
+
+    const sections = document.querySelectorAll("[data-section]");
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch user subscription data
   useEffect(() => {
