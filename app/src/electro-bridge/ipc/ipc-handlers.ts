@@ -385,6 +385,14 @@ export function getCurrentWindowSize(window: WindowSizeConfig): {
   width: number;
   height: number;
 } {
+  // Get the actual current window size, not the calculated config size
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    const [width, height] = focusedWindow.getSize();
+    return { width, height };
+  }
+
+  // Fallback to calculated dimensions if no focused window
   return calculateWindowDimensions(window);
 }
 
@@ -396,7 +404,7 @@ export function getClipboardText(): string {
 
 export function setInputContent(
   mainWindow: BrowserWindow | null,
-  content: { text?: string; imageData?: string },
+  content: { text?: string },
 ): void {
   if (mainWindow) {
     // Send the content to the renderer to set as input

@@ -7,7 +7,8 @@ interface PricingCardProps {
   title: string;
   description: string;
   price: string;
-  period?: string;
+  couponLabel?: string;
+  priceSubtitle?: string;
   features: string[];
   buttonText: string;
   buttonVariant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link";
@@ -20,7 +21,8 @@ export const PricingCard: React.FC<PricingCardProps> = ({
   title,
   description,
   price,
-  period = "month",
+  couponLabel,
+  priceSubtitle,
   features,
   buttonText,
   buttonVariant = "default",
@@ -45,20 +47,27 @@ export const PricingCard: React.FC<PricingCardProps> = ({
         </div>
       )}
 
-      <CardHeader className="pb-4 text-center">
-        <CardTitle className="text-lg font-semibold text-gray-800">{title}</CardTitle>
-        <CardDescription className="text-sm text-gray-500">{description}</CardDescription>
+      <CardHeader className="pb-6 text-left">
+        <CardTitle className="text-xl font-bold text-gray-900">{title}</CardTitle>
+        <CardDescription className="text-gray-600">{description}</CardDescription>
 
-        <div className="pt-6">
-          <div className="flex items-baseline justify-center gap-1">
-            <span className="text-3xl font-bold text-gray-900">{price}</span>
-            {price !== "Free" && <span className="text-sm text-gray-500">/{period}</span>}
+        <div className="pt-4">
+          <div className="flex flex-col items-start">
+            <div className="flex items-center gap-2">
+              <span className="text-4xl font-bold text-gray-900">{price}</span>
+              {couponLabel && (
+                <span className="inline-block rounded-md bg-orange-400 px-2 py-1 text-xs font-semibold text-white">
+                  {couponLabel}
+                </span>
+              )}
+            </div>
+            {priceSubtitle && <p className="mt-1 text-sm text-gray-600">{priceSubtitle}</p>}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col px-6 pb-6">
-        <ul className="mb-8 flex-1 space-y-3">
+      <CardContent className="flex flex-1 flex-col pt-2">
+        <ul className="mb-6 flex-1 space-y-3">
           {features.map((feature, index) => (
             <li key={index} className="flex items-start gap-3">
               <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />

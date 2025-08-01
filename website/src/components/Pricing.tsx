@@ -3,37 +3,42 @@ import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
-import Footer from "./Footer";
 import Navbar from "./Navbar";
 
 const Pricing: React.FC = () => {
   const router = useRouter();
   const { data: session } = useSession();
-  const [isVisible, setIsVisible] = useState({
-    hero: false,
-  });
+  const [subscriptionData, setSubscriptionData] = useState<{
+    hasSubscribedBefore: boolean;
+  } | null>(null);
 
-  // Intersection Observer for scroll animations
+  // Fetch user subscription data
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const target = entry.target.getAttribute("data-section");
-            if (target) {
-              setIsVisible((prev) => ({ ...prev, [target]: true }));
-            }
-          }
+    const fetchSubscriptionData = async () => {
+      if (!session?.user) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${getBaseURL()}/api/subscription/user-subscription`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
         });
-      },
-      { threshold: 0.1 },
-    );
 
-    const sections = document.querySelectorAll("[data-section]");
-    sections.forEach((section) => observer.observe(section));
+        if (response.ok) {
+          const data = await response.json();
+          setSubscriptionData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch subscription data:", error);
+      }
+    };
 
-    return () => observer.disconnect();
-  }, []);
+    fetchSubscriptionData();
+  }, [session]);
 
   const handleFree = () => {
     // Redirect to download page
@@ -47,7 +52,7 @@ const Pricing: React.FC = () => {
       router.navigate({
         to: "/auth/$pathname",
         params: { pathname: "sign-in" },
-        search: { redirect: "/pricing" },
+        search: { redirect: router.state.location.pathname },
       });
       return;
     }
@@ -69,6 +74,14 @@ const Pricing: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 409) {
+          router.navigate({ to: "/settings" });
+          toast({
+            title: "Already Subscribed",
+            description: "You are already subscribed to this plan. Redirecting to your settings.",
+          });
+          return;
+        }
         throw new Error(errorData.error || "Failed to create checkout session");
       }
 
@@ -162,13 +175,13 @@ const Pricing: React.FC = () => {
       <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 py-16">
         <div className="container mx-auto max-w-7xl px-4 md:px-6">
           {/* Pricing Cards */}
-          <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3 md:gap-6 lg:gap-8">
+          <div className="mx-auto grid max-w-4xl justify-center gap-8 md:grid-cols-2 md:gap-6 lg:gap-8">
             {/* Free */}
             <PricingCard
               title="Free"
               description="Start here and try our product"
-              price="Free"
-              features={["Basic AI models", "Basic chat history"]}
+              price="$0"
+              features={["All basic features", "base rate limit"]}
               buttonText="Download"
               buttonVariant="outline"
               onButtonClick={handleFree}
@@ -176,34 +189,24 @@ const Pricing: React.FC = () => {
 
             {/* Pro Plan */}
             <PricingCard
-              title="Basic"
+              title="Pro"
               description="For power users and professionals"
-              price="$9.99"
-              period="month"
+              price={!subscriptionData?.hasSubscribedBefore ? "$12.00" : "$19.00"}
+              couponLabel={
+                !subscriptionData?.hasSubscribedBefore ? "1st Month Discount" : undefined
+              }
+              priceSubtitle={
+                !subscriptionData?.hasSubscribedBefore
+                  ? "$19.00 from the second month, billed monthly"
+                  : ""
+              }
               features={[
-                "Advanced AI models (GPT-4.1-mini)",
+                "All feature in Free",
+                "Boosted AI Model rate limits for advanced usage",
                 "Priority response time",
-                "API access",
-                "Advanced integrations",
               ]}
               buttonText="Upgrade to Pro"
               isPopular={true}
-              onButtonClick={() => handleUpgrade("Basic")}
-            />
-
-            {/* Pro Plus */}
-            <PricingCard
-              title="Pro"
-              description="The most powerful plan"
-              price="$20"
-              period="month"
-              features={[
-                "Everything in Pro",
-                "Premium AI models (Claude Sonnet 4.....)",
-                "24/7 priority support",
-              ]}
-              buttonText="Upgrade to Pro Plus"
-              buttonVariant="outline"
               onButtonClick={() => handleUpgrade("Pro")}
             />
           </div>

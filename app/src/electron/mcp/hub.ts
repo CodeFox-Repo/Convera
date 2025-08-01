@@ -1,9 +1,31 @@
-import { MCPConfig, MCPServerConfig, ServerInfo } from "@/shared/types/mcp";
+import {
+  MCPConfig,
+  MCPServerConfig,
+  ServerInfo,
+  ToolDefinition,
+} from "@/shared/types/mcp";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { BUILTIN_TOOLS_REGISTRY } from "../tools";
 import { MCPConnection } from "./connection";
+
+/**
+ * Generic wrapper for builtin tool calls
+ */
+function wrapToolCall(
+  toolName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tool: any,
+  args: Record<string, unknown>,
+) {
+  return tool.execute(args as Parameters<typeof tool.execute>[0], {
+    toolCallId: `builtin-${toolName}-${Date.now()}`,
+    messages: [],
+  });
+}
 
 /**
  * MCPHub - Clean MCP connection manager
@@ -14,6 +36,8 @@ export class MCPHub extends EventEmitter {
   private config: MCPConfig;
   private configPath: string;
   private allToolNames: Set<string> = new Set();
+  private toolsCache: ToolDefinition[] = [];
+  private toolsCacheLastUpdate: number = 0;
 
   constructor(configPath?: string) {
     super();
@@ -65,22 +89,89 @@ export class MCPHub extends EventEmitter {
    */
   private updateToolCache(): void {
     this.allToolNames.clear();
+    this.toolsCache = [];
 
     for (const connection of this.connections.values()) {
       const serverInfo = connection.getServerInfo();
       if (serverInfo.status === "connected" && serverInfo.capabilities.tools) {
         serverInfo.capabilities.tools.forEach((tool) => {
           this.allToolNames.add(tool.name);
+          this.toolsCache.push(tool);
         });
       }
     }
+
+    this.toolsCacheLastUpdate = Date.now();
   }
 
   /**
-   * Check if a tool exists in any connected server
+   * Check if a tool exists in any connected server or as a builtin tool
    */
   public hasToolAvailable(toolName: string): boolean {
+    // Check builtin tools first
+    if (toolName in BUILTIN_TOOLS_REGISTRY) {
+      return true;
+    }
+
+    // Check MCP server tools cache
     return this.allToolNames.has(toolName);
+  }
+
+  /**
+   * Get all tools that don't require input parameters
+   * Returns cached result if cache is fresh (within 5 minutes)
+   */
+  public getAllNonInputParamTool(): ToolDefinition[] {
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+
+    // Check if cache is fresh
+    if (
+      this.toolsCacheLastUpdate &&
+      now - this.toolsCacheLastUpdate < CACHE_DURATION
+    ) {
+      return this.filterNonInputParamTools(this.toolsCache);
+    }
+
+    // Update cache if it's stale
+    this.updateToolCache();
+
+    return this.filterNonInputParamTools(this.toolsCache);
+  }
+
+  /**
+   * Filter tools that don't require input parameters
+   */
+  private filterNonInputParamTools(tools: ToolDefinition[]): ToolDefinition[] {
+    return tools.filter((tool) => {
+      // Check inputSchema first, then fallback to parameters
+      const schema = tool.inputSchema || tool.parameters;
+
+      if (!schema || typeof schema !== "object") {
+        return true; // No schema means no parameters required
+      }
+
+      // Handle different schema formats
+      if ("properties" in schema && "required" in schema) {
+        // JSON Schema format
+        const required = Array.isArray(schema.required) ? schema.required : [];
+        return required.length === 0;
+      }
+
+      if ("type" in schema && schema.type === "object") {
+        // JSON Schema object without required field
+        const schemaWithRequired = schema as Record<string, unknown> & {
+          required?: unknown;
+        };
+        const required = Array.isArray(schemaWithRequired.required)
+          ? schemaWithRequired.required
+          : [];
+        return required.length === 0;
+      }
+
+      // If we can't determine the structure, assume it has no required params
+      return true;
+    });
   }
 
   /**
@@ -265,6 +356,38 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
+   * Get all server statuses including builtin tools as virtual server
+   */
+  getAllServerStatusesWithBuiltin(): ServerInfo[] {
+    const mcpServers = this.getAllServerStatuses();
+    const builtinServer = this.getBuiltinServerInfo();
+
+    return [...mcpServers, builtinServer];
+  }
+
+  /**
+   * Create a virtual ServerInfo for builtin tools
+   */
+  private getBuiltinServerInfo(): ServerInfo {
+    return {
+      name: "builtin",
+      displayName: "Builtin Tools",
+      description: "Built-in system tools available in FoxyChat",
+      transportType: "builtin",
+      status: "connected",
+      capabilities: {
+        tools: this.getBuiltinToolsDefinition(),
+        resources: [],
+        resourceTemplates: [],
+        prompts: [],
+      },
+      uptime: 0, // Always available
+      lastStarted: new Date().toISOString(),
+      isApp: false,
+    };
+  }
+
+  /**
    * Call tool
    */
   async callTool(
@@ -280,15 +403,26 @@ export class MCPHub extends EventEmitter {
   }
 
   /**
-   * Simplified tool call method - finds first server with the tool name
+   * Simplified tool call method - finds first server with the tool name or builtin tool
    * Returns null if tool is not found, so caller can decide what to do
    */
   async mcpToolCall(
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    // Quick check: if tool doesn't exist in cache, return null (not an MCP tool)
-    if (!this.hasToolAvailable(toolName)) {
+    // Check if it's a builtin tool
+    const builtinTool =
+      BUILTIN_TOOLS_REGISTRY[toolName as keyof typeof BUILTIN_TOOLS_REGISTRY];
+    if (builtinTool) {
+      try {
+        return await wrapToolCall(toolName, builtinTool, args);
+      } catch (error) {
+        return `Builtin tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+    }
+
+    // Quick check: if tool doesn't exist in MCP cache, check MCP servers
+    if (!this.allToolNames.has(toolName)) {
       return null;
     }
 
@@ -400,5 +534,37 @@ export class MCPHub extends EventEmitter {
     return Array.from(this.connections.values()).filter(
       (conn) => conn.getServerInfo().status === "connected",
     ).length;
+  }
+  /**
+   * Get builtin tools as ToolDefinition format for UI display
+   */
+  getBuiltinToolsDefinition(): ToolDefinition[] {
+    return Object.entries(BUILTIN_TOOLS_REGISTRY).map(([name, tool]) => ({
+      name,
+      description: tool.description || "",
+      inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
+      parameters: this.zodSchemaToJsonSchema(tool.parameters),
+    }));
+  }
+
+  /**
+   * Get builtin tools for direct use with AI SDK
+   */
+  getBuiltinTools() {
+    return Object.values(BUILTIN_TOOLS_REGISTRY);
+  }
+
+  /**
+   * Convert Zod schema to JSON Schema using zod-to-json-schema
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private zodSchemaToJsonSchema(zodSchema: any): Record<string, unknown> {
+    try {
+      return zodToJsonSchema(zodSchema);
+    } catch (e) {
+      console.error("Error converting zod schema to json schema", e);
+      // Fallback to empty object schema
+      return { type: "object", properties: {} };
+    }
   }
 }

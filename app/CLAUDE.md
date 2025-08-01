@@ -13,9 +13,52 @@ FoxyChat is an Electron-based AI chat application with Model Context Protocol (M
 - **Bridge**: IPC communication layer (`src/electro-bridge/`)
 - **Shared**: Common types and utilities (`src/shared/`)
 
-Do not use npm commands, use pnpm
+## Commands
 
-do not use build
+- Use `pnpm` instead of `npm`
+- Do not use `build` command
+
+## UI Development Rules
+
+### Critical UI Guidelines
+
+1. **NEVER add `bg-background` or any background colors to components**
+
+   - Only `base-layout.tsx` should have background styling
+   - All components should be transparent to follow the design system
+   - This maintains the proper glass morphism and blur effects
+
+2. **Component Styling Principles**
+
+   - Use transparency and backdrop blur for glass effects
+   - Follow existing patterns in the codebase
+   - Keep components minimal and clean
+   - Use proper spacing with padding/margin as needed
+
+3. **Tailwind CSS Usage**
+   - Avoid problematic classes like `bg-muted/50` or `border-border/20`
+   - Use `color-mix()` CSS function for transparency when needed
+   - Always check if a Tailwind class is supported before using it
+
+### Chat Window Behavior
+
+1. **Window Activation by Shortcut**
+
+   - Chat state is reset every time window is activated via keyboard shortcut
+   - Input field is cleared and focused automatically
+   - Provides a fresh chat session for each activation
+
+2. **Input Handling**
+
+   - Input is disabled while AI is processing (loading state)
+   - Shows "AI is thinking..." placeholder during loading
+   - Auto-refocuses input after AI response completes
+
+3. **Command Mode**
+   - Activated by typing "/"
+   - Shows styled slash indicator, hides user's typed "/"
+   - Backspace on empty command exits command mode
+   - Fetches MCP tools that don't require input parameters
 
 ## MCP Integration
 
@@ -24,14 +67,14 @@ do not use build
 - `src/electron/mcp/` - MCP connection management
   - `connection.ts` - Standard MCP client implementation
   - `connection-ai.ts` - AI SDK-based MCP client (experimental)
-  - `hub.ts` - MCP server orchestration
+  - `hub.ts` - MCP server orchestration with caching
   - `index.ts` - Public API and global hub management
 
-### MCP Architecture
+### MCP Hub Features
 
-- **MCPHub**: Manages multiple MCP server connections
-- **MCPConnection**: Handles individual server connections (stdio/SSE)
-- **MCPConnectionAI**: AI SDK-based alternative with hybrid transport
+- **Tool Caching**: 5-minute cache duration for MCP tools
+- **getAllNonInputParamTool()**: Returns tools that don't require input parameters
+- **Automatic filtering**: Handles multiple parameter schema formats
 
 ### Transport Types
 
@@ -47,9 +90,11 @@ MCP tools can have parameters in different formats:
 - `parameters`: Direct JSON Schema from MCP servers
 - `parameters.jsonSchema`: Nested JSON Schema format
 
-### Backend Integration
+## AI SDK Integration
 
-The backend server (`foxychat-server`) receives tools via the chat completion endpoint at `/chat/completions`. Tools are converted from JSON Schema to Zod format in `src/utils/chat-completion.ts`.
+- Using AI SDK's `useChat` hook for chat functionality
+- **sendMessage** accepts message directly: `sendMessage(message: string)`
+- Avoids race conditions by passing message as parameter instead of relying on state
 
 ## Development Guidelines
 
@@ -59,14 +104,13 @@ The backend server (`foxychat-server`) receives tools via the chat completion en
 - No `any` types - use proper type definitions
 - Follow existing patterns and conventions
 - Import shared types from `@/shared/types/`
+- NO COMMENTS unless specifically requested by user
 
-### MCP Development
+### Debugging
 
-- Use `MCPHub` for server management
-- Prefer `connection.ts` for stable implementations
-- Use `connection-ai.ts` for AI SDK experiments
-- Always handle connection errors gracefully
-- Set `useAiSdk = true` for AI SDK connections
+- Use `window.logger.getLogger()` for logging
+- Console logs should be descriptive with emojis for clarity
+- Remove debugging code before finalizing
 
 ### IPC Communication
 
@@ -88,20 +132,20 @@ The backend server (`foxychat-server`) receives tools via the chat completion en
 **Problem**: Tools show empty parameters in AI interface
 **Solution**: Check parameter format conversion in backend `chat-completion.ts`
 
-### SSE Connection Stuck
+### First Message Shows "sendMessage"
 
-**Problem**: Remote MCP servers stuck in "connecting" status
-**Solution**: Ensure proper SSE transport implementation with fallback
+**Problem**: Literal "sendMessage" appears as user message
+**Solution**: Pass message directly to sendMessage function: `sendMessage(messageText)`
 
-### Tool Discovery Issues
+### Tailwind CSS Errors
 
-**Problem**: Tools not appearing (toolCount: 0)
-**Solution**: Verify `useAiSdk` flag is set correctly for connection type
+**Problem**: Classes like `bg-muted/50` cause build errors
+**Solution**: Use CSS `color-mix()` function or remove problematic classes
 
-### Type Errors
+### Chat Input Focus Issues
 
-**Problem**: TypeScript errors with MCP types
-**Solution**: Use proper type imports and avoid `any` casting
+**Problem**: Input doesn't focus properly after AI response
+**Solution**: Use `useEffect` with timeout to ensure proper focus after state updates
 
 ## File Structure
 
@@ -114,6 +158,11 @@ src/
 │   └── main.ts        # Entry point
 ├── renderer/          # Renderer process
 │   ├── components/    # React components
+│   │   └── chat/      # Chat UI components
+│   │       ├── index.tsx              # Main chat component
+│   │       ├── command-input.tsx      # Unified input field
+│   │       ├── command-results.tsx    # Results dropdown
+│   │       └── command-content.tsx    # Content display area
 │   ├── libs/          # Utilities and stores
 │   └── pages/         # Application pages
 ├── electro-bridge/    # IPC communication
@@ -142,10 +191,11 @@ Servers are configured in the app settings with support for:
 
 ### Before Committing
 
-1. Run `npm run lint` and fix all issues
-2. Run `npm run type-check` and resolve type errors
+1. Run `pnpm lint` and fix all issues
+2. Run `pnpm type-check` and resolve type errors
 3. Test MCP connections and tool functionality
 4. Verify IPC communication works correctly
+5. Ensure no background colors are added to components
 
 ### MCP Testing
 
@@ -160,7 +210,7 @@ Servers are configured in the app settings with support for:
 - **React**: UI framework
 - **Vite**: Build tool
 - **@modelcontextprotocol/sdk**: MCP implementation
-- **ai**: AI SDK for experimental features
+- **ai**: AI SDK for chat functionality
 - **zod**: Schema validation
 - **robotjs**: System automation
 
@@ -251,6 +301,33 @@ useEffect(() => {
 
 This ensures popover windows always show current data, even if they were closed when changes occurred in other windows.
 
+## Chat Component Architecture
+
+### Key Components
+
+1. **CommandInput**: Unified input for both AI chat and command mode
+
+   - Handles "/" command mode activation
+   - Shows loading state with disabled input
+   - Auto-focuses on window activation
+
+2. **CommandResults**: Dynamic results dropdown
+
+   - Shows MCP tool commands in command mode
+   - Shows "Ask AI" option for regular input
+   - Keyboard navigation support
+
+3. **CommandContent**: Full-window content display
+   - Shows chat messages with proper formatting
+   - Displays MCP tool execution results
+   - Auto-scrolls to bottom on new messages
+
+### State Management
+
+- Chat state managed by `useChatContext()` from chat-store
+- Local UI state for input, command mode, and results
+- Reset on window activation via `onFocusChatInput` event
+
 ## Notes for Future Development
 
 - MCP integration is actively evolving - prefer stable `connection.ts` over experimental `connection-ai.ts`
@@ -259,3 +336,5 @@ This ensures popover windows always show current data, even if they were closed 
 - Type safety is prioritized - avoid `any` types
 - IPC system is unified - use existing patterns for new features
 - **For cross-window sync**: Always use localStorage + storage events pattern, never custom IPC
+- **UI components**: Never add background colors - only base-layout should have background
+- **Chat behavior**: Window activation always resets chat for fresh session

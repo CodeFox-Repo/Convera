@@ -21,11 +21,16 @@ exposeEnvContext();
 // Expose Active App API to renderer process
 contextBridge.exposeInMainWorld("activeAppAPI", {
   getPreviousApp: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS),
-  getPreviousAppContent: () =>
-    ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_CONTENT),
   getPreviousAppID: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_ID),
   getPlatform: () => ipcRenderer.invoke(CHANNELS.PLATFORM.GET),
   getOpenedApps: () => ipcRenderer.invoke(CHANNELS.APP.GET_OPENED),
+  onContentUpdate: (callback: (content: unknown) => void) => {
+    const handler = (_event: unknown, content: unknown) => callback(content);
+    ipcRenderer.on(CHANNELS.APP.CONTENT_UPDATED, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.APP.CONTENT_UPDATED, handler);
+    };
+  },
 });
 
 // Listen for the custom event to relay agent list updates via IPC

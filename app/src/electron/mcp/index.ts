@@ -112,7 +112,12 @@ export function getAllTools(): Array<{
     return [];
   }
 
-  return globalHub
+  const builtinTools = {
+    serverName: "Builtin",
+    tools: globalHub.getBuiltinToolsDefinition(),
+  };
+
+  const serverTools = globalHub
     .getAllServerStatuses()
     .filter(
       (server: ServerInfo) => server.status === ConnectionStatus.CONNECTED,
@@ -121,6 +126,39 @@ export function getAllTools(): Array<{
       serverName: server.name,
       tools: server.capabilities.tools,
     }));
+
+  return [...serverTools, builtinTools];
+}
+
+/**
+ * Get all tools that don't require input parameters
+ * Uses cached results for better performance
+ */
+export function getAllNonInputParamTool(): ToolDefinition[] {
+  if (!globalHub) {
+    return [];
+  }
+  return globalHub.getAllNonInputParamTool();
+}
+
+/**
+ * Get builtin tools for direct use with AI SDK
+ */
+export function getBuiltinTools() {
+  if (!globalHub) {
+    return [];
+  }
+  return globalHub.getBuiltinTools();
+}
+
+/**
+ * Get all server statuses including builtin tools as virtual server
+ */
+export function getAllServerStatusesWithBuiltin(): Array<ServerInfo> {
+  if (!globalHub) {
+    return [];
+  }
+  return globalHub.getAllServerStatusesWithBuiltin();
 }
 
 /**

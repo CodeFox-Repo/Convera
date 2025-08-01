@@ -1,107 +1,131 @@
-import { load } from "cheerio";
-import { exec, execFile } from "child_process";
-import { BrowserWindow } from "electron";
+import { ChildProcess, execFile, spawn } from "child_process";
+import { app, BrowserWindow } from "electron";
+import path from "path";
 import { CHANNELS } from "./channels";
 
 // State
 let previousAppName = "";
 let previousAppId = 0;
 
-// HTML/Content filtering
-export enum appType {
-  WebBrowser = "web-browser",
-  Safari = "safari",
-  Generic = "generic",
-}
+let swiftProcess: ChildProcess | null = null;
+const contentUpdateCallbacks: ((content: string) => void)[] = [];
 
-export const filterHtmlContent = (html: string): string => {
-  const $ = load(html);
-  $("script,style,noscript").remove();
-  return $.root()
-    .text()
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
-};
+// Set to store apps that have been granted access
+const accessGrantedApps = new Set<string>();
 
-export const appContextRetrievers: Record<
-  appType,
-  {
-    appList: string[];
-    appleScript: (appName: string) => string;
-    filter: (content: string) => string;
-  }
-> = {
-  [appType.WebBrowser]: {
-    appList: ["Microsoft Edge", "Google Chrome", "Mozilla Firefox"],
-    appleScript: (appName) => `osascript -e 'tell application "${appName}"' \
-             -e 'execute front window'\\''s active tab javascript "document.documentElement.outerHTML"' \
-             -e 'end tell'`,
-    filter: (content) => filterHtmlContent(content),
-  },
-  [appType.Safari]: {
-    appList: ["Safari"],
-    appleScript: (appName) =>
-      `osascript -e 'tell application "${appName}" to return source of front document'`,
-    filter: (content) => filterHtmlContent(content),
-  },
-  [appType.Generic]: {
-    appList: [], // This will be the fallback
-    appleScript: () => "",
-    filter: (content) => content,
-  },
-};
-
-export let contentFilter: (content: string) => string = (content) => content;
-
-export const getAppleScriptForApp = (appName: string): string => {
-  for (const appTypeKey in appContextRetrievers) {
-    if (appTypeKey === appType.Generic) continue;
-    const appTypeValue =
-      appContextRetrievers[appTypeKey as keyof typeof appContextRetrievers];
-    if (appTypeValue.appList.includes(appName)) {
-      contentFilter = appTypeValue.filter;
-      return appTypeValue.appleScript(appName);
+export function grantAccess(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    // If app hasn't been granted access yet, run openAccess script first
+    if (!accessGrantedApps.has(previousAppName)) {
+      const projectRoot = app.isPackaged
+        ? process.resourcesPath
+        : app.getAppPath();
+      const openAccessPath = path.join(
+        projectRoot,
+        "scripts",
+        "openAccess.swift",
+      );
+      execFile("swift", [openAccessPath, previousAppName], (err) => {
+        if (err) {
+          console.error("Failed to grant access:", err);
+          return reject(err);
+        }
+        accessGrantedApps.add(previousAppName);
+        resolve(previousAppName);
+      });
+    } else {
+      resolve(previousAppName);
     }
-  }
-  // Fallback to generic
-  const genericApp = appContextRetrievers[appType.Generic];
-  contentFilter = genericApp.filter;
-  return genericApp.appleScript(appName);
-};
-
-// API Methods
-export function getPreviousApp(): string {
-  return previousAppName;
-}
-
-export function getPreviousAppContent(): Promise<string> {
-  return new Promise((resolve) => {
-    if (!previousAppName) {
-      return resolve("");
-    }
-    const command = getAppleScriptForApp(previousAppName);
-    if (!command) {
-      return resolve("");
-    }
-    exec(command, { maxBuffer: 100 * 1024 * 1024 }, (err, stdout) => {
-      if (err) {
-        console.error("Error getting app content:", err);
-        return resolve("");
-      }
-      const res = stdout && contentFilter ? contentFilter(stdout) : "";
-      resolve(res);
-    });
   });
 }
 
-export function getPreviousAppID(): number {
-  return previousAppId;
+export function startAppContentMonitoring(appName: string): void {
+  if (swiftProcess) {
+    swiftProcess.kill();
+    swiftProcess = null;
+  }
+
+  console.log("monitoring : ", appName);
+
+  const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
+  const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
+  swiftProcess = spawn("swift", [swiftScriptPath, appName], {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let buffer = "";
+
+  swiftProcess.stdout?.on("data", (data: Buffer) => {
+    buffer += data.toString();
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.trim()) {
+        try {
+          const update = JSON.parse(line);
+          if (update.type === "context_update") {
+            contentUpdateCallbacks.forEach((callback) =>
+              callback(update.content),
+            );
+            BrowserWindow.getAllWindows().forEach((win) => {
+              if (!win.isDestroyed()) {
+                win.webContents.send(CHANNELS.APP.CONTENT_UPDATED, update);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+  });
+
+  swiftProcess.stderr?.on("data", (data: Buffer) => {
+    console.error("Swift error:", data.toString());
+  });
+
+  swiftProcess.on("exit", (code) => {
+    console.log(`Swift process exit, code: ${code}`);
+    if (buffer.trim()) {
+      try {
+        const update = JSON.parse(buffer);
+        if (update.type === "context_update") {
+          contentUpdateCallbacks.forEach((callback) =>
+            callback(update.content),
+          );
+          BrowserWindow.getAllWindows().forEach((win) => {
+            if (!win.isDestroyed()) {
+              win.webContents.send(CHANNELS.APP.CONTENT_UPDATED, update);
+            }
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    swiftProcess = null;
+  });
 }
 
-export function getPlatform(): string {
-  return process.platform;
+export function stopAppContentMonitoring(): void {
+  if (swiftProcess) {
+    swiftProcess.kill();
+    swiftProcess = null;
+  }
+}
+
+export function onContentUpdate(
+  callback: (content: string) => void,
+): () => void {
+  contentUpdateCallbacks.push(callback);
+  return () => {
+    const index = contentUpdateCallbacks.indexOf(callback);
+    if (index > -1) {
+      contentUpdateCallbacks.splice(index, 1);
+    }
+  };
 }
 
 export function setPreviousApp(appName: string, appId?: number): void {
@@ -113,6 +137,19 @@ export function setPreviousApp(appName: string, appId?: number): void {
     if (appId !== undefined) {
       previousAppId = appId;
     }
+
+    if (appName) {
+      grantAccess()
+        .then(() => {
+          console.log("finish granted access:", appName);
+          startAppContentMonitoring(appName);
+        })
+        .catch((err) => {
+          console.error("failed to grant access:", err);
+        });
+      console.log("granted apps: ", accessGrantedApps);
+    }
+
     BrowserWindow.getAllWindows().forEach((win) => {
       if (!win.isDestroyed()) {
         win.webContents.send(CHANNELS.APP.APP_CHANGED, appName, previousAppId);
@@ -120,6 +157,21 @@ export function setPreviousApp(appName: string, appId?: number): void {
     });
   }
 }
+
+// API Methods
+export function getPreviousApp(): string {
+  return previousAppName;
+}
+
+export function getPreviousAppID(): number {
+  return previousAppId;
+}
+
+export function getPlatform(): string {
+  return process.platform;
+}
+
+// 添加全局状态管理
 
 export function activatePreviousApp(): void {
   const prevApp = getPreviousApp();

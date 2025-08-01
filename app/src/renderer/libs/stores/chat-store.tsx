@@ -14,7 +14,6 @@ import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
 import { usePreviousApp } from "../hooks/use-previous-app";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
-import { parseApiError, type GenericError } from "../utils/error-handler";
 import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
@@ -26,7 +25,6 @@ export type ChatViewMode = "compact" | "expanded";
 // Selected content structure
 export interface SelectedContent {
   text?: string;
-  imageData?: string; // base64 encoded image
   timestamp?: number;
   source?: "shortcut" | "manual"; // track how content was captured
 }
@@ -66,7 +64,7 @@ interface ChatContextType {
   toolsError: string | null;
 
   setInput: (input: string) => void;
-  sendMessage: (files?: File[]) => void;
+  sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: () => void;
@@ -240,6 +238,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const chatAPI = useChat({
     api: getApiBaseUrl() + "/chat/completion",
     maxSteps: 5,
+    initialInput: "",
     fetch: async (url, options = {}) => {
       // Get session from better-auth
       const session = await authClient.getSession();
@@ -271,29 +270,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!body.mcpServers || body.mcpServers.length === 0) {
             const currentSettings = settingsRef.current;
             if (currentSettings) {
-              // Get fresh MCP servers data
-              const serversResponse = await window.mcpAPI.getServers();
-              const mcpServers: Array<{
+              // Get fresh MCP tools data (includes builtin tools)
+              const toolsResponse = await window.mcpAPI.getAllTools();
+              let mcpServers: Array<{
                 name: string;
                 tools: ToolDefinition[];
               }> = [];
 
-              if (serversResponse.success && serversResponse.data) {
-                const connectedServers = serversResponse.data.filter(
-                  (server) => server.status === "connected",
-                );
-
-                connectedServers.forEach((server) => {
-                  if (
-                    server.capabilities.tools &&
-                    server.capabilities.tools.length > 0
-                  ) {
-                    mcpServers.push({
-                      name: server.name,
-                      tools: server.capabilities.tools,
-                    });
-                  }
-                });
+              if (toolsResponse.success && toolsResponse.data) {
+                mcpServers = toolsResponse.data.map((server) => ({
+                  name: server.serverName,
+                  tools: server.tools,
+                }));
               }
 
               // Supplement missing configuration with correct logic
@@ -327,6 +315,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }
 
               body.mcpServers = mcpServers;
+              window.logger.getLogger("asd").info("mcpServers", mcpServers);
 
               options.body = JSON.stringify(body);
             }
@@ -343,10 +332,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     },
     onError: (error) => {
-      const parsedError = parseApiError(error as unknown as GenericError);
-      console.error("Chat API error:", parsedError);
-      console.error("Full error object:", error);
-      // Check if it's a network error
       if (error instanceof Error && error.message.includes("fetch")) {
         console.error(
           "Network error - is the backend server running on port 3001?",
@@ -354,22 +339,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     onToolCall: async ({ toolCall }) => {
-      console.log("🔧 Frontend: Tool call received:", {
-        toolName: toolCall.toolName,
-        args: toolCall.args,
-      });
-
       // Use simplified MCP tool call that finds first server with the tool
       const result = await window.mcpAPI.mcpToolCall(
         toolCall.toolName,
         toolCall.args as Record<string, unknown>,
       );
-
-      console.log("🔧 Frontend: Tool call result:", {
-        success: result.success,
-        hasData: !!result.data,
-        error: result.error,
-      });
 
       if (!result.success) {
         throw new Error(result.error || "Tool call failed");
@@ -498,37 +472,37 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     mcpLogger.info("Fetching available MCP tools");
 
     try {
-      // Get all servers and their capabilities
-      const serversResponse = await window.mcpAPI.getServers();
+      // Get all tools from all connected servers (includes builtin tools)
+      const toolsResponse = await window.mcpAPI.getAllTools();
 
-      if (!serversResponse.success) {
-        throw new Error(serversResponse.error || "Failed to get MCP servers");
+      if (!toolsResponse.success) {
+        throw new Error(toolsResponse.error || "Failed to get MCP tools");
       }
 
-      const servers = serversResponse.data || [];
-      setMcpServers(servers);
+      const toolServers = toolsResponse.data || [];
 
-      mcpLogger.info("MCP servers fetched", {
-        totalServers: servers.length,
-        connectedServers: servers.filter((s) => s.status === "connected")
-          .length,
+      // Also get server info for state management
+      const serversResponse = await window.mcpAPI.getServers();
+      if (serversResponse.success && serversResponse.data) {
+        setMcpServers(serversResponse.data);
+      }
+
+      mcpLogger.info("MCP tools fetched", {
+        totalServers: toolServers.length,
+        toolServers: toolServers.map((s) => ({
+          name: s.serverName,
+          toolCount: s.tools.length,
+        })),
       });
 
-      // Collect all tools from all connected servers
+      // Collect all tools from all servers
       const allTools: ToolDefinition[] = [];
-      servers.forEach((server) => {
-        if (server.status === "connected" && server.capabilities.tools) {
-          mcpLogger.debug("Adding tools from server", {
-            serverName: server.name,
-            toolsCount: server.capabilities.tools.length,
-          });
-          allTools.push(...server.capabilities.tools);
-        } else {
-          mcpLogger.warn("Server not available for tools", {
-            serverName: server.name,
-            status: server.status,
-          });
-        }
+      toolServers.forEach((server) => {
+        mcpLogger.debug("Adding tools from server", {
+          serverName: server.serverName,
+          toolsCount: server.tools.length,
+        });
+        allTools.push(...server.tools);
       });
 
       setAvailableTools(allTools);
@@ -622,15 +596,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const sendMessage = useCallback(
-    (extraFiles?: File[]) => {
+    (messageOrFiles?: string | File[], extraFiles?: File[]) => {
+      // Handle overloaded parameters
+      let messageText: string;
       const filesToSend = [...attachments];
 
-      if (extraFiles && extraFiles.length > 0) {
-        filesToSend.push(...extraFiles);
+      if (typeof messageOrFiles === "string") {
+        // Called with message string
+        messageText = messageOrFiles;
+        console.log("📨 sendMessage called with string:", messageText);
+        if (extraFiles && extraFiles.length > 0) {
+          filesToSend.push(...extraFiles);
+        }
+      } else if (Array.isArray(messageOrFiles)) {
+        // Called with files array (old signature)
+        messageText = chatAPI.input.trim();
+        filesToSend.push(...messageOrFiles);
+      } else {
+        // Called with no arguments
+        messageText = chatAPI.input.trim();
       }
 
-      if (!chatAPI.input.trim() && !selectedContent && filesToSend.length === 0)
-        return;
+      if (!messageText && !selectedContent && filesToSend.length === 0) return;
 
       // Generate conversation ID if this is the first message
       let conversationIdToUse = currentConversationId;
@@ -640,44 +627,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         setCurrentConversationId(conversationIdToUse);
       }
 
-      let messageText = chatAPI.input.trim();
-
-      // Handle selected content (text and/or image)
-      let selectedImageFile: File | null = null;
-
+      // Handle selected content (text only)
       if (selectedContent) {
         // Handle text content
         if (selectedContent.text) {
           messageText = messageText
             ? `<selected>\n${selectedContent.text}\n</selected>\n\n${messageText}`
             : `<selected>\n${selectedContent.text}\n</selected>`;
-        }
-
-        // Handle image content - convert to File object
-        if (selectedContent.imageData) {
-          try {
-            const base64ToFile = (base64: string, filename: string): File => {
-              const arr = base64.split(",");
-              const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
-              const bstr = atob(arr.length > 1 ? arr[1] : base64);
-              let n = bstr.length;
-              const u8arr = new Uint8Array(n);
-              while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-              }
-              return new File([u8arr], filename, { type: mime });
-            };
-
-            const imageDataUrl = selectedContent.imageData.startsWith("data:")
-              ? selectedContent.imageData
-              : `data:image/png;base64,${selectedContent.imageData}`;
-
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const filename = `screenshot-${timestamp}.png`;
-            selectedImageFile = base64ToFile(imageDataUrl, filename);
-          } catch (error) {
-            console.error("Error converting clipboard image:", error);
-          }
         }
 
         setSelectedContent(null);
@@ -699,40 +655,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
 
-          // Combine regular attachments with selected image
-          const allFiles = [...filesToSend];
-          if (selectedImageFile) {
-            allFiles.push(selectedImageFile);
-          }
-
-          if (allFiles.length > 0) {
+          if (filesToSend.length > 0) {
             const fileAttachments = await Promise.all(
-              allFiles.map(fileToAttachment),
+              filesToSend.map(fileToAttachment),
             );
             message.experimental_attachments = fileAttachments;
           }
 
-          // Get fresh MCP servers data for this request
-          const serversResponse = await window.mcpAPI.getServers();
-          const mcpServers: Array<{ name: string; tools: ToolDefinition[] }> =
-            [];
+          // Get fresh MCP tools data for this request (includes builtin tools)
+          const toolsResponse = await window.mcpAPI.getAllTools();
+          let mcpServers: Array<{ name: string; tools: ToolDefinition[] }> = [];
 
-          if (serversResponse.success && serversResponse.data) {
-            const connectedServers = serversResponse.data.filter(
-              (server) => server.status === "connected",
-            );
-
-            connectedServers.forEach((server) => {
-              if (
-                server.capabilities.tools &&
-                server.capabilities.tools.length > 0
-              ) {
-                mcpServers.push({
-                  name: server.name,
-                  tools: server.capabilities.tools,
-                });
-              }
-            });
+          if (toolsResponse.success && toolsResponse.data) {
+            mcpServers = toolsResponse.data.map((server) => ({
+              name: server.serverName,
+              tools: server.tools,
+            }));
           }
 
           // TODO: DISABLED LOCAL API - Only use remote server now
@@ -747,13 +685,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const shouldUseRemoteServer = isUserLoggedIn;
           // const shouldUseCustomApi =
           //   !shouldUseRemoteServer && hasValidCustomApi;
-
-          // const customApiSettings = shouldUseCustomApi
-          //   ? {
-          //       endpoint: currentSettings.openai.endpoint,
-          //       apiKey: currentSettings.openai.apiKey,
-          //     }
-          //   : undefined;
           const customApiSettings = undefined; // Always undefined - no local API
 
           // If remote server is not available, show error
@@ -761,13 +692,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             console.error(
               "Remote server required. Please log in and enable remote store.",
             );
-            alert(
-              "Please log in and enable remote store to use the chat functionality.",
-            );
+            alert("Please log in to use the chat.");
             return;
           }
-
-          // Debug: Log the request body being sent
           const requestBody = {
             agent: selectedAgent || undefined,
             // modelId: // Let backend use default model
@@ -791,6 +718,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           chatAPI.append(message, {
             body: requestBody,
           });
+
+          // Clear the input after sending to prevent stale data
+          chatAPI.setInput("");
           clearAttachments();
         } catch (error) {
           console.error("Error processing file attachments:", error);
@@ -812,7 +742,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       useRemoteStore,
       previousApp,
       openedApps,
-      previousAppContent,
     ],
   );
 

@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 /**
  * Hook to track the previously active application
  */
+export interface PreviousAppContent {
+  appName: string;
+  content: string;
+  timestamp: number;
+  type: string;
+  notification: string;
+  currentURL?: string;
+}
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
   const [previousAppContent, setPreviousAppContent] = useState<string>();
@@ -24,7 +32,6 @@ export function usePreviousApp() {
       console.error("Error fetching previous app:", error);
     }
   };
-
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
@@ -37,13 +44,18 @@ export function usePreviousApp() {
   };
 
   useEffect(() => {
-    // Initial fetch
-    const fetchContent = async () => {
-      const content = await window.activeAppAPI.getPreviousAppContent();
-      console.log("Previous app content:", content);
-      setPreviousAppContent(content);
-    };
-    fetchContent();
+    const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
+      const res = newContent as unknown as PreviousAppContent;
+      if (res.appName === previousApp) {
+        setPreviousAppContent(
+          res.content + (res.currentURL ?? "[currentURL]" + res.currentURL),
+        );
+      }
+    });
+    return unsubscribe;
+  }, [previousApp]);
+
+  useEffect(() => {
     fetchOpenedApps();
   }, [previousApp]);
 

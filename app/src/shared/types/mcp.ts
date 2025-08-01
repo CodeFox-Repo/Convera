@@ -101,6 +101,9 @@ export interface MCPIPCResponse<T = unknown> {
 export interface IMcpAPI {
   // Server management
   getServers(): Promise<MCPIPCResponse<ServerInfo[]>>;
+  getAllTools(): Promise<
+    MCPIPCResponse<Array<{ serverName: string; tools: ToolDefinition[] }>>
+  >;
   startServer(serverId: string): Promise<MCPIPCResponse<ServerInfo>>;
   stopServer(serverId: string): Promise<MCPIPCResponse<ServerInfo>>;
 
@@ -128,4 +131,7 @@ export interface IMcpAPI {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<MCPIPCResponse<unknown>>;
+
+  // Get all tools that don't require input parameters
+  getAllNonInputParamTool(): Promise<MCPIPCResponse<ToolDefinition[]>>;
 }

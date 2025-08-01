@@ -1,14 +1,14 @@
-import { toggleChatWindowVisibility } from "@/electron/windows/window-position";
-import { BrowserWindow, Tray, app, nativeImage } from "electron";
+import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
+import { createSettingsWindow } from "./windows/settings-window";
 
 let tray: Tray | null = null;
 
 /**
  * Create and configure the system tray
  */
-export function createSystemTray(chatWindow: BrowserWindow | null) {
+export function createSystemTray() {
   let trayIcon: Electron.NativeImage;
 
   let trayIconPath: string;
@@ -33,14 +33,41 @@ export function createSystemTray(chatWindow: BrowserWindow | null) {
 
   tray = new Tray(trayIcon);
 
-  if (process.platform === "darwin") {
-    tray.setIgnoreDoubleClickEvents(true);
-  }
+  // Let system handle natural click behavior on macOS
 
-  tray.setToolTip("FoxyChat - Click to toggle");
+  tray.setToolTip("FoxyChat");
+
+  // Create context menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Settings",
+      click: () => {
+        createSettingsWindow();
+      },
+    },
+    {
+      type: "separator",
+    },
+    {
+      label: "Quit FoxyChat",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Left click to show menu with better state management
+  let menuShown = false;
   tray.on("click", () => {
-    if (chatWindow) {
-      toggleChatWindowVisibility(chatWindow);
+    if (!menuShown) {
+      tray.popUpContextMenu();
+      menuShown = true;
+      // Reset flag after a short delay to allow for menu interaction
+      setTimeout(() => {
+        menuShown = false;
+      }, 100);
     }
   });
 }

@@ -1,12 +1,12 @@
 import type { MCPServerConfig } from "@/shared/types/mcp";
 import { contextBridge, ipcMain, ipcRenderer } from "electron";
-import { getMCPHub } from "../../electron/mcp";
+import { getAllTools, getMCPHub } from "../../electron/mcp";
 
 /**
  * Setup MCP IPC handlers in main process
  */
 export function setupMCPIPC() {
-  // Get all server statuses
+  // Get all server statuses including builtin tools
   ipcMain.handle("mcp:getServers", async () => {
     try {
       const hub = getMCPHub();
@@ -14,8 +14,18 @@ export function setupMCPIPC() {
         return { success: false, error: "MCP Hub not initialized" };
       }
 
-      const servers = hub.getAllServerStatuses();
+      const servers = hub.getAllServerStatusesWithBuiltin();
       return { success: true, data: servers };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get all tools in simplified format for chat functionality
+  ipcMain.handle("mcp:getAllTools", async () => {
+    try {
+      const tools = getAllTools();
+      return { success: true, data: tools };
     } catch (error) {
       return { success: false, error: String(error) };
     }
@@ -158,6 +168,21 @@ export function setupMCPIPC() {
     },
   );
 
+  // Get all tools that don't require input parameters
+  ipcMain.handle("mcp:getAllNonInputParamTool", async () => {
+    try {
+      const hub = getMCPHub();
+      if (!hub) {
+        return { success: false, error: "MCP Hub not initialized" };
+      }
+
+      const tools = hub.getAllNonInputParamTool();
+      return { success: true, data: tools };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
   console.log("MCP IPC handlers registered");
 }
 
@@ -167,6 +192,7 @@ export function setupMCPIPC() {
 export function exposeMCPContext() {
   contextBridge.exposeInMainWorld("mcpAPI", {
     getServers: () => ipcRenderer.invoke("mcp:getServers"),
+    getAllTools: () => ipcRenderer.invoke("mcp:getAllTools"),
     startServer: (serverId: string) =>
       ipcRenderer.invoke("mcp:startServer", serverId),
     stopServer: (serverId: string) =>
@@ -185,5 +211,7 @@ export function exposeMCPContext() {
     ) => ipcRenderer.invoke("mcp:callTool", serverId, toolName, args),
     mcpToolCall: (toolName: string, args: Record<string, unknown>) =>
       ipcRenderer.invoke("mcp:mcpToolCall", toolName, args),
+    getAllNonInputParamTool: () =>
+      ipcRenderer.invoke("mcp:getAllNonInputParamTool"),
   });
 }

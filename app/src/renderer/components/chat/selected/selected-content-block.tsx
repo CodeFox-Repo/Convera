@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clipboard, Image } from "lucide-react";
+import { ChevronDown, ChevronUp, Clipboard } from "lucide-react";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 
@@ -33,14 +33,8 @@ const SelectedContentBlock = memo(
           onClick={toggleExpanded}
         >
           <div className="flex items-center gap-2">
-            {content.imageData ? <Image size={12} /> : <Clipboard size={12} />}
-            <span>
-              {content.imageData && content.text
-                ? "Screenshot + Text"
-                : content.imageData
-                  ? "Screenshot"
-                  : "Selected Content"}
-            </span>
+            <Clipboard size={12} />
+            <span>Selected Content</span>
           </div>
           <span className="flex items-center text-xs transition-colors hover:text-foreground">
             {expanded ? (
@@ -61,20 +55,6 @@ const SelectedContentBlock = memo(
           className="text-foreground/90 relative overflow-hidden transition-all duration-300"
           style={{ maxHeight: expanded ? `${contentHeight}px` : "120px" }}
         >
-          {content.imageData && (
-            <div className="mb-2">
-              <img
-                src={
-                  content.imageData.startsWith("data:")
-                    ? content.imageData
-                    : `data:image/png;base64,${content.imageData}`
-                }
-                alt="Screenshot"
-                className="max-w-full h-auto rounded border border-border"
-                style={{ maxHeight: "200px" }}
-              />
-            </div>
-          )}
           {content.text && (
             <pre className="text-sm whitespace-pre-wrap font-mono text-foreground/90 break-words">
               {content.text}

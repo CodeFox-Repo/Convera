@@ -1,7 +1,10 @@
-import { activatePreviousApp } from "@/electro-bridge/ipc/active-app-context";
+import { getPreviousApp } from "@/electro-bridge/ipc/active-app-context";
 import { CHANNELS } from "@/electro-bridge/ipc/channels";
 import { appConfig } from "@/electron/config";
-import { calculateWindowDimensions } from "@/electron/windows/utils";
+import {
+  calculateWindowDimensions,
+  calculateWindowDimensionsWithTopMargin,
+} from "@/electron/windows/utils";
 import {
   WINDOW_SIZE_PRESETS,
   WindowDimensions,
@@ -12,6 +15,101 @@ import { BrowserWindow, screen } from "electron";
 export let expectedPosition: WindowDimensions | null = null;
 let isFixingPosition = false;
 let lastPositionTime = 0;
+/**
+ * Position a window at the center top of the screen with margin
+ * topMarginPercent: percentage of screen height to use as top margin
+ */
+export function positionWindowAtCenterTop(
+  window: BrowserWindow,
+  topMarginPixels?: number,
+  config?: WindowSizeConfig,
+  topMarginPercent: number = appConfig.window.defaultTopMarginPercent || 5,
+) {
+  if (!window || isFixingPosition) return;
+
+  // Prevent rapid successive calls (debounce)
+  const now = Date.now();
+  if (now - lastPositionTime < 100) {
+    return;
+  }
+  lastPositionTime = now;
+
+  isFixingPosition = true;
+
+  // Get primary display
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { height: screenHeight } = primaryDisplay.workAreaSize;
+
+  // Calculate top margin in pixels based on percentage of screen height
+  // Or use provided pixel value as fallback
+  const topMargin =
+    topMarginPercent > 0
+      ? Math.round(screenHeight * (topMarginPercent / 100))
+      : topMarginPixels || 50;
+
+  // Get current window size
+  const windowBounds = window.getBounds();
+
+  // If config is provided, ensure window size matches the config
+  if (config) {
+    const dimensions = expectedPosition
+      ? expectedPosition
+      : calculateWindowDimensionsWithTopMargin(config, topMargin);
+    window.setBounds(dimensions);
+  } else {
+    // Use current size but just reposition
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width } = primaryDisplay.workAreaSize;
+    const { x: workAreaX } = primaryDisplay.workArea;
+    const x = workAreaX + Math.round((width - windowBounds.width) / 2);
+    const y = topMargin;
+
+    // Compare with expected position if available
+    if (expectedPosition) {
+      const newPosition = {
+        x,
+        y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+      const currentPosition = {
+        x: windowBounds.x,
+        y: windowBounds.y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+
+      // Check if current position deviates significantly from expected
+      const xDiff = Math.abs(currentPosition.x - expectedPosition.x);
+      const yDiff = Math.abs(currentPosition.y - expectedPosition.y);
+
+      if (xDiff > 50 || yDiff > 50) {
+        window.setPosition(x, y);
+        // Update expected position to the new calculated position
+        expectedPosition = newPosition;
+      } else {
+        // Keep current position but update expected position
+        expectedPosition = currentPosition;
+      }
+    } else {
+      window.setPosition(x, y);
+      // Set expected position to the new position
+      expectedPosition = {
+        x,
+        y,
+        width: windowBounds.width,
+        height: windowBounds.height,
+      };
+    }
+  }
+
+  console.log(
+    `Positioned window at: x=${window.getBounds().x}, y=${window.getBounds().y}, size=${window.getBounds().width}x${window.getBounds().height}, margin=${topMargin}px`,
+  );
+
+  isFixingPosition = false;
+}
+
 /**
  * Position a window at the center bottom of the screen with margin
  * bottomMarginPercent: percentage of screen height to use as bottom margin
@@ -124,9 +222,10 @@ export function centerWindowHorizontally(window: BrowserWindow) {
   // Get the primary display's work area
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width } = primaryDisplay.workAreaSize;
+  const { x: workAreaX } = primaryDisplay.workArea;
 
   // Calculate new X position to center window horizontally
-  const newX = Math.round((width - bounds.width) / 2);
+  const newX = workAreaX + Math.round((width - bounds.width) / 2);
 
   // Keep the same Y position
   window.setPosition(newX, bounds.y);
@@ -145,32 +244,8 @@ function updateExpectedPosition(window: BrowserWindow) {
 }
 
 /**
- * Restore window to expected position if current position deviates
- */
-function restoreToExpectedPosition(window: BrowserWindow): boolean {
-  if (!window || !expectedPosition) return false;
-
-  const currentBounds = window.getBounds();
-  // Check if current position deviates significantly from expected
-  if (
-    Math.abs(currentBounds.x - expectedPosition.x) > 100 ||
-    currentBounds.x < 0 ||
-    Math.abs(currentBounds.y - expectedPosition.y) > 100
-  ) {
-    console.log(
-      `Restoring window to expected position: ${JSON.stringify(expectedPosition)}`,
-    );
-    isFixingPosition = true;
-    window.setBounds(expectedPosition, false);
-    isFixingPosition = false;
-    return true;
-  }
-  return false;
-}
-
-/**
- * Resize window and maintain its bottom position
- * This keeps the window's bottom edge in the same place when resizing vertically
+ * Resize window and maintain its top position
+ * This keeps the window's top edge in the same place when resizing vertically
  * @param preserveX When true, maintains the window's current X position instead of centering
  */
 export function resizeWindowAndMaintainPosition(
@@ -187,16 +262,15 @@ export function resizeWindowAndMaintainPosition(
 
   // If config is provided, calculate dimensions based on proportion
   if (config) {
-    const dimensions = calculateWindowDimensions(config);
+    const dimensions = calculateWindowDimensionsWithTopMargin(config);
     width = dimensions.width;
     height = dimensions.height;
   }
 
   const bounds = window.getBounds();
 
-  const bottomEdgeY = bounds.y + bounds.height;
-
-  const newY = Math.max(0, bottomEdgeY - height);
+  // Keep the same top position (Y coordinate)
+  const newY = bounds.y;
 
   let newX;
   if (preserveX && expectedPosition) {
@@ -204,7 +278,8 @@ export function resizeWindowAndMaintainPosition(
   } else {
     const primaryDisplay = screen.getPrimaryDisplay();
     const screenWidth = primaryDisplay.workAreaSize.width;
-    newX = Math.round((screenWidth - width) / 2);
+    const { x: workAreaX } = primaryDisplay.workArea;
+    newX = workAreaX + Math.round((screenWidth - width) / 2);
   }
 
   const newBounds = {
@@ -276,31 +351,36 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     console.log("Window is currently hidden, making it visible");
 
     // === Restore display ===
-    // Try position restoration in order of preference:
-    // 1. Expected position (from manual moves)
-    // 2. Last visible bounds
-    // 3. Default centered position
-    let restored = false;
+    // Check if activeApp has content to determine initial window size
+    const previousApp = getPreviousApp();
+    const hasActiveAppContent = previousApp && previousApp.trim().length > 0;
 
-    // First try expected position
-    if (expectedPosition) {
-      restored = restoreToExpectedPosition(mainWindow);
+    console.log(
+      `Previous app: "${previousApp}", has content: ${hasActiveAppContent}`,
+    );
+
+    // Use different window config based on activeApp content
+    let windowConfig = WINDOW_SIZE_PRESETS.CHAT;
+    if (hasActiveAppContent) {
+      // Create a larger window config when activeApp has content
+      windowConfig = {
+        ...WINDOW_SIZE_PRESETS.CHAT,
+        minHeight: 100,
+      };
+      console.log("Using larger window size due to active app content");
+    } else {
+      console.log("Using compact window size (no active app content)");
     }
 
-    // If that fails, try last visible bounds
-    if (!restored && lastVisibleBounds) {
-      restored = restoreToExpectedPosition(mainWindow);
-    }
+    const dimensions = calculateWindowDimensionsWithTopMargin(
+      windowConfig,
+      undefined,
+      true,
+    );
+    mainWindow.setBounds(dimensions, false);
 
-    // If all else fails, use default position
-    if (!restored) {
-      const dimensions = calculateWindowDimensions(
-        WINDOW_SIZE_PRESETS.COMPACT_CHAT,
-        undefined,
-        true,
-      );
-      mainWindow.setBounds(dimensions, false);
-    }
+    // Update expected position to the new correct position
+    expectedPosition = dimensions;
 
     // Re-enable mouse events and make window visible
     mainWindow.setIgnoreMouseEvents(false);
@@ -312,14 +392,11 @@ export function toggleChatWindowVisibility(mainWindow: BrowserWindow) {
     isHiddenOffscreen = false;
   } else {
     console.log("Window is currently visible, hiding it");
-
-    // Try to activate previous app asynchronously
-    try {
-      activatePreviousApp();
-    } catch (error) {
-      console.error("Error getting previous app:", error);
-    }
-
+    // try {
+    //   activatePreviousApp();
+    // } catch (error) {
+    //   console.error("Error getting previous app:", error);
+    // }
     // Save current position only if it's valid
     const currentBounds = mainWindow.getBounds();
     if (currentBounds.x >= 0 && currentBounds.y >= 0) {

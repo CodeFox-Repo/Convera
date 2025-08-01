@@ -101,7 +101,7 @@ export interface IElectronAPI {
   onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputContent: (
-    callback: (content: { text?: string; imageData?: string }) => void,
+    callback: (content: { text?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
 }
@@ -112,6 +112,7 @@ export interface IActiveAppAPI {
   getPreviousAppID: () => Promise<number>;
   getPlatform: () => Promise<string>;
   getOpenedApps: () => Promise<string[]>;
+  onContentUpdate: (callback: (content: string) => void) => () => void;
 }
 
 // Define the Environment API interface
