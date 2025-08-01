@@ -124,7 +124,7 @@ export default function Chat() {
 
           return "Summary request sent to chat";
         } catch (error) {
-          return `Summary failed: ${input}`;
+          return `Summary failed: ${error}`;
         }
       },
     },
