@@ -218,11 +218,16 @@ export function closeWindow(mainWindow: BrowserWindow | null): void {
     const bounds = mainWindow.getBounds();
     const isCurrentlyOffscreen = bounds.x < -1000 || bounds.y < -1000;
     const isCurrentlyTransparent = mainWindow.getOpacity() < 0.1;
-    
+
     // Only hide if the window is currently visible
     if (!isCurrentlyOffscreen && !isCurrentlyTransparent) {
       console.log("Hiding window via closeWindow");
-      mainWindow.setBounds({ x: -2000, y: -2000, width: bounds.width, height: bounds.height });
+      mainWindow.setBounds({
+        x: -2000,
+        y: -2000,
+        width: bounds.width,
+        height: bounds.height,
+      });
       mainWindow.setOpacity(0);
     }
   }
