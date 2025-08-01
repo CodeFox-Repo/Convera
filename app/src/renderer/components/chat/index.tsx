@@ -8,7 +8,7 @@ import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 // Import Raycast-inspired components
-import { LanguagesIcon } from "lucide-react";
+import { LanguagesIcon, NotebookPen } from "lucide-react";
 import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
@@ -58,7 +58,8 @@ export default function Chat() {
     description: string;
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
-    type?: "mcp" | "input-changed-command";
+    // direct command means display immeadiately under specific situation
+    type?: "direct-command" | "mcp" | "input-changed-command";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute?: (input?: string) => Promise<any>;
   }
@@ -97,8 +98,37 @@ export default function Chat() {
         }
       },
     },
-  ];
+    {
+      id: "Summary",
+      name: "Summary",
+      description: "Summarize text",
+      icon: <NotebookPen />,
+      type: "direct-command",
+      execute: async (input?: string) => {
+        console.log("called summarize command", input);
 
+        try {
+          // 构建总结提示词
+          const summaryPrompt = `You are my summarization assistant. 
+      Please base your summary solely on the "current app context" in your context; do not perform external fetches or searches at first, and extract key points directly from the available information. 
+      Your output must follow Markdown format and include: 
+  
+      Page Overview: One sentence describing the page's topic. 
+  
+      Core Points: A list of the 3–5 most important pieces of information. 
+  
+      Next Steps (optional): 1–2 action or reflection suggestions.`;
+
+          setSelectedContent(null);
+          sendMessage(summaryPrompt);
+
+          return "Summary request sent to chat";
+        } catch (error) {
+          return `Summary failed: ${input}`;
+        }
+      },
+    },
+  ];
   /**
    * Calculate dynamic height for selected content based on text length and wrapping
    *
@@ -288,22 +318,19 @@ export default function Chat() {
       return;
     }
 
-    setIsCommandMode(value.startsWith("/"));
+    const tempIsCommandMode = value.startsWith("/");
 
-    if (value.startsWith("/")) {
+    setIsCommandMode(tempIsCommandMode);
+
+    if (tempIsCommandMode) {
       // Handle command mode
       handleCommandSearch(value);
-    } else if (value.trim()) {
-      // Handle AI chat mode
-      setResults([]);
-    } else {
-      setResults([]);
     }
   };
 
   // Handle command search
   const handleCommandSearch = useCallback(async (query: string) => {
-    const command = query.slice(1); // Remove the '/' prefix
+    const command = query.startsWith("/") ? query.slice(1) : query; // Remove the '/' prefix
 
     // Start with preset commands
     let allCommands: CommandResult[] = [];
@@ -356,6 +383,16 @@ export default function Chat() {
         setInputValue("");
         setResults([]);
         setIsCommandMode(false);
+        return;
+      }
+
+      if (command.execute) {
+        await command.execute();
+
+        setInputValue("");
+        setResults([]);
+        setIsCommandMode(false);
+        setShowContent(true);
         return;
       }
 

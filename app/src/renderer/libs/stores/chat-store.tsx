@@ -708,7 +708,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               app: {
                 activeApp: previousApp,
                 openedApps: openedApps,
-                activeAppContent: previousAppContent,
+                activeAppContent: "current app context: " + previousAppContent,
               },
             },
           };
