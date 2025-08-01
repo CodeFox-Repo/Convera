@@ -185,15 +185,21 @@ export default function Chat() {
         calculateSelectedContentHeight(selectedContentText);
       baseHeight += selectedContentHeight;
       const containerPadding = 24; // Padding around container
-      const resultHeight = 48; // Height per result item
-      const resultsPadding = 8; // Padding around results
+      const resultHeight = 48;
+      const resultsPadding = 6;
       const contentHeight = 400; // Height for command content area
       const mainContainerPadding = 0; // py-2 adds 8px top + 8px bottom
+      const commandResultsContainerPadding = 6;
+      const extraBottomPadding = hasActiveBadge && selectedContentText ? 12 : 8;
 
       // If content is showing, use larger height
       if (hasContent) {
         return (
-          baseHeight + containerPadding + contentHeight + mainContainerPadding
+          baseHeight +
+          containerPadding +
+          contentHeight +
+          mainContainerPadding +
+          extraBottomPadding
         );
       }
 
@@ -203,28 +209,30 @@ export default function Chat() {
         const minHeight = hasActiveBadge ? 100 : 80; // Match minHeight from WINDOW_SIZE_PRESETS.CHAT
 
         // baseHeight already includes selected content height, so just use that or minHeight
-        return Math.max(baseHeight, minHeight);
+        return Math.max(baseHeight + extraBottomPadding, minHeight);
       }
-
-      if (hasInput && resultCount === 0) {
+      if (hasInput && resultCount === 1) {
         // Show AI chat preview
         return (
           baseHeight +
           containerPadding +
           resultHeight +
           resultsPadding +
-          mainContainerPadding
+          mainContainerPadding +
+          commandResultsContainerPadding
         );
       }
 
-      // Show command results
       const maxResults = Math.min(resultCount, 6); // Limit to 6 results
       return (
         baseHeight +
         containerPadding +
         maxResults * resultHeight +
         resultsPadding +
-        mainContainerPadding
+        mainContainerPadding +
+        commandResultsContainerPadding +
+        extraBottomPadding +
+        8
       );
     },
     [calculateSelectedContentHeight],
