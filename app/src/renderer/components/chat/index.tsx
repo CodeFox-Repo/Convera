@@ -525,8 +525,9 @@ export default function Chat() {
           setResults([]);
         } else if (showContent) {
           setShowContent(false);
-        } else if (window.electronAPI?.toggleWindow) {
-          window.electronAPI.toggleWindow("chat");
+        } else if (window.electronAPI?.closeWindow) {
+          // Use closeWindow which now only hides, never shows
+          window.electronAPI.closeWindow();
         }
       }
     },
