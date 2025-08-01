@@ -163,3 +163,5 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
     );
   },
 );
+
+AppMentionItem.displayName = "AppMentionItem";
