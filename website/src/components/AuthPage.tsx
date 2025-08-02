@@ -5,8 +5,10 @@ export default function AuthPage() {
   const { pathname = "sign-in" } = useParams({ from: "/auth/$pathname" });
   const search = useSearch({ from: "/auth/$pathname" });
 
-  // Get redirect URL from search params, default to home page
-  const redirectURL = search.redirect || "/";
+  // Get redirect URL from search params, with environment-based fallback
+  const redirectURL =
+    search.redirect ||
+    (process.env.NODE_ENV === "production" ? "https://foxychat.net" : "http://localhost:8080");
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50/50 p-4">

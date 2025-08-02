@@ -1,6 +1,6 @@
 # FoxyChat
 
-FoxyChat is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces..
+FoxyChat is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces...
 
 ## Getting Started
 

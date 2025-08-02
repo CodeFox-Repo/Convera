@@ -28,7 +28,7 @@ function AuthProviderWithRouter({ children }: { children: ReactNode }) {
           {children}
         </Link>
       )}
-      providers={["github"]}
+      providers={["github", "google"]}
     >
       {children}
     </AuthUIProviderTanstack>
