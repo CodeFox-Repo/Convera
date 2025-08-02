@@ -59,7 +59,7 @@ export default function Chat() {
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
     // direct command means display immeadiately under specific situation
-    type?: "direct-command" | "mcp" | "input-changed-command";
+    type?: "chat-shortcut-command" | "mcp" | "input-changed-command";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute?: (input?: string) => Promise<any>;
   }
@@ -106,13 +106,12 @@ export default function Chat() {
       name: "Summary",
       description: "Summarize text",
       icon: <NotebookPen />,
-      type: "direct-command",
+      type: "chat-shortcut-command",
       execute: async (input?: string) => {
         console.log("called summarize command", input);
 
         try {
-          // 构建总结提示词
-          const summaryPrompt = `You are my summarization assistant. 
+          const summaryPrompt = `<user-reminder>You are my summarization assistant. 
       Please base your summary solely on the "current app context" in your context; do not perform external fetches or searches at first, and extract key points directly from the available information. 
       Your output must follow Markdown format and include: 
   
@@ -120,7 +119,7 @@ export default function Chat() {
   
       Core Points: A list of the 3–5 most important pieces of information. 
   
-      Next Steps (optional): 1–2 action or reflection suggestions.`;
+      Next Steps (optional): 1–2 action or reflection suggestions.</<user-reminder>`;
 
           setSelectedContent(null);
           sendMessage(summaryPrompt);
