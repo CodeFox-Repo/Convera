@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("activeAppAPI", {
   getPreviousAppID: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_ID),
   getPlatform: () => ipcRenderer.invoke(CHANNELS.PLATFORM.GET),
   getOpenedApps: () => ipcRenderer.invoke(CHANNELS.APP.GET_OPENED),
+  getAppIcon: (appName: string) =>
+    ipcRenderer.invoke(CHANNELS.APP.GET_APP_ICON, appName),
+  getPreloadedIcons: () => ipcRenderer.invoke(CHANNELS.APP.GET_PRELOADED_ICONS),
   onContentUpdate: (callback: (content: unknown) => void) => {
     const handler = (_event: unknown, content: unknown) => callback(content);
     ipcRenderer.on(CHANNELS.APP.CONTENT_UPDATED, handler);

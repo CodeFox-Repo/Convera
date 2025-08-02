@@ -112,6 +112,8 @@ export interface IActiveAppAPI {
   getPreviousAppID: () => Promise<number>;
   getPlatform: () => Promise<string>;
   getOpenedApps: () => Promise<string[]>;
+  getAppIcon: (appName: string) => Promise<string | null>;
+  getPreloadedIcons: () => Promise<Record<string, string | null>>;
   onContentUpdate: (callback: (content: string) => void) => () => void;
 }
 

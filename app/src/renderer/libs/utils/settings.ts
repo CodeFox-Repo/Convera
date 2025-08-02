@@ -8,15 +8,15 @@ import {
 
 const SETTINGS_KEY = "foxchat_settings";
 
-// Detect platform using electronAPI or fallback to navigator.platform
+// Detect platform using activeAppAPI or fallback to navigator.platform
 async function getPlatform(): Promise<string> {
   try {
-    if (typeof window !== "undefined" && window.electronAPI) {
-      return await window.electronAPI.getPlatform();
+    if (typeof window !== "undefined" && window.activeAppAPI) {
+      return await window.activeAppAPI.getPlatform();
     }
   } catch (error) {
     console.warn(
-      "Failed to detect platform via electronAPI, using fallback:",
+      "Failed to detect platform via activeAppAPI, using fallback:",
       error,
     );
   }

@@ -7,6 +7,9 @@ import { CHANNELS } from "./channels";
 let previousAppName = "";
 let previousAppId = 0;
 
+// Main process icon cache for preloaded icons
+const preloadedIconCache = new Map<string, string | null>();
+
 let swiftProcess: ChildProcess | null = null;
 const contentUpdateCallbacks: ((content: string) => void)[] = [];
 
@@ -225,22 +228,202 @@ export function getOpenedApps(): Promise<string[]> {
     if (process.platform !== "darwin") {
       return resolve([]);
     }
-    const script = `
-      try
-        tell application "System Events" to get name of every process whose background only is false
-      on error
-        return ""
-      end try
-    `;
+
+    const attemptGetApps = (retryCount = 0) => {
+      const script = `
+        try
+          tell application "System Events" to get name of every process whose background only is false
+        on error
+          return ""
+        end try
+      `;
+      execFile("osascript", ["-e", script], (err, stdout) => {
+        if (err) {
+          console.error("❌ Error getting opened apps:", err);
+          return resolve([]);
+        }
+        const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
+
+        // Filter out system processes and duplicates
+        const filteredApps = apps.filter((app) => {
+          // Filter out common system processes that shouldn't be in the list
+          const systemProcesses = [
+            "osascript",
+            "System Events",
+            "Accessibility Inspector",
+            "loginwindow",
+            "WindowServer",
+            "Dock",
+            "Finder Helper",
+            "SystemUIServer",
+            "ControlCenter",
+            "Spotlight",
+            "coreaudiod",
+            // Also filter out FoxyChat itself
+            "FoxyChat",
+            "Electron",
+          ];
+          return !systemProcesses.includes(app);
+        });
+        const uniqueApps = [...new Set(filteredApps)];
+
+        // If no apps found and we haven't retried yet, try once more
+        if (uniqueApps.length === 0 && retryCount < 1) {
+          // Retry silently
+          setTimeout(() => attemptGetApps(retryCount + 1), 100);
+          return;
+        }
+
+        resolve(uniqueApps);
+      });
+    };
+
+    attemptGetApps();
+  });
+}
+
+export function getAppIcon(appName: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (process.platform !== "darwin") {
+      console.log("❌ Icon extraction only supported on macOS");
+      return resolve(null);
+    }
+
+    // Filter out system processes early to avoid unnecessary processing
+    const systemProcesses = [
+      "osascript",
+      "System Events",
+      "Accessibility Inspector",
+      "loginwindow",
+      "WindowServer",
+      "Dock",
+      "Finder Helper",
+      "SystemUIServer",
+      "ControlCenter",
+      "Spotlight",
+      "coreaudiod",
+    ];
+
+    if (systemProcesses.includes(appName)) {
+      console.log(`⏭️ Skipping system process: ${appName}`);
+      return resolve(null);
+    }
+
+    // console.log(`🔍 Looking for icon for app: ${appName}`);
+
+    // First, find the app path using fixed AppleScript syntax
+    const script = `tell application "System Events" to get POSIX path of (file of (first process whose name is "${appName}"))`;
+
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
-        console.error("Error getting opened apps:", err);
-        return resolve([]);
+        console.error(`❌ Error finding app path for ${appName}:`, err);
+        return resolve(null);
       }
-      const apps = stdout.trim().length > 0 ? stdout.trim().split(", ") : [];
-      // Remove duplicates only
-      const uniqueApps = [...new Set(apps)];
-      resolve(uniqueApps);
+
+      const appPath = stdout.trim();
+      if (!appPath) {
+        console.log(`❌ No app path found for ${appName}`);
+        return resolve(null);
+      }
+
+      // console.log(`📍 Found app path: ${appPath}`);
+
+      // Use NSWorkspace API directly (no need to check for .icns files since we always use API)
+
+      // Use NSWorkspace API for all cases (handles both .icns and system icons)
+      // if (foundIcnsFile) {
+      //   console.log(`📄 Found .icns file, will use NSWorkspace API to convert it...`);
+      // } else {
+      //   console.log(`❌ No .icns file found for ${appName} in Resources directory`);
+      //   console.log(`🔄 Trying NSWorkspace API fallback...`);
+      // }
+
+      // Use Swift script to get icon via NSWorkspace API (direct base64 output)
+      const projectRoot = app.isPackaged
+        ? process.resourcesPath
+        : app.getAppPath();
+      const swiftScriptPath = path.join(
+        projectRoot,
+        "scripts",
+        "GetAppIconBase64.swift",
+      );
+
+      execFile(
+        "swift",
+        [swiftScriptPath, appPath],
+        { maxBuffer: 5 * 1024 * 1024 },
+        (swiftErr, swiftStdout, swiftStderr) => {
+          if (swiftErr) {
+            console.error(`❌ Swift script error for ${appName}:`, swiftErr);
+            console.error("Swift stderr:", swiftStderr);
+            return resolve(null);
+          }
+
+          // Parse the output to get base64 data URL
+          if (swiftStdout && swiftStdout.includes("SUCCESS:")) {
+            const dataUrl = swiftStdout.replace("SUCCESS:", "").trim();
+            // console.log(`✅ NSWorkspace API icon created for ${appName}`);
+            return resolve(dataUrl);
+          } else {
+            console.log(
+              `❌ NSWorkspace API failed to create icon for ${appName}`,
+            );
+            if (swiftStderr) {
+              console.error("Swift stderr:", swiftStderr);
+            }
+            return resolve(null);
+          }
+        },
+      );
     });
   });
+}
+
+// Preload function to warm up app list cache on startup
+export function preloadAppList(): void {
+  if (process.platform === "darwin") {
+    // Start preloading in background without blocking startup
+    setTimeout(() => {
+      getOpenedApps()
+        .then(async (apps) => {
+          console.log(`🚀 Preloaded ${apps.length} apps`);
+
+          // Preload icons for all available apps (optimized for small app lists)
+          console.log(`🎨 Preloading icons for ${apps.length} apps...`);
+
+          // Preload icons for all apps since the list is typically small
+          const iconPromises = apps.map((appName) =>
+            getAppIcon(appName)
+              .then((iconData) => {
+                preloadedIconCache.set(appName, iconData);
+                return { appName, iconData };
+              })
+              .catch(() => {
+                preloadedIconCache.set(appName, null);
+                return { appName, iconData: null };
+              }),
+          );
+
+          // Wait for all icons to finish loading
+          Promise.all(iconPromises).then((results) => {
+            const loadedCount = results.filter(
+              (r) => r.iconData !== null,
+            ).length;
+            console.log(`🎨 Preloaded ${loadedCount}/${results.length} icons`);
+          });
+        })
+        .catch(() => {
+          // Preload failed, non-critical
+        });
+    }, 1000); // Small delay to let app finish startup
+  }
+}
+
+// Get preloaded icons for renderer process
+export function getPreloadedIcons(): Record<string, string | null> {
+  const result: Record<string, string | null> = {};
+  for (const [appName, iconData] of preloadedIconCache.entries()) {
+    result[appName] = iconData;
+  }
+  return result;
 }

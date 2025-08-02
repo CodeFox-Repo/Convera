@@ -12,7 +12,10 @@ import { exec } from "child_process";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
-import { setPreviousApp } from "@/electro-bridge/ipc/active-app-context";
+import {
+  setPreviousApp,
+  preloadAppList,
+} from "@/electro-bridge/ipc/active-app-context";
 import {
   getCurrentShortcut,
   setInputContent,
@@ -299,6 +302,9 @@ app.whenReady().then(async () => {
     startAppFocusTracking();
     registerGlobalShortcuts();
     setupScreenResizeHandlers();
+
+    // Preload app list for instant @ response
+    preloadAppList();
 
     // Pre-create windows
     preCreateAgentPopoverWindow();

@@ -20,8 +20,9 @@ export interface IPCServer {
   getClipboardText(): string;
   setInputContent(content: { text?: string }): void;
   pasteModifiedContent(content: string): void;
-  getPreviousAppContent(): Promise<string>;
   getOpenedApps(): Promise<string[]>;
+  getAppIcon(appName: string): Promise<string | null>;
+  getPreloadedIcons(): Promise<Record<string, string | null>>;
 
   // Platform detection
   getPlatform(): string;
@@ -92,6 +93,8 @@ export const CHANNELS = {
     SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
     GET_OPENED: "app:get-opened",
+    GET_APP_ICON: "app:get-app-icon",
+    GET_PRELOADED_ICONS: "app:get-preloaded-icons",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -139,6 +142,8 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
   getOpenedApps: CHANNELS.APP.GET_OPENED,
+  getAppIcon: CHANNELS.APP.GET_APP_ICON,
+  getPreloadedIcons: CHANNELS.APP.GET_PRELOADED_ICONS,
 
   // Platform detection
   getPlatform: CHANNELS.PLATFORM.GET,

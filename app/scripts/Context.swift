@@ -75,7 +75,11 @@ let filteredAttributes: Set<String> = [
     "AXAutocompleteValue", "AXPlaceholderValue", "AXOrientation","AXARIALive","AXARIARelevant","AXHelp"
 ]
 func axCallback(_ observer: AXObserver, _ element: AXUIElement, _ notification: CFString, _ refcon: UnsafeMutableRawPointer?) {
-    log("Notification: \(notification as String)")
+    // Only log important notifications, not every AXValueChanged
+    let notificationStr = notification as String
+    if notificationStr != "AXValueChanged" {
+        log("Notification: \(notificationStr)")
+    }
     
     guard let appElem = currentAppElem else { return }
 
