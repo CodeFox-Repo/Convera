@@ -57,6 +57,10 @@ export default function Chat() {
   const [showAppMention, setShowAppMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionPosition, setMentionPosition] = useState({ x: 0, y: 0 });
+  // Track app mentions for whole deletion
+  const [appMentions, setAppMentions] = useState<
+    Array<{ start: number; end: number; app: string }>
+  >([]);
 
   interface CommandResult {
     id: string;
@@ -256,6 +260,15 @@ export default function Chat() {
           inputValue.length - atMatch[0].length,
         );
         const newValue = beforeAt + `@${appName} `;
+
+        // Track the mention position for whole deletion
+        const mentionStart = beforeAt.length;
+        const mentionEnd = mentionStart + `@${appName}`.length;
+        setAppMentions((prev) => [
+          ...prev,
+          { start: mentionStart, end: mentionEnd, app: appName },
+        ]);
+
         setInputValue(newValue);
       }
       setShowAppMention(false);
@@ -275,6 +288,24 @@ export default function Chat() {
     // Don't allow input changes when loading
     if (isLoading) return;
 
+    // Update app mentions positions if text length changed
+    if (value.length < inputValue.length) {
+      // Text was deleted, update mention positions
+      const diff = inputValue.length - value.length;
+      setAppMentions((prev) =>
+        prev
+          .map((mention) => ({
+            ...mention,
+            start:
+              mention.start > value.length
+                ? mention.start - diff
+                : mention.start,
+            end: mention.end > value.length ? mention.end - diff : mention.end,
+          }))
+          .filter((mention) => mention.start < value.length),
+      );
+    }
+
     setInputValue(value);
     setSelectedIndex(0); // Reset selection when input changes
 
@@ -285,11 +316,34 @@ export default function Chat() {
       setMentionQuery(query);
       setShowAppMention(true);
 
-      // Get input position for dropdown placement
+      // Get cursor position for dropdown placement
       if (inputRef.current) {
-        const rect = inputRef.current.getBoundingClientRect();
+        const input = inputRef.current;
+        const rect = input.getBoundingClientRect();
+
+        // Create a temporary span to measure text width up to cursor
+        const span = document.createElement("span");
+        span.style.visibility = "hidden";
+        span.style.position = "absolute";
+        span.style.whiteSpace = "pre";
+        span.style.font = window.getComputedStyle(input).font;
+        span.style.fontSize = window.getComputedStyle(input).fontSize;
+        span.style.fontFamily = window.getComputedStyle(input).fontFamily;
+
+        // Get text up to the @ symbol
+        const textBeforeAt = value.substring(0, value.lastIndexOf("@"));
+        span.textContent = textBeforeAt;
+
+        document.body.appendChild(span);
+        const textWidth = span.getBoundingClientRect().width;
+        document.body.removeChild(span);
+
+        // Position dropdown to the right of the @ symbol
+        const inputPadding =
+          parseInt(window.getComputedStyle(input).paddingLeft) || 0;
+
         setMentionPosition({
-          x: rect.left,
+          x: rect.left + inputPadding + textWidth + 16, // Add some offset after @
           y: rect.bottom + 4,
         });
       }
@@ -462,6 +516,7 @@ export default function Chat() {
       setInputValue("");
       setResults([]);
       setShowContent(true);
+      setAppMentions([]); // Clear mentions tracking
 
       console.log("📤 About to call sendMessage with:", message);
       sendMessage(message);
@@ -516,6 +571,29 @@ export default function Chat() {
             (prev) => (prev - 1 + results.length) % results.length,
           );
         }
+      } else if (e.key === "Backspace") {
+        // Handle deletion of app mentions as whole tokens
+        const cursorPosition =
+          (e.target as HTMLInputElement).selectionStart || 0;
+
+        // Check if cursor is at the end of an app mention
+        for (const mention of appMentions) {
+          if (
+            cursorPosition === mention.end ||
+            cursorPosition === mention.end + 1
+          ) {
+            // Cursor is right after an app mention, delete the whole mention
+            e.preventDefault();
+            const newValue =
+              inputValue.slice(0, mention.start) +
+              inputValue.slice(mention.end);
+
+            // Remove this mention from tracking
+            setAppMentions((prev) => prev.filter((m) => m !== mention));
+            setInputValue(newValue);
+            return;
+          }
+        }
       } else if (e.key === "Escape") {
         if (showAppMention) {
           // Close app mention dropdown first
@@ -544,6 +622,7 @@ export default function Chat() {
       handleAIChatSubmit,
       showContent,
       showAppMention,
+      appMentions,
     ],
   );
 
