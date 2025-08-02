@@ -3,9 +3,76 @@
 // Supports both AI chat mode and command mode with "/" prefix
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { cn } from "@/renderer/libs/utils/tailwind";
-import React, { forwardRef } from "react";
+import { iconCache } from "@/renderer/libs/utils/icon-cache";
+import React, { forwardRef, useState, useEffect } from "react";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { X } from "lucide-react";
+
+// Small app icon component for the bottom-left indicator
+function AppIcon({ appName }: { appName: string }) {
+  const [iconPath, setIconPath] = useState<string | null>(() => {
+    if (iconCache.has(appName)) {
+      const cached = iconCache.get(appName);
+      return cached !== undefined ? cached : null;
+    }
+    return null;
+  });
+  const [isLoadingIcon, setIsLoadingIcon] = useState(() => {
+    return !iconCache.has(appName);
+  });
+
+  useEffect(() => {
+    if (iconCache.has(appName)) {
+      const cached = iconCache.get(appName);
+      setIconPath(cached !== undefined ? cached : null);
+      setIsLoadingIcon(false);
+      return;
+    }
+
+    const loadIcon = async () => {
+      if (!window.activeAppAPI) return;
+
+      setIsLoadingIcon(true);
+      try {
+        const icon = await window.activeAppAPI.getAppIcon(appName);
+        setIconPath(icon);
+        iconCache.set(appName, icon);
+      } catch (error) {
+        console.error(`Failed to load icon for ${appName}:`, error);
+        setIconPath(null);
+        iconCache.set(appName, null);
+      } finally {
+        setIsLoadingIcon(false);
+      }
+    };
+
+    loadIcon();
+  }, [appName]);
+
+  if (isLoadingIcon) {
+    return (
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+    );
+  }
+
+  if (iconPath) {
+    return (
+      <img
+        src={iconPath.startsWith("data:") ? iconPath : `file://${iconPath}`}
+        alt={`${appName} icon`}
+        className="w-4 h-4 rounded-sm object-cover"
+        onError={() => {
+          setIconPath(null);
+          iconCache.set(appName, null);
+        }}
+        loading="lazy"
+      />
+    );
+  }
+
+  // Fallback to green dot
+  return <div className="w-2 h-2 rounded-full bg-green-500/80" />;
+}
 
 interface CommandInputProps {
   value: string;
@@ -139,7 +206,7 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
           <div className="pl-2">
             {previousApp && (
               <div className="inline-flex items-center gap-1.5 rounded text-xs font-medium text-foreground/60">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
+                <AppIcon appName={previousApp} />
                 <span>{formatAppName(previousApp)}</span>
               </div>
             )}

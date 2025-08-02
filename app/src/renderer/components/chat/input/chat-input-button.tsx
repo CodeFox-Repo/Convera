@@ -112,7 +112,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       // Resize and center window for chat page (smaller, focused)
       try {
         const chatSize = await window.electronAPI.getCurrentWindowSize(
-          WINDOW_SIZE_PRESETS.CHAT_PAGE,
+          WINDOW_SIZE_PRESETS.CHAT,
         );
         // Resize and center in one smooth operation
         window.electronAPI.resizeAndCenterWindow(
