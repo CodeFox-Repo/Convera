@@ -6,7 +6,6 @@ import { Link } from "@tanstack/react-router";
 import { DollarSign, Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { siDiscord } from "simple-icons";
-import AppsSupportSection from "./apps_support_section";
 import CommunityCard from "./community_card";
 import DemoVideoSection from "./DemoVideoSection";
 import FeaturesShowcaseCard from "./FeaturesShowcaseCard";
@@ -191,8 +190,6 @@ const Index = () => {
           <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
             <HeroImage />
           </div>
-
-          <AppsSupportSection isVisible={isVisible.hero} />
         </div>
       </section>
 
