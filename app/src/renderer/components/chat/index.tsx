@@ -70,7 +70,7 @@ export default function Chat() {
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
     // direct command means display immeadiately under specific situation
-    type?: "app-shortcut" | "mcp" | "input-changed-command";
+    type?: "chat-shortcut-command" | "mcp" | "input-changed-command";
     category?: appType[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute?: (input?: string) => Promise<any>;
@@ -119,7 +119,7 @@ export default function Chat() {
       name: "Summary",
       description: "Summarize Current Page",
       icon: <NotebookPen />,
-      type: "app-shortcut",
+      type: "chat-shortcut-command",
       category: [appType["web-browser"]],
       execute: async (input?: string) => {
         console.log("called summarize command", input);
