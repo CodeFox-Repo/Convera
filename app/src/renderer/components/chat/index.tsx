@@ -168,31 +168,20 @@ export default function Chat() {
     },
   ];
 
-  // 新增：当 previousApp 更新时设置 commandResult
   useEffect(() => {
     if (previousApp) {
-      // 查找匹配当前应用的 category
       const matchedCategories = presetCategories.filter((category) => {
-        // 如果是通用类别（apps包含"*"），总是包含
         if (category.apps.includes("*")) {
           return true;
         }
-        // 检查当前应用是否在该类别的应用列表中
         return category.apps.some((app) =>
           app.toLowerCase().includes(previousApp.toLowerCase()),
         );
       });
-
-      // 收集所有匹配类别的命令，确保包含 common 类别
       const availableCommands: CommandResult[] = [];
-
-      // 首先添加 common 类别的命令（无论如何都包括）
-
-      // 然后添加其他匹配类别的命令（避免重复）
       matchedCategories.forEach((category) => {
         if (category.name !== appType.common) {
           category.commands.forEach((command) => {
-            // 避免重复添加命令
             if (
               !availableCommands.find((existing) => existing.id === command.id)
             ) {
@@ -208,16 +197,8 @@ export default function Chat() {
       if (commonCategory) {
         availableCommands.push(...commonCategory.commands);
       }
-      // 设置可用的命令到 results 中
       setFilteredCommands(availableCommands);
-
-      console.log(`📱 App changed to: ${previousApp}`);
-      console.log(
-        `🎯 Available commands:`,
-        availableCommands.map((cmd) => cmd.name),
-      );
     } else {
-      // 如果没有 previousApp，只显示 common 类别的命令
       const commonCategory = presetCategories.find(
         (cat) => cat.name === appType.common,
       );
@@ -447,8 +428,6 @@ export default function Chat() {
             icon: "Settings", // Lucide gear icon
           }));
 
-          console.log("Filtered commands:", filteredCommands);
-          // Combine preset commands with MCP commands
           allCommands = [...filteredCommands, ...mcpCommands];
         } else {
           // If MCP fails, just use preset commands
@@ -467,7 +446,6 @@ export default function Chat() {
           cmd.id.toLowerCase().includes(command.toLowerCase()),
       );
 
-      console.log("Filtered commands:", filtered);
       setResults(filtered);
     },
     [filteredCommands],
@@ -476,8 +454,6 @@ export default function Chat() {
   // Handle command execution
   const handleCommandExecute = useCallback(
     async (command: CommandResult) => {
-      console.log("Executing command:", command);
-
       // Check if this is an input-changed-command
       if (command.type === "input-changed-command") {
         // Enter input change command mode
