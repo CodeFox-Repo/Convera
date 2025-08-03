@@ -52,6 +52,17 @@ export default function Chat() {
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
 
+  enum appType {
+    common = "common",
+    "web-browser" = "web-browser",
+  }
+
+  interface appCategory {
+    name: appType;
+    apps: string[];
+    commands: CommandResult[];
+  }
+
   interface CommandResult {
     id: string;
     name: string;
@@ -60,6 +71,7 @@ export default function Chat() {
     // default is mcp, input-changed-command means the command is triggered by input change
     // direct command means display immeadiately under specific situation
     type?: "app-shortcut" | "mcp" | "input-changed-command";
+    category?: appType[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute?: (input?: string) => Promise<any>;
   }
@@ -71,6 +83,7 @@ export default function Chat() {
       description: "Translate text between languages",
       icon: <LanguagesIcon />,
       type: "input-changed-command",
+      category: [appType.common],
       execute: async (input?: string) => {
         console.log("called translate command", input);
         if (!input || !input.trim()) {
@@ -107,6 +120,7 @@ export default function Chat() {
       description: "Summarize Current Page",
       icon: <NotebookPen />,
       type: "app-shortcut",
+      category: [appType["web-browser"]],
       execute: async (input?: string) => {
         console.log("called summarize command", input);
 
@@ -134,6 +148,85 @@ export default function Chat() {
     ...directCommands,
     ...inputNeededCommands,
   ];
+
+  const [filteredCommands, setFilteredCommands] = useState<CommandResult[]>([]);
+
+  const presetCategories: appCategory[] = [
+    {
+      name: appType.common,
+      apps: ["*"],
+      commands: presetCommands.filter((command) =>
+        command.category?.includes(appType.common),
+      ),
+    },
+    {
+      name: appType["web-browser"],
+      apps: ["Microsoft Edge", "Google Chrome", "Firefox"],
+      commands: presetCommands.filter((command) =>
+        command.category?.includes(appType["web-browser"]),
+      ),
+    },
+  ];
+
+  // 新增：当 previousApp 更新时设置 commandResult
+  useEffect(() => {
+    if (previousApp) {
+      // 查找匹配当前应用的 category
+      const matchedCategories = presetCategories.filter((category) => {
+        // 如果是通用类别（apps包含"*"），总是包含
+        if (category.apps.includes("*")) {
+          return true;
+        }
+        // 检查当前应用是否在该类别的应用列表中
+        return category.apps.some((app) =>
+          app.toLowerCase().includes(previousApp.toLowerCase()),
+        );
+      });
+
+      // 收集所有匹配类别的命令，确保包含 common 类别
+      const availableCommands: CommandResult[] = [];
+
+      // 首先添加 common 类别的命令（无论如何都包括）
+
+      // 然后添加其他匹配类别的命令（避免重复）
+      matchedCategories.forEach((category) => {
+        if (category.name !== appType.common) {
+          category.commands.forEach((command) => {
+            // 避免重复添加命令
+            if (
+              !availableCommands.find((existing) => existing.id === command.id)
+            ) {
+              availableCommands.push(command);
+            }
+          });
+        }
+      });
+
+      const commonCategory = presetCategories.find(
+        (cat) => cat.name === appType.common,
+      );
+      if (commonCategory) {
+        availableCommands.push(...commonCategory.commands);
+      }
+      // 设置可用的命令到 results 中
+      setFilteredCommands(availableCommands);
+
+      console.log(`📱 App changed to: ${previousApp}`);
+      console.log(
+        `🎯 Available commands:`,
+        availableCommands.map((cmd) => cmd.name),
+      );
+    } else {
+      // 如果没有 previousApp，只显示 common 类别的命令
+      const commonCategory = presetCategories.find(
+        (cat) => cat.name === appType.common,
+      );
+      if (commonCategory) {
+        setFilteredCommands(commonCategory.commands);
+      }
+    }
+  }, [previousApp]);
+
   /**
    * Calculate dynamic height for selected content based on text length and wrapping
    *
@@ -334,46 +427,51 @@ export default function Chat() {
   };
 
   // Handle command search
-  const handleCommandSearch = useCallback(async (query: string) => {
-    const command = query.startsWith("/") ? query.slice(1) : query; // Remove the '/' prefix
+  const handleCommandSearch = useCallback(
+    async (query: string) => {
+      const command = query.startsWith("/") ? query.slice(1) : query; // Remove the '/' prefix
 
-    // Start with preset commands
-    let allCommands: CommandResult[] = [];
+      // Start with preset commands
+      let allCommands: CommandResult[] = [];
 
-    try {
-      // Get MCP tools that don't require input parameters
-      const response = await window.mcpAPI.getAllNonInputParamTool();
+      try {
+        // Get MCP tools that don't require input parameters
+        const response = await window.mcpAPI.getAllNonInputParamTool();
 
-      if (response.success && response.data) {
-        // Convert MCP tools to command format
-        const mcpCommands = response.data.map((tool) => ({
-          id: tool.name,
-          name: tool.description || tool.name, // Main title shows description
-          description: tool.name, // Subtitle shows tool name
-          icon: "Settings", // Lucide gear icon
-        }));
+        if (response.success && response.data) {
+          // Convert MCP tools to command format
+          const mcpCommands = response.data.map((tool) => ({
+            id: tool.name,
+            name: tool.description || tool.name, // Main title shows description
+            description: tool.name, // Subtitle shows tool name
+            icon: "Settings", // Lucide gear icon
+          }));
 
-        // Combine preset commands with MCP commands
-        allCommands = [...presetCommands, ...mcpCommands];
-      } else {
+          console.log("Filtered commands:", filteredCommands);
+          // Combine preset commands with MCP commands
+          allCommands = [...filteredCommands, ...mcpCommands];
+        } else {
+          // If MCP fails, just use preset commands
+          console.warn("Failed to fetch MCP tools:", response.error);
+        }
+      } catch (error) {
+        console.error("Error fetching MCP tools:", error);
         // If MCP fails, just use preset commands
-        console.warn("Failed to fetch MCP tools:", response.error);
       }
-    } catch (error) {
-      console.error("Error fetching MCP tools:", error);
-      // If MCP fails, just use preset commands
-    }
 
-    // Filter all commands based on search query
-    const filtered = allCommands.filter(
-      (cmd) =>
-        cmd.name.toLowerCase().includes(command.toLowerCase()) ||
-        cmd.description.toLowerCase().includes(command.toLowerCase()) ||
-        cmd.id.toLowerCase().includes(command.toLowerCase()),
-    );
+      // Filter all commands based on search query
+      const filtered = allCommands.filter(
+        (cmd) =>
+          cmd.name.toLowerCase().includes(command.toLowerCase()) ||
+          cmd.description.toLowerCase().includes(command.toLowerCase()) ||
+          cmd.id.toLowerCase().includes(command.toLowerCase()),
+      );
 
-    setResults(filtered);
-  }, []);
+      console.log("Filtered commands:", filtered);
+      setResults(filtered);
+    },
+    [filteredCommands],
+  );
 
   // Handle command execution
   const handleCommandExecute = useCallback(
