@@ -125,7 +125,7 @@ const MessageContentRenderer = memo(
           const cleanTagName = tagName.replace(/cdfx/gi, "").trim();
           const tagNameOnly = tagName.split(" ")[0];
           const fullTagPattern = new RegExp(
-            `<${tagNameOnly}[^>]*>([\\s\\S]*?)<\/${tagNameOnly}>`,
+            `<${tagNameOnly}[^>]*>([\\s\\S]*?)</${tagNameOnly}>`,
             "i",
           );
           const fullMatch = text.match(fullTagPattern);
