@@ -193,8 +193,9 @@ const MessageContentRenderer = memo(
 
     // Fallback to rendering content as text with CdFx processing
     if (message.content) {
-      const { hasCommand, commandContent, commandName, remainingContent } =
-        processCdFxContent(message.content);
+      const { hasCommand, commandName, remainingContent } = processCdFxContent(
+        message.content,
+      );
 
       return (
         <div>
@@ -204,9 +205,6 @@ const MessageContentRenderer = memo(
               <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm mb-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                 Executing command: {commandName}
-              </div>
-              <div className="text-sm text-blue-600 dark:text-blue-400 font-mono bg-blue-100 dark:bg-blue-900/50 p-2 rounded border">
-                {commandContent}
               </div>
             </div>
           )}
