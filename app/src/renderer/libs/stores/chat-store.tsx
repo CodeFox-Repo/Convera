@@ -122,7 +122,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const { previousApp, openedApps, previousAppContent } = usePreviousApp();
+  const {
+    previousAppRef,
+    openedApps,
+    previousAppContentRef,
+    contentUpdatedRef,
+  } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -682,7 +687,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           //   currentSettings.openai.endpoint.trim() !== "";
 
           // Determine which API to use - FORCE remote server only
-          const shouldUseRemoteServer = isUserLoggedIn;
+          const shouldUseRemoteServer = true;
           // const shouldUseCustomApi =
           //   !shouldUseRemoteServer && hasValidCustomApi;
           const customApiSettings = undefined; // Always undefined - no local API
@@ -695,6 +700,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             alert("Please log in to use the chat.");
             return;
           }
+
+          const waitForContentUpdate = (timeout = 5000) => {
+            return new Promise<void>((resolve, reject) => {
+              const startTime = Date.now();
+
+              const checkContent = () => {
+                if (
+                  contentUpdatedRef.current &&
+                  previousAppContentRef.current?.appName ===
+                    previousAppRef.current
+                ) {
+                  resolve();
+                } else if (Date.now() - startTime > timeout) {
+                  reject(new Error("Timeout waiting for content update"));
+                } else {
+                  setTimeout(checkContent, 100);
+                }
+              };
+
+              checkContent();
+            });
+          };
+
+          try {
+            await waitForContentUpdate();
+          } catch (error) {
+            console.warn("Failed to wait for content update:", error);
+          }
           const requestBody = {
             agent: selectedAgent || undefined,
             // modelId: // Let backend use default model
@@ -706,13 +739,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             mcpServers,
             environment: {
               app: {
-                activeApp: previousApp,
+                activeApp: previousAppRef.current,
                 openedApps: openedApps,
-                activeAppContent: "current app context: " + previousAppContent,
+                activeAppContent:
+                  "current app context: " +
+                  previousAppContentRef.current?.content +
+                  (previousAppContentRef.current?.currentURL
+                    ? `, current URL: ${previousAppContentRef.current?.currentURL}`
+                    : ""),
               },
             },
           };
-          console.log("🔧 Frontend: Sending request with body:", requestBody);
 
           // Send message with all custom fields
           chatAPI.append(message, {
@@ -740,7 +777,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedAgent,
       isUserLoggedIn,
       useRemoteStore,
-      previousApp,
+      previousAppRef,
       openedApps,
     ],
   );

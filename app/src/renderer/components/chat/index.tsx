@@ -59,7 +59,7 @@ export default function Chat() {
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
     // direct command means display immeadiately under specific situation
-    type?: "direct-command" | "mcp" | "input-changed-command";
+    type?: "app-shortcut" | "mcp" | "input-changed-command";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute?: (input?: string) => Promise<any>;
   }
@@ -104,23 +104,20 @@ export default function Chat() {
     {
       id: "Summary",
       name: "Summary",
-      description: "Summarize text",
+      description: "Summarize Current Page",
       icon: <NotebookPen />,
-      type: "direct-command",
+      type: "app-shortcut",
       execute: async (input?: string) => {
         console.log("called summarize command", input);
 
         try {
-          // 构建总结提示词
-          const summaryPrompt = `You are my summarization assistant. 
-      Please base your summary solely on the "current app context" in your context; do not perform external fetches or searches at first, and extract key points directly from the available information. 
-      Your output must follow Markdown format and include: 
-  
-      Page Overview: One sentence describing the page's topic. 
-  
-      Core Points: A list of the 3–5 most important pieces of information. 
-  
-      Next Steps (optional): 1–2 action or reflection suggestions.`;
+          const summaryPrompt = `<CdFxSummary>I need you to help me summarize the current page content. 
+          Please base your summary solely on the "current app context" available in your context - don't perform external searches or fetches, just extract key points directly from the information you have.
+
+          Please format your response in Markdown with:
+          - **Page Overview**: One sentence describing what this page is about
+          - **Core Points**: List the 3-5 most important pieces of information  
+          - **Next Steps** (optional): 1-2 suggestions for actions or further consideration</CdFxSummary>`;
 
           setSelectedContent(null);
           sendMessage(summaryPrompt);

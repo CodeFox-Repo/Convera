@@ -113,24 +113,108 @@ MessagePartRenderer.displayName = "MessagePartRenderer";
  */
 const MessageContentRenderer = memo(
   ({ message }: MessageContentRendererProps) => {
+    // Process CdFx content function
+    const processCdFxContent = (text: string) => {
+      // Look for XML start pattern
+      const xmlMatch = text.match(/<([^>\s]+)[^>]*>/);
+
+      if (xmlMatch) {
+        const tagName = xmlMatch[1];
+
+        if (tagName.toLowerCase().includes("cdfx")) {
+          const cleanTagName = tagName.replace(/cdfx/gi, "").trim();
+          const tagNameOnly = tagName.split(" ")[0];
+          const fullTagPattern = new RegExp(
+            `<${tagNameOnly}[^>]*>([\\s\\S]*?)<\/${tagNameOnly}>`,
+            "i",
+          );
+          const fullMatch = text.match(fullTagPattern);
+
+          if (fullMatch) {
+            const xmlContent = fullMatch[1].trim();
+            const remainingContent = text.replace(fullMatch[0], "").trim();
+            return {
+              hasCommand: true,
+              commandContent: xmlContent,
+              commandName: cleanTagName,
+              remainingContent: remainingContent,
+            };
+          }
+        }
+      }
+      return {
+        hasCommand: false,
+        commandContent: "",
+        commandName: "",
+        remainingContent: text,
+      };
+    };
+
     // If message has parts, render each part
     if (message.parts && message.parts.length > 0) {
       return (
         <div className="space-y-2">
-          {message.parts.map((part, index) => (
-            <MessagePartRenderer
-              key={`part-${index}`}
-              part={part as MessagePart}
-              index={index}
-            />
-          ))}
+          {message.parts.map((part, index) => {
+            // Process text parts for CdFx content
+            if (isTextPart(part)) {
+              const { hasCommand, commandName, remainingContent } =
+                processCdFxContent(part.text);
+
+              return (
+                <div key={`part-${index}`} className="my-2">
+                  {/* Show command execution if CdFx content exists */}
+                  {hasCommand && (
+                    <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        Executing command: {commandName}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Render remaining content */}
+                  {remainingContent && <Markdown>{remainingContent}</Markdown>}
+                </div>
+              );
+            }
+
+            // For non-text parts, use original renderer
+            return (
+              <MessagePartRenderer
+                key={`part-${index}`}
+                part={part as MessagePart}
+                index={index}
+              />
+            );
+          })}
         </div>
       );
     }
 
-    // Fallback to rendering content as text
+    // Fallback to rendering content as text with CdFx processing
     if (message.content) {
-      return <Markdown>{message.content}</Markdown>;
+      const { hasCommand, commandContent, commandName, remainingContent } =
+        processCdFxContent(message.content);
+
+      return (
+        <div>
+          {/* Show command execution if CdFx content exists */}
+          {hasCommand && (
+            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm mb-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                Executing command: {commandName}
+              </div>
+              <div className="text-sm text-blue-600 dark:text-blue-400 font-mono bg-blue-100 dark:bg-blue-900/50 p-2 rounded border">
+                {commandContent}
+              </div>
+            </div>
+          )}
+
+          {/* Render remaining content */}
+          {remainingContent && <Markdown>{remainingContent}</Markdown>}
+        </div>
+      );
     }
 
     return null;
@@ -196,7 +280,7 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
         {messages.length === 0 && !isLoading ? (
           <div className="py-6 text-center text-foreground/60">
             <div className="text-base mb-2">💬</div>
-            <div className="text-sm">No content yet</div>
+            <div className="text-sm">Loading content</div>
           </div>
         ) : messages.length > 0 || isLoading ? (
           <div className="space-y-6">
@@ -261,11 +345,6 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
                               currentConversationId &&
                               window.electronAPI?.toggleWindow
                             ) {
-                              console.log(
-                                "Continue in Chat button - switching with conversation:",
-                                currentConversationId,
-                              );
-
                               // Pass conversation ID to main window via localStorage
                               localStorage.setItem(
                                 "switchToConversation",

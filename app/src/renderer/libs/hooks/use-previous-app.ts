@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Hook to track the previously active application
@@ -13,7 +13,9 @@ export interface PreviousAppContent {
 }
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
-  const [previousAppContent, setPreviousAppContent] = useState<string>();
+  const previousAppRef = useRef<string>("");
+  const previousAppContentRef = useRef<PreviousAppContent>(undefined);
+  const contentUpdatedRef = useRef<boolean>(false);
   const [openedApps, setOpenedApps] = useState<string[]>([]);
 
   // Function to fetch the previous active application
@@ -26,6 +28,7 @@ export function usePreviousApp() {
         const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
         if (appName && !ignoreList.some((name) => appName.includes(name))) {
           setPreviousApp(appName);
+          previousAppRef.current = appName;
         }
       }
     } catch (error) {
@@ -45,15 +48,15 @@ export function usePreviousApp() {
 
   useEffect(() => {
     const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
+      contentUpdatedRef.current = false;
       const res = newContent as unknown as PreviousAppContent;
-      if (res.appName === previousApp) {
-        setPreviousAppContent(
-          res.content + (res.currentURL ?? "[currentURL]" + res.currentURL),
-        );
+      if (res.appName === previousAppRef.current) {
+        previousAppContentRef.current = res;
+        contentUpdatedRef.current = true;
       }
     });
     return unsubscribe;
-  }, [previousApp]);
+  }, []);
 
   useEffect(() => {
     fetchOpenedApps();
@@ -72,6 +75,7 @@ export function usePreviousApp() {
           const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
           if (!ignoreList.some((name) => appName.includes(name))) {
             setPreviousApp(appName);
+            previousAppRef.current = appName;
           }
         }
       });
@@ -87,19 +91,16 @@ export function usePreviousApp() {
     // Remove file extensions if present
     const nameWithoutExt = name.replace(/\.\w+$/, "");
 
-    // Limit to 12 characters
-    if (nameWithoutExt.length > 12) {
-      return nameWithoutExt.substring(0, 10) + "...";
-    }
-
     return nameWithoutExt;
   };
 
   return {
     previousApp,
+    previousAppRef,
     formatAppName,
     fetchPreviousApp,
-    previousAppContent,
+    previousAppContentRef,
+    contentUpdatedRef,
     openedApps,
   };
 }
