@@ -40,8 +40,8 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
       className={`space-y-12 transition-all delay-400 duration-1000 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
     >
       <div className="mb-8 text-center">
-        <h3 className="mb-4 text-2xl font-semibold">See Foxychat in Action</h3>
-        <p className="text-muted-foreground text-lg">
+        <h3 className="mb-4 text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">See Foxychat in Action</h3>
+        <p className="text-orange-200/90 text-lg">
           Watch how Foxychat transforms your daily workflows
         </p>
       </div>
@@ -54,7 +54,11 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
               key={key}
               variant={activeCategory === key ? "secondary" : "outline"}
               onClick={() => setActiveCategory(key)}
-              className="text-sm"
+              className={`text-sm transition-all duration-200 ${
+                activeCategory === key
+                  ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500/70 shadow-lg shadow-orange-500/20"
+                  : "border-orange-700/40 bg-black/20 text-orange-200 hover:bg-gradient-to-r hover:from-orange-600/20 hover:to-amber-600/20 hover:border-orange-500/60 hover:text-orange-100"
+              }`}
             >
               {category.label}
             </Button>
