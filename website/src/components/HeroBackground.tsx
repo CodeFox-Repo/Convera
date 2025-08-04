@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface HeroBackgroundProps {
   className?: string;
@@ -7,77 +7,86 @@ interface HeroBackgroundProps {
 const HeroBackground: React.FC<HeroBackgroundProps> = ({ className = "" }) => {
   return (
     <>
-      {/* Enhanced background with gradient and patterns */}
-      <div className={`absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 ${className}`}></div>
+      {/* Dark matrix-style gradient */}
+      <div
+        className={`absolute inset-0 bg-gradient-to-br from-zinc-950 via-neutral-900 to-stone-950 ${className}`}
+      ></div>
 
-      {/* Geometric background pattern */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 left-0 h-full w-full bg-[radial-gradient(circle_at_25%_25%,rgba(59,130,246,0.1)_0%,transparent_50%),radial-gradient(circle_at_75%_75%,rgba(147,51,234,0.1)_0%,transparent_50%)]"></div>
+      {/* Warm accent gradients */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-orange-950/30 via-transparent to-red-950/20"></div>
+      <div className="absolute inset-0 bg-gradient-to-bl from-amber-950/20 via-transparent to-yellow-950/15"></div>
+
+      {/* Geometric light beams */}
+      <div className="absolute inset-0 opacity-40">
+        <div className="absolute top-0 left-0 h-full w-full bg-[conic-gradient(from_45deg_at_25%_25%,rgba(251,146,60,0.1)_0deg,transparent_90deg),conic-gradient(from_225deg_at_75%_75%,rgba(239,68,68,0.1)_0deg,transparent_90deg)]"></div>
       </div>
 
       {/* Floating geometric shapes */}
       <div
-        className="animate-float absolute top-10 left-10 h-20 w-20 rounded-lg bg-blue-200/30 blur-sm"
-        style={{ animationDelay: "0s" }}
+        className="absolute top-20 left-20 h-8 w-8 rotate-45 animate-bounce bg-gradient-to-br from-orange-500/30 to-red-500/30 shadow-[0_0_20px_rgba(251,146,60,0.4)]"
+        style={{ animationDelay: "0s", animationDuration: "3s" }}
       ></div>
       <div
-        className="animate-float absolute top-32 right-20 h-16 w-16 rounded-full bg-purple-200/30 blur-sm"
-        style={{ animationDelay: "1s" }}
+        className="absolute top-32 right-32 h-6 w-6 rotate-12 animate-bounce bg-gradient-to-br from-amber-500/30 to-orange-500/30 shadow-[0_0_15px_rgba(245,158,11,0.4)]"
+        style={{ animationDelay: "1s", animationDuration: "4s" }}
       ></div>
       <div
-        className="animate-float absolute bottom-40 left-20 h-12 w-12 rounded-lg bg-indigo-200/30 blur-sm"
-        style={{ animationDelay: "2s" }}
+        className="absolute bottom-40 left-40 h-10 w-10 rotate-[30deg] animate-bounce bg-gradient-to-br from-red-500/30 to-pink-500/30 shadow-[0_0_25px_rgba(239,68,68,0.4)]"
+        style={{ animationDelay: "2s", animationDuration: "3.5s" }}
       ></div>
       <div
-        className="animate-float absolute right-32 bottom-20 h-24 w-24 rounded-full bg-pink-200/30 blur-sm"
-        style={{ animationDelay: "0.5s" }}
+        className="absolute right-24 bottom-32 h-7 w-7 rotate-[60deg] animate-bounce bg-gradient-to-br from-yellow-500/30 to-amber-500/30 shadow-[0_0_18px_rgba(234,179,8,0.4)]"
+        style={{ animationDelay: "0.5s", animationDuration: "4.5s" }}
       ></div>
 
-      {/* Rotating elements */}
+      {/* Sliding diagonal lines */}
       <div
-        className="animate-rotate absolute top-1/4 left-1/4 h-32 w-32 rounded-full border border-blue-200/40"
-        style={{ animationDuration: "25s" }}
+        className="absolute top-1/4 left-0 h-px w-full -rotate-12 transform animate-pulse bg-gradient-to-r from-transparent via-orange-500/40 to-transparent"
+        style={{ animationDuration: "3s" }}
       ></div>
       <div
-        className="animate-rotate absolute right-1/4 bottom-1/3 h-40 w-40 rounded-lg border border-purple-200/40"
-        style={{ animationDuration: "30s" }}
-      ></div>
-
-      {/* Enhanced animated blobs */}
-      <div className="animate-pulse-slow absolute top-1/4 left-1/4 h-32 w-32 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-xl"></div>
-      <div
-        className="animate-pulse-slow absolute right-1/4 bottom-1/3 h-48 w-48 rounded-full bg-gradient-to-r from-purple-400/20 to-pink-400/20 blur-2xl"
-        style={{ animationDelay: "2s" }}
+        className="absolute top-1/2 left-0 h-px w-full rotate-6 transform animate-pulse bg-gradient-to-r from-transparent via-red-500/30 to-transparent"
+        style={{ animationDelay: "1s", animationDuration: "4s" }}
       ></div>
       <div
-        className="animate-pulse-slow absolute top-1/2 left-1/6 h-24 w-24 rounded-full bg-gradient-to-r from-indigo-400/15 to-blue-400/15 blur-lg"
-        style={{ animationDelay: "1s" }}
+        className="absolute top-3/4 left-0 h-px w-full -rotate-3 transform animate-pulse bg-gradient-to-r from-transparent via-amber-500/35 to-transparent"
+        style={{ animationDelay: "2s", animationDuration: "3.5s" }}
       ></div>
 
-      {/* Particle-like dots */}
+      {/* Morphing blobs */}
+      <div className="absolute top-1/3 left-1/4 h-48 w-48 animate-pulse rounded-[40%_60%_70%_30%] bg-gradient-to-r from-orange-600/15 to-red-600/15 blur-2xl"></div>
       <div
-        className="animate-float absolute top-20 left-1/3 h-2 w-2 rounded-full bg-blue-400/60"
-        style={{ animationDelay: "0.5s" }}
+        className="absolute right-1/3 bottom-1/4 h-64 w-64 animate-pulse rounded-[60%_40%_30%_70%] bg-gradient-to-r from-amber-600/12 to-yellow-600/12 blur-3xl"
+        style={{ animationDelay: "1.5s", animationDuration: "5s" }}
       ></div>
       <div
-        className="animate-float absolute top-40 right-1/3 h-1 w-1 rounded-full bg-purple-400/60"
-        style={{ animationDelay: "1.5s" }}
-      ></div>
-      <div
-        className="animate-float absolute bottom-32 left-1/2 h-3 w-3 rounded-full bg-indigo-400/60"
-        style={{ animationDelay: "2.5s" }}
-      ></div>
-      <div
-        className="animate-float absolute right-1/5 bottom-60 h-2 w-2 rounded-full bg-pink-400/60"
-        style={{ animationDelay: "3s" }}
-      ></div>
-      <div
-        className="animate-float absolute top-60 left-1/5 h-1 w-1 rounded-full bg-blue-500/60"
-        style={{ animationDelay: "1.2s" }}
+        className="absolute top-1/2 left-1/6 h-32 w-32 animate-pulse rounded-[30%_70%_40%_60%] bg-gradient-to-r from-red-600/10 to-pink-600/10 blur-xl"
+        style={{ animationDelay: "0.8s", animationDuration: "4s" }}
       ></div>
 
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+      {/* Glowing dots */}
+      <div
+        className="absolute top-16 left-1/3 h-2 w-2 animate-ping rounded-full bg-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.8)]"
+        style={{ animationDelay: "0s", animationDuration: "2s" }}
+      ></div>
+      <div
+        className="absolute top-56 right-1/4 h-3 w-3 animate-ping rounded-full bg-red-400 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
+        style={{ animationDelay: "1s", animationDuration: "2.5s" }}
+      ></div>
+      <div
+        className="absolute bottom-24 left-1/2 h-1 w-1 animate-ping rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]"
+        style={{ animationDelay: "2s", animationDuration: "3s" }}
+      ></div>
+      <div
+        className="absolute right-1/3 bottom-48 h-2 w-2 animate-ping rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.8)]"
+        style={{ animationDelay: "0.7s", animationDuration: "2.2s" }}
+      ></div>
+
+      {/* Circuit-like pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(251,146,60,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(251,146,60,0.3)_1px,transparent_1px)] bg-[size:40px_40px] opacity-[0.04]"></div>
+
+      {/* Subtle scanlines */}
+      <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(251,146,60,0.1)_2px,rgba(251,146,60,0.1)_4px)] opacity-[0.02]"></div>
     </>
   );
 };
