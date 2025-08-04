@@ -55,18 +55,18 @@ const Footer = () => {
   };
 
   return (
-    <footer className="border-t py-12 bg-white">
+    <footer className="border-t border-orange-800/30 py-12 bg-black/95">
       <div className="container mx-auto max-w-6xl px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {footerSections.map((section) => (
             <div key={section.title}>
-              <h3 className="font-semibold mb-4">{section.title}</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-4 text-orange-200">{section.title}</h3>
+              <ul className="space-y-2 text-sm text-orange-300/70">
                 {section.links.map((link) => (
                   <li key={link.name}>
                     <button
                       onClick={() => handleLinkClick(link)}
-                      className="hover:text-orange-500 transition-colors text-left"
+                      className="hover:text-orange-400 transition-colors text-left hover:scale-105 transform duration-200"
                     >
                       {link.name}
                     </button>
@@ -76,8 +76,8 @@ const Footer = () => {
             </div>
           ))}
         </div>
-        <Separator className="mb-6" />
-        <div className="text-center text-sm text-muted-foreground">
+        <Separator className="mb-6 bg-orange-800/30" />
+        <div className="text-center text-sm text-orange-300/60">
           <p>&copy; 2025 Foxychat. All rights reserved. Built with ❤️ for productivity enthusiasts.</p>
         </div>
       </div>
@@ -85,4 +85,4 @@ const Footer = () => {
   );
 };
 
-export default Footer; 
+export default Footer;

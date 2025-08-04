@@ -24,10 +24,14 @@ export function UserButton() {
       <Button
         variant="outline"
         size="sm"
-        className="border-gray-200 text-gray-600 transition-all duration-300 hover:bg-gray-50 hover:text-gray-800"
+        className="border-orange-800/40 bg-black/20 text-orange-400/80 transition-all duration-300 hover:border-orange-500/80 hover:bg-gradient-to-r hover:from-orange-900/80 hover:to-red-900/80 hover:text-orange-100 hover:shadow-lg hover:shadow-orange-900/40"
         asChild
       >
-        <Link to="/auth/$pathname" params={{ pathname: "sign-in" }}>
+        <Link
+          to="/auth/$pathname"
+          params={{ pathname: "sign-in" }}
+          search={{ redirect: undefined }}
+        >
           <LogIn className="mr-2 h-4 w-4" />
           Sign In
         </Link>
@@ -49,7 +53,7 @@ export function UserButton() {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
-            <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-semibold text-white">
+            <AvatarFallback className="bg-black/30 text-orange-400/80 shadow-lg shadow-orange-900/40">
               {userInitials}
             </AvatarFallback>
           </Avatar>

@@ -1,6 +1,6 @@
 import Footer from "@/components/Footer";
-import HeroImage from "@/components/HeroImage";
 import HeroBackground from "@/components/HeroBackground";
+import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
@@ -90,14 +90,16 @@ const Index = () => {
               className={`max-w-7xl space-y-8 text-center transition-all duration-1000 lg:space-y-10 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
             >
               <h1
-                className={`text-4xl leading-tight font-bold tracking-tight text-gray-800 sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+                className={`bg-gradient-to-r from-orange-200 via-amber-100 to-orange-300 bg-clip-text text-4xl leading-tight font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
               >
                 Your AI Desktop
                 <br />
-                Assistant
+                <span className="bg-gradient-to-r from-red-300 via-orange-200 to-amber-200 bg-clip-text text-transparent">
+                  Assistant
+                </span>
               </h1>
               <p
-                className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+                className={`mx-auto text-lg leading-relaxed font-medium text-orange-200/90 md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
                 AI assistant you can access anywhere, integrate with your workflows.
               </p>
@@ -106,7 +108,7 @@ const Index = () => {
               >
                 <Button
                   size="lg"
-                  className="transform bg-black px-10 py-4 text-lg font-semibold text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-gray-800"
+                  className="transform border border-orange-700/50 bg-black/30 px-10 py-4 text-lg font-semibold text-orange-200 shadow-xl shadow-orange-900/30 transition-all duration-300 hover:scale-105 hover:border-orange-500/70 hover:bg-gradient-to-r hover:from-orange-900/60 hover:to-red-900/60 hover:text-orange-100 hover:shadow-2xl hover:shadow-orange-900/50"
                   asChild
                 >
                   <Link to="/download">
@@ -134,12 +136,14 @@ const Index = () => {
         <HeroBackground />
         <div className="relative z-10 container mx-auto max-w-7xl px-4 md:px-6">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+            <h2 className="mb-6 bg-gradient-to-r from-orange-200 via-amber-100 to-orange-300 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl">
               Foxychat Always Ready
               <br />
-              Collaborate On you Computer
+              <span className="bg-gradient-to-r from-red-300 via-orange-200 to-amber-200 bg-clip-text text-transparent">
+                Collaborate On you Computer
+              </span>
             </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-center text-lg leading-relaxed md:text-xl">
+            <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-orange-200/90 md:text-xl">
               Foxychat simplifies your daily computer interactions with AI.
             </p>
           </div>
@@ -150,34 +154,45 @@ const Index = () => {
               description="Search for discussions, create folders, add tags, export data, and much more."
               imageUrl="/placeholder.svg"
             />
-            <div className="grid grid-rows-2 gap-8">
-              <FeaturesShowcaseCard
-                title="Smart App Detection"
-                description="Foxychat knows exactly what you are currently doing when you call it."
-                imageUrl="/images/current-app-detected.jpg"
-              />
-              <FeaturesShowcaseCard
-                title="Voice Input"
-                description="AI can listen to your words, and listen to your app."
-                imageUrl="/placeholder.svg"
-              />
-            </div>
+            <FeaturesShowcaseCard
+              title="Smart App Detection"
+              description="Foxychat knows exactly what you are currently doing when you call it."
+              imageUrl="/images/current-app-detected.jpg"
+            />
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+            <FeaturesShowcaseCard
+              title="Voice Input"
+              description="AI can listen to your words, and listen to your app."
+              imageUrl="/placeholder.svg"
+            />
+            <FeaturesShowcaseCard
+              title="Quick Tools Shortcut"
+              description="Quick access to your favorite tools and apps."
+              imageUrl="/placeholder.svg"
+            />
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+            <FeaturesShowcaseCard
+              title="App Market"
+              description="Find and install apps from the Foxychat App Market."
+              imageUrl="/placeholder.svg"
+            />
           </div>
         </div>
       </section>
 
       {/* Does a Lot More Than chat Section */}
-      <section
-        className="relative w-full overflow-hidden py-16 md:py-24"
-        data-section="features"
-      >
+      <section className="relative w-full overflow-hidden py-16 md:py-24" data-section="features">
         <HeroBackground />
 
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
           <div
             className={`mb-16 text-center transition-all duration-1000 ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
           >
-            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+            <h2 className="mb-6 bg-gradient-to-r from-orange-200 via-amber-100 to-orange-300 bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-4xl md:text-5xl">
               Does a Lot More Than Chat
             </h2>
 
@@ -193,10 +208,10 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
-            <h2 className="mb-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+            <h2 className="mb-6 bg-gradient-to-r from-orange-200 via-amber-100 to-orange-300 bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-4xl md:text-5xl">
               Join Foxychat Community
             </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-center text-lg leading-relaxed md:text-xl">
+            <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-orange-200/90 md:text-xl">
               Get started with Foxychat today and become part of our growing community
             </p>
           </div>
