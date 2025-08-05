@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Download, ExternalLink, FileText, Menu, Play, X } from "lucide-react";
 import React, { useState } from "react";
-import Logo from "./Logo";
+import LogoBrand from "./LogoBrand";
 import { UserButton } from "./user_button";
 
 const Navbar: React.FC = () => {
@@ -20,14 +20,13 @@ const Navbar: React.FC = () => {
           <div className="flex items-center gap-x-12">
             {/* Logo Section */}
             <div className="flex items-center">
-              <Link to="/" className="group flex items-center space-x-3">
-                <div className="transition-transform duration-300 group-hover:scale-105">
-                  <Logo />
-                </div>
-                <span className="bg-gradient-to-r from-orange-200 to-amber-100 bg-clip-text text-xl font-bold text-transparent transition-all duration-300">
-                  Foxychat
-                </span>
-              </Link>
+              <LogoBrand 
+                showStatus={true}
+                showVersion={true}
+                showCursor={true}
+                size="md"
+                linkable={true}
+              />
             </div>
 
             {/* Desktop Navigation */}

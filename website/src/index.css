@@ -1,39 +1,63 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
 @layer base {
   :root {
-    --background: rgb(255 255 255);
-    --foreground: rgb(46 46 46);
-    --card: rgb(255 255 255);
-    --card-foreground: rgb(46 46 46);
-    --popover: rgb(255 255 255);
-    --popover-foreground: rgb(46 46 46);
-    --primary: rgb(0 0 0);
-    --primary-foreground: rgb(255 255 255);
-    --secondary: rgb(245 245 240);
-    --secondary-foreground: rgb(64 64 64);
-    --muted: rgb(245 245 245);
-    --muted-foreground: rgb(128 128 128);
-    --accent: rgb(82 82 82);
-    --accent-foreground: rgb(255 255 255);
-    --destructive: rgb(220 38 38);
+    /* Orange/Black Theme Colors */
+    --background: rgb(0 0 0);
+    --foreground: rgb(255 255 255);
+    --card: rgb(10 10 10);
+    --card-foreground: rgb(255 255 255);
+    --popover: rgb(15 15 15);
+    --popover-foreground: rgb(255 255 255);
+    --primary: rgb(251 146 60);
+    --primary-foreground: rgb(0 0 0);
+    --secondary: rgb(30 30 30);
+    --secondary-foreground: rgb(255 255 255);
+    --muted: rgb(25 25 25);
+    --muted-foreground: rgb(156 163 175);
+    --accent: rgb(251 146 60);
+    --accent-foreground: rgb(0 0 0);
+    --destructive: rgb(239 68 68);
     --destructive-foreground: rgb(255 255 255);
-    --border: rgb(229 229 229);
-    --input: rgb(229 229 229);
-    --ring: rgb(0 0 0);
-    --chart-1: rgb(82 82 82);
-    --chart-2: rgb(107 107 107);
-    --chart-3: rgb(140 140 140);
-    --chart-4: rgb(163 163 163);
-    --chart-5: rgb(194 194 194);
-    --sidebar: rgb(248 248 248);
-    --sidebar-foreground: rgb(46 46 46);
-    --sidebar-primary: rgb(0 0 0);
-    --sidebar-primary-foreground: rgb(255 255 255);
-    --sidebar-accent: rgb(245 245 240);
-    --sidebar-accent-foreground: rgb(64 64 64);
-    --sidebar-border: rgb(229 229 229);
-    --sidebar-ring: rgb(0 0 0);
+    --border: rgb(64 64 64);
+    --input: rgb(40 40 40);
+    --ring: rgb(251 146 60);
+    --chart-1: rgb(251 146 60);
+    --chart-2: rgb(245 158 11);
+    --chart-3: rgb(249 115 22);
+    --chart-4: rgb(234 88 12);
+    --chart-5: rgb(194 65 12);
+    --sidebar: rgb(15 15 15);
+    --sidebar-foreground: rgb(255 255 255);
+    --sidebar-primary: rgb(251 146 60);
+    --sidebar-primary-foreground: rgb(0 0 0);
+    --sidebar-accent: rgb(30 30 30);
+    --sidebar-accent-foreground: rgb(255 255 255);
+    --sidebar-border: rgb(64 64 64);
+    --sidebar-ring: rgb(251 146 60);
+
+    /* Custom Orange Theme Variables */
+    --orange-primary: rgb(251 146 60);
+    --orange-secondary: rgb(245 158 11);
+    --orange-dark: rgb(194 65 12);
+    --orange-light: rgb(254 215 170);
+    --orange-muted: rgb(120 53 15);
+    
+    /* Text Colors */
+    --text-primary: rgb(255 255 255);
+    --text-secondary: rgb(209 213 219);
+    --text-muted: rgb(156 163 175);
+    --text-orange: rgb(251 146 60);
+    --text-orange-light: rgb(254 215 170);
+    
+    /* Background Colors */
+    --bg-primary: rgb(0 0 0);
+    --bg-secondary: rgb(15 15 15);
+    --bg-card: rgb(20 20 20);
+    --bg-hover: rgb(30 30 30);
+    --bg-orange-subtle: rgba(251 146 60 / 0.1);
+    --bg-orange-muted: rgba(251 146 60 / 0.2);
 
     --font-sans: Inter, sans-serif;
     --font-serif: Merriweather, serif;
@@ -52,38 +76,61 @@
   }
 
   .dark {
-    --background: rgb(16 18 22);
-    --foreground: rgb(244 244 245);
-    --card: rgb(24 27 33);
-    --card-foreground: rgb(244 244 245);
-    --popover: rgb(20 23 28);
-    --popover-foreground: rgb(244 244 245);
-    --primary: rgb(255 255 255);
+    /* Dark mode uses the same orange/black theme */
+    --background: rgb(0 0 0);
+    --foreground: rgb(255 255 255);
+    --card: rgb(10 10 10);
+    --card-foreground: rgb(255 255 255);
+    --popover: rgb(15 15 15);
+    --popover-foreground: rgb(255 255 255);
+    --primary: rgb(251 146 60);
     --primary-foreground: rgb(0 0 0);
-    --secondary: rgb(39 42 48);
-    --secondary-foreground: rgb(228 228 231);
-    --muted: rgb(39 42 48);
-    --muted-foreground: rgb(161 161 170);
-    --accent: rgb(163 163 163);
+    --secondary: rgb(30 30 30);
+    --secondary-foreground: rgb(255 255 255);
+    --muted: rgb(25 25 25);
+    --muted-foreground: rgb(156 163 175);
+    --accent: rgb(251 146 60);
     --accent-foreground: rgb(0 0 0);
     --destructive: rgb(239 68 68);
-    --destructive-foreground: rgb(244 244 245);
-    --border: rgb(52 56 65);
-    --input: rgb(52 56 65);
-    --ring: rgb(255 255 255);
-    --chart-1: rgb(194 194 194);
-    --chart-2: rgb(163 163 163);
-    --chart-3: rgb(140 140 140);
-    --chart-4: rgb(107 107 107);
-    --chart-5: rgb(82 82 82);
-    --sidebar: rgb(20 23 28);
-    --sidebar-foreground: rgb(244 244 245);
-    --sidebar-primary: rgb(255 255 255);
+    --destructive-foreground: rgb(255 255 255);
+    --border: rgb(64 64 64);
+    --input: rgb(40 40 40);
+    --ring: rgb(251 146 60);
+    --chart-1: rgb(251 146 60);
+    --chart-2: rgb(245 158 11);
+    --chart-3: rgb(249 115 22);
+    --chart-4: rgb(234 88 12);
+    --chart-5: rgb(194 65 12);
+    --sidebar: rgb(15 15 15);
+    --sidebar-foreground: rgb(255 255 255);
+    --sidebar-primary: rgb(251 146 60);
     --sidebar-primary-foreground: rgb(0 0 0);
-    --sidebar-accent: rgb(39 42 48);
-    --sidebar-accent-foreground: rgb(228 228 231);
-    --sidebar-border: rgb(52 56 65);
-    --sidebar-ring: rgb(255 255 255);
+    --sidebar-accent: rgb(30 30 30);
+    --sidebar-accent-foreground: rgb(255 255 255);
+    --sidebar-border: rgb(64 64 64);
+    --sidebar-ring: rgb(251 146 60);
+
+    /* Custom Orange Theme Variables - same as light mode */
+    --orange-primary: rgb(251 146 60);
+    --orange-secondary: rgb(245 158 11);
+    --orange-dark: rgb(194 65 12);
+    --orange-light: rgb(254 215 170);
+    --orange-muted: rgb(120 53 15);
+    
+    /* Text Colors */
+    --text-primary: rgb(255 255 255);
+    --text-secondary: rgb(209 213 219);
+    --text-muted: rgb(156 163 175);
+    --text-orange: rgb(251 146 60);
+    --text-orange-light: rgb(254 215 170);
+    
+    /* Background Colors */
+    --bg-primary: rgb(0 0 0);
+    --bg-secondary: rgb(15 15 15);
+    --bg-card: rgb(20 20 20);
+    --bg-hover: rgb(30 30 30);
+    --bg-orange-subtle: rgba(251 146 60 / 0.1);
+    --bg-orange-muted: rgba(251 146 60 / 0.2);
 
     --shadow-2xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
     --shadow-xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
@@ -108,6 +155,11 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Apply Orbitron font to all h1 headings for consistent sci-fi styling */
+  h1 {
+    font-family: 'Orbitron', monospace !important;
   }
 }
 
@@ -172,5 +224,97 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Custom Orange Theme Utilities */
+  .text-orange-primary {
+    color: var(--text-orange);
+  }
+
+  .text-orange-light {
+    color: var(--text-orange-light);
+  }
+
+  .text-primary {
+    color: var(--text-primary);
+  }
+
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .bg-orange-subtle {
+    background-color: var(--bg-orange-subtle);
+  }
+
+  .bg-orange-muted {
+    background-color: var(--bg-orange-muted);
+  }
+
+  .bg-card {
+    background-color: var(--bg-card);
+  }
+
+  .bg-hover {
+    background-color: var(--bg-hover);
+  }
+
+  .border-orange {
+    border-color: var(--orange-primary);
+  }
+
+  /* Gradient utilities */
+  .gradient-orange-text {
+    background: linear-gradient(to right, var(--text-orange-light), var(--text-orange), var(--orange-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gradient-orange-bg {
+    background: linear-gradient(to right, var(--orange-muted), var(--orange-primary));
+  }
+
+  /* Geek-style animations */
+  .terminal-cursor {
+    animation: terminal-blink 1s infinite;
+  }
+
+  .geek-glow {
+    animation: geek-glow 2s ease-in-out infinite;
+  }
+
+  .logo-glow {
+    animation: logo-pulse 3s ease-in-out infinite;
+  }
+
+  /* Additional keyframes for geek effects */
+  @keyframes terminal-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  @keyframes geek-glow {
+    0%, 100% { 
+      text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+      transform: scale(1);
+    }
+    50% { 
+      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes logo-pulse {
+    0%, 100% { 
+      box-shadow: 0 0 5px rgba(34,197,94,0.3), 0 0 10px rgba(34,197,94,0.2), 0 0 15px rgba(34,197,94,0.1);
+    }
+    50% { 
+      box-shadow: 0 0 10px rgba(34,197,94,0.5), 0 0 20px rgba(34,197,94,0.3), 0 0 30px rgba(34,197,94,0.2);
+    }
   }
 }
