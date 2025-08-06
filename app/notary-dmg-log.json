@@ -1,0 +1,397 @@
+{
+  "logFormatVersion": 1,
+  "jobId": "acf919dd-3f71-4b31-9c17-e6bbd88d9c38",
+  "status": "Invalid",
+  "statusSummary": "Archive contains critical validation errors",
+  "statusCode": 4000,
+  "archiveFilename": "FoxyChat.dmg",
+  "uploadDate": "2025-07-27T04:51:31.589Z",
+  "sha256": "e9bc273799fd7e48666d09ae16ed7af16fab84a530a19b5eaa02a9afc6b375e5",
+  "ticketContents": null,
+  "issues": [
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/bin/darwin-arm64-132/robotjs.node",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/bin/darwin-arm64-132/robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/bin/darwin-arm64-132/robotjs.node",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/bin/darwin-arm64-132/robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/robotjs.node",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/robotjs.node",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/snprintf.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/snprintf.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/snprintf.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/snprintf.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keypress.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keypress.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keypress.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keypress.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/mouse.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/mouse.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/mouse.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/mouse.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/robotjs.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/robotjs.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/robotjs.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/robotjs.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screengrab.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screengrab.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screengrab.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screengrab.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keycode.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keycode.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keycode.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/keycode.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screen.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screen.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screen.o",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/build/Release/obj.target/robotjs/src/screen.o",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/prebuilds/darwin-x64+arm64/@hurdlegroup+robotjs.node",
+      "message": "The binary is not signed.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/prebuilds/darwin-x64+arm64/@hurdlegroup+robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "x86_64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/prebuilds/darwin-x64+arm64/@hurdlegroup+robotjs.node",
+      "message": "The binary is not signed with a valid Developer ID certificate.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087721",
+      "architecture": "arm64"
+    },
+    {
+      "severity": "error",
+      "code": null,
+      "path": "FoxyChat.dmg/FoxyChat.app/Contents/Resources/robotjs/prebuilds/darwin-x64+arm64/@hurdlegroup+robotjs.node",
+      "message": "The signature does not include a secure timestamp.",
+      "docUrl": "https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues#3087733",
+      "architecture": "arm64"
+    }
+  ]
+}

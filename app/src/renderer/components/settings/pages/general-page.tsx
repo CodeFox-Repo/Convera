@@ -1,7 +1,8 @@
-import { Button } from "@/renderer/components/ui/button";
-import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import { AccountSection } from "@/renderer/components/account/account-section";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Button } from "@/renderer/components/ui/button";
+import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import { Loader2, Monitor, RotateCcw } from "lucide-react";
 import React, { useCallback, useEffect, useRef } from "react";
 
 export function GeneralSettingsPage() {
@@ -9,6 +10,10 @@ export function GeneralSettingsPage() {
   const shortcutInputRef = useRef<HTMLButtonElement>(null);
   const recordingStateRef = useRef<string>("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Previous App Hook
+  const { previousApp, previousAppContentRef, formatAppName } =
+    usePreviousApp();
 
   // Settings Store
   const {
@@ -239,6 +244,56 @@ export function GeneralSettingsPage() {
 
         {/* Account Section */}
         <AccountSection />
+
+        {/* Previous App Content Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Monitor className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-medium text-foreground">
+              Previous App Content
+            </h2>
+          </div>
+
+          <div className="border border-border rounded-lg p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Current App:
+                </span>
+                <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                  {previousApp ? formatAppName(previousApp) : "None"}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Content:
+                </span>
+                <div className="bg-muted/50 rounded-md p-3 max-h-48 overflow-y-auto">
+                  {previousAppContentRef.current ? (
+                    <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">
+                      {typeof previousAppContentRef.current === "object"
+                        ? previousAppContentRef.current ||
+                          JSON.stringify(previousAppContentRef.current, null, 2)
+                        : previousAppContentRef.current}
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No content available
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {previousAppContentRef.current && (
+                <div className="text-xs text-muted-foreground">
+                  Content length: {previousAppContentRef.current.length}{" "}
+                  characters
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Keyboard Shortcuts Section */}
         <div className="space-y-4">
