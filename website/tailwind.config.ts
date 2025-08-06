@@ -115,6 +115,10 @@ export default {
           "0%": { width: "0%" },
           "100%": { width: "100%" },
         },
+        grid: {
+          "0%": { transform: "translateY(-50%)" },
+          "100%": { transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -122,6 +126,7 @@ export default {
         "fade-in": "fadeIn 0.3s ease-in-out forwards",
         "soft-glow": "soft-glow 3s ease-in-out infinite",
         progress: "progress 3s ease-in-out infinite",
+        grid: "grid 15s linear infinite",
       },
       animationDelay: {
         100: "100ms",
