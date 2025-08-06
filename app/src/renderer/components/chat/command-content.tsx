@@ -223,6 +223,7 @@ MessageContentRenderer.displayName = "MessageContentRenderer";
 
 interface CommandContentProps {
   isVisible: boolean;
+  loadingText: string;
 }
 
 /**
@@ -234,7 +235,10 @@ interface CommandContentProps {
  * - Larger content area with scrollable interface
  * - Clean typography for improved readability
  */
-const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
+const CommandContent: React.FC<CommandContentProps> = ({
+  isVisible,
+  loadingText,
+}) => {
   const { messages, isLoading, currentConversationId } = useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -278,7 +282,7 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
         {messages.length === 0 && !isLoading ? (
           <div className="py-6 text-center text-foreground/60">
             <div className="text-base mb-2">💬</div>
-            <div className="text-sm">Loading content</div>
+            <div className="text-sm">{loadingText}</div>
           </div>
         ) : messages.length > 0 || isLoading ? (
           <div className="space-y-6">
