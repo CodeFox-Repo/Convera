@@ -5,12 +5,12 @@ import HeroImage from "@/components/HeroImage";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { DollarSign, Download } from "lucide-react";
+import { DollarSign, Download, Clock, Mic, Zap, Store, Brain, Settings, Palette } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { siDiscord } from "simple-icons";
 import CommunityCard from "./community_card";
 import DemoVideoSection from "./DemoVideoSection";
-import FeaturesShowcaseCard from "./FeaturesShowcaseCard";
+import FeatureCard from "./FeatureCard";
 
 const Index = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -149,38 +149,55 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <FeaturesShowcaseCard
-              title="Time Saving"
-              description="Search for discussions, create folders, add tags, export data, and much more."
-              imageUrl="/placeholder.svg"
-            />
-            <FeaturesShowcaseCard
-              title="Smart App Detection"
-              description="Foxychat knows exactly what you are currently doing when you call it."
-              imageUrl="/images/current-app-detected.jpg"
-            />
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-            <FeaturesShowcaseCard
-              title="Voice Input"
-              description="AI can listen to your words, and listen to your app."
-              imageUrl="/placeholder.svg"
-            />
-            <FeaturesShowcaseCard
-              title="Quick Tools Shortcut"
-              description="Quick access to your favorite tools and apps."
-              imageUrl="/placeholder.svg"
-            />
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-            <FeaturesShowcaseCard
-              title="App Market"
-              description="Find and install apps from the Foxychat App Market."
-              imageUrl="/placeholder.svg"
-            />
+          {/* Grid Layout: 1 row-span-2, 2 normal, 1 col-span-2 */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:grid-rows-2 auto-rows-fr">
+            {/* Left card spanning 2 rows */}
+            <div className="md:row-span-2 h-full">
+              <FeatureCard
+                title="Smart App Detection"
+                description="Foxychat knows exactly what you are currently doing when you call it. It intelligently detects your active applications and provides context-aware assistance, making your interactions more efficient and productive."
+                icon={<Brain className="h-7 w-7" />}
+                badge="Core"
+                gradient="from-orange-600/30 to-red-500/20"
+                className="h-full w-full"
+              />
+            </div>
+            
+            {/* Top right card - normal */}
+            <div className="h-full">
+              <FeatureCard
+                title="Voice Input"
+                description="AI can listen to your words, and listen to your app."
+                icon={<Mic className="h-6 w-6" />}
+                badge="Voice AI"
+                gradient="from-orange-500/25 to-amber-500/15"
+                className="h-full w-full"
+              />
+            </div>
+            
+            {/* Top far right card - normal */}
+            <div className="h-full">
+              <FeatureCard
+                title="Time Saving"
+                description="Search for discussions, create folders, add tags, export data, and much more."
+                icon={<Clock className="h-6 w-6" />}
+                badge="Efficient"
+                gradient="from-orange-400/20 to-yellow-500/10"
+                className="h-full w-full"
+              />
+            </div>
+            
+            {/* Bottom card spanning 2 columns */}
+            <div className="md:col-span-2 h-full">
+              <FeatureCard
+                title="Quick Tools & App Market"
+                description="Quick access to your favorite tools and apps. Find and install apps from the Foxychat App Market."
+                icon={<Store className="h-6 w-6" />}
+                badge="Featured"
+                gradient="from-orange-700/20 to-amber-600/10"
+                className="h-full w-full"
+              />
+            </div>
           </div>
         </div>
       </section>
