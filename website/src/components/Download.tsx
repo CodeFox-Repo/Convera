@@ -1,4 +1,5 @@
 import Footer from "@/components/Footer";
+import SimpleBackground from "@/components/SimpleBackground";
 import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,31 @@ const Download = () => {
   const [latestRelease, setLatestRelease] = useState<GitHubRelease | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState({
+    hero: false,
+  });
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target.getAttribute("data-section");
+            if (target) {
+              setIsVisible((prev) => ({ ...prev, [target]: true }));
+            }
+          }
+        });
+      },
+      { threshold: 0.1 },
+    );
+
+    const sections = document.querySelectorAll("[data-section]");
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch latest release from homebrew-codefox repository
   useEffect(() => {
@@ -265,48 +291,58 @@ const Download = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="from-background via-primary/5 to-primary/10 relative w-full overflow-hidden bg-linear-to-br py-16 pt-24 md:py-24 md:pt-32">
-        <div className="via-primary/20 absolute inset-0 bg-linear-to-r from-transparent to-transparent"></div>
-        <div className="from-primary/30 absolute top-0 right-0 h-full w-1/3 bg-linear-to-l to-transparent"></div>
+      <section
+        className="relative w-full overflow-hidden py-20 pt-28 md:py-28 md:pt-36"
+        data-section="hero"
+      >
+        <SimpleBackground />
 
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
-          <div className="space-y-8 text-center">
+          <div
+            className={`space-y-8 text-center transition-all duration-1000 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+          >
             <div className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+              <h1
+                className={`gradient-orange-text text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+              >
                 Download{" "}
-                <span className="from-primary to-accent bg-linear-to-r bg-clip-text text-transparent">
+                <span className="gradient-orange-text">
                   Foxychat
                 </span>
               </h1>
-              <p className="text-muted-foreground mx-auto max-w-3xl text-xl leading-relaxed md:text-2xl">
+              <p
+                className={`text-secondary mx-auto max-w-3xl text-lg leading-relaxed md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+              >
                 Your personal AI desktop companion that understands your workflow and automates
                 repetitive tasks intelligently.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <div
+              className={`flex flex-wrap items-center justify-center gap-4 pt-4 transition-all delay-300 duration-1000 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+            >
               <Badge
                 variant="outline"
-                className="bg-card border-primary/20 text-primary px-4 py-2 text-base"
+                className="border-orange bg-card px-4 py-2 text-base text-orange-primary backdrop-blur-sm"
               >
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Star className="mr-2 h-4 w-4" />
+                  <Star className="text-orange-primary mr-2 h-4 w-4" />
                 )}
                 v{currentVersion}
               </Badge>
               <Badge
                 variant="outline"
-                className="bg-card border-primary/20 text-primary px-4 py-2 text-base"
+                className="border-orange bg-card px-4 py-2 text-base text-orange-primary backdrop-blur-sm"
               >
-                <Clock className="mr-2 h-4 w-4" />
+                <Clock className="text-orange-primary mr-2 h-4 w-4" />
                 {releaseDate}
               </Badge>
               {error && (
                 <Badge
                   variant="outline"
-                  className="bg-destructive/5 border-destructive/20 text-destructive px-4 py-2 text-base"
+                  className="border-destructive/20 bg-destructive/10 text-destructive px-4 py-2 text-base backdrop-blur-sm"
                 >
                   ⚠️ Using fallback data
                 </Badge>
@@ -314,15 +350,17 @@ const Download = () => {
             </div>
 
             {/* Quick features */}
-            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 pt-8 md:grid-cols-4">
+            <div
+              className={`mx-auto grid max-w-4xl grid-cols-2 gap-4 pt-8 transition-all delay-500 duration-1000 md:grid-cols-4 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+            >
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="bg-card/60 border-primary/20 space-y-2 rounded-lg border p-4 text-center backdrop-blur-sm"
+                  className="space-y-2 rounded-lg border border-orange bg-card p-4 text-center backdrop-blur-sm transition-all hover:shadow-lg hover:bg-orange-subtle"
                 >
-                  <div className="text-primary flex justify-center">{feature.icon}</div>
-                  <h3 className="text-sm font-semibold">{feature.title}</h3>
-                  <p className="text-muted-foreground text-xs">{feature.description}</p>
+                  <div className="text-orange-primary flex justify-center">{feature.icon}</div>
+                  <h3 className="text-sm font-semibold text-primary">{feature.title}</h3>
+                  <p className="text-secondary text-xs">{feature.description}</p>
                 </div>
               ))}
             </div>
@@ -331,11 +369,12 @@ const Download = () => {
       </section>
 
       {/* Download Options */}
-      <section className="w-full py-16 md:py-20">
-        <div className="container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
+      <section className="relative w-full py-16 md:py-20">
+        <SimpleBackground />
+        <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold md:text-4xl">Choose Your Platform</h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg md:text-xl">
+            <h2 className="mb-4 gradient-orange-text text-3xl font-bold md:text-4xl">Choose Your Platform</h2>
+            <p className="text-secondary mx-auto max-w-2xl text-lg md:text-xl">
               Download Foxychat for your operating system and start automating your workflow today.
             </p>
           </div>
@@ -445,11 +484,11 @@ const Download = () => {
 
           {/* Alternative Download Options */}
           <div className="mt-12 text-center">
-            <p className="text-muted-foreground mb-4">Looking for other options?</p>
+            <p className="text-secondary mb-4">Looking for other options?</p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button
                 variant="outline"
-                className="border-primary/20 text-primary hover:bg-primary/5"
+                className="border-orange text-orange-primary hover:bg-orange-subtle"
                 onClick={() =>
                   window.open("https://github.com/CodeFox-Repo/homebrew-codefox/releases", "_blank")
                 }
@@ -459,7 +498,7 @@ const Download = () => {
               </Button>
               <Button
                 variant="outline"
-                className="border-primary/20 text-primary hover:bg-primary/5"
+                className="border-orange text-orange-primary hover:bg-orange-subtle"
                 onClick={() => showComingSoonToast("Web Version")}
               >
                 <Globe className="mr-2 h-4 w-4" />
@@ -467,7 +506,7 @@ const Download = () => {
               </Button>
               <Button
                 variant="outline"
-                className="border-primary/20 text-primary hover:bg-primary/5"
+                className="border-orange text-orange-primary hover:bg-orange-subtle"
                 onClick={() => showComingSoonToast("Mobile App")}
               >
                 <Smartphone className="mr-2 h-4 w-4" />
@@ -479,7 +518,8 @@ const Download = () => {
       </section>
 
       {/* Release Notes & Additional Info */}
-      <section className="from-muted/20 to-background w-full bg-linear-to-b py-16 md:py-20">
+      <section className="relative w-full py-16 md:py-20">
+        <SimpleBackground />
         <div className="container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             {/* Release Notes */}

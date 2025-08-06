@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Download, ExternalLink, FileText, Menu, Play, X } from "lucide-react";
 import React, { useState } from "react";
-import Logo from "./Logo";
+import LogoBrand from "./LogoBrand";
 import { UserButton } from "./user_button";
 
 const Navbar: React.FC = () => {
@@ -14,64 +14,65 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-gray-200/20 bg-white/80 backdrop-blur-xl supports-backdrop-filter:bg-white/60">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          {/* Logo Section */}
-          <div className="flex flex-1 items-center">
-            <Link to="/" className="group flex items-center space-x-3">
-              <div className="transition-transform duration-300 group-hover:scale-105">
-                <Logo />
-              </div>
-              <span className="bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-xl font-bold text-transparent">
-                Foxychat
-              </span>
-            </Link>
+    <header className="fixed top-4 left-1/2 z-50 w-full -translate-x-1/2">
+      <div className="container mx-auto max-w-7xl rounded-full border border-orange-900/40 bg-zinc-950/95 shadow-lg shadow-orange-900/20 transition-all duration-500 hover:bg-zinc-900/98 hover:shadow-xl hover:shadow-orange-900/30">
+        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-x-12">
+            {/* Logo Section */}
+            <div className="flex items-center">
+              <LogoBrand 
+                showStatus={true}
+                showVersion={true}
+                showCursor={true}
+                size="md"
+                linkable={true}
+              />
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden items-center space-x-6 md:flex">
+              <a
+                href="#demo"
+                className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-orange-300"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <Play className="h-4 w-4" />
+                  <span>Demo</span>
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-orange-400 to-red-400 transition-all duration-300 group-hover:w-full"></div>
+              </a>
+
+              <a
+                href="https://docs.foxychat.net/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-amber-300"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <FileText className="h-4 w-4" />
+                  <span>Documentation</span>
+                  <ExternalLink className="h-3 w-3 opacity-60" />
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-amber-400 to-yellow-400 transition-all duration-300 group-hover:w-full"></div>
+              </a>
+
+              <Link
+                to="/pricing"
+                className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-red-300"
+              >
+                <span className="flex items-center space-x-1 text-base font-medium">
+                  <span>Pricing</span>
+                </span>
+                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-red-400 to-pink-400 transition-all duration-300 group-hover:w-full"></div>
+              </Link>
+            </nav>
           </div>
 
-          {/* Desktop Navigation - Centered */}
-          <nav className="hidden flex-1 items-center justify-center space-x-8 md:flex">
-            <a
-              href="#demo"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-orange-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <Play className="h-4 w-4" />
-                <span>Demo</span>
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-orange-500 to-orange-400 transition-all duration-300 group-hover:w-full"></div>
-            </a>
-
-            <a
-              href="https://docs.foxychat.net/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-blue-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <FileText className="h-4 w-4" />
-                <span>Documentation</span>
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-300 group-hover:w-full"></div>
-            </a>
-
-            <Link
-              to="/pricing"
-              className="group relative text-gray-600 transition-colors duration-300 hover:text-purple-500"
-            >
-              <span className="flex items-center space-x-1 text-sm font-medium">
-                <span>Pricing</span>
-              </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-linear-to-r from-purple-500 to-purple-400 transition-all duration-300 group-hover:w-full"></div>
-            </Link>
-          </nav>
-
           {/* CTA Buttons */}
-          <div className="hidden flex-1 items-center justify-end space-x-4 md:flex">
+          <div className="hidden items-center justify-end space-x-4 md:flex">
             <Badge
               variant="outline"
-              className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
+              className="border-orange-400/50 bg-gradient-to-r from-orange-950/80 to-red-950/80 px-3 py-1 font-medium text-orange-300 shadow-[0_0_10px_rgba(251,146,60,0.3)]"
             >
               Beta
             </Badge>
@@ -79,7 +80,7 @@ const Navbar: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="border-gray-200 text-gray-600 transition-all duration-300 hover:bg-gray-50 hover:text-gray-800"
+              className="border-orange-800/40 bg-black/20 text-orange-400/80 transition-all duration-300 hover:border-orange-500/80 hover:bg-gradient-to-r hover:from-orange-900/80 hover:to-red-900/80 hover:text-orange-100 hover:shadow-lg hover:shadow-orange-900/40"
               asChild
             >
               <Link to="/download">
@@ -93,7 +94,7 @@ const Navbar: React.FC = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMenu}
-            className="rounded-lg p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-800 md:hidden"
+            className="rounded-lg p-2 text-orange-200 transition-all duration-300 hover:scale-105 hover:bg-orange-900/60 hover:text-orange-100 md:hidden"
             aria-label="Toggle menu"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -102,12 +103,12 @@ const Navbar: React.FC = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="border-t border-gray-200/20 bg-white/95 backdrop-blur-xl md:hidden">
+          <div className="border-t border-orange-900/40 bg-zinc-950/95 transition-all duration-300 md:hidden">
             <nav className="flex flex-col space-y-1 p-4">
               <a
                 href="#demo"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-orange-50 hover:text-orange-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-orange-900/40 hover:text-orange-300"
               >
                 <Play className="h-4 w-4" />
                 <span className="font-medium">Demo</span>
@@ -118,7 +119,7 @@ const Navbar: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-blue-50 hover:text-blue-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-amber-900/40 hover:text-amber-300"
               >
                 <FileText className="h-4 w-4" />
                 <span className="font-medium">Documentation</span>
@@ -128,35 +129,24 @@ const Navbar: React.FC = () => {
               <Link
                 to="/pricing"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-gray-600 transition-all duration-200 hover:bg-purple-50 hover:text-purple-500"
+                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-red-900/40 hover:text-red-300"
               >
                 <span className="font-medium">Pricing</span>
               </Link>
 
-              <div className="mt-4 border-t border-gray-200/50 pt-4">
+              <div className="mt-4 border-t border-orange-800/40 pt-4">
                 <div className="mb-4 flex items-center justify-between">
                   <Badge
                     variant="outline"
-                    className="border-green-200 bg-linear-to-r from-green-50 to-emerald-50 px-3 py-1 font-medium text-green-700"
+                    className="border-orange-400/50 bg-gradient-to-r from-orange-950/80 to-red-950/80 px-3 py-1 font-medium text-orange-300 shadow-[0_0_10px_rgba(251,146,60,0.3)]"
                   >
                     Beta
                   </Badge>
                 </div>
 
-                <Button
-                  className="w-full bg-linear-to-r from-orange-500 to-orange-400 text-white shadow-lg hover:from-orange-600 hover:to-orange-500"
-                  asChild
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Link to="/download">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Foxychat
-                  </Link>
-                </Button>
                 <div className="space-y-2">
                   <Button
-                    variant="outline"
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg shadow-orange-900/40 hover:from-orange-700 hover:to-red-700 hover:shadow-xl hover:shadow-orange-900/50"
                     asChild
                     onClick={() => setIsMenuOpen(false)}
                   >
