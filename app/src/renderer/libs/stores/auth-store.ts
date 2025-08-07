@@ -31,15 +31,11 @@ const loadAuthStateFromElectronStore = (): Partial<AuthState> => {
     const storedAuthState = localStorage.getItem("foxchat_auth_state");
     if (storedAuthState) {
       const authState = JSON.parse(storedAuthState);
-      // Check if the stored state is recent (within 5 minutes)
-      const stateAge = Date.now() - new Date(authState.timestamp).getTime();
-      if (stateAge < 5 * 60 * 1000) {
-        return {
-          isLoggedIn: authState.isLoggedIn || false,
-          sessionId: authState.sessionId || null,
-          lastSyncTime: authState.timestamp || Date.now(),
-        };
-      }
+      return {
+        isLoggedIn: authState.isLoggedIn || false,
+        sessionId: authState.sessionId || null,
+        lastSyncTime: authState.timestamp || Date.now(),
+      };
     }
   } catch (error) {
     console.error("Failed to load auth state from localStorage:", error);
