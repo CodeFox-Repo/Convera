@@ -25,10 +25,12 @@ const initialState: AuthState = {
   lastSyncTime: Date.now(),
 };
 
+const AUTH_STORE_KEY = "foxchat_auth_state";
+
 // Load state
 const loadAuthStateFromElectronStore = (): Partial<AuthState> => {
   try {
-    const storedAuthState = localStorage.getItem("foxchat_auth_state");
+    const storedAuthState = localStorage.getItem(AUTH_STORE_KEY);
     if (storedAuthState) {
       const authState = JSON.parse(storedAuthState);
       return {
@@ -52,13 +54,13 @@ const saveAuthStateToElectronStore = (state: AuthState) => {
       sessionId: state.sessionId,
       timestamp: state.lastSyncTime,
     };
-    localStorage.setItem("foxchat_auth_state", JSON.stringify(authStateToSave));
+    localStorage.setItem(AUTH_STORE_KEY, JSON.stringify(authStateToSave));
 
     // Trigger storage event for cross-window sync in browser
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new StorageEvent("storage", {
-          key: "foxchat_auth_state",
+          key: AUTH_STORE_KEY,
           newValue: JSON.stringify(authStateToSave),
           storageArea: localStorage,
         }),
@@ -97,7 +99,7 @@ useAuthStore.subscribe((state: AuthStore) => {
 // Listen for storage events (cross-window sync in browser)
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
-    if (event.key === "foxchat_auth_state" && event.newValue) {
+    if (event.key === AUTH_STORE_KEY && event.newValue) {
       try {
         const authState = JSON.parse(event.newValue);
         const currentState = useAuthStore.getState();
