@@ -45,9 +45,8 @@ const loadAuthStateFromElectronStore = (): Partial<AuthState> => {
   return {};
 };
 
-// Save state to electron-store
-const saveAuthStateToElectronStore = (state: AuthState) => {
-  // Fallback to localStorage in non-Electron environments
+// Save state
+const saveAuthState = (state: AuthState) => {
   try {
     const authStateToSave = {
       isLoggedIn: state.isLoggedIn,
@@ -93,7 +92,7 @@ export const useAuthStore = create<AuthStore>()(
 // Monitor state changes and auto-save
 // In browser environment, use localStorage + storage events
 useAuthStore.subscribe((state: AuthStore) => {
-  saveAuthStateToElectronStore(state);
+  saveAuthState(state);
 });
 
 // Listen for storage events (cross-window sync in browser)
