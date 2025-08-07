@@ -16,8 +16,8 @@ import { usePreviousApp } from "../hooks/use-previous-app";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
+import { useIsLoggedIn, useSetAuthState } from "./auth-store";
 import { useChatHistory } from "./chat-history-store";
-// import { useModelStore } from "./model-store";
 import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -128,8 +128,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
+  const isUserLoggedIn = useIsLoggedIn();
+  const setAuthState = useSetAuthState();
   const [useRemoteStore, setUseRemoteStore] = useState(false);
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
@@ -171,43 +172,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [settings]);
 
-  // Check login status on mount and update remote store accordingly
+  // Use reactive session hook for real-time authentication state
+  const { data: session, refetch: refetchSession } = authClient.useSession();
+  const isLoggedIn = session?.session?.id ? true : false;
+
+  // Add a ref to track session refetch function for cross-window sync
+  const refetchSessionRef = useRef(refetchSession);
   useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const loggedIn = await authClient.getSession();
-        const isLoggedIn = loggedIn?.data?.session?.id ? true : false;
-        setIsUserLoggedIn(isLoggedIn);
+    refetchSessionRef.current = refetchSession;
+  }, [refetchSession]);
 
-        // If user is not logged in, force disable remote server
-        if (!isLoggedIn && useRemoteStore) {
-          setUseRemoteStore(false);
-          // Also save to settings
-          try {
-            await updateOpenAISettings({ useRemoteStore: false });
-          } catch (error) {
-            console.error("Failed to save remote store preference:", error);
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (err) {
-        setIsUserLoggedIn(false);
-        // Force disable remote server on auth error
-        if (useRemoteStore) {
-          setUseRemoteStore(false);
-          try {
-            await updateOpenAISettings({ useRemoteStore: false });
-          } catch (error) {
-            console.error("Failed to save remote store preference:", error);
-          }
-        }
-      }
-    };
+  // Update login status and handle remote store accordingly
+  useEffect(() => {
+    // Update auth store with session data
+    setAuthState({
+      isLoggedIn,
+      sessionId: session?.session?.id || undefined,
+    });
 
-    checkLoginStatus();
-    const interval = setInterval(checkLoginStatus, 30000);
-    return () => clearInterval(interval);
-  }, [useRemoteStore]);
+    // If user is not logged in, force disable remote server
+    if (!isLoggedIn && useRemoteStore) {
+      setUseRemoteStore(false);
+      // Also save to settings
+      updateOpenAISettings({ useRemoteStore: false }).catch((error) => {
+        console.error("Failed to save remote store preference:", error);
+      });
+    }
+  }, [isLoggedIn, useRemoteStore, session?.session?.id]);
 
   // useEffect(() => {
   //   currentModelIdRef.current = selectedModelId;
@@ -217,40 +208,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     settingsRef.current = settings;
   }, [settings]);
 
-  // Listen for settings changes from other windows
-  useEffect(() => {
-    const handleSettingsChange = (event: StorageEvent) => {
-      if (event.key === "foxchat_settings" && event.newValue) {
-        try {
-          const updatedSettings = JSON.parse(event.newValue);
-          // Settings store will handle this automatically via its own storage listener
-          setUseRemoteStore(updatedSettings.openai?.useRemoteStore || false);
-        } catch (error) {
-          console.error("Failed to parse settings from localStorage:", error);
-        }
-      }
-    };
-
-    window.addEventListener("storage", handleSettingsChange);
-    return () => window.removeEventListener("storage", handleSettingsChange);
-  }, []);
-
   const chatAPI = useChat({
     api: getApiBaseUrl() + "/chat/completion",
     maxSteps: 5,
     initialInput: "",
     fetch: async (url, options = {}) => {
-      // Get session from better-auth
-      const session = await authClient.getSession();
-
+      // Use reactive session from hook
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         ...(options.headers as Record<string, string>),
       };
 
       // Always include session if available
-      if (session?.data?.session?.id) {
-        headers["X-Session-ID"] = session.data.session.id;
+      if (session?.session?.id) {
+        headers["X-Session-ID"] = session.session.id;
       }
 
       // Ensure all requests have complete MCP configuration
@@ -742,6 +713,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       useRemoteStore,
       previousApp,
       openedApps,
+      session,
     ],
   );
 
