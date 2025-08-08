@@ -658,12 +658,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           //   !shouldUseRemoteServer && hasValidCustomApi;
           const customApiSettings = undefined; // Always undefined - no local API
 
-          // If remote server is not available, show error
+          // If remote server is not available, show error and open settings
           if (!shouldUseRemoteServer) {
             console.error(
               "Remote server required. Please log in and enable remote store.",
             );
             alert("Please log in to use the chat.");
+            // Open settings page to allow user to configure remote store
+            window.electronAPI.toggleWindow("settings").catch((error) => {
+              console.error("Failed to open settings window:", error);
+            });
             return;
           }
           const requestBody = {
