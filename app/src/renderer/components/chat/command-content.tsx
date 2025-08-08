@@ -1,9 +1,9 @@
 // Command Content Component
 // Displays MCP command results and AI chat responses in a larger content area
+import { useCommands } from "@/renderer/libs/hooks/use-commands";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { Bot, Loader2, Sparkles } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
-import { commandToContentMap } from ".";
 import { Markdown } from "../common/markdown";
 import { TOOL_COMPONENTS } from "./tools";
 import {
@@ -112,7 +112,12 @@ MessagePartRenderer.displayName = "MessagePartRenderer";
  * Component for rendering complete message content based on UIMessage structure
  */
 const MessageContentRenderer = memo(
-  ({ message }: MessageContentRendererProps) => {
+  ({
+    message,
+    findCommandContent,
+  }: MessageContentRendererProps & {
+    findCommandContent?: (commandName: string) => string;
+  }) => {
     // Process CdFx content function
     const processCdFxContent = (text: string) => {
       const cdfxTagRegex = /<([^>\s]*cdfx[^>\s]*)[^>]*>([\s\S]*?)<\/\1>/gi;
@@ -156,8 +161,8 @@ const MessageContentRenderer = memo(
               return (
                 <div key={`part-${index}`} className="my-2">
                   {/* Show command execution if CdFx content exists */}
-                  {hasCommand && (
-                    <div>{commandToContentMap[commandName as string]}</div>
+                  {hasCommand && findCommandContent && (
+                    <div>{findCommandContent(commandName)}</div>
                   )}
 
                   {/* Render remaining content */}
@@ -188,8 +193,8 @@ const MessageContentRenderer = memo(
       return (
         <div>
           {/* Show command execution if CdFx content exists */}
-          {hasCommand && (
-            <div>{commandToContentMap[commandName as string]}</div>
+          {hasCommand && findCommandContent && (
+            <div>{findCommandContent(commandName)}</div>
           )}
 
           {/* Render remaining content */}
@@ -220,6 +225,7 @@ interface CommandContentProps {
 const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
   const { messages, isLoading, currentConversationId, contextLoading } =
     useChatContext();
+  const { findCommandContent } = useCommands();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
@@ -246,9 +252,17 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
   }, [messages.length, isLoading, isVisible, scrollToBottom]);
 
   // Render message content using the new structured approach
-  const renderMessageContent = useCallback((message: UIMessage) => {
-    return <MessageContentRenderer message={message} />;
-  }, []);
+  const renderMessageContent = useCallback(
+    (message: UIMessage) => {
+      return (
+        <MessageContentRenderer
+          message={message}
+          findCommandContent={findCommandContent}
+        />
+      );
+    },
+    [findCommandContent],
+  );
 
   if (!isVisible) return null;
 

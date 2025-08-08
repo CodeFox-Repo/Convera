@@ -2,21 +2,19 @@
 // This component provides a unified interface for both AI chat and command execution
 // Design philosophy follows Raycast's minimalist, keyboard-first approach
 import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
+import {
+  useCommands,
+  type CommandResult,
+} from "@/renderer/libs/hooks/use-commands";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useThemeSync } from "@/renderer/libs/hooks/use-theme-sync";
 import { useWindowClose } from "@/renderer/libs/hooks/use-window-close";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 // Import Raycast-inspired components
-import { LanguagesIcon, NotebookPen } from "lucide-react";
 import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
-
-export let commandToContentMap: Record<string, string> = {
-  Summary: "Summarize current active page for me",
-};
-// Types are imported from other components
 
 /**
  * Chat Component
@@ -44,6 +42,7 @@ export default function Chat() {
     currentConversationId,
   } = useChatContext();
   const { previousApp } = usePreviousApp();
+  const { getFilteredCommands } = useCommands();
 
   const [initializing, setInitializing] = useState(true);
   const [inputValue, setInputValue] = useState("");
@@ -55,184 +54,12 @@ export default function Chat() {
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
 
-  enum appType {
-    common = "common",
-    "web-browser" = "web-browser",
-  }
-
-  interface appCategory {
-    name: appType;
-    apps: string[];
-    commands: CommandResult[];
-  }
-
-  interface CommandResult {
-    id: string;
-    name: string;
-    description: string;
-    content?: string;
-    icon: string | React.ReactNode;
-    // default is mcp, input-changed-command means the command is triggered by input change
-    // direct command means display immeadiately under specific situation
-    type?: "chat-shortcut-command" | "mcp" | "input-changed-command";
-    category?: appType[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute?: (input?: string) => Promise<any>;
-  }
-
-  const inputNeededCommands: CommandResult[] = [
-    {
-      id: "translate",
-      name: "Google Translate",
-      description: "Translate text between languages",
-      icon: <LanguagesIcon />,
-      type: "input-changed-command",
-      category: [appType.common],
-      execute: async (input?: string) => {
-        console.log("called translate command", input);
-        if (!input || !input.trim()) {
-          return "Please enter text to translate";
-        }
-
-        try {
-          // Use Google Translate API via a free service
-          const response = await fetch(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(input)}`,
-          );
-
-          if (!response.ok) {
-            throw new Error("Translation failed");
-          }
-
-          const data = await response.json();
-          const translatedText = data[0][0][0];
-          const detectedLanguage = data[2] || "unknown";
-
-          return `${translatedText} (from ${detectedLanguage})`;
-        } catch (error) {
-          console.error("Translation error:", error);
-          return `Translation failed: ${input}`;
-        }
-      },
-    },
-  ];
-
-  const directCommands: CommandResult[] = [
-    {
-      id: "Summary",
-      name: "Summary",
-      description: "Summarize Current Page",
-      icon: <NotebookPen />,
-      type: "chat-shortcut-command",
-      content: "Summarize current active page for me",
-      category: [appType["web-browser"]],
-      execute: async (input?: string) => {
-        console.log("called summarize command", input);
-
-        try {
-          const summaryPrompt = `<CdFxSummary>I need you to help me summarize the current page content. 
-          Please base your summary solely on the "current app context" available in your context - don't perform external searches or fetches, just extract key points directly from the information you have.
-
-          Please format your response in Markdown with:
-          - **Page Overview**: One sentence describing what this page is about
-          - **Core Points**: List the 3-5 most important pieces of information  
-          - **Next Steps** (optional): 1-2 suggestions for actions or further consideration</CdFxSummary>`;
-
-          setSelectedContent(null);
-          sendMessage(summaryPrompt);
-
-          return "Summary request sent to chat";
-        } catch (error) {
-          return `Summary failed: ${error}`;
-        }
-      },
-    },
-  ];
-
-  const presetCommands: CommandResult[] = [
-    ...directCommands,
-    ...inputNeededCommands,
-  ];
-
   const [filteredCommands, setFilteredCommands] = useState<CommandResult[]>([]);
 
-  const presetCategories: appCategory[] = [
-    {
-      name: appType.common,
-      apps: ["*"],
-      commands: presetCommands.filter((command) =>
-        command.category?.includes(appType.common),
-      ),
-    },
-    {
-      name: appType["web-browser"],
-      apps: ["Microsoft Edge", "Google Chrome", "Firefox"],
-      commands: presetCommands.filter((command) =>
-        command.category?.includes(appType["web-browser"]),
-      ),
-    },
-  ];
-
-  const generateCommandToContentMap = (
-    commands: CommandResult[],
-  ): Record<string, string> => {
-    const map: Record<string, string> = {};
-
-    commands.forEach((command) => {
-      if (command.content) {
-        map[command.id] = command.content;
-      }
-    });
-
-    return map;
-  };
-
-  const initializeCommandMapping = () => {
-    const allCommands = [...directCommands, ...inputNeededCommands];
-    commandToContentMap = generateCommandToContentMap(allCommands);
-  };
-
-  initializeCommandMapping();
-
   useEffect(() => {
-    if (previousApp) {
-      const matchedCategories = presetCategories.filter((category) => {
-        if (category.apps.includes("*")) {
-          return true;
-        }
-        return category.apps.some((app) =>
-          app.toLowerCase().includes(previousApp.toLowerCase()),
-        );
-      });
-      const availableCommands: CommandResult[] = [];
-      matchedCategories.forEach((category) => {
-        if (category.name !== appType.common) {
-          category.commands.forEach((command) => {
-            if (
-              !availableCommands.find((existing) => existing.id === command.id)
-            ) {
-              availableCommands.push(command);
-            }
-          });
-        }
-      });
-
-      const commonCategory = presetCategories.find(
-        (cat) => cat.name === appType.common,
-      );
-      if (commonCategory) {
-        availableCommands.push(...commonCategory.commands);
-      }
-      setFilteredCommands(availableCommands);
-    } else {
-      const commonCategory = presetCategories.find(
-        (cat) => cat.name === appType.common,
-      );
-      if (commonCategory) {
-        setFilteredCommands(commonCategory.commands);
-      }
-    }
-  }, [previousApp]);
+    const filteredCommands = getFilteredCommands(previousApp);
+    setFilteredCommands(filteredCommands);
+  }, [previousApp, getFilteredCommands]);
 
   /**
    * Calculate dynamic height for selected content based on text length and wrapping
