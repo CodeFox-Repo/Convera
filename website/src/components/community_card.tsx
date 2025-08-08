@@ -47,7 +47,9 @@ const CommunityCard = ({
             {svgIcon && (
               <div
                 className="h-8 w-8 text-orange-300 transition-colors duration-300 group-hover:text-orange-200"
-                dangerouslySetInnerHTML={{ __html: svgIcon }}
+                dangerouslySetInnerHTML={{
+                  __html: svgIcon.replace("<svg", '<svg fill="currentColor"'),
+                }}
               />
             )}
           </div>
