@@ -20,7 +20,7 @@ const Navbar: React.FC = () => {
           <div className="flex items-center gap-x-12">
             {/* Logo Section */}
             <div className="flex items-center">
-              <LogoBrand 
+              <LogoBrand
                 showStatus={true}
                 showVersion={true}
                 showCursor={true}
@@ -31,8 +31,9 @@ const Navbar: React.FC = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden items-center space-x-6 md:flex">
-              <a
-                href="#demo"
+              <Link
+                to="/"
+                hash="demo"
                 className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-orange-300"
               >
                 <span className="flex items-center space-x-1 text-base font-medium">
@@ -40,7 +41,7 @@ const Navbar: React.FC = () => {
                   <span>Demo</span>
                 </span>
                 <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-orange-400 to-red-400 transition-all duration-300 group-hover:w-full"></div>
-              </a>
+              </Link>
 
               <a
                 href="https://docs.foxychat.net/docs"
@@ -105,14 +106,15 @@ const Navbar: React.FC = () => {
         {isMenuOpen && (
           <div className="border-t border-orange-900/40 bg-zinc-950/95 transition-all duration-300 md:hidden">
             <nav className="flex flex-col space-y-1 p-4">
-              <a
-                href="#demo"
+              <Link
+                to="/"
+                hash="demo"
                 onClick={() => setIsMenuOpen(false)}
                 className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-orange-900/40 hover:text-orange-300"
               >
                 <Play className="h-4 w-4" />
                 <span className="font-medium">Demo</span>
-              </a>
+              </Link>
 
               <a
                 href="https://docs.foxychat.net/docs"
