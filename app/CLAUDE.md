@@ -23,13 +23,11 @@ FoxyChat is an Electron-based AI chat application with Model Context Protocol (M
 ### Critical UI Guidelines
 
 1. **NEVER add `bg-background` or any background colors to components**
-
    - Only `base-layout.tsx` should have background styling
    - All components should be transparent to follow the design system
    - This maintains the proper glass morphism and blur effects
 
 2. **Component Styling Principles**
-
    - Use transparency and backdrop blur for glass effects
    - Follow existing patterns in the codebase
    - Keep components minimal and clean
@@ -43,13 +41,11 @@ FoxyChat is an Electron-based AI chat application with Model Context Protocol (M
 ### Chat Window Behavior
 
 1. **Window Activation by Shortcut**
-
    - Chat state is reset every time window is activated via keyboard shortcut
    - Input field is cleared and focused automatically
    - Provides a fresh chat session for each activation
 
 2. **Input Handling**
-
    - Input is disabled while AI is processing (loading state)
    - Shows "AI is thinking..." placeholder during loading
    - Auto-refocuses input after AI response completes
@@ -306,13 +302,11 @@ This ensures popover windows always show current data, even if they were closed 
 ### Key Components
 
 1. **CommandInput**: Unified input for both AI chat and command mode
-
    - Handles "/" command mode activation
    - Shows loading state with disabled input
    - Auto-focuses on window activation
 
 2. **CommandResults**: Dynamic results dropdown
-
    - Shows MCP tool commands in command mode
    - Shows "Ask AI" option for regular input
    - Keyboard navigation support
