@@ -32,6 +32,7 @@ pnpm test      # run unit tests
 pnpm test:all  # run all tests
 ```
 
+
 ## Packages
 
 - **app** – Electron application containing the FoxyChat desktop client.
