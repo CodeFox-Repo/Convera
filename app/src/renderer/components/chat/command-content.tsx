@@ -281,7 +281,9 @@ const CommandContent: React.FC<CommandContentProps> = ({
       >
         {messages.length === 0 && !isLoading ? (
           <div className="py-6 text-center text-foreground/60">
-            <div className="text-base mb-2">💬</div>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
             <div className="text-sm">{loadingText}</div>
           </div>
         ) : messages.length > 0 || isLoading ? (
