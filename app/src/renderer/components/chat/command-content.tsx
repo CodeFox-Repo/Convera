@@ -3,6 +3,7 @@
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { Bot, Loader2, Sparkles } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
+import { commandToContentMap } from ".";
 import { Markdown } from "../common/markdown";
 import { TOOL_COMPONENTS } from "./tools";
 import {
@@ -14,7 +15,6 @@ import {
   isTextPart,
   isToolInvocationPart,
 } from "./types";
-
 /**
  * Component for rendering tool calls with styled output
  */
@@ -115,33 +115,26 @@ const MessageContentRenderer = memo(
   ({ message }: MessageContentRendererProps) => {
     // Process CdFx content function
     const processCdFxContent = (text: string) => {
-      // Look for XML start pattern
-      const xmlMatch = text.match(/<([^>\s]+)[^>]*>/);
+      const cdfxTagRegex = /<([^>\s]*cdfx[^>\s]*)[^>]*>([\s\S]*?)<\/\1>/gi;
+      const matches = [...text.matchAll(cdfxTagRegex)];
 
-      if (xmlMatch) {
-        const tagName = xmlMatch[1];
+      if (matches.length > 0) {
+        const firstMatch = matches[0];
+        const fullTagName = firstMatch[1];
+        const xmlContent = firstMatch[2].trim();
+        const fullXmlTag = firstMatch[0];
+        const cleanTagName = fullTagName.replace(/cdfx/gi, "").trim();
 
-        if (tagName.toLowerCase().includes("cdfx")) {
-          const cleanTagName = tagName.replace(/cdfx/gi, "").trim();
-          const tagNameOnly = tagName.split(" ")[0];
-          const fullTagPattern = new RegExp(
-            `<${tagNameOnly}[^>]*>([\\s\\S]*?)</${tagNameOnly}>`,
-            "i",
-          );
-          const fullMatch = text.match(fullTagPattern);
+        const remainingContent = text.replace(fullXmlTag, "").trim();
 
-          if (fullMatch) {
-            const xmlContent = fullMatch[1].trim();
-            const remainingContent = text.replace(fullMatch[0], "").trim();
-            return {
-              hasCommand: true,
-              commandContent: xmlContent,
-              commandName: cleanTagName,
-              remainingContent: remainingContent,
-            };
-          }
-        }
+        return {
+          hasCommand: true,
+          commandContent: xmlContent,
+          commandName: cleanTagName || "Command",
+          remainingContent: remainingContent,
+        };
       }
+
       return {
         hasCommand: false,
         commandContent: "",
@@ -164,12 +157,7 @@ const MessageContentRenderer = memo(
                 <div key={`part-${index}`} className="my-2">
                   {/* Show command execution if CdFx content exists */}
                   {hasCommand && (
-                    <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
-                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm mb-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        Executing command: {commandName}
-                      </div>
-                    </div>
+                    <div>{commandToContentMap[commandName as string]}</div>
                   )}
 
                   {/* Render remaining content */}
@@ -201,12 +189,7 @@ const MessageContentRenderer = memo(
         <div>
           {/* Show command execution if CdFx content exists */}
           {hasCommand && (
-            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm mb-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                Executing command: {commandName}
-              </div>
-            </div>
+            <div>{commandToContentMap[commandName as string]}</div>
           )}
 
           {/* Render remaining content */}

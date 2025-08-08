@@ -13,6 +13,9 @@ import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
 
+export let commandToContentMap: Record<string, string> = {
+  Summary: "Summarize current active page for me",
+};
 // Types are imported from other components
 
 /**
@@ -67,6 +70,7 @@ export default function Chat() {
     id: string;
     name: string;
     description: string;
+    content?: string;
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
     // direct command means display immeadiately under specific situation
@@ -120,6 +124,7 @@ export default function Chat() {
       description: "Summarize Current Page",
       icon: <NotebookPen />,
       type: "chat-shortcut-command",
+      content: "Summarize current active page for me",
       category: [appType["web-browser"]],
       execute: async (input?: string) => {
         console.log("called summarize command", input);
@@ -167,6 +172,27 @@ export default function Chat() {
       ),
     },
   ];
+
+  const generateCommandToContentMap = (
+    commands: CommandResult[],
+  ): Record<string, string> => {
+    const map: Record<string, string> = {};
+
+    commands.forEach((command) => {
+      if (command.content) {
+        map[command.id] = command.content;
+      }
+    });
+
+    return map;
+  };
+
+  const initializeCommandMapping = () => {
+    const allCommands = [...directCommands, ...inputNeededCommands];
+    commandToContentMap = generateCommandToContentMap(allCommands);
+  };
+
+  initializeCommandMapping();
 
   useEffect(() => {
     if (previousApp) {
