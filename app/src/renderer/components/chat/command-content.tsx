@@ -223,7 +223,6 @@ MessageContentRenderer.displayName = "MessageContentRenderer";
 
 interface CommandContentProps {
   isVisible: boolean;
-  loadingText: string;
 }
 
 /**
@@ -235,11 +234,9 @@ interface CommandContentProps {
  * - Larger content area with scrollable interface
  * - Clean typography for improved readability
  */
-const CommandContent: React.FC<CommandContentProps> = ({
-  isVisible,
-  loadingText,
-}) => {
-  const { messages, isLoading, currentConversationId } = useChatContext();
+const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
+  const { messages, isLoading, currentConversationId, contextLoading } =
+    useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
@@ -284,7 +281,7 @@ const CommandContent: React.FC<CommandContentProps> = ({
             <div className="flex items-center justify-center gap-2 mb-2">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
-            <div className="text-sm">{loadingText}</div>
+            <div className="text-sm">On Loading</div>
           </div>
         ) : messages.length > 0 || isLoading ? (
           <div className="space-y-6">
@@ -324,16 +321,18 @@ const CommandContent: React.FC<CommandContentProps> = ({
                       )}
 
                       {/* Loading indicator inside card when AI is thinking */}
-                      {isLastPair && isLoading && !pair.assistant && (
-                        <div className="text-foreground leading-relaxed">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="text-sm text-foreground/60">
-                              Foxy Thinking...
-                            </span>
+                      {isLastPair &&
+                        (isLoading || contextLoading) &&
+                        !pair.assistant && (
+                          <div className="text-foreground leading-relaxed">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span className="text-sm text-foreground/60">
+                                Foxy Thinking...
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
 
                     {/* Bottom section with model and continue button - only after last pair, no divider */}

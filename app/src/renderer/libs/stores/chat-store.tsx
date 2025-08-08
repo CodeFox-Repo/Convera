@@ -63,6 +63,8 @@ interface ChatContextType {
   toolsLoading: boolean;
   toolsError: string | null;
 
+  contextLoading: boolean;
+
   setInput: (input: string) => void;
   sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
@@ -135,6 +137,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
   const [useRemoteStore, setUseRemoteStore] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [contextLoading, setContextLoading] = useState(false);
+
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
@@ -700,6 +704,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             alert("Please log in to use the chat.");
             return;
           }
+          const tempUserMessage = {
+            id: `temp-${Date.now()}`,
+            role: "user" as const,
+            content: messageText,
+            createdAt: new Date(),
+          };
+          chatAPI.setMessages((prev) => [...prev, tempUserMessage]);
 
           const waitForContentUpdate = (timeout = 5000) => {
             return new Promise<void>((resolve, reject) => {
@@ -724,6 +735,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           };
 
           try {
+            setContextLoading(true);
             await waitForContentUpdate();
           } catch (error) {
             console.warn("Failed to wait for content update:", error);
@@ -750,6 +762,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               },
             },
           };
+          chatAPI.setMessages((prev) =>
+            prev.filter((m) => !m.id.startsWith("temp-")),
+          );
+          setContextLoading(false);
 
           // Send message with all custom fields
           chatAPI.append(message, {
@@ -915,6 +931,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setUseRemoteStore: handleUseRemoteStoreChange,
     isUserLoggedIn,
     currentConversationId,
+    contextLoading,
     setInput,
     sendMessage,
     stopGeneration,

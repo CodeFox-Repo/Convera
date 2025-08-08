@@ -51,7 +51,6 @@ export default function Chat() {
   const [selectedInputCommand, setSelectedInputCommand] =
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
-  const [loadingText, setLoadingText] = useState("Loading...");
 
   enum appType {
     common = "common",
@@ -135,7 +134,6 @@ export default function Chat() {
           - **Next Steps** (optional): 1-2 suggestions for actions or further consideration</CdFxSummary>`;
 
           setSelectedContent(null);
-          setLoadingText("Summarizing...");
           sendMessage(summaryPrompt);
 
           return "Summary request sent to chat";
@@ -968,7 +966,7 @@ export default function Chat() {
       {/* Content overlay - covers everything below input when visible */}
       {showContent && (
         <div className="absolute inset-0 mt-24 ">
-          <CommandContent isVisible={showContent} loadingText={loadingText} />
+          <CommandContent isVisible={showContent} />
         </div>
       )}
     </div>
