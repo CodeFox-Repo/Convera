@@ -27,7 +27,9 @@ function UserLayout() {
 
   // Redirect to login if not authenticated
   if (!session) {
-    window.location.href = "/auth/sign-in";
+    const currentPath = window.location.pathname;
+    const redirectParam = currentPath !== "/" ? `?redirect=${encodeURIComponent(currentPath)}` : "";
+    window.location.href = `/auth/sign-in${redirectParam}`;
     return null;
   }
 
