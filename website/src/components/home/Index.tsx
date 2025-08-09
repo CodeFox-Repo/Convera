@@ -1,8 +1,6 @@
-import Footer from "@/components/Footer";
 import HeroBackground from "@/components/home/HeroBackground";
 import SimpleBackground from "@/components/SimpleBackground";
 import HeroImage from "@/components/home/HeroImage";
-import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { DollarSign, Download, Clock, Mic, Zap, Store, Brain, Settings, Palette } from "lucide-react";
@@ -75,7 +73,6 @@ const Index = () => {
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
-      <Navbar />
 
       {/* Hero Section */}
       <section
@@ -261,8 +258,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <Footer />
     </div>
   );
 };

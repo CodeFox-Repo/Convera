@@ -3,8 +3,6 @@ import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
-import Footer from "../Footer";
-import Navbar from "../Navbar";
 
 const Pricing: React.FC = () => {
   const router = useRouter();
@@ -131,8 +129,6 @@ const Pricing: React.FC = () => {
 
   return (
     <div className="bg-background relative min-h-screen overflow-hidden">
-      <Navbar />
-
       {/* Global background spanning entire page */}
       <div className="pointer-events-none absolute inset-0">
         {/* Base gradient */}
@@ -250,9 +246,6 @@ const Pricing: React.FC = () => {
             </div>
           </div>
         </section>
-
-        {/* Footer */}
-        <Footer />
       </div>
     </div>
   );
