@@ -1,17 +1,40 @@
+import { RequestMatrixGraph } from "@/components/RequestMatrixGraph";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { authClient, getBaseURL, useSession } from "@/lib/auth-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CreditCard, Edit2, Save, Settings, User, X } from "lucide-react";
-import { useState } from "react";
+import { Camera, CreditCard, Edit2, Save, Settings, User, X } from "lucide-react";
+import { useEffect, useState } from "react";
+
+interface UsageStats {
+  total: {
+    requests: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  recent: {
+    requests: number;
+    tokens: number;
+  };
+  byModel: Array<{
+    modelId: string;
+    requests: number;
+    tokens: number;
+  }>;
+  daily: Array<{
+    date: string;
+    requests: number;
+    tokens: number;
+  }>;
+}
 
 export const Route = createFileRoute("/_user/settings")({
   component: UserSettings,
@@ -73,15 +96,15 @@ function useCustomerPortal() {
       // If user hasn't subscribed yet, redirect to pricing page
       if (error.message.includes("subscribed")) {
         toast({
-          title: "Subscription Required",
-          description: "Redirecting to pricing page...",
+          title: "SUBSCRIPTION_REQUIRED",
+          description: "Redirecting to payment gateway...",
         });
         // Navigate to pricing page
         navigate({ to: "/pricing" });
       } else {
         toast({
-          title: "Error",
-          description: error.message,
+          title: "PORTAL_ACCESS_ERROR",
+          description: error.message || "Customer portal connection failed",
           variant: "destructive",
         });
       }
@@ -95,6 +118,10 @@ function UserSettings() {
   const customerPortal = useCustomerPortal();
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState("");
+  const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
 
   const updateNameMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -102,21 +129,57 @@ function UserSettings() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "Your name has been updated",
+        title: "USER_UPDATE_SUCCESS",
+        description: "Username successfully updated in database",
       });
       setIsEditingName(false);
       // Invalidate session query to refetch updated user data
-      queryClient.invalidateQueries({ queryKey: ['session'] });
+      queryClient.invalidateQueries({ queryKey: ["session"] });
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update name",
+        title: "USER_UPDATE_ERROR",
+        description: error.message || "Database update operation failed",
         variant: "destructive",
       });
     },
   });
+
+  // Load usage statistics
+  useEffect(() => {
+    const loadUsageStats = async () => {
+      if (!session?.user) return;
+
+      setLoadingStats(true);
+      try {
+        const response = await fetch(`${getBaseURL()}/api/users/usage`, {
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUsageStats(data.usage);
+        } else {
+          console.error("Failed to load usage stats:", response.status);
+        }
+      } catch (error) {
+        console.error("Failed to load usage stats:", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    if (session?.user) {
+      loadUsageStats();
+    }
+  }, [session?.user]);
+
+  // Initialize current avatar from session
+  useEffect(() => {
+    if (session?.user?.image) {
+      setCurrentAvatar(session.user.image);
+    }
+  }, [session?.user?.image]);
 
   const userInitials = session?.user.name
     ? session.user.name
@@ -129,8 +192,8 @@ function UserSettings() {
   const handleManageSubscription = () => {
     if (!session?.user?.id) {
       toast({
-        title: "Error",
-        description: "User session not found",
+        title: "SESSION_ERROR",
+        description: "Authentication token expired. Please login",
         variant: "destructive",
       });
       return;
@@ -156,6 +219,77 @@ function UserSettings() {
   const handleCancelEdit = () => {
     setIsEditingName(false);
     setNewName("");
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "FILE_TYPE_ERROR",
+        description: "Invalid file format. Image format required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "FILE_SIZE_ERROR",
+        description: "File exceeds 5MB limit. Compression required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Upload the file to get the URL without updating database
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const uploadResponse = await fetch(`${getBaseURL()}/api/users/avatar?uploadOnly=true`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file");
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const avatarUrl = uploadResult.avatarUrl;
+
+      // Update local state immediately for instant feedback
+      setCurrentAvatar(avatarUrl);
+
+      // Update user profile with new avatar
+      await authClient.updateUser({ image: avatarUrl });
+      
+      // Invalidate session to refetch updated user data
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+
+      toast({
+        title: "AVATAR_UPLOAD_SUCCESS",
+        description: "Profile image successfully uploaded to server",
+      });
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      toast({
+        title: "AVATAR_UPLOAD_ERROR",
+        description: "File upload process terminated unexpectedly",
+        variant: "destructive",
+      });
+      // Reset avatar state on error
+      setCurrentAvatar(session?.user?.image || null);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   return (
@@ -196,12 +330,38 @@ function UserSettings() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={session?.user.image || ""} alt={session?.user.name || ""} />
-                    <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-2xl font-bold text-white">
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage 
+                        src={currentAvatar || session?.user.image || ""} 
+                        alt={session?.user.name || ""} 
+                      />
+                      <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-2xl font-bold text-white">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    {/* Upload overlay */}
+                    <label
+                      htmlFor="avatar-upload"
+                      className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      {isUploadingAvatar ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+                      ) : (
+                        <Camera className="h-6 w-6 text-white" />
+                      )}
+                    </label>
+
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={isUploadingAvatar}
+                    />
+                  </div>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       {isEditingName ? (
@@ -256,6 +416,9 @@ function UserSettings() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Matrix Graph */}
+            <RequestMatrixGraph usageStats={usageStats} loading={loadingStats} />
           </TabsContent>
 
           {/* Billing Tab */}

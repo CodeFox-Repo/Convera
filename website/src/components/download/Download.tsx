@@ -234,9 +234,7 @@ const Download = () => {
     // Look for lines that start with - or * or are numbered
     const bulletPoints = lines.filter(
       (line) =>
-        line.match(/^[-*]\s/) ||
-        line.match(/^\d+\.\s/) ||
-        line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛🛠️📝]/u),
+        line.match(/^[-*]\s/) || line.match(/^\d+\.\s/) || line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛📝]/u),
     );
 
     if (bulletPoints.length > 0) {
@@ -286,7 +284,6 @@ const Download = () => {
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
-
       {/* Hero Section */}
       <section
         className="relative w-full overflow-hidden py-20 pt-28 md:py-28 md:pt-36"
@@ -302,10 +299,7 @@ const Download = () => {
               <h1
                 className={`gradient-orange-text text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
               >
-                Download{" "}
-                <span className="gradient-orange-text">
-                  Foxychat
-                </span>
+                Download <span className="gradient-orange-text">Foxychat</span>
               </h1>
               <p
                 className={`text-secondary mx-auto max-w-3xl text-lg leading-relaxed md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
@@ -320,7 +314,7 @@ const Download = () => {
             >
               <Badge
                 variant="outline"
-                className="border-orange bg-card px-4 py-2 text-base text-orange-primary backdrop-blur-sm"
+                className="border-orange bg-card text-orange-primary px-4 py-2 text-base backdrop-blur-sm"
               >
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -331,7 +325,7 @@ const Download = () => {
               </Badge>
               <Badge
                 variant="outline"
-                className="border-orange bg-card px-4 py-2 text-base text-orange-primary backdrop-blur-sm"
+                className="border-orange bg-card text-orange-primary px-4 py-2 text-base backdrop-blur-sm"
               >
                 <Clock className="text-orange-primary mr-2 h-4 w-4" />
                 {releaseDate}
@@ -353,10 +347,10 @@ const Download = () => {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="space-y-2 rounded-lg border border-orange bg-card p-4 text-center backdrop-blur-sm transition-all hover:shadow-lg hover:bg-orange-subtle"
+                  className="border-orange bg-card hover:bg-orange-subtle space-y-2 rounded-lg border p-4 text-center backdrop-blur-sm transition-all hover:shadow-lg"
                 >
                   <div className="text-orange-primary flex justify-center">{feature.icon}</div>
-                  <h3 className="text-sm font-semibold text-primary">{feature.title}</h3>
+                  <h3 className="text-primary text-sm font-semibold">{feature.title}</h3>
                   <p className="text-secondary text-xs">{feature.description}</p>
                 </div>
               ))}
@@ -370,7 +364,9 @@ const Download = () => {
         <SimpleBackground />
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 gradient-orange-text text-3xl font-bold md:text-4xl">Choose Your Platform</h2>
+            <h2 className="gradient-orange-text mb-4 text-3xl font-bold md:text-4xl">
+              Choose Your Platform
+            </h2>
             <p className="text-secondary mx-auto max-w-2xl text-lg md:text-xl">
               Download Foxychat for your operating system and start automating your workflow today.
             </p>
@@ -438,7 +434,7 @@ const Download = () => {
                   </div>
 
                   <Button
-                    className={`w-full shadow-md transition-all duration-300 hover:shadow-lg ${
+                    className={`text-foreground w-full shadow-md transition-all duration-300 hover:shadow-lg ${
                       option.recommended
                         ? "from-primary to-accent hover:from-primary/90 hover:to-accent/90 bg-linear-to-r"
                         : "bg-muted hover:bg-muted/80"
@@ -652,7 +648,6 @@ const Download = () => {
           </div>
         </div>
       </section>
-
     </div>
   );
 };
