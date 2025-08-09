@@ -66,16 +66,67 @@ export default function AuthPage() {
             flex-shrink: 0 !important;
           }
           
-          /* Ensure proper button sizing */
-          button[type="button"] {
-            position: relative !important;
+          /* Ensure proper button sizing for social providers */
+          .auth-card button[type="button"]:has(svg) {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
             overflow: hidden !important;
             max-height: 48px !important;
           }
           
-          /* Fix any absolute positioned elements */
-          .auth-card * {
-            position: relative !important;
+          /* Fix spacing in auth forms */
+          .auth-card form {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+          }
+          
+          /* Ensure consistent input field spacing */
+          .auth-card input {
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          
+          /* Fix checkbox alignment in sign-up */
+          .auth-card input[type="checkbox"] {
+            width: auto !important;
+            margin-right: 0.5rem !important;
+          }
+          
+          /* Fix label and checkbox container in sign-up */
+          .auth-card label:has(input[type="checkbox"]) {
+            display: flex !important;
+            align-items: center !important;
+            margin: 0.25rem 0 !important;
+          }
+          
+          /* Ensure proper spacing between form elements */
+          .auth-card .space-y-4 > * {
+            margin-bottom: 0.75rem !important;
+          }
+          
+          /* Reduce spacing between input fields and labels */
+          .auth-card label:not(:has(input[type="checkbox"])) {
+            margin-bottom: 0.25rem !important;
+          }
+          
+          /* Reduce spacing for form field groups */
+          .auth-card .space-y-1 > * + * {
+            margin-top: 0.5rem !important;
+          }
+          
+          /* Fix password strength indicator if present */
+          .auth-card [role="progressbar"] {
+            width: 100% !important;
+            margin-top: 0.5rem !important;
+          }
+          
+          /* Ensure terms and conditions text is readable */
+          .auth-card label span {
+            font-size: 0.875rem !important;
+            line-height: 1.25rem !important;
           }
 
           /* Override auth card button colors to use orange theme */
@@ -143,20 +194,20 @@ export default function AuthPage() {
             className="relative z-20 border-0 shadow-2xl shadow-black/50"
             classNames={{
               base: "bg-card backdrop-blur-sm border border-orange shadow-2xl shadow-black/50 relative z-20 overflow-hidden auth-card",
-              header: "pb-6 pt-8 px-8 relative z-30",
+              header: "pb-4 pt-6 px-8 relative z-30",
               title: "text-2xl font-bold text-primary  relative z-30",
-              description: "text-secondary  mt-2 relative z-30",
-              content: "px-8 pb-8 space-y-0 relative z-30",
+              description: "text-secondary  mt-1 relative z-30",
+              content: "px-8 pb-6 space-y-0 relative z-30",
               separator: "bg-border relative z-30",
               form: {
                 base: "space-y-1 relative z-30",
                 label: "text-sm font-medium text-primary relative z-30",
                 input:
-                  "w-full px-4 py-3 rounded-lg border border-border focus:border-orange focus:ring-2 focus:ring-orange-subtle transition-all duration-200 bg-input text-primary relative z-30",
+                  "w-full px-4 py-2.5 rounded-lg border border-border focus:border-orange focus:ring-2 focus:ring-orange-subtle transition-all duration-200 bg-input text-primary relative z-30",
                 error:
                   "text-red-600 text-sm bg-red-950/20 border border-red-500/50 rounded-lg p-3 relative z-30",
               },
-              footer: "px-8 pb-6 pt-4 border-t border-border relative z-30",
+              footer: "px-8 pb-4 pt-3 border-t border-border relative z-30",
               footerLink:
                 "text-orange-primary hover:text-orange-light font-medium transition-colors duration-200 relative z-30",
             }}
