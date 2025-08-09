@@ -8,36 +8,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authAPI } from "@/lib/api-client";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, LogIn, LogOut, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useAdminStatus } from "@/lib/admin-store";
 
 export function UserButton() {
   const { data: session, isPending } = useSession();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [hasCheckedAdmin, setHasCheckedAdmin] = useState(false);
+  const { isAdmin, isLoading: isCheckingAdmin } = useAdminStatus();
 
-  // Check admin status when user session is available
-  useEffect(() => {
-    async function checkAdminStatus() {
-      if (session?.user && !hasCheckedAdmin) {
-        setHasCheckedAdmin(true);
-        try {
-          const result = await authAPI.isAdmin();
-          setIsAdmin(result.isAdmin);
-        } catch (error) {
-          console.error("Failed to check admin status:", error);
-          setIsAdmin(false);
-        }
-      }
-    }
-
-    checkAdminStatus();
-  }, [session?.user, hasCheckedAdmin]);
-
-  if (isPending) {
+  if (isPending || isCheckingAdmin) {
     return <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200"></div>;
   }
 
