@@ -55,18 +55,18 @@ const Footer = () => {
   };
 
   return (
-    <footer className="border-t border-orange-800/30 py-12 bg-black/95">
+    <footer className="border-t border-orange-800/30 py-12 bg-black/95 w-full">
       <div className="container mx-auto max-w-6xl px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 justify-items-start md:justify-items-center">
           {footerSections.map((section) => (
-            <div key={section.title}>
+            <div key={section.title} className="w-full md:text-center">
               <h3 className="font-semibold mb-4 text-orange-200">{section.title}</h3>
               <ul className="space-y-2 text-sm text-orange-300/70">
                 {section.links.map((link) => (
                   <li key={link.name}>
                     <button
                       onClick={() => handleLinkClick(link)}
-                      className="hover:text-orange-400 transition-colors text-left hover:scale-105 transform duration-200"
+                      className="hover:text-orange-400 transition-colors text-left md:text-center hover:scale-105 transform duration-200 block w-full md:w-auto"
                     >
                       {link.name}
                     </button>

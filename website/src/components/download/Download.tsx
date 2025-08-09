@@ -1,6 +1,4 @@
-import Footer from "@/components/Footer";
 import SimpleBackground from "@/components/SimpleBackground";
-import Navbar from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -288,7 +286,6 @@ const Download = () => {
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
-      <Navbar />
 
       {/* Hero Section */}
       <section
@@ -656,8 +653,6 @@ const Download = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <Footer />
     </div>
   );
 };
