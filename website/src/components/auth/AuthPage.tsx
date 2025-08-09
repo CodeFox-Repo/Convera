@@ -7,10 +7,40 @@ export default function AuthPage() {
   const { pathname = "sign-in" } = useParams({ from: "/auth/$pathname" });
   const search = useSearch({ from: "/auth/$pathname" });
 
-  // Get redirect URL from search params, with environment-based fallback
-  const redirectURL =
-    search.redirect ||
-    (process.env.NODE_ENV === "production" ? "https://foxychat.net" : "http://localhost:8080");
+  // Get redirect path from URL search params, default to home page
+  const redirectPath = search.redirect || "/";
+
+  /**
+   * Authentication Redirect Strategy:
+   *
+   * 1. callbackURL (for OAuth providers like GitHub/Google):
+   *    - Must be an absolute URL with protocol and domain
+   *    - Used for cross-origin OAuth flow where the provider needs to redirect back
+   *    - Example flow: User -> GitHub -> API callback -> Frontend URL
+   *    - Production: https://foxychat.net/dashboard
+   *    - Development: http://localhost:[port]/dashboard
+   *
+   * 2. redirectTo (for email/password sign-in):
+   *    - Uses relative paths for frontend-only navigation
+   *    - After successful API call, frontend handles the redirect internally
+   *    - Avoids URL construction issues and keeps navigation flexible
+   *    - Example: "/", "/dashboard", "/settings"
+   *
+   * Why different approaches?
+   * - OAuth requires full URLs because GitHub/Google servers need to know where to redirect
+   * - Regular sign-in happens entirely within our app, so relative paths work better
+   */
+
+  // Get the current origin dynamically (includes protocol, hostname, and port)
+  const getCurrentOrigin = () => {
+    if (process.env.NODE_ENV === "production") {
+      return "https://foxychat.net";
+    }
+    return window.location.origin;
+  };
+
+  const oauthCallbackURL = `${getCurrentOrigin()}${redirectPath}`;
+  const regularRedirectURL = redirectPath;
 
   return (
     <main className="relative flex min-h-screen items-center justify-center p-4">
@@ -107,8 +137,8 @@ export default function AuthPage() {
         <div>
           <AuthCard
             pathname={pathname}
-            callbackURL={redirectURL}
-            redirectTo={redirectURL}
+            callbackURL={oauthCallbackURL}
+            redirectTo={regularRedirectURL}
             socialLayout="vertical"
             className="relative z-20 border-0 shadow-2xl shadow-black/50"
             classNames={{
