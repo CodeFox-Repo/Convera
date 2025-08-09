@@ -1,7 +1,7 @@
 import { AuthCard } from "@daveyplate/better-auth-ui";
 import { useParams, useSearch } from "@tanstack/react-router";
-import LogoBrand from "./LogoBrand";
-import SimpleBackground from "./SimpleBackground";
+import LogoBrand from "../LogoBrand";
+import SimpleBackground from "../SimpleBackground";
 
 export default function AuthPage() {
   const { pathname = "sign-in" } = useParams({ from: "/auth/$pathname" });
