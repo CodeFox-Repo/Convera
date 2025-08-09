@@ -15,7 +15,7 @@ const Navbar: React.FC = () => {
 
   return (
     <header className="fixed top-4 left-1/2 z-50 w-full -translate-x-1/2">
-      <div className="container mx-auto max-w-7xl rounded-full border border-orange-900/40 bg-zinc-950/95 shadow-lg shadow-orange-900/20 transition-all duration-500 hover:bg-zinc-900/98 hover:shadow-xl hover:shadow-orange-900/30">
+      <div className="container mx-auto max-w-7xl rounded-full border border-orange-900/40 bg-zinc-950/80 backdrop-blur-md shadow-lg shadow-orange-900/20 transition-all duration-500 hover:bg-zinc-900/85 hover:shadow-xl hover:shadow-orange-900/30">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-x-12">
             {/* Logo Section */}
@@ -92,7 +92,7 @@ const Navbar: React.FC = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="border-t border-orange-900/40 bg-zinc-950/95 transition-all duration-300 md:hidden">
+          <div className="border-t border-orange-900/40 bg-zinc-950/80 backdrop-blur-md transition-all duration-300 md:hidden">
             <nav className="flex flex-col space-y-1 p-4">
               <a
                 href="https://docs.foxychat.net/docs"
