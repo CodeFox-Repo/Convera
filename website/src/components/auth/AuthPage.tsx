@@ -80,7 +80,7 @@ export default function AuthPage() {
           .auth-card form {
             display: flex !important;
             flex-direction: column !important;
-            gap: 0.5rem !important;
+            gap: 0.52rem !important;
           }
           
           /* Ensure consistent input field spacing */
