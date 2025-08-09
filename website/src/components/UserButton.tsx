@@ -17,27 +17,25 @@ import { useEffect, useState } from "react";
 export function UserButton() {
   const { data: session, isPending } = useSession();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
+  const [hasCheckedAdmin, setHasCheckedAdmin] = useState(false);
 
   // Check admin status when user session is available
   useEffect(() => {
     async function checkAdminStatus() {
-      if (session?.user && !isCheckingAdmin) {
-        setIsCheckingAdmin(true);
+      if (session?.user && !hasCheckedAdmin) {
+        setHasCheckedAdmin(true);
         try {
           const result = await authAPI.isAdmin();
           setIsAdmin(result.isAdmin);
         } catch (error) {
           console.error("Failed to check admin status:", error);
           setIsAdmin(false);
-        } finally {
-          setIsCheckingAdmin(false);
         }
       }
     }
 
     checkAdminStatus();
-  }, [session?.user, isCheckingAdmin]);
+  }, [session?.user, hasCheckedAdmin]);
 
   if (isPending) {
     return <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200"></div>;
