@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
 
 @layer base {
   :root {
@@ -43,14 +43,14 @@
     --orange-dark: rgb(194 65 12);
     --orange-light: rgb(254 215 170);
     --orange-muted: rgb(120 53 15);
-    
+
     /* Text Colors */
     --text-primary: rgb(255 255 255);
     --text-secondary: rgb(209 213 219);
     --text-muted: rgb(156 163 175);
     --text-orange: rgb(251 146 60);
     --text-orange-light: rgb(254 215 170);
-    
+
     /* Background Colors */
     --bg-primary: rgb(0 0 0);
     --bg-secondary: rgb(15 15 15);
@@ -116,14 +116,14 @@
     --orange-dark: rgb(194 65 12);
     --orange-light: rgb(254 215 170);
     --orange-muted: rgb(120 53 15);
-    
+
     /* Text Colors */
     --text-primary: rgb(255 255 255);
     --text-secondary: rgb(209 213 219);
     --text-muted: rgb(156 163 175);
     --text-orange: rgb(251 146 60);
     --text-orange-light: rgb(254 215 170);
-    
+
     /* Background Colors */
     --bg-primary: rgb(0 0 0);
     --bg-secondary: rgb(15 15 15);
@@ -147,7 +147,11 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
   }
 
   body {
@@ -159,7 +163,7 @@
 
   /* Apply Orbitron font to all h1 headings for consistent sci-fi styling */
   h1 {
-    font-family: 'Orbitron', monospace !important;
+    font-family: "Orbitron", monospace !important;
   }
 }
 
@@ -269,7 +273,12 @@
 
   /* Gradient utilities */
   .gradient-orange-text {
-    background: linear-gradient(to right, var(--text-orange-light), var(--text-orange), var(--orange-secondary));
+    background: linear-gradient(
+      to right,
+      var(--text-orange-light),
+      var(--text-orange),
+      var(--orange-secondary)
+    );
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -294,27 +303,47 @@
 
   /* Additional keyframes for geek effects */
   @keyframes terminal-blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
   }
 
   @keyframes geek-glow {
-    0%, 100% { 
-      text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+    0%,
+    100% {
+      text-shadow:
+        0 0 5px currentColor,
+        0 0 10px currentColor,
+        0 0 15px currentColor;
       transform: scale(1);
     }
-    50% { 
-      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+    50% {
+      text-shadow:
+        0 0 10px currentColor,
+        0 0 20px currentColor,
+        0 0 30px currentColor;
       transform: scale(1.05);
     }
   }
 
   @keyframes logo-pulse {
-    0%, 100% { 
-      box-shadow: 0 0 5px rgba(34,197,94,0.3), 0 0 10px rgba(34,197,94,0.2), 0 0 15px rgba(34,197,94,0.1);
+    0%,
+    100% {
+      box-shadow:
+        0 0 5px rgba(34, 197, 94, 0.3),
+        0 0 10px rgba(34, 197, 94, 0.2),
+        0 0 15px rgba(34, 197, 94, 0.1);
     }
-    50% { 
-      box-shadow: 0 0 10px rgba(34,197,94,0.5), 0 0 20px rgba(34,197,94,0.3), 0 0 30px rgba(34,197,94,0.2);
+    50% {
+      box-shadow:
+        0 0 10px rgba(34, 197, 94, 0.5),
+        0 0 20px rgba(34, 197, 94, 0.3),
+        0 0 30px rgba(34, 197, 94, 0.2);
     }
   }
 }
