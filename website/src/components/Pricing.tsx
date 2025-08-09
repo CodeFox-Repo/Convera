@@ -130,117 +130,130 @@ const Pricing: React.FC = () => {
   };
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background relative min-h-screen overflow-hidden">
       <Navbar />
 
-      {/* Hero Section */}
-      <section
-        className="relative w-full overflow-hidden py-12 pt-32 md:py-16 md:pt-40"
-        data-section="hero"
-      >
-        {/* Enhanced background with gradient and patterns */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-50"></div>
-
-        {/* Geometric background pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 h-full w-full bg-[radial-gradient(circle_at_25%_25%,rgba(59,130,246,0.05)_0%,transparent_50%),radial-gradient(circle_at_75%_75%,rgba(147,51,234,0.05)_0%,transparent_50%)]"></div>
+      {/* Global background spanning entire page */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-black to-zinc-950" />
+        {/* Aurora beams */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute -top-40 left-1/2 h-[28rem] w-[110rem] -translate-x-1/2 -rotate-12 opacity-70 mix-blend-screen blur-[140px]"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(251,146,60,0.5), rgba(249,115,22,0.35), rgba(245,158,11,0.5))",
+            }}
+          />
+          <div
+            className="absolute top-20 right-[-25%] h-72 w-[90rem] rotate-6 opacity-60 mix-blend-screen blur-[130px]"
+            style={{
+              background: "linear-gradient(90deg, rgba(245,158,11,0.45), rgba(251,146,60,0.35))",
+            }}
+          />
+          <div
+            className="absolute bottom-[-4rem] left-[-20%] h-80 w-[90rem] -rotate-6 opacity-50 mix-blend-screen blur-[130px]"
+            style={{
+              background: "linear-gradient(90deg, rgba(249,115,22,0.5), rgba(251,146,60,0.3))",
+            }}
+          />
         </div>
+        {/* Subtle grid overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(251,146,60,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(251,146,60,0.06) 1px, transparent 1px)",
+            backgroundSize: "36px 36px",
+            WebkitMaskImage: "radial-gradient(ellipse at center, black 60%, transparent 100%)",
+            maskImage: "radial-gradient(ellipse at center, black 60%, transparent 100%)",
+          }}
+        />
+      </div>
 
-        {/* Floating geometric shapes */}
-        <div
-          className="animate-float absolute top-10 left-10 h-20 w-20 rounded-lg bg-blue-200/30 blur-sm"
-          style={{ animationDelay: "0s" }}
-        ></div>
-        <div
-          className="animate-float absolute top-32 right-20 h-16 w-16 rounded-full bg-purple-200/30 blur-sm"
-          style={{ animationDelay: "1s" }}
-        ></div>
-        <div
-          className="animate-float absolute bottom-40 left-20 h-12 w-12 rounded-lg bg-indigo-200/30 blur-sm"
-          style={{ animationDelay: "2s" }}
-        ></div>
-        <div
-          className="animate-float absolute right-32 bottom-20 h-24 w-24 rounded-full bg-pink-200/30 blur-sm"
-          style={{ animationDelay: "0.5s" }}
-        ></div>
-
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-
-        <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
-          <div className="mb-5 flex items-center justify-center">
-            {/* Centered Content with stagger animation */}
-            <div
-              className={`max-w-7xl space-y-6 text-center transition-all duration-1000 lg:space-y-8 ${
-                isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-              }`}
-            >
-              <h1
-                className={`text-3xl leading-tight font-bold tracking-tight text-gray-800 sm:text-4xl md:text-5xl ${
-                  isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
-                }`}
-              >
-                Choose Your{" "}
-                <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">
-                  Perfect Plan
-                </span>
-              </h1>
-              <p
-                className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${
+      {/* Foreground content */}
+      <div className="relative z-10">
+        {/* Hero Section */}
+        <section
+          className="relative w-full overflow-hidden py-12 pt-32 md:py-16 md:pt-40"
+          data-section="hero"
+        >
+          <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
+            <div className="mb-5 flex items-center justify-center">
+              {/* Centered Content with stagger animation */}
+              <div
+                className={`max-w-7xl space-y-6 text-center transition-all duration-1000 lg:space-y-8 ${
                   isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
                 }`}
               >
-                Choose the plan that fits your needs and start using Foxychat today.
-              </p>
+                <h1
+                  className={`text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl md:text-5xl ${
+                    isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                  }`}
+                >
+                  Choose Your{" "}
+                  <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">
+                    Perfect Plan
+                  </span>
+                </h1>
+                <p
+                  className={`text-muted-foreground mx-auto text-lg leading-relaxed font-medium md:text-xl ${
+                    isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+                  }`}
+                >
+                  Choose the plan that fits your needs and start using Foxychat today.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Pricing Cards Section */}
-      <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 py-16">
-        <div className="container mx-auto max-w-7xl px-4 md:px-6">
-          {/* Pricing Cards */}
-          <div className="mx-auto grid max-w-4xl justify-center gap-8 md:grid-cols-2 md:gap-6 lg:gap-8">
-            {/* Free */}
-            <PricingCard
-              title="Free"
-              description="Start here and try our product"
-              price="$0"
-              features={["All basic features", "base rate limit"]}
-              buttonText="Download"
-              buttonVariant="outline"
-              onButtonClick={handleFree}
-            />
+        {/* Pricing Cards Section */}
+        <section className="relative min-h-screen overflow-hidden bg-transparent py-16">
+          <div className="container mx-auto max-w-7xl px-4 md:px-6">
+            {/* Pricing Cards */}
+            <div className="mx-auto grid max-w-4xl justify-center gap-8 md:grid-cols-2 md:gap-6 lg:gap-8">
+              {/* Free */}
+              <PricingCard
+                title="Free"
+                description="Start here and try our product"
+                price="$0"
+                features={["All basic features", "base rate limit"]}
+                buttonText="Download"
+                buttonVariant="outline"
+                onButtonClick={handleFree}
+              />
 
-            {/* Pro Plan */}
-            <PricingCard
-              title="Pro"
-              description="For power users and professionals"
-              price={!subscriptionData?.hasSubscribedBefore ? "$12.00" : "$19.00"}
-              couponLabel={
-                !subscriptionData?.hasSubscribedBefore ? "1st Month Discount" : undefined
-              }
-              priceSubtitle={
-                !subscriptionData?.hasSubscribedBefore
-                  ? "$19.00 from the second month, billed monthly"
-                  : ""
-              }
-              features={[
-                "All feature in Free",
-                "Boosted AI Model rate limits for advanced usage",
-                "Priority response time",
-              ]}
-              buttonText="Upgrade to Pro"
-              isPopular={true}
-              onButtonClick={() => handleUpgrade("Pro")}
-            />
+              {/* Pro Plan */}
+              <PricingCard
+                title="Pro"
+                description="For power users and professionals"
+                price={!subscriptionData?.hasSubscribedBefore ? "$12.00" : "$19.00"}
+                couponLabel={
+                  !subscriptionData?.hasSubscribedBefore ? "1st Month Discount" : undefined
+                }
+                priceSubtitle={
+                  !subscriptionData?.hasSubscribedBefore
+                    ? "$19.00 from the second month, billed monthly"
+                    : ""
+                }
+                features={[
+                  "All feature in Free",
+                  "Boosted AI Model rate limits for advanced usage",
+                  "Priority response time",
+                ]}
+                buttonText="Upgrade to Pro"
+                isPopular={true}
+                onButtonClick={() => handleUpgrade("Pro")}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <Footer />
+        {/* Footer */}
+        <Footer />
+      </div>
     </div>
   );
 };
