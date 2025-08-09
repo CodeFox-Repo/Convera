@@ -176,14 +176,14 @@ const Pricing: React.FC = () => {
       <div className="relative z-10">
         {/* Hero Section */}
         <section
-          className="relative w-full overflow-hidden py-12 pt-32 md:py-16 md:pt-40"
+          className="relative w-full overflow-hidden py-8 pt-28 md:py-12 md:pt-32"
           data-section="hero"
         >
           <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
-            <div className="mb-5 flex items-center justify-center">
+            <div className="mb-3 flex items-center justify-center">
               {/* Centered Content with stagger animation */}
               <div
-                className={`max-w-7xl space-y-6 text-center transition-all duration-1000 lg:space-y-8 ${
+                className={`max-w-7xl space-y-4 text-center transition-all duration-1000 lg:space-y-6 ${
                   isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
                 }`}
               >
@@ -210,7 +210,7 @@ const Pricing: React.FC = () => {
         </section>
 
         {/* Pricing Cards Section */}
-        <section className="relative min-h-screen overflow-hidden bg-transparent py-16">
+        <section className="relative mb-20 overflow-hidden bg-transparent py-8 md:py-12">
           <div className="container mx-auto max-w-7xl px-4 md:px-6">
             {/* Pricing Cards */}
             <div className="mx-auto grid max-w-4xl justify-center gap-8 md:grid-cols-2 md:gap-6 lg:gap-8">
