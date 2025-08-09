@@ -8,12 +8,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { authAPI } from "@/lib/api-client";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Link } from "@tanstack/react-router";
-import { LogIn, LogOut, Settings } from "lucide-react";
+import { LayoutDashboard, LogIn, LogOut, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function UserButton() {
   const { data: session, isPending } = useSession();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
+
+  // Check admin status when user session is available
+  useEffect(() => {
+    async function checkAdminStatus() {
+      if (session?.user && !isCheckingAdmin) {
+        setIsCheckingAdmin(true);
+        try {
+          const result = await authAPI.isAdmin();
+          setIsAdmin(result.isAdmin);
+        } catch (error) {
+          console.error("Failed to check admin status:", error);
+          setIsAdmin(false);
+        } finally {
+          setIsCheckingAdmin(false);
+        }
+      }
+    }
+
+    checkAdminStatus();
+  }, [session?.user, isCheckingAdmin]);
 
   if (isPending) {
     return <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200"></div>;
@@ -67,6 +91,14 @@ export function UserButton() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <a href="/dashboard" className="flex w-full cursor-pointer items-center">
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              <span>Dashboard</span>
+            </a>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <a href="/settings" className="flex w-full cursor-pointer items-center">
             <Settings className="mr-2 h-4 w-4" />
