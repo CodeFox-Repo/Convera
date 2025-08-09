@@ -1,10 +1,10 @@
-import { PricingCard } from "@/components/pricing_card";
+import { PricingCard } from "@/components/pricing/PricingCard";
 import { toast } from "@/components/ui/use-toast";
 import { getBaseURL, useSession } from "@/lib/auth-client";
 import { useRouter } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
-import Footer from "./Footer";
-import Navbar from "./Navbar";
+import Footer from "../Footer";
+import Navbar from "../Navbar";
 
 const Pricing: React.FC = () => {
   const router = useRouter();
