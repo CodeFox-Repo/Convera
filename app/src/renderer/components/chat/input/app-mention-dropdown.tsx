@@ -26,7 +26,7 @@ export function AppMentionDropdown({
 
   // Track previous searchQuery to know when it actually changes
   const prevSearchQueryRef = useRef(searchQuery);
-  
+
   // Filter apps based on search query
   useEffect(() => {
     let newFilteredApps: string[];
@@ -37,19 +37,19 @@ export function AppMentionDropdown({
         app.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
-    
+
     // Only reset index if search query changed (user typed something)
     const searchQueryChanged = prevSearchQueryRef.current !== searchQuery;
     prevSearchQueryRef.current = searchQuery;
-    
+
     setFilteredApps(newFilteredApps);
     filteredAppsRef.current = newFilteredApps; // Keep ref updated
-    
+
     // Only reset selectedIndex when search query changes, not when openedApps updates
     if (searchQueryChanged) {
       setSelectedIndex(0);
     }
-    
+
     // Reset refs array to match new filtered list
     itemRefs.current = new Array(newFilteredApps.length).fill(null);
   }, [openedApps, searchQuery]);
@@ -66,19 +66,19 @@ export function AppMentionDropdown({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       // Check if click is outside the dropdown
-      if (!target.closest('[data-app-mention-dropdown]')) {
+      if (!target.closest("[data-app-mention-dropdown]")) {
         onClose();
       }
     };
 
     // Add small delay to avoid immediately closing on open
     const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }, 10);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, onClose]);
 
@@ -88,7 +88,7 @@ export function AppMentionDropdown({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return; // Double check
-      
+
       const currentApps = filteredAppsRef.current; // Get latest apps from ref
       if (currentApps.length === 0) return; // Exit if no apps
 
@@ -160,7 +160,7 @@ export function AppMentionDropdown({
   const dropdownWidth = 256; // w-64 = 16rem = 256px
   const adjustedPosition = {
     x: Math.min(position?.x || 0, window.innerWidth - dropdownWidth - 10),
-    y: position?.y || 0
+    y: position?.y || 0,
   };
 
   const dropdownContent = (
@@ -172,11 +172,12 @@ export function AppMentionDropdown({
         top: adjustedPosition.y,
       }}
     >
-      <div 
+      <div
         className="overflow-y-auto overflow-x-hidden"
         style={{
           maxHeight: `min(300px, calc(100vh - ${adjustedPosition.y + 10}px))`,
-          minHeight: !isInitialized || filteredApps.length === 0 ? '80px' : 'auto'
+          minHeight:
+            !isInitialized || filteredApps.length === 0 ? "80px" : "auto",
         }}
       >
         {!isInitialized ? (
