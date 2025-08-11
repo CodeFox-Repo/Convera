@@ -1,5 +1,6 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import React, { useEffect, useState, useRef } from "react";
+import ReactDOM from "react-dom";
 import { iconCache } from "@/renderer/libs/utils/icon-cache";
 
 interface AppMentionDropdownProps {
@@ -21,7 +22,11 @@ export function AppMentionDropdown({
   const [filteredApps, setFilteredApps] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const filteredAppsRef = useRef<string[]>([]);
 
+  // Track previous searchQuery to know when it actually changes
+  const prevSearchQueryRef = useRef(searchQuery);
+  
   // Filter apps based on search query
   useEffect(() => {
     let newFilteredApps: string[];
@@ -32,39 +37,77 @@ export function AppMentionDropdown({
         app.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
+    
+    // Only reset index if search query changed (user typed something)
+    const searchQueryChanged = prevSearchQueryRef.current !== searchQuery;
+    prevSearchQueryRef.current = searchQuery;
+    
     setFilteredApps(newFilteredApps);
-    setSelectedIndex(0); // Reset selection when filtering
+    filteredAppsRef.current = newFilteredApps; // Keep ref updated
+    
+    // Only reset selectedIndex when search query changes, not when openedApps updates
+    if (searchQueryChanged) {
+      setSelectedIndex(0);
+    }
+    
     // Reset refs array to match new filtered list
     itemRefs.current = new Array(newFilteredApps.length).fill(null);
   }, [openedApps, searchQuery]);
 
-  // Scroll selected item into view (only when using keyboard navigation)
-  const scrollToSelected = (smooth = false) => {
-    if (selectedIndex >= 0 && itemRefs.current[selectedIndex]) {
-      itemRefs.current[selectedIndex]?.scrollIntoView({
-        behavior: smooth ? "smooth" : "auto",
-        block: "nearest",
-      });
-    }
+  const handleSelect = (appName: string) => {
+    onSelect(appName);
+    onClose();
   };
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if click is outside the dropdown
+      if (!target.closest('[data-app-mention-dropdown]')) {
+        onClose();
+      }
+    };
+
+    // Add small delay to avoid immediately closing on open
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   // Handle keyboard navigation when dropdown is open
   useEffect(() => {
-    if (!isOpen || filteredApps.length === 0) return;
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return; // Double check
+      
+      const currentApps = filteredAppsRef.current; // Get latest apps from ref
+      if (currentApps.length === 0) return; // Exit if no apps
 
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
           e.stopPropagation();
           setSelectedIndex((prev) => {
-            const newIndex = prev < filteredApps.length - 1 ? prev + 1 : prev;
-            if (newIndex !== prev) {
-              // Only scroll when index actually changes
-              setTimeout(() => scrollToSelected(true), 0);
-            }
+            // Wrap around to first item when at the end
+            const newIndex = prev < currentApps.length - 1 ? prev + 1 : 0;
+            // Scroll to the new item
+            setTimeout(() => {
+              if (itemRefs.current[newIndex]) {
+                itemRefs.current[newIndex]?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              }
+            }, 0);
             return newIndex;
           });
           break;
@@ -72,20 +115,30 @@ export function AppMentionDropdown({
           e.preventDefault();
           e.stopPropagation();
           setSelectedIndex((prev) => {
-            const newIndex = prev > 0 ? prev - 1 : prev;
-            if (newIndex !== prev) {
-              // Only scroll when index actually changes
-              setTimeout(() => scrollToSelected(true), 0);
-            }
+            // Wrap around to last item when at the beginning
+            const newIndex = prev > 0 ? prev - 1 : currentApps.length - 1;
+            // Scroll to the new item
+            setTimeout(() => {
+              if (itemRefs.current[newIndex]) {
+                itemRefs.current[newIndex]?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              }
+            }, 0);
             return newIndex;
           });
           break;
         case "Enter":
           e.preventDefault();
           e.stopPropagation();
-          if (filteredApps[selectedIndex]) {
-            handleSelect(filteredApps[selectedIndex]);
-          }
+          // Use callback to get current selected index
+          setSelectedIndex((currentIndex) => {
+            if (currentApps[currentIndex]) {
+              handleSelect(currentApps[currentIndex]);
+            }
+            return currentIndex;
+          });
           break;
         case "Escape":
           e.preventDefault();
@@ -99,24 +152,33 @@ export function AppMentionDropdown({
     document.addEventListener("keydown", handleKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [isOpen, filteredApps, selectedIndex]);
-
-  const handleSelect = (appName: string) => {
-    onSelect(appName);
-    onClose();
-  };
+  }, [isOpen, handleSelect, onClose]); // Remove filteredApps from deps to avoid closure issues
 
   if (!isOpen) return null;
 
-  return (
+  // Calculate adjusted position to prevent off-screen rendering
+  const dropdownWidth = 256; // w-64 = 16rem = 256px
+  const adjustedPosition = {
+    x: Math.min(position?.x || 0, window.innerWidth - dropdownWidth - 10),
+    y: position?.y || 0
+  };
+
+  const dropdownContent = (
     <div
-      className="fixed z-50 w-64 bg-gray-100 border border-gray-300 rounded-lg shadow-lg overflow-hidden"
+      data-app-mention-dropdown
+      className="fixed z-[9999] w-64 bg-gray-100 border border-gray-300 rounded-lg shadow-lg overflow-hidden"
       style={{
-        left: position?.x || 0,
-        top: position?.y || 0,
+        left: Math.max(10, adjustedPosition.x),
+        top: adjustedPosition.y,
       }}
     >
-      <div className="max-h-[300px] overflow-y-auto">
+      <div 
+        className="overflow-y-auto overflow-x-hidden"
+        style={{
+          maxHeight: `min(300px, calc(100vh - ${adjustedPosition.y + 10}px))`,
+          minHeight: !isInitialized || filteredApps.length === 0 ? '80px' : 'auto'
+        }}
+      >
         {!isInitialized ? (
           <div className="py-6 text-center text-sm text-gray-500">
             <div className="animate-pulse">Loading apps...</div>
@@ -147,6 +209,8 @@ export function AppMentionDropdown({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(dropdownContent, document.body);
 }
 
 interface AppMentionItemProps {
