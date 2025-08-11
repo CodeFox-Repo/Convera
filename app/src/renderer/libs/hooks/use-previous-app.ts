@@ -83,7 +83,7 @@ export function usePreviousApp() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOpenedApps();
-    }, 1000); // Refresh every 1 second for app detection
+    }, 500); // Refresh every 500ms for faster app exit detection
 
     return () => clearInterval(interval);
   }, []);

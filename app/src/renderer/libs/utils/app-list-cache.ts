@@ -2,7 +2,7 @@
 class AppListCache {
   private apps: string[] = [];
   private lastUpdate = 0;
-  private readonly cacheTimeout = 1500; // 1.5 seconds cache - balance between responsiveness and performance
+  private readonly cacheTimeout = 600; // 600ms cache - faster responsiveness for app exits
 
   get(): string[] | null {
     const now = Date.now();
