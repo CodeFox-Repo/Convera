@@ -2,6 +2,7 @@
 // A clean, minimal input field inspired by Raycast's design philosophy
 // Supports both AI chat mode and command mode with "/" prefix
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { useAppIcon } from "@/renderer/libs/hooks/use-app-icon";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import React, { forwardRef } from "react";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
@@ -40,6 +41,7 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
     ref,
   ) => {
     const { previousApp, formatAppName } = usePreviousApp();
+    const { iconData: appIcon, isLoading: iconLoading } = useAppIcon(previousApp);
     const { selectedContent, setSelectedContent } = useChatContext();
 
     return (
@@ -139,7 +141,27 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
           <div className="pl-2">
             {previousApp && (
               <div className="inline-flex items-center gap-1.5 rounded text-xs font-medium text-foreground/60">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
+                <div className="w-4 h-4 flex items-center justify-center">
+                  {iconLoading ? (
+                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse" />
+                  ) : appIcon ? (
+                    <img
+                      src={appIcon}
+                      alt={`${previousApp} icon`}
+                      className="w-4 h-4 rounded-sm object-cover"
+                      style={{
+                        imageRendering: 'auto',
+                        filter: 'contrast(1.05)'
+                      }}
+                    />
+                  ) : (
+                    <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                      <span className="text-[10px] font-semibold text-gray-600">
+                        {previousApp.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <span>{formatAppName(previousApp)}</span>
               </div>
             )}

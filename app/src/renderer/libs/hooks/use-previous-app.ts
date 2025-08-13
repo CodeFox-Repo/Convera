@@ -35,11 +35,16 @@ export function usePreviousApp() {
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
+        console.log("🔄 usePreviousApp: Fetching opened apps...");
         const apps = await window.activeAppAPI.getOpenedApps();
+        console.log(`✅ usePreviousApp: Got ${apps.length} apps:`, apps.slice(0, 10)); // Show first 10 apps
         setOpenedApps(apps);
+        console.log("🔍 usePreviousApp: State updated with apps");
+      } else {
+        console.warn("⚠️ usePreviousApp: window.activeAppAPI not available");
       }
     } catch (error) {
-      console.error("Error fetching opened apps:", error);
+      console.error("❌ usePreviousApp: Error fetching opened apps:", error);
     }
   };
 
@@ -55,14 +60,11 @@ export function usePreviousApp() {
     return unsubscribe;
   }, [previousApp]);
 
-  useEffect(() => {
-    fetchOpenedApps();
-  }, [previousApp]);
-
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch - 立即预加载应用数据
     fetchPreviousApp();
+    fetchOpenedApps(); // 组件mount时立即加载应用列表
 
     // Setup event listener for app changes
     if (window.electronAPI?.onAppChanged) {

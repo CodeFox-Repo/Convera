@@ -12,7 +12,7 @@ import { exec } from "child_process";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
-import { setPreviousApp } from "@/electro-bridge/ipc/active-app-context";
+import { setPreviousApp, preloadAllAppData } from "@/electro-bridge/ipc/active-app-context";
 import {
   getCurrentShortcut,
   setInputContent,
@@ -293,6 +293,18 @@ app.whenReady().then(async () => {
       })
       .catch((error) => {
         logger.error("MCP Hub initialization failed:", error);
+      });
+
+    // Start app data preloading immediately (in background)
+    console.log("🚀 Starting app data preloading immediately...");
+    preloadAllAppData()
+      .then(() => {
+        console.log("✅ App data preloading completed successfully");
+        logger.info("App data preloading completed");
+      })
+      .catch((error) => {
+        console.error("❌ App data preloading failed:", error);
+        logger.error("App data preloading failed:", error);
       });
 
     // Start background processes that don't block UI

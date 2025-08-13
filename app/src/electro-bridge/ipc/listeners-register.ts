@@ -4,6 +4,7 @@ import { ThemeMode, WindowType } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import {
   getOpenedApps,
+  getAppIcon,
   getPlatform,
   getPreviousApp,
   getPreviousAppID,
@@ -252,6 +253,11 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   // File operations
   ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (_event, path: string) => {
     return openPath(path);
+  });
+  
+  // Process icon operations
+  ipcMain.handle(CHANNELS.PROCESS_ICON.GET, (_event, appName: string) => {
+    return getAppIcon(appName);
   });
 
   // Model selector functionality

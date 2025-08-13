@@ -12,6 +12,7 @@ import { LanguagesIcon } from "lucide-react";
 import CommandContent from "./command-content";
 import CommandInput from "./command-input";
 import CommandResults from "./command-results";
+import { AppMentionFullscreen } from "./input/app-mention-fullscreen";
 
 // Types are imported from other components
 
@@ -45,12 +46,18 @@ export default function Chat() {
   const [initializing, setInitializing] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [isCommandMode, setIsCommandMode] = useState(false);
+  const [isAppMentionMode, setIsAppMentionMode] = useState(false);
+  const [appMentionQuery, setAppMentionQuery] = useState("");
   const [results, setResults] = useState<CommandResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showContent, setShowContent] = useState(false);
   const [selectedInputCommand, setSelectedInputCommand] =
     useState<CommandResult | null>(null);
   const [commandResult, setCommandResult] = useState("");
+  // Track app mentions for whole deletion
+  const [appMentions, setAppMentions] = useState<
+    Array<{ start: number; end: number; app: string }>
+  >([]);
 
   interface CommandResult {
     id: string;
@@ -207,11 +214,11 @@ export default function Chat() {
       }
 
       if (hasInput && resultCount === 0) {
-        // Show AI chat preview
+        // Show AI chat preview - use larger height for better UX
         return (
           baseHeight +
           containerPadding +
-          resultHeight +
+          resultHeight * 6 + // Bigger preview area (6 result heights)
           resultsPadding +
           mainContainerPadding
         );
@@ -248,8 +255,28 @@ export default function Chat() {
 
   // Handle input change
   const handleInputChange = async (value: string) => {
+    console.log("🔤 handleInputChange called with:", JSON.stringify(value));
+    
     // Don't allow input changes when loading
     if (isLoading) return;
+
+    // Update app mentions positions if text length changed
+    if (value.length < inputValue.length) {
+      // Text was deleted, update mention positions
+      const diff = inputValue.length - value.length;
+      setAppMentions((prev) =>
+        prev
+          .map((mention) => ({
+            ...mention,
+            start:
+              mention.start > value.length
+                ? mention.start - diff
+                : mention.start,
+            end: mention.end > value.length ? mention.end - diff : mention.end,
+          }))
+          .filter((mention) => mention.start < value.length),
+      );
+    }
 
     setInputValue(value);
     setSelectedIndex(0); // Reset selection when input changes
@@ -286,6 +313,25 @@ export default function Chat() {
         setResults([]);
       }
       return;
+    }
+
+    // Check for app mention mode - match @ at the end or @ followed by letters at the end
+    const appMentionMatch = value.match(/@(\w*)$/);
+    console.log("🔍 Checking app mention for:", value, "Match:", appMentionMatch);
+    
+    if (appMentionMatch) {
+      console.log("✅ Entering app mention mode with query:", appMentionMatch[1]);
+      console.log("✅ Full value:", JSON.stringify(value));
+      setIsAppMentionMode(true);
+      setIsCommandMode(false);
+      setAppMentionQuery(appMentionMatch[1]);
+      setResults([]);
+      return;
+    } else if (isAppMentionMode && !value.match(/@\w*$/)) {
+      // Exit app mention mode if no @ at the end
+      console.log("❌ Exiting app mention mode");
+      setIsAppMentionMode(false);
+      setAppMentionQuery("");
     }
 
     setIsCommandMode(value.startsWith("/"));
@@ -414,21 +460,66 @@ export default function Chat() {
         return;
       }
 
+      console.log("📤 Before clear - inputValue:", inputValue);
+      
       // Clear input first
       setInputValue("");
       setResults([]);
       setShowContent(true);
+      setAppMentions([]); // Clear mentions tracking
+      setIsAppMentionMode(false); // Exit app mention mode
+      setAppMentionQuery(""); // Clear app mention query
 
+      console.log("📤 After setInputValue('') called");
+      console.log("📤 Cleared app mention mode and set showContent=true");
       console.log("📤 About to call sendMessage with:", message);
       sendMessage(message);
     },
     [sendMessage],
   );
 
+  // Handle app selection
+  const handleAppSelect = useCallback(async (appName: string) => {
+    console.log("🎯 handleAppSelect called with:", appName);
+    
+    // Replace the @query part with the selected app
+    const atMatch = inputValue.match(/@\w*$/);
+    if (atMatch) {
+      const beforeAt = inputValue.substring(0, inputValue.length - atMatch[0].length);
+      const newValue = beforeAt + `@${appName} `;
+
+      // Track the mention position for whole deletion
+      const mentionStart = beforeAt.length;
+      const mentionEnd = mentionStart + `@${appName}`.length;
+      setAppMentions((prev) => [
+        ...prev,
+        { start: mentionStart, end: mentionEnd, app: appName },
+      ]);
+
+      setInputValue(newValue);
+      console.log("🎯 Set new input value:", newValue);
+    }
+    
+    // Close app mention mode with slight delay to ensure state updates
+    setTimeout(() => {
+      setIsAppMentionMode(false);
+      setAppMentionQuery("");
+      console.log("🎯 App mention mode closed");
+    }, 0);
+    
+    // Don't resize back to compact - keep the expanded size for Pro AI interface
+    // The window will remain in expanded state to show "Pro AI Cancel ESC"
+  }, [inputValue]);
+
   // Handle key press
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
+        // Skip Enter handling if in app mention mode - let AppMentionFullscreen handle it
+        if (isAppMentionMode) {
+          return;
+        }
+
         console.log("🔴 Enter pressed! State:", {
           selectedInputCommand: selectedInputCommand?.id,
           inputValue,
@@ -461,16 +552,47 @@ export default function Chat() {
           console.log("🔴 No action taken - conditions not met");
         }
       } else if (e.key === "ArrowDown") {
+        // Skip arrow handling if in app mention mode - let AppMentionFullscreen handle it
+        if (isAppMentionMode) {
+          return;
+        }
         e.preventDefault();
         if (isCommandMode && results.length > 0) {
           setSelectedIndex((prev) => (prev + 1) % results.length);
         }
       } else if (e.key === "ArrowUp") {
+        // Skip arrow handling if in app mention mode - let AppMentionFullscreen handle it
+        if (isAppMentionMode) {
+          return;
+        }
         e.preventDefault();
         if (isCommandMode && results.length > 0) {
           setSelectedIndex(
             (prev) => (prev - 1 + results.length) % results.length,
           );
+        }
+      } else if (e.key === "Backspace") {
+        // Handle deletion of app mentions as whole tokens
+        const target = e.target as HTMLInputElement;
+        const cursorPosition = target.selectionStart || 0;
+
+        // Check if cursor is at the end of an app mention
+        for (const mention of appMentions) {
+          if (
+            cursorPosition === mention.end ||
+            cursorPosition === mention.end + 1
+          ) {
+            // Cursor is right after an app mention, delete the whole mention
+            e.preventDefault();
+            const newValue =
+              inputValue.slice(0, mention.start) +
+              inputValue.slice(mention.end);
+
+            // Remove this mention from tracking
+            setAppMentions((prev) => prev.filter((m) => m !== mention));
+            handleInputChange(newValue);
+            return;
+          }
         }
       } else if (e.key === "Escape") {
         if (selectedInputCommand) {
@@ -496,6 +618,7 @@ export default function Chat() {
       handleCommandExecute,
       handleAIChatSubmit,
       showContent,
+      appMentions,
     ],
   );
 
@@ -589,6 +712,27 @@ export default function Chat() {
   // Dynamic window resizing based on results and content
   useEffect(() => {
     if (window.electronAPI && !initializing) {
+      // Special handling for app mention mode
+      if (isAppMentionMode) {
+        // Use a fixed large height for app mention mode to allow free scrolling
+        const hasActiveBadge = !!previousApp;
+        const selectedContentText = selectedContent?.text || "";
+        
+        // Calculate base height (input + selected content + padding)
+        let baseHeight = hasActiveBadge ? 98 : 78;
+        const selectedContentHeight = calculateSelectedContentHeight(selectedContentText);
+        baseHeight += selectedContentHeight;
+        
+        // Add a fixed large content area for scrollable app list (similar to command content mode)
+        const appMentionHeight = baseHeight + 400; // Large fixed height for scrollable content
+        
+        window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+          .then((currentSize) => {
+            window.electronAPI.resizeWindow(currentSize.width, appMentionHeight, true);
+          });
+        return;
+      }
+
       const hasInput = inputValue.trim().length > 0;
       const resultCount = isCommandMode ? results.length : hasInput ? 1 : 0;
       const hasActiveBadge = !!previousApp;
@@ -619,6 +763,7 @@ export default function Chat() {
     results.length,
     inputValue,
     isCommandMode,
+    isAppMentionMode,
     initializing,
     previousApp,
     showContent,
@@ -709,10 +854,13 @@ export default function Chat() {
         setInputValue("");
         setResults([]);
         setIsCommandMode(false);
+        setIsAppMentionMode(false);
+        setAppMentionQuery("");
         setSelectedIndex(0);
         setShowContent(false);
         setSelectedInputCommand(null);
         setCommandResult("");
+        setAppMentions([]); // Clear mentions tracking on reset
 
         // Focus the input after reset
         setTimeout(() => {
@@ -832,7 +980,8 @@ export default function Chat() {
       {/* Results section - only show when not in content mode and not loading */}
       {(results.length > 0 || inputValue.trim()) &&
         !showContent &&
-        !isLoading && (
+        !isLoading &&
+        !isAppMentionMode && (
           <div className="flex-1 ">
             <CommandResults
               results={results}
@@ -848,8 +997,21 @@ export default function Chat() {
           </div>
         )}
 
+      {/* App Mention Fullscreen - show when in app mention mode */}
+      {isAppMentionMode && !isLoading && (
+        <AppMentionFullscreen
+          isOpen={isAppMentionMode}
+          onClose={() => {
+            setIsAppMentionMode(false);
+            setAppMentionQuery("");
+          }}
+          onSelect={handleAppSelect}
+          searchQuery={appMentionQuery}
+        />
+      )}
+
       {/* Content overlay - covers everything below input when visible */}
-      {showContent && (
+      {showContent && !isAppMentionMode && (
         <div className="absolute inset-0 mt-24 ">
           <CommandContent isVisible={showContent} />
         </div>

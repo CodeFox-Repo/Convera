@@ -65,6 +65,13 @@ export interface IPCServer {
 
   // File operations
   openPath(path: string): void;
+
+  // Process icon operations
+  getProcessIcon(appName: string): Promise<{
+    success: boolean;
+    iconData?: string;
+    error?: string;
+  }>;
 }
 
 export const CHANNELS = {
@@ -116,6 +123,9 @@ export const CHANNELS = {
   },
   FILE: {
     OPEN_PATH: "file:open-path",
+  },
+  PROCESS_ICON: {
+    GET: "process-icon:get",
   },
   // Legacy channels for backwards compatibility during transition
   SETTINGS: {
@@ -169,4 +179,7 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // File operations
   openPath: CHANNELS.FILE.OPEN_PATH,
+
+  // Process icon operations
+  getProcessIcon: CHANNELS.PROCESS_ICON.GET,
 };
