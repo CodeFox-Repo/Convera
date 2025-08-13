@@ -21,7 +21,6 @@ export function AppMentionFullscreen({
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-
   // Filter apps based on search query (after @)
   useEffect(() => {
     // Remove duplicates first and filter out unwanted apps
@@ -40,7 +39,6 @@ export function AppMentionFullscreen({
       ];
       return !unwantedApps.includes(app);
     });
-
 
     let filteredApps: string[];
     if (!searchQuery) {
@@ -131,19 +129,22 @@ export function AppMentionFullscreen({
   }, [isOpen, filteredApps, selectedIndex, onSelect, onClose]);
 
   // Handle mouse wheel with throttling for smooth scrolling
-  const throttledWheelHandler = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-    
-    if (e.deltaY > 0) {
-      // Scroll down - move to next item (stop at last item, don't wrap)
-      setSelectedIndex((prev) =>
-        prev < filteredApps.length - 1 ? prev + 1 : prev,
-      );
-    } else {
-      // Scroll up - move to previous item (stop at first item, don't wrap)
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-    }
-  }, [filteredApps.length]);
+  const throttledWheelHandler = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+
+      if (e.deltaY > 0) {
+        // Scroll down - move to next item (stop at last item, don't wrap)
+        setSelectedIndex((prev) =>
+          prev < filteredApps.length - 1 ? prev + 1 : prev,
+        );
+      } else {
+        // Scroll up - move to previous item (stop at first item, don't wrap)
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      }
+    },
+    [filteredApps.length],
+  );
 
   useEffect(() => {
     const container = scrollContainerRef.current;

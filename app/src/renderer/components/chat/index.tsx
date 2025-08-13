@@ -254,7 +254,6 @@ export default function Chat() {
 
   // Handle input change
   const handleInputChange = async (value: string) => {
-
     // Don't allow input changes when loading
     if (isLoading) return;
 
@@ -386,7 +385,6 @@ export default function Chat() {
   // Handle command execution
   const handleCommandExecute = useCallback(
     async (command: CommandResult) => {
-
       // Check if this is an input-changed-command
       if (command.type === "input-changed-command") {
         // Enter input change command mode
@@ -487,7 +485,6 @@ export default function Chat() {
           return;
         }
 
-
         if (selectedInputCommand && inputValue.trim()) {
           // Handle input command submission with command result
           handleAIChatSubmit(commandResult);
@@ -575,7 +572,6 @@ export default function Chat() {
 
         // Only allow if chat has at least one complete conversation (user + assistant)
         if (messages.length >= 2 && !isLoading && currentConversationId) {
-
           // Pass conversation ID to main window via localStorage
           localStorage.setItem("switchToConversation", currentConversationId);
 
