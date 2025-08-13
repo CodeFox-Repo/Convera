@@ -55,34 +55,37 @@ export function AppMentionFullscreen({
     if (!searchQuery) {
       filteredApps = uniqueApps;
     } else {
-      // Filter apps that start with the search query
-      filteredApps = uniqueApps.filter((app) =>
-        app.toLowerCase().startsWith(searchQuery.toLowerCase()),
+      const query = searchQuery.toLowerCase();
+      
+      // Smart search: match apps that:
+      // 1. Start with the query (highest priority)
+      // 2. Contains the query as a word
+      // 3. Contains the query anywhere
+      const startsWithQuery = uniqueApps.filter((app) =>
+        app.toLowerCase().startsWith(query)
       );
-
-      // If no matches found, add some common apps that might match
-      if (filteredApps.length === 0) {
-        const fallbackApps = [
-          "Finder",
-          "Safari",
-          "System Preferences",
-          "TextEdit",
-          "Calculator",
-          "Terminal",
-        ];
-        filteredApps = fallbackApps.filter((app) =>
-          app.toLowerCase().startsWith(searchQuery.toLowerCase()),
-        );
-      }
+      
+      const containsAsWord = uniqueApps.filter((app) => {
+        const appLower = app.toLowerCase();
+        // Check if query matches any word in the app name
+        const words = appLower.split(/[\s-]+/);
+        return !appLower.startsWith(query) && 
+               words.some(word => word.startsWith(query));
+      });
+      
+      const containsAnywhere = uniqueApps.filter((app) => {
+        const appLower = app.toLowerCase();
+        return !appLower.startsWith(query) && 
+               !appLower.split(/[\s-]+/).some(word => word.startsWith(query)) &&
+               appLower.includes(query);
+      });
+      
+      // Combine results in priority order, removing duplicates
+      filteredApps = [...startsWithQuery, ...containsAsWord, ...containsAnywhere];
     }
 
-    // Ensure we always have at least one app
-    if (filteredApps.length === 0) {
-      filteredApps = uniqueApps.slice(0, 5); // Show first 5 apps if no matches
-      if (filteredApps.length === 0) {
-        filteredApps = ["Finder"]; // Ultimate fallback
-      }
-    }
+    // Don't show anything if we have no apps yet (still loading)
+    // This prevents the Finder fallback from appearing briefly
 
     setFilteredApps(filteredApps);
     setSelectedIndex(0);
@@ -174,7 +177,7 @@ export function AppMentionFullscreen({
       >
         {filteredApps.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-sm text-gray-500">No apps found</div>
+            <div className="text-sm text-gray-500">No matching apps</div>
           </div>
         ) : (
           <div className="space-y-2 min-h-full">

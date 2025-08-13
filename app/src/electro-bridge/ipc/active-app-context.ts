@@ -223,10 +223,30 @@ export function activatePreviousApp(): void {
   }
 }
 
-export function getOpenedApps(): Promise<string[]> {
-  // 直接返回预先缓存的应用列表，零延迟
-  console.log(`⚡ Returning cached app list: ${cachedAppList.length} apps`);
-  return Promise.resolve([...cachedAppList]);
+export async function getOpenedApps(): Promise<string[]> {
+  // 检查缓存是否有效
+  const now = Date.now();
+  if (runningAppsCache.length > 0 && now - runningAppsCacheTime < RUNNING_APPS_CACHE_DURATION) {
+    console.log(`⚡ Returning cached running apps: ${runningAppsCache.length} apps`);
+    return [...runningAppsCache];
+  }
+
+  // 获取新的应用列表
+  console.log("⚡ Getting currently running apps with preloaded icons...");
+  const apps = await getOpenedAppsFromSystem();
+  
+  // 只有当返回非空结果时才更新缓存
+  if (apps.length > 0) {
+    runningAppsCache = apps;
+    runningAppsCacheTime = now;
+    console.log(`📱 Updated running apps cache: ${apps.length} apps`);
+  } else if (runningAppsCache.length > 0) {
+    // 如果返回空结果但缓存有数据，返回缓存
+    console.log("⚠️ AppleScript returned empty, using cached apps");
+    return [...runningAppsCache];
+  }
+  
+  return apps;
 }
 
 // 图标缓存系统 - 预加载所有应用图标
@@ -235,6 +255,11 @@ let iconCacheInitialized = false;
 
 // 应用列表缓存 - 启动时预加载
 let cachedAppList: string[] = [];
+
+// 运行中应用缓存 - 避免频繁调用 AppleScript
+let runningAppsCache: string[] = [];
+let runningAppsCacheTime = 0;
+const RUNNING_APPS_CACHE_DURATION = 2000; // 2秒缓存
 
 // 启动时预加载应用列表和图标
 export async function preloadAllAppData(): Promise<void> {
@@ -252,6 +277,12 @@ export async function preloadAllAppData(): Promise<void> {
     // 获取运行中的应用
     const runningApps = await getOpenedAppsFromSystem();
     console.log(`✅ Found ${runningApps.length} running apps:`, runningApps);
+    
+    // 初始化运行中应用缓存
+    if (runningApps.length > 0) {
+      runningAppsCache = runningApps;
+      runningAppsCacheTime = Date.now();
+    }
 
     // 获取所有已安装的应用
     const installedApps = await getAllInstalledApps();
@@ -316,165 +347,169 @@ async function getAllInstalledApps(): Promise<string[]> {
     // 使用find命令扫描所有.app文件
     const command = `find /Applications /System/Applications -name "*.app" -type d -maxdepth 2 2>/dev/null | sed 's|.*/\\([^/]*\\)\\.app|\\1|' | sort -u`;
 
-    exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err: unknown, stdout: unknown) => {
-      if (err) {
-        console.log(
-          "⚠️ Error scanning installed apps, using comprehensive fallback list",
-        );
-        // 返回大量常见应用作为fallback
-        resolve([
-          // 系统应用
-          "Finder",
-          "System Preferences",
-          "System Settings",
-          "Activity Monitor",
-          "Terminal",
-          "Console",
-          "Keychain Access",
-          "Migration Assistant",
-          "Boot Camp Assistant",
+    exec(
+      command,
+      { maxBuffer: 10 * 1024 * 1024 },
+      (err: unknown, stdout: unknown) => {
+        if (err) {
+          console.log(
+            "⚠️ Error scanning installed apps, using comprehensive fallback list",
+          );
+          // 返回大量常见应用作为fallback
+          resolve([
+            // 系统应用
+            "Finder",
+            "System Preferences",
+            "System Settings",
+            "Activity Monitor",
+            "Terminal",
+            "Console",
+            "Keychain Access",
+            "Migration Assistant",
+            "Boot Camp Assistant",
 
-          // 浏览器
-          "Safari",
-          "Google Chrome",
-          "Chrome",
-          "Firefox",
-          "Arc",
-          "Microsoft Edge",
-          "Edge",
-          "Opera",
-          "Brave Browser",
+            // 浏览器
+            "Safari",
+            "Google Chrome",
+            "Chrome",
+            "Firefox",
+            "Arc",
+            "Microsoft Edge",
+            "Edge",
+            "Opera",
+            "Brave Browser",
 
-          // 办公软件
-          "Microsoft Word",
-          "Microsoft Excel",
-          "Microsoft PowerPoint",
-          "Microsoft Outlook",
-          "Pages",
-          "Numbers",
-          "Keynote",
-          "LibreOffice",
-          "OpenOffice",
+            // 办公软件
+            "Microsoft Word",
+            "Microsoft Excel",
+            "Microsoft PowerPoint",
+            "Microsoft Outlook",
+            "Pages",
+            "Numbers",
+            "Keynote",
+            "LibreOffice",
+            "OpenOffice",
 
-          // 开发工具
-          "Visual Studio Code",
-          "Code",
-          "Xcode",
-          "IntelliJ IDEA",
-          "PyCharm",
-          "WebStorm",
-          "Sublime Text",
-          "Atom",
-          "Vim",
-          "Emacs",
-          "iTerm",
-          "iTerm2",
-          "Terminal",
+            // 开发工具
+            "Visual Studio Code",
+            "Code",
+            "Xcode",
+            "IntelliJ IDEA",
+            "PyCharm",
+            "WebStorm",
+            "Sublime Text",
+            "Atom",
+            "Vim",
+            "Emacs",
+            "iTerm",
+            "iTerm2",
+            "Terminal",
 
-          // 设计工具
-          "Adobe Photoshop",
-          "Photoshop",
-          "Adobe Illustrator",
-          "Illustrator",
-          "Adobe After Effects",
-          "After Effects",
-          "Adobe Premiere Pro",
-          "Premiere Pro",
-          "Sketch",
-          "Figma",
-          "Canva",
-          "Affinity Designer",
-          "Affinity Photo",
-          "Pixelmator Pro",
-          "GIMP",
+            // 设计工具
+            "Adobe Photoshop",
+            "Photoshop",
+            "Adobe Illustrator",
+            "Illustrator",
+            "Adobe After Effects",
+            "After Effects",
+            "Adobe Premiere Pro",
+            "Premiere Pro",
+            "Sketch",
+            "Figma",
+            "Canva",
+            "Affinity Designer",
+            "Affinity Photo",
+            "Pixelmator Pro",
+            "GIMP",
 
-          // 通信协作
-          "Slack",
-          "Discord",
-          "Microsoft Teams",
-          "Teams",
-          "Zoom",
-          "Skype",
-          "WhatsApp",
-          "Telegram",
-          "Signal",
-          "WeChat",
+            // 通信协作
+            "Slack",
+            "Discord",
+            "Microsoft Teams",
+            "Teams",
+            "Zoom",
+            "Skype",
+            "WhatsApp",
+            "Telegram",
+            "Signal",
+            "WeChat",
 
-          // 生产力
-          "Notion",
-          "Obsidian",
-          "Evernote",
-          "OneNote",
-          "Bear",
-          "Ulysses",
-          "Typora",
-          "Markdown Editor",
-          "TaskPaper",
-          "Things 3",
-          "Todoist",
-          "Any.do",
+            // 生产力
+            "Notion",
+            "Obsidian",
+            "Evernote",
+            "OneNote",
+            "Bear",
+            "Ulysses",
+            "Typora",
+            "Markdown Editor",
+            "TaskPaper",
+            "Things 3",
+            "Todoist",
+            "Any.do",
 
-          // 媒体
-          "Music",
-          "TV",
-          "Photos",
-          "QuickTime Player",
-          "VLC",
-          "IINA",
-          "Plex",
-          "Spotify",
-          "Apple Music",
-          "SoundCloud",
-          "YouTube Music",
+            // 媒体
+            "Music",
+            "TV",
+            "Photos",
+            "QuickTime Player",
+            "VLC",
+            "IINA",
+            "Plex",
+            "Spotify",
+            "Apple Music",
+            "SoundCloud",
+            "YouTube Music",
 
-          // 实用工具
-          "1Password",
-          "Bitwarden",
-          "CleanMyMac",
-          "CleanMyMac X",
-          "The Unarchiver",
-          "Keka",
-          "AppCleaner",
-          "Disk Utility",
-          "Preview",
-          "TextEdit",
-          "Notes",
-          "Calculator",
-          "Calendar",
-          "Contacts",
-          "Reminders",
-          "Mail",
-          "FaceTime",
-          "Messages",
+            // 实用工具
+            "1Password",
+            "Bitwarden",
+            "CleanMyMac",
+            "CleanMyMac X",
+            "The Unarchiver",
+            "Keka",
+            "AppCleaner",
+            "Disk Utility",
+            "Preview",
+            "TextEdit",
+            "Notes",
+            "Calculator",
+            "Calendar",
+            "Contacts",
+            "Reminders",
+            "Mail",
+            "FaceTime",
+            "Messages",
 
-          // 启动器和工具
-          "Raycast",
-          "Alfred",
-          "LaunchBar",
-          "Spotlight",
-          "PopClip",
-          "BetterTouchTool",
-          "Karabiner-Elements",
-          "Rectangle",
-          "Magnet",
+            // 启动器和工具
+            "Raycast",
+            "Alfred",
+            "LaunchBar",
+            "Spotlight",
+            "PopClip",
+            "BetterTouchTool",
+            "Karabiner-Elements",
+            "Rectangle",
+            "Magnet",
 
-          // 云存储
-          "Dropbox",
-          "Google Drive",
-          "OneDrive",
-          "iCloud",
-          "Box",
-          "Sync.com",
-          "pCloud",
-        ]);
-      } else {
-        const apps = (stdout as string)
-          .trim()
-          .split("\n")
-          .filter((app: string) => app.length > 0);
-        resolve(apps);
-      }
-    });
+            // 云存储
+            "Dropbox",
+            "Google Drive",
+            "OneDrive",
+            "iCloud",
+            "Box",
+            "Sync.com",
+            "pCloud",
+          ]);
+        } else {
+          const apps = (stdout as string)
+            .trim()
+            .split("\n")
+            .filter((app: string) => app.length > 0);
+          resolve(apps);
+        }
+      },
+    );
   });
 }
 
@@ -497,6 +532,8 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         return resolve([]);
       }
 
+      console.log("🔍 AppleScript raw output:", stdout);
+
       if (!stdout || stdout.trim().length === 0) {
         console.warn("⚠️ AppleScript returned empty result");
         return resolve([]);
@@ -506,6 +543,8 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         .trim()
         .split(", ")
         .filter((app) => app.length > 0);
+      
+      console.log(`✅ getOpenedAppsFromSystem: Found ${apps.length} apps:`, apps);
       resolve(apps);
     });
   });

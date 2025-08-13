@@ -14,7 +14,18 @@ export interface PreviousAppContent {
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
   const [previousAppContent, setPreviousAppContent] = useState<string>();
-  const [openedApps, setOpenedApps] = useState<string[]>([]);
+  // 从 localStorage 初始化，避免空数组导致的 Finder fallback
+  const [openedApps, setOpenedApps] = useState<string[]>(() => {
+    const cached = localStorage.getItem("cachedOpenedApps");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
@@ -41,8 +52,14 @@ export function usePreviousApp() {
           `✅ usePreviousApp: Got ${apps.length} apps:`,
           apps.slice(0, 10),
         ); // Show first 10 apps
-        setOpenedApps(apps);
-        console.log("🔍 usePreviousApp: State updated with apps");
+        
+        // 只有当获取到有效的应用列表时才更新
+        if (apps && apps.length > 0) {
+          setOpenedApps(apps);
+          // 缓存到 localStorage
+          localStorage.setItem("cachedOpenedApps", JSON.stringify(apps));
+          console.log("🔍 usePreviousApp: State and cache updated with apps");
+        }
       } else {
         console.warn("⚠️ usePreviousApp: window.activeAppAPI not available");
       }
