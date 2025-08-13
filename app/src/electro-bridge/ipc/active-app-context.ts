@@ -1,6 +1,9 @@
-import { ChildProcess, execFile, spawn } from "child_process";
+import { ChildProcess, execFile, spawn, exec } from "child_process";
 import { app, BrowserWindow } from "electron";
 import path from "path";
+import fs from "fs";
+import os from "os";
+import { promisify } from "util";
 import { CHANNELS } from "./channels";
 
 // State
@@ -227,7 +230,7 @@ export function getOpenedApps(): Promise<string[]> {
 }
 
 // 图标缓存系统 - 预加载所有应用图标
-let iconCache = new Map<string, string>();
+const iconCache = new Map<string, string>();
 let iconCacheInitialized = false;
 
 // 应用列表缓存 - 启动时预加载
@@ -285,7 +288,7 @@ export async function preloadAllAppData(): Promise<void> {
               );
             }
           }
-        } catch (error) {
+        } catch {
           // 静默处理错误，避免日志过多
         }
       });
@@ -311,10 +314,9 @@ async function getAllInstalledApps(): Promise<string[]> {
     }
 
     // 使用find命令扫描所有.app文件
-    const { exec } = require("child_process");
     const command = `find /Applications /System/Applications -name "*.app" -type d -maxdepth 2 2>/dev/null | sed 's|.*/\\([^/]*\\)\\.app|\\1|' | sort -u`;
 
-    exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err: any, stdout: any) => {
+    exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err: unknown, stdout: unknown) => {
       if (err) {
         console.log(
           "⚠️ Error scanning installed apps, using comprehensive fallback list",
@@ -466,7 +468,7 @@ async function getAllInstalledApps(): Promise<string[]> {
           "pCloud",
         ]);
       } else {
-        const apps = stdout
+        const apps = (stdout as string)
           .trim()
           .split("\n")
           .filter((app: string) => app.length > 0);
@@ -515,10 +517,6 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
     return null;
   }
 
-  const fs = require("fs");
-  const os = require("os");
-  const { exec } = require("child_process");
-  const { promisify } = require("util");
   const execAsync = promisify(exec);
 
   // 常见应用路径
@@ -536,7 +534,7 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
 
       // 寻找图标文件
       const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
-      let iconPaths = [];
+      const iconPaths = [];
 
       if (fs.existsSync(infoPlistPath)) {
         const plistContent = fs.readFileSync(infoPlistPath, "utf8");
@@ -594,12 +592,12 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
 
               return dataUrl;
             }
-          } catch (sipsError) {
+          } catch {
             continue;
           }
         }
       }
-    } catch (pathError) {
+    } catch {
       continue;
     }
   }

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 /**
  * Hook to fetch and cache app icons using the new sips-based icon system
  */
-export function useAppIcon(appName?: string, _appId?: number) {
+export function useAppIcon(appName?: string) {
   const [iconData, setIconData] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
