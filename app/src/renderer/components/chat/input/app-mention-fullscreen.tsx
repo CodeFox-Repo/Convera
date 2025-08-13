@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useAppIcon } from "@/renderer/libs/hooks/use-app-icon";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 
@@ -139,30 +139,44 @@ export function AppMentionFullscreen({
     };
   }, [isOpen, filteredApps, selectedIndex, onSelect, onClose]);
 
-  // Handle mouse wheel on scroll container
+  // Handle mouse wheel with throttling for smooth scrolling
+  const throttledWheelHandler = useCallback(
+    (() => {
+      let isThrottled = false;
+      return (e: WheelEvent) => {
+        if (isThrottled) return;
+        
+        e.preventDefault();
+        isThrottled = true;
+        
+        if (e.deltaY > 0) {
+          // Scroll down - move to next item (stop at last item, don't wrap)
+          setSelectedIndex((prev) =>
+            prev < filteredApps.length - 1 ? prev + 1 : prev,
+          );
+        } else {
+          // Scroll up - move to previous item (stop at first item, don't wrap)
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+        }
+        
+        setTimeout(() => {
+          isThrottled = false;
+        }, 100); // 100ms throttle for smooth scrolling
+      };
+    })(),
+    [filteredApps.length],
+  );
+
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || !isOpen || filteredApps.length === 0) return;
 
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (e.deltaY > 0) {
-        // Scroll down - move to next item (stop at last item, don't wrap)
-        setSelectedIndex((prev) =>
-          prev < filteredApps.length - 1 ? prev + 1 : prev,
-        );
-      } else {
-        // Scroll up - move to previous item (stop at first item, don't wrap)
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-      }
-    };
-
-    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("wheel", throttledWheelHandler, { passive: false });
 
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("wheel", throttledWheelHandler);
     };
-  }, [isOpen, filteredApps, selectedIndex]);
+  }, [isOpen, filteredApps.length, throttledWheelHandler]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -229,7 +243,7 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         className={`flex items-center gap-3 cursor-pointer pl-0 pr-3 py-3 rounded-lg transition-all duration-200 ease-in-out border border-transparent ${
           isSelected
             ? "bg-gray-100/60 dark:bg-gray-800/40 border-gray-200/50 dark:border-gray-700/50 shadow-sm"
-            : "hover:bg-gray-50/60 dark:hover:bg-gray-900/40 hover:border-gray-100/50 dark:hover:border-gray-800/50 hover:shadow-sm"
+            : "hover:bg-gray-100/60 dark:hover:bg-gray-800/40 hover:border-gray-200/50 dark:hover:border-gray-700/50 hover:shadow-sm"
         }`}
       >
         <div
