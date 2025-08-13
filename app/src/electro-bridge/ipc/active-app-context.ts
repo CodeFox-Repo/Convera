@@ -653,7 +653,6 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
   return null;
 }
 
-
 export async function getAppIcon(appName: string): Promise<{
   success: boolean;
   iconData?: string;
