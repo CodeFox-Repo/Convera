@@ -239,34 +239,38 @@ export async function preloadAllAppData(): Promise<void> {
     console.log("⚡ App data already preloaded, skipping...");
     return;
   }
-  
+
   console.log("🚀 Starting comprehensive app data preloading...");
-  
+
   try {
     // 第一步：获取所有可能的应用列表
     console.log("📱 Step 1: Scanning all applications...");
-    
+
     // 获取运行中的应用
     const runningApps = await getOpenedAppsFromSystem();
     console.log(`✅ Found ${runningApps.length} running apps:`, runningApps);
-    
+
     // 获取所有已安装的应用
     const installedApps = await getAllInstalledApps();
     console.log(`✅ Found ${installedApps.length} installed apps`);
-    
+
     // 合并并去重所有应用
     const allApps = [...new Set([...runningApps, ...installedApps])];
     cachedAppList = allApps;
     console.log(`🎯 Total unique apps to cache: ${allApps.length}`);
-    console.log(`📋 Sample apps:`, allApps.slice(0, 15), allApps.length > 15 ? '...' : '');
-    
+    console.log(
+      `📋 Sample apps:`,
+      allApps.slice(0, 15),
+      allApps.length > 15 ? "..." : "",
+    );
+
     // 第二步：并行预加载所有图标
     console.log("🎨 Step 2: Preloading ALL app icons...");
-    
+
     // 分批处理，避免太多并行请求
     const batchSize = 10;
     let processed = 0;
-    
+
     for (let i = 0; i < allApps.length; i += batchSize) {
       const batch = allApps.slice(i, i + batchSize);
       const batchPromises = batch.map(async (appName) => {
@@ -276,20 +280,23 @@ export async function preloadAllAppData(): Promise<void> {
             iconCache.set(appName, iconData);
             processed++;
             if (processed % 5 === 0) {
-              console.log(`🔄 Progress: ${processed}/${allApps.length} icons cached`);
+              console.log(
+                `🔄 Progress: ${processed}/${allApps.length} icons cached`,
+              );
             }
           }
         } catch (error) {
           // 静默处理错误，避免日志过多
         }
       });
-      
+
       await Promise.all(batchPromises);
     }
-    
+
     iconCacheInitialized = true;
-    console.log(`🎉 COMPLETE! Cached ${cachedAppList.length} apps, ${iconCache.size} icons loaded!`);
-    
+    console.log(
+      `🎉 COMPLETE! Cached ${cachedAppList.length} apps, ${iconCache.size} icons loaded!`,
+    );
   } catch (error) {
     console.error("❌ Error during app data preloading:", error);
     iconCacheInitialized = true;
@@ -302,53 +309,167 @@ async function getAllInstalledApps(): Promise<string[]> {
     if (process.platform !== "darwin") {
       return resolve([]);
     }
-    
+
     // 使用find命令扫描所有.app文件
-    const { exec } = require('child_process');
+    const { exec } = require("child_process");
     const command = `find /Applications /System/Applications -name "*.app" -type d -maxdepth 2 2>/dev/null | sed 's|.*/\\([^/]*\\)\\.app|\\1|' | sort -u`;
-    
+
     exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err: any, stdout: any) => {
       if (err) {
-        console.log("⚠️ Error scanning installed apps, using comprehensive fallback list");
+        console.log(
+          "⚠️ Error scanning installed apps, using comprehensive fallback list",
+        );
         // 返回大量常见应用作为fallback
         resolve([
           // 系统应用
-          "Finder", "System Preferences", "System Settings", "Activity Monitor", "Terminal", "Console", "Keychain Access", "Migration Assistant", "Boot Camp Assistant",
-          
+          "Finder",
+          "System Preferences",
+          "System Settings",
+          "Activity Monitor",
+          "Terminal",
+          "Console",
+          "Keychain Access",
+          "Migration Assistant",
+          "Boot Camp Assistant",
+
           // 浏览器
-          "Safari", "Google Chrome", "Chrome", "Firefox", "Arc", "Microsoft Edge", "Edge", "Opera", "Brave Browser",
-          
+          "Safari",
+          "Google Chrome",
+          "Chrome",
+          "Firefox",
+          "Arc",
+          "Microsoft Edge",
+          "Edge",
+          "Opera",
+          "Brave Browser",
+
           // 办公软件
-          "Microsoft Word", "Microsoft Excel", "Microsoft PowerPoint", "Microsoft Outlook", "Pages", "Numbers", "Keynote", "LibreOffice", "OpenOffice",
-          
+          "Microsoft Word",
+          "Microsoft Excel",
+          "Microsoft PowerPoint",
+          "Microsoft Outlook",
+          "Pages",
+          "Numbers",
+          "Keynote",
+          "LibreOffice",
+          "OpenOffice",
+
           // 开发工具
-          "Visual Studio Code", "Code", "Xcode", "IntelliJ IDEA", "PyCharm", "WebStorm", "Sublime Text", "Atom", "Vim", "Emacs", "iTerm", "iTerm2", "Terminal",
-          
+          "Visual Studio Code",
+          "Code",
+          "Xcode",
+          "IntelliJ IDEA",
+          "PyCharm",
+          "WebStorm",
+          "Sublime Text",
+          "Atom",
+          "Vim",
+          "Emacs",
+          "iTerm",
+          "iTerm2",
+          "Terminal",
+
           // 设计工具
-          "Adobe Photoshop", "Photoshop", "Adobe Illustrator", "Illustrator", "Adobe After Effects", "After Effects", "Adobe Premiere Pro", "Premiere Pro",
-          "Sketch", "Figma", "Canva", "Affinity Designer", "Affinity Photo", "Pixelmator Pro", "GIMP",
-          
+          "Adobe Photoshop",
+          "Photoshop",
+          "Adobe Illustrator",
+          "Illustrator",
+          "Adobe After Effects",
+          "After Effects",
+          "Adobe Premiere Pro",
+          "Premiere Pro",
+          "Sketch",
+          "Figma",
+          "Canva",
+          "Affinity Designer",
+          "Affinity Photo",
+          "Pixelmator Pro",
+          "GIMP",
+
           // 通信协作
-          "Slack", "Discord", "Microsoft Teams", "Teams", "Zoom", "Skype", "WhatsApp", "Telegram", "Signal", "WeChat",
-          
+          "Slack",
+          "Discord",
+          "Microsoft Teams",
+          "Teams",
+          "Zoom",
+          "Skype",
+          "WhatsApp",
+          "Telegram",
+          "Signal",
+          "WeChat",
+
           // 生产力
-          "Notion", "Obsidian", "Evernote", "OneNote", "Bear", "Ulysses", "Typora", "Markdown Editor", "TaskPaper", "Things 3", "Todoist", "Any.do",
-          
+          "Notion",
+          "Obsidian",
+          "Evernote",
+          "OneNote",
+          "Bear",
+          "Ulysses",
+          "Typora",
+          "Markdown Editor",
+          "TaskPaper",
+          "Things 3",
+          "Todoist",
+          "Any.do",
+
           // 媒体
-          "Music", "TV", "Photos", "QuickTime Player", "VLC", "IINA", "Plex", "Spotify", "Apple Music", "SoundCloud", "YouTube Music",
-          
+          "Music",
+          "TV",
+          "Photos",
+          "QuickTime Player",
+          "VLC",
+          "IINA",
+          "Plex",
+          "Spotify",
+          "Apple Music",
+          "SoundCloud",
+          "YouTube Music",
+
           // 实用工具
-          "1Password", "Bitwarden", "CleanMyMac", "CleanMyMac X", "The Unarchiver", "Keka", "AppCleaner", "Disk Utility", "Preview", 
-          "TextEdit", "Notes", "Calculator", "Calendar", "Contacts", "Reminders", "Mail", "FaceTime", "Messages",
-          
+          "1Password",
+          "Bitwarden",
+          "CleanMyMac",
+          "CleanMyMac X",
+          "The Unarchiver",
+          "Keka",
+          "AppCleaner",
+          "Disk Utility",
+          "Preview",
+          "TextEdit",
+          "Notes",
+          "Calculator",
+          "Calendar",
+          "Contacts",
+          "Reminders",
+          "Mail",
+          "FaceTime",
+          "Messages",
+
           // 启动器和工具
-          "Raycast", "Alfred", "LaunchBar", "Spotlight", "PopClip", "BetterTouchTool", "Karabiner-Elements", "Rectangle", "Magnet",
-          
+          "Raycast",
+          "Alfred",
+          "LaunchBar",
+          "Spotlight",
+          "PopClip",
+          "BetterTouchTool",
+          "Karabiner-Elements",
+          "Rectangle",
+          "Magnet",
+
           // 云存储
-          "Dropbox", "Google Drive", "OneDrive", "iCloud", "Box", "Sync.com", "pCloud"
+          "Dropbox",
+          "Google Drive",
+          "OneDrive",
+          "iCloud",
+          "Box",
+          "Sync.com",
+          "pCloud",
         ]);
       } else {
-        const apps = stdout.trim().split('\n').filter((app: string) => app.length > 0);
+        const apps = stdout
+          .trim()
+          .split("\n")
+          .filter((app: string) => app.length > 0);
         resolve(apps);
       }
     });
@@ -373,13 +494,16 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         console.error("❌ Error getting opened apps:", err);
         return resolve([]);
       }
-      
+
       if (!stdout || stdout.trim().length === 0) {
         console.warn("⚠️ AppleScript returned empty result");
         return resolve([]);
       }
-      
-      const apps = stdout.trim().split(", ").filter(app => app.length > 0);
+
+      const apps = stdout
+        .trim()
+        .split(", ")
+        .filter((app) => app.length > 0);
       resolve(apps);
     });
   });
@@ -391,12 +515,12 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
     return null;
   }
 
-  const fs = require('fs');
-  const os = require('os');
-  const { exec } = require('child_process');
-  const { promisify } = require('util');
+  const fs = require("fs");
+  const os = require("os");
+  const { exec } = require("child_process");
+  const { promisify } = require("util");
   const execAsync = promisify(exec);
-  
+
   // 常见应用路径
   const appPaths = [
     `/Applications/${appName}.app`,
@@ -409,56 +533,65 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
       if (!fs.existsSync(appPath)) {
         continue;
       }
-      
+
       // 寻找图标文件
-      const infoPlistPath = path.join(appPath, 'Contents', 'Info.plist');
+      const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
       let iconPaths = [];
-      
+
       if (fs.existsSync(infoPlistPath)) {
-        const plistContent = fs.readFileSync(infoPlistPath, 'utf8');
-        const iconMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
+        const plistContent = fs.readFileSync(infoPlistPath, "utf8");
+        const iconMatch = plistContent.match(
+          /<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/,
+        );
         let iconFileName = iconMatch ? iconMatch[1] : null;
-        
+
         if (!iconFileName) {
-          const iconNameMatch = plistContent.match(/<key>CFBundleIconName<\/key>\s*<string>([^<]+)<\/string>/);
+          const iconNameMatch = plistContent.match(
+            /<key>CFBundleIconName<\/key>\s*<string>([^<]+)<\/string>/,
+          );
           iconFileName = iconNameMatch ? iconNameMatch[1] : null;
         }
-        
+
         if (iconFileName) {
-          if (!iconFileName.endsWith('.icns')) {
-            iconFileName += '.icns';
+          if (!iconFileName.endsWith(".icns")) {
+            iconFileName += ".icns";
           }
-          iconPaths.push(path.join(appPath, 'Contents', 'Resources', iconFileName));
+          iconPaths.push(
+            path.join(appPath, "Contents", "Resources", iconFileName),
+          );
         }
       }
-      
+
       // 添加常见图标名
       iconPaths.push(
-        path.join(appPath, 'Contents', 'Resources', 'AppIcon.icns'),
-        path.join(appPath, 'Contents', 'Resources', 'icon.icns'),
-        path.join(appPath, 'Contents', 'Resources', 'Icon.icns'),
-        path.join(appPath, 'Contents', 'Resources', 'app.icns')
+        path.join(appPath, "Contents", "Resources", "AppIcon.icns"),
+        path.join(appPath, "Contents", "Resources", "icon.icns"),
+        path.join(appPath, "Contents", "Resources", "Icon.icns"),
+        path.join(appPath, "Contents", "Resources", "app.icns"),
       );
-      
+
       // 尝试每个图标路径
       for (const iconPath of iconPaths) {
         if (fs.existsSync(iconPath)) {
           try {
             // 使用sips转换为PNG
             const tmpDir = os.tmpdir();
-            const tmpPngPath = path.join(tmpDir, `${Date.now()}_${appName}_icon.png`);
-            
+            const tmpPngPath = path.join(
+              tmpDir,
+              `${Date.now()}_${appName}_icon.png`,
+            );
+
             const sipsCommand = `sips -s format png -z 32 32 "${iconPath}" --out "${tmpPngPath}"`;
             await execAsync(sipsCommand);
-            
+
             if (fs.existsSync(tmpPngPath)) {
               const pngBuffer = fs.readFileSync(tmpPngPath);
-              const base64Data = pngBuffer.toString('base64');
+              const base64Data = pngBuffer.toString("base64");
               const dataUrl = `data:image/png;base64,${base64Data}`;
-              
+
               // 清理临时文件
               fs.unlinkSync(tmpPngPath);
-              
+
               return dataUrl;
             }
           } catch (sipsError) {
@@ -484,10 +617,10 @@ export async function getAppIcon(appName: string): Promise<{
     if (iconCache.has(appName)) {
       return {
         success: true,
-        iconData: iconCache.get(appName)!
+        iconData: iconCache.get(appName)!,
       };
     }
-    
+
     // 缓存中没有，尝试即时加载
     const iconData = await loadAppIconFromDisk(appName);
     if (iconData) {
@@ -495,20 +628,19 @@ export async function getAppIcon(appName: string): Promise<{
       iconCache.set(appName, iconData);
       return {
         success: true,
-        iconData: iconData
+        iconData: iconData,
       };
     }
-    
-    return {
-      success: false,
-      error: `无法找到应用图标文件: ${appName}`
-    };
 
-  } catch (error) {
-    console.error('❌ Error getting app icon:', error);
     return {
       success: false,
-      error: `获取图标失败: ${error instanceof Error ? error.message : String(error)}`
+      error: `无法找到应用图标文件: ${appName}`,
+    };
+  } catch (error) {
+    console.error("❌ Error getting app icon:", error);
+    return {
+      success: false,
+      error: `获取图标失败: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

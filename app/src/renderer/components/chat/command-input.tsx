@@ -41,7 +41,8 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
     ref,
   ) => {
     const { previousApp, formatAppName } = usePreviousApp();
-    const { iconData: appIcon, isLoading: iconLoading } = useAppIcon(previousApp);
+    const { iconData: appIcon, isLoading: iconLoading } =
+      useAppIcon(previousApp);
     const { selectedContent, setSelectedContent } = useChatContext();
 
     return (
@@ -150,8 +151,8 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
                       alt={`${previousApp} icon`}
                       className="w-4 h-4 rounded-sm object-cover"
                       style={{
-                        imageRendering: 'auto',
-                        filter: 'contrast(1.05)'
+                        imageRendering: "auto",
+                        filter: "contrast(1.05)",
                       }}
                     />
                   ) : (

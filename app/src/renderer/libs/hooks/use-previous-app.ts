@@ -37,7 +37,10 @@ export function usePreviousApp() {
       if (window.activeAppAPI) {
         console.log("🔄 usePreviousApp: Fetching opened apps...");
         const apps = await window.activeAppAPI.getOpenedApps();
-        console.log(`✅ usePreviousApp: Got ${apps.length} apps:`, apps.slice(0, 10)); // Show first 10 apps
+        console.log(
+          `✅ usePreviousApp: Got ${apps.length} apps:`,
+          apps.slice(0, 10),
+        ); // Show first 10 apps
         setOpenedApps(apps);
         console.log("🔍 usePreviousApp: State updated with apps");
       } else {

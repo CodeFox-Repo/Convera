@@ -254,7 +254,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   ipcMain.handle(CHANNELS.FILE.OPEN_PATH, (_event, path: string) => {
     return openPath(path);
   });
-  
+
   // Process icon operations
   ipcMain.handle(CHANNELS.PROCESS_ICON.GET, (_event, appName: string) => {
     return getAppIcon(appName);

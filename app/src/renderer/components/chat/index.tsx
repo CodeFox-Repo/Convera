@@ -256,7 +256,7 @@ export default function Chat() {
   // Handle input change
   const handleInputChange = async (value: string) => {
     console.log("🔤 handleInputChange called with:", JSON.stringify(value));
-    
+
     // Don't allow input changes when loading
     if (isLoading) return;
 
@@ -317,10 +317,18 @@ export default function Chat() {
 
     // Check for app mention mode - match @ at the end or @ followed by letters at the end
     const appMentionMatch = value.match(/@(\w*)$/);
-    console.log("🔍 Checking app mention for:", value, "Match:", appMentionMatch);
-    
+    console.log(
+      "🔍 Checking app mention for:",
+      value,
+      "Match:",
+      appMentionMatch,
+    );
+
     if (appMentionMatch) {
-      console.log("✅ Entering app mention mode with query:", appMentionMatch[1]);
+      console.log(
+        "✅ Entering app mention mode with query:",
+        appMentionMatch[1],
+      );
       console.log("✅ Full value:", JSON.stringify(value));
       setIsAppMentionMode(true);
       setIsCommandMode(false);
@@ -461,7 +469,7 @@ export default function Chat() {
       }
 
       console.log("📤 Before clear - inputValue:", inputValue);
-      
+
       // Clear input first
       setInputValue("");
       setResults([]);
@@ -479,37 +487,43 @@ export default function Chat() {
   );
 
   // Handle app selection
-  const handleAppSelect = useCallback(async (appName: string) => {
-    console.log("🎯 handleAppSelect called with:", appName);
-    
-    // Replace the @query part with the selected app
-    const atMatch = inputValue.match(/@\w*$/);
-    if (atMatch) {
-      const beforeAt = inputValue.substring(0, inputValue.length - atMatch[0].length);
-      const newValue = beforeAt + `@${appName} `;
+  const handleAppSelect = useCallback(
+    async (appName: string) => {
+      console.log("🎯 handleAppSelect called with:", appName);
 
-      // Track the mention position for whole deletion
-      const mentionStart = beforeAt.length;
-      const mentionEnd = mentionStart + `@${appName}`.length;
-      setAppMentions((prev) => [
-        ...prev,
-        { start: mentionStart, end: mentionEnd, app: appName },
-      ]);
+      // Replace the @query part with the selected app
+      const atMatch = inputValue.match(/@\w*$/);
+      if (atMatch) {
+        const beforeAt = inputValue.substring(
+          0,
+          inputValue.length - atMatch[0].length,
+        );
+        const newValue = beforeAt + `@${appName} `;
 
-      setInputValue(newValue);
-      console.log("🎯 Set new input value:", newValue);
-    }
-    
-    // Close app mention mode with slight delay to ensure state updates
-    setTimeout(() => {
-      setIsAppMentionMode(false);
-      setAppMentionQuery("");
-      console.log("🎯 App mention mode closed");
-    }, 0);
-    
-    // Don't resize back to compact - keep the expanded size for Pro AI interface
-    // The window will remain in expanded state to show "Pro AI Cancel ESC"
-  }, [inputValue]);
+        // Track the mention position for whole deletion
+        const mentionStart = beforeAt.length;
+        const mentionEnd = mentionStart + `@${appName}`.length;
+        setAppMentions((prev) => [
+          ...prev,
+          { start: mentionStart, end: mentionEnd, app: appName },
+        ]);
+
+        setInputValue(newValue);
+        console.log("🎯 Set new input value:", newValue);
+      }
+
+      // Close app mention mode with slight delay to ensure state updates
+      setTimeout(() => {
+        setIsAppMentionMode(false);
+        setAppMentionQuery("");
+        console.log("🎯 App mention mode closed");
+      }, 0);
+
+      // Don't resize back to compact - keep the expanded size for Pro AI interface
+      // The window will remain in expanded state to show "Pro AI Cancel ESC"
+    },
+    [inputValue],
+  );
 
   // Handle key press
   const handleKeyPress = useCallback(
@@ -717,18 +731,24 @@ export default function Chat() {
         // Use a fixed large height for app mention mode to allow free scrolling
         const hasActiveBadge = !!previousApp;
         const selectedContentText = selectedContent?.text || "";
-        
+
         // Calculate base height (input + selected content + padding)
         let baseHeight = hasActiveBadge ? 98 : 78;
-        const selectedContentHeight = calculateSelectedContentHeight(selectedContentText);
+        const selectedContentHeight =
+          calculateSelectedContentHeight(selectedContentText);
         baseHeight += selectedContentHeight;
-        
+
         // Add a fixed large content area for scrollable app list (similar to command content mode)
         const appMentionHeight = baseHeight + 400; // Large fixed height for scrollable content
-        
-        window.electronAPI.getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
+
+        window.electronAPI
+          .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
           .then((currentSize) => {
-            window.electronAPI.resizeWindow(currentSize.width, appMentionHeight, true);
+            window.electronAPI.resizeWindow(
+              currentSize.width,
+              appMentionHeight,
+              true,
+            );
           });
         return;
       }

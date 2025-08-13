@@ -43,12 +43,17 @@ export function useAppIcon(appName?: string, _appId?: number) {
           setIconData(result.iconData);
           setError(null);
         } else {
-          console.log(`❌ useAppIcon: Failed to get icon for ${appName}: ${result.error}`);
+          console.log(
+            `❌ useAppIcon: Failed to get icon for ${appName}: ${result.error}`,
+          );
           setError(result.error || "Failed to get icon");
           setIconData(null);
         }
       } catch (err) {
-        console.error(`❌ useAppIcon: Error fetching icon for ${appName}:`, err);
+        console.error(
+          `❌ useAppIcon: Error fetching icon for ${appName}:`,
+          err,
+        );
         setError(err instanceof Error ? err.message : "Unknown error");
         setIconData(null);
       } finally {

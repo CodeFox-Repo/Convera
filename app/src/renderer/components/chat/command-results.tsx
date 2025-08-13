@@ -165,26 +165,30 @@ const CommandResults: React.FC<CommandResultsProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Bottom action bar - same style as app mention */}
           <div className="border-t border-foreground/10 px-4 py-3">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1 text-foreground/60">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded border border-foreground/20 text-[10px] font-medium">⏎</span>
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                    ⏎
+                  </span>
                   <span>Continue in Chat</span>
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
-                  <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">⌘J</span>
+                  <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                    ⌘J
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
-                  <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">ESC</span>
+                  <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                    ESC
+                  </span>
                   <span>Cancel</span>
                 </div>
               </div>
-              <div className="text-foreground/40 text-right">
-                Pro AI
-              </div>
+              <div className="text-foreground/40 text-right">Pro AI</div>
             </div>
           </div>
         </div>

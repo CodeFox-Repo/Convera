@@ -12,7 +12,10 @@ import { exec } from "child_process";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 
-import { setPreviousApp, preloadAllAppData } from "@/electro-bridge/ipc/active-app-context";
+import {
+  setPreviousApp,
+  preloadAllAppData,
+} from "@/electro-bridge/ipc/active-app-context";
 import {
   getCurrentShortcut,
   setInputContent,

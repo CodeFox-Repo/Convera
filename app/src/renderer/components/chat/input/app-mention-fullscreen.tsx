@@ -26,51 +26,64 @@ export function AppMentionFullscreen({
   // Filter apps based on search query (after @)
   useEffect(() => {
     // Remove duplicates first and filter out unwanted apps
-    const uniqueApps = [...new Set(openedApps)].filter(app => {
+    const uniqueApps = [...new Set(openedApps)].filter((app) => {
       // Filter out system processes and unwanted apps
       const unwantedApps = [
-        'osascript',
-        'System Events',
-        'loginwindow',
-        'WindowServer',
-        'Dock',
-        'Finder Helper',
-        'SystemUIServer',
-        'ControlCenter',
-        'Spotlight'
+        "osascript",
+        "System Events",
+        "loginwindow",
+        "WindowServer",
+        "Dock",
+        "Finder Helper",
+        "SystemUIServer",
+        "ControlCenter",
+        "Spotlight",
       ];
       return !unwantedApps.includes(app);
     });
-    
-    console.log(`🔍 AppMentionFullscreen: openedApps count: ${openedApps.length}`, openedApps.slice(0, 5));
-    console.log(`🔍 AppMentionFullscreen: uniqueApps count: ${uniqueApps.length}`, uniqueApps.slice(0, 5));
-    
+
+    console.log(
+      `🔍 AppMentionFullscreen: openedApps count: ${openedApps.length}`,
+      openedApps.slice(0, 5),
+    );
+    console.log(
+      `🔍 AppMentionFullscreen: uniqueApps count: ${uniqueApps.length}`,
+      uniqueApps.slice(0, 5),
+    );
+
     let filteredApps: string[];
     if (!searchQuery) {
       filteredApps = uniqueApps;
     } else {
       // Filter apps that start with the search query
-      filteredApps = uniqueApps.filter(app =>
-        app.toLowerCase().startsWith(searchQuery.toLowerCase())
+      filteredApps = uniqueApps.filter((app) =>
+        app.toLowerCase().startsWith(searchQuery.toLowerCase()),
       );
-      
+
       // If no matches found, add some common apps that might match
       if (filteredApps.length === 0) {
-        const fallbackApps = ['Finder', 'Safari', 'System Preferences', 'TextEdit', 'Calculator', 'Terminal'];
-        filteredApps = fallbackApps.filter(app =>
-          app.toLowerCase().startsWith(searchQuery.toLowerCase())
+        const fallbackApps = [
+          "Finder",
+          "Safari",
+          "System Preferences",
+          "TextEdit",
+          "Calculator",
+          "Terminal",
+        ];
+        filteredApps = fallbackApps.filter((app) =>
+          app.toLowerCase().startsWith(searchQuery.toLowerCase()),
         );
       }
     }
-    
+
     // Ensure we always have at least one app
     if (filteredApps.length === 0) {
       filteredApps = uniqueApps.slice(0, 5); // Show first 5 apps if no matches
       if (filteredApps.length === 0) {
-        filteredApps = ['Finder']; // Ultimate fallback
+        filteredApps = ["Finder"]; // Ultimate fallback
       }
     }
-    
+
     setFilteredApps(filteredApps);
     setSelectedIndex(0);
   }, [openedApps, searchQuery]);
@@ -84,16 +97,14 @@ export function AppMentionFullscreen({
         case "ArrowDown":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex(prev => 
-            prev < filteredApps.length - 1 ? prev + 1 : prev
+          setSelectedIndex((prev) =>
+            prev < filteredApps.length - 1 ? prev + 1 : prev,
           );
           break;
         case "ArrowUp":
           e.preventDefault();
           e.stopPropagation();
-          setSelectedIndex(prev => 
-            prev > 0 ? prev - 1 : prev
-          );
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
           break;
         case "Tab":
         case "Enter":
@@ -111,7 +122,7 @@ export function AppMentionFullscreen({
     };
 
     document.addEventListener("keydown", handleKeyDown, { capture: true });
-    
+
     return () => {
       document.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
@@ -126,19 +137,17 @@ export function AppMentionFullscreen({
       e.preventDefault();
       if (e.deltaY > 0) {
         // Scroll down - move to next item (stop at last item, don't wrap)
-        setSelectedIndex(prev => 
-          prev < filteredApps.length - 1 ? prev + 1 : prev
+        setSelectedIndex((prev) =>
+          prev < filteredApps.length - 1 ? prev + 1 : prev,
         );
       } else {
         // Scroll up - move to previous item (stop at first item, don't wrap)
-        setSelectedIndex(prev => 
-          prev > 0 ? prev - 1 : prev
-        );
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
       }
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
-    
+
     return () => {
       container.removeEventListener("wheel", handleWheel);
     };
@@ -159,19 +168,22 @@ export function AppMentionFullscreen({
   return (
     <div className="flex-1 overflow-hidden">
       {/* App list section - full height, scrollable */}
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto px-4 py-2">
+      <div
+        ref={scrollContainerRef}
+        className="h-full overflow-y-auto px-4 py-2"
+      >
         {filteredApps.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-sm text-gray-500">
-              No apps found
-            </div>
+            <div className="text-sm text-gray-500">No apps found</div>
           </div>
         ) : (
           <div className="space-y-2 min-h-full">
             {filteredApps.map((app, index) => (
               <AppMentionItem
                 key={app}
-                ref={(el) => { itemRefs.current[index] = el; }}
+                ref={(el) => {
+                  itemRefs.current[index] = el;
+                }}
                 appName={app}
                 isSelected={index === selectedIndex}
                 onSelect={() => {
@@ -204,7 +216,9 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         onClick={onSelect}
         onMouseEnter={onMouseEnter}
         className={`flex items-center gap-4 cursor-pointer px-4 py-4 rounded-lg transition-all ${
-          isSelected ? "bg-gray-100 dark:bg-gray-800" : "hover:bg-gray-50 dark:hover:bg-gray-900"
+          isSelected
+            ? "bg-gray-100 dark:bg-gray-800"
+            : "hover:bg-gray-50 dark:hover:bg-gray-900"
         }`}
       >
         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -216,8 +230,8 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
               alt={`${appName} icon`}
               className="w-8 h-8 rounded object-cover"
               style={{
-                imageRendering: 'auto',
-                filter: 'contrast(1.05)'
+                imageRendering: "auto",
+                filter: "contrast(1.05)",
               }}
             />
           ) : (
