@@ -196,7 +196,7 @@ export function AppMentionFullscreen({
             ))}
           </div>
         )}
-        
+
         {/* Bottom action bar - matching Google Translate style */}
         <div className="border-t border-foreground/10 px-4 py-3">
           <div className="flex items-center justify-between text-xs">
@@ -265,9 +265,7 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-foreground text-sm">
-            {appName}
-          </div>
+          <div className="font-medium text-foreground text-sm">{appName}</div>
           <div className="text-xs text-foreground/60">
             Add @{appName} to message
           </div>
