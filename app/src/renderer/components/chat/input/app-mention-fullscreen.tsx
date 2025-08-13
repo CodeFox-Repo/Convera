@@ -145,10 +145,10 @@ export function AppMentionFullscreen({
       let isThrottled = false;
       return (e: WheelEvent) => {
         if (isThrottled) return;
-        
+
         e.preventDefault();
         isThrottled = true;
-        
+
         if (e.deltaY > 0) {
           // Scroll down - move to next item (stop at last item, don't wrap)
           setSelectedIndex((prev) =>
@@ -158,7 +158,7 @@ export function AppMentionFullscreen({
           // Scroll up - move to previous item (stop at first item, don't wrap)
           setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
         }
-        
+
         setTimeout(() => {
           isThrottled = false;
         }, 100); // 100ms throttle for smooth scrolling
@@ -171,7 +171,9 @@ export function AppMentionFullscreen({
     const container = scrollContainerRef.current;
     if (!container || !isOpen || filteredApps.length === 0) return;
 
-    container.addEventListener("wheel", throttledWheelHandler, { passive: false });
+    container.addEventListener("wheel", throttledWheelHandler, {
+      passive: false,
+    });
 
     return () => {
       container.removeEventListener("wheel", throttledWheelHandler);
