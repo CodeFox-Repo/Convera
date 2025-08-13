@@ -35,25 +35,17 @@ export function useAppIcon(appName?: string) {
           return;
         }
 
-        console.log(`🔍 useAppIcon: Fetching icon for ${appName}`);
         const result = await window.electronAPI.getProcessIcon(appName);
 
         if (result.success && result.iconData) {
-          console.log(`✅ useAppIcon: Successfully got icon for ${appName}`);
           setIconData(result.iconData);
           setError(null);
         } else {
-          console.log(
-            `❌ useAppIcon: Failed to get icon for ${appName}: ${result.error}`,
-          );
           setError(result.error || "Failed to get icon");
           setIconData(null);
         }
       } catch (err) {
-        console.error(
-          `❌ useAppIcon: Error fetching icon for ${appName}:`,
-          err,
-        );
+        console.error(`useAppIcon: Error fetching icon for ${appName}:`, err);
         setError(err instanceof Error ? err.message : "Unknown error");
         setIconData(null);
       } finally {

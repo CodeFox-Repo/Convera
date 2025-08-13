@@ -14,7 +14,7 @@ export interface PreviousAppContent {
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
   const [previousAppContent, setPreviousAppContent] = useState<string>();
-  // 从 localStorage 初始化，避免空数组导致的 Finder fallback
+  // Initialize from localStorage to avoid empty array causing Finder fallback
   const [openedApps, setOpenedApps] = useState<string[]>(() => {
     const cached = localStorage.getItem("cachedOpenedApps");
     if (cached) {
@@ -46,25 +46,19 @@ export function usePreviousApp() {
   const fetchOpenedApps = async () => {
     try {
       if (window.activeAppAPI) {
-        console.log("🔄 usePreviousApp: Fetching opened apps...");
         const apps = await window.activeAppAPI.getOpenedApps();
-        console.log(
-          `✅ usePreviousApp: Got ${apps.length} apps:`,
-          apps.slice(0, 10),
-        ); // Show first 10 apps
 
-        // 只有当获取到有效的应用列表时才更新
+        // Only update when getting valid app list
         if (apps && apps.length > 0) {
           setOpenedApps(apps);
-          // 缓存到 localStorage
+          // Cache to localStorage
           localStorage.setItem("cachedOpenedApps", JSON.stringify(apps));
-          console.log("🔍 usePreviousApp: State and cache updated with apps");
         }
       } else {
-        console.warn("⚠️ usePreviousApp: window.activeAppAPI not available");
+        console.warn("usePreviousApp: window.activeAppAPI not available");
       }
     } catch (error) {
-      console.error("❌ usePreviousApp: Error fetching opened apps:", error);
+      console.error("usePreviousApp: Error fetching opened apps:", error);
     }
   };
 
@@ -82,9 +76,9 @@ export function usePreviousApp() {
 
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
-    // Initial fetch - 立即预加载应用数据
+    // Initial fetch - immediately preload app data
     fetchPreviousApp();
-    fetchOpenedApps(); // 组件mount时立即加载应用列表
+    fetchOpenedApps(); // Load app list immediately when component mounts
 
     // Setup event listener for app changes
     if (window.electronAPI?.onAppChanged) {
