@@ -1,8 +1,7 @@
 import { AuthModal } from "@/renderer/components/auth/auth-modal";
-import { User } from "lucide-react";
-import React from "react";
 import { useAccountProfile } from "@/renderer/libs/hooks/use-account-profile";
 import { useUsageStats } from "@/renderer/libs/hooks/use-usage-stats";
+import React from "react";
 import { ProfileSection } from "./profile-section";
 import { UsageStatsSection } from "./usage-stats-section";
 
@@ -53,18 +52,7 @@ export function AccountSection() {
 
   return (
     <div className="space-y-4">
-      <div className="text-center py-8 border border-border rounded-lg">
-        <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-          <User className="h-6 w-6 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-semibold text-foreground mb-2">
-          Sign In Required
-        </h3>
-        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          Please sign in to access your profile and view usage statistics
-        </p>
-        <AuthModal />
-      </div>
+      <AuthModal />
     </div>
   );
 }
