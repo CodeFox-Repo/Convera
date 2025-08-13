@@ -323,6 +323,16 @@ app.whenReady().then(async () => {
     });
 
     createSystemTray();
+
+    // Register custom protocol for deep link callbacks (macOS)
+    try {
+      if (process.platform === "darwin") {
+        app.setAsDefaultProtocolClient("foxychat");
+        logger.info(`Registered custom protocol 'foxychat': ok`);
+      }
+    } catch (e) {
+      logger.error("Failed to register custom protocol:", e);
+    }
   } catch (error) {
     logger.error("Error during app initialization", error);
   }
@@ -341,5 +351,69 @@ app.on("will-quit", () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin" && getMainWindow() === null) {
     app.quit();
+  }
+});
+
+// Handle deep link callbacks like foxychat://auth/callback?next=/settings
+app.on("open-url", (event, urlStr) => {
+  try {
+    event.preventDefault();
+    logger.info("Received open-url:", urlStr);
+
+    const url = new URL(urlStr);
+    const exchangeToken = url.searchParams.get("token");
+
+    const afterNavigate = () => {
+      const win = getSettingsWindow() || preCreateSettingsWindow();
+      if (win) {
+        win.show();
+        win.focus();
+        win.webContents.reload();
+      }
+    };
+
+    if (exchangeToken) {
+      // Redeem token then write cookie into Electron session
+      fetch("https://api.foxychat.net/api/auth/exchange/redeem", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: exchangeToken }),
+      })
+        .then((r) => r.json())
+        .then(async (data) => {
+          try {
+            logger.info("Received exchange token:", data);
+            const cookies = data?.cookies as { name: string; value: string }[];
+            const domain = data?.domain || "api.foxychat.net";
+            const secure = !!data?.secure;
+            if (Array.isArray(cookies)) {
+              for (const ck of cookies) {
+                await BrowserWindow.getFocusedWindow()?.webContents.session.cookies.set(
+                  {
+                    url: `https://${domain}`,
+                    name: ck.name,
+                    value: ck.value,
+                    domain,
+                    path: "/",
+                    secure,
+                    httpOnly: true,
+                    sameSite: "no_restriction",
+                  } as any,
+                );
+              }
+            }
+          } catch (e) {
+            logger.error("Failed to set session cookies:", e);
+          }
+        })
+        .finally(() => {
+          afterNavigate();
+        });
+      return;
+    }
+
+    afterNavigate();
+  } catch (e) {
+    logger.error("Error handling open-url:", e);
   }
 });

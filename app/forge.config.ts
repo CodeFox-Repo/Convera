@@ -38,6 +38,13 @@ const config: ForgeConfig = {
         "FoxyChat needs access to control other applications for seamless integration.",
       NSAccessibilityUsageDescription:
         "FoxyChat needs accessibility permissions to read content from other applications.",
+      // Register custom URL scheme so macOS recognizes foxychat:// links
+      CFBundleURLTypes: [
+        {
+          CFBundleURLName: "foxychat",
+          CFBundleURLSchemes: ["foxychat"],
+        },
+      ],
     },
   },
 
