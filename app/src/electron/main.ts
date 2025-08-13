@@ -1,4 +1,10 @@
-import { app, BrowserWindow, globalShortcut, screen } from "electron";
+import {
+  app,
+  BrowserWindow,
+  CookiesSetDetails,
+  globalShortcut,
+  screen,
+} from "electron";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
@@ -398,7 +404,7 @@ app.on("open-url", (event, urlStr) => {
                     secure,
                     httpOnly: true,
                     sameSite: "no_restriction",
-                  } as any,
+                  } as unknown as CookiesSetDetails,
                 );
               }
             }
