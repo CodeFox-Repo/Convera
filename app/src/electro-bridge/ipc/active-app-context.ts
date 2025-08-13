@@ -245,7 +245,6 @@ export async function getOpenedApps(): Promise<string[]> {
   if (apps.length > 0) {
     runningAppsCache = apps;
     runningAppsCacheTime = now;
-    console.log(`📱 Updated running apps cache: ${apps.length} apps`);
   } else if (runningAppsCache.length > 0) {
     // 如果返回空结果但缓存有数据，返回缓存
     console.log("⚠️ AppleScript returned empty, using cached apps");
@@ -538,7 +537,6 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         return resolve([]);
       }
 
-      console.log("🔍 AppleScript raw output:", stdout);
 
       if (!stdout || stdout.trim().length === 0) {
         console.warn("⚠️ AppleScript returned empty result");
@@ -550,10 +548,6 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         .split(", ")
         .filter((app) => app.length > 0);
 
-      console.log(
-        `✅ getOpenedAppsFromSystem: Found ${apps.length} apps:`,
-        apps,
-      );
       resolve(apps);
     });
   });
