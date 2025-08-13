@@ -56,32 +56,40 @@ export function AppMentionFullscreen({
       filteredApps = uniqueApps;
     } else {
       const query = searchQuery.toLowerCase();
-      
+
       // Smart search: match apps that:
       // 1. Start with the query (highest priority)
       // 2. Contains the query as a word
       // 3. Contains the query anywhere
       const startsWithQuery = uniqueApps.filter((app) =>
-        app.toLowerCase().startsWith(query)
+        app.toLowerCase().startsWith(query),
       );
-      
+
       const containsAsWord = uniqueApps.filter((app) => {
         const appLower = app.toLowerCase();
         // Check if query matches any word in the app name
         const words = appLower.split(/[\s-]+/);
-        return !appLower.startsWith(query) && 
-               words.some(word => word.startsWith(query));
+        return (
+          !appLower.startsWith(query) &&
+          words.some((word) => word.startsWith(query))
+        );
       });
-      
+
       const containsAnywhere = uniqueApps.filter((app) => {
         const appLower = app.toLowerCase();
-        return !appLower.startsWith(query) && 
-               !appLower.split(/[\s-]+/).some(word => word.startsWith(query)) &&
-               appLower.includes(query);
+        return (
+          !appLower.startsWith(query) &&
+          !appLower.split(/[\s-]+/).some((word) => word.startsWith(query)) &&
+          appLower.includes(query)
+        );
       });
-      
+
       // Combine results in priority order, removing duplicates
-      filteredApps = [...startsWithQuery, ...containsAsWord, ...containsAnywhere];
+      filteredApps = [
+        ...startsWithQuery,
+        ...containsAsWord,
+        ...containsAnywhere,
+      ];
     }
 
     // Don't show anything if we have no apps yet (still loading)

@@ -226,15 +226,20 @@ export function activatePreviousApp(): void {
 export async function getOpenedApps(): Promise<string[]> {
   // 检查缓存是否有效
   const now = Date.now();
-  if (runningAppsCache.length > 0 && now - runningAppsCacheTime < RUNNING_APPS_CACHE_DURATION) {
-    console.log(`⚡ Returning cached running apps: ${runningAppsCache.length} apps`);
+  if (
+    runningAppsCache.length > 0 &&
+    now - runningAppsCacheTime < RUNNING_APPS_CACHE_DURATION
+  ) {
+    console.log(
+      `⚡ Returning cached running apps: ${runningAppsCache.length} apps`,
+    );
     return [...runningAppsCache];
   }
 
   // 获取新的应用列表
   console.log("⚡ Getting currently running apps with preloaded icons...");
   const apps = await getOpenedAppsFromSystem();
-  
+
   // 只有当返回非空结果时才更新缓存
   if (apps.length > 0) {
     runningAppsCache = apps;
@@ -245,7 +250,7 @@ export async function getOpenedApps(): Promise<string[]> {
     console.log("⚠️ AppleScript returned empty, using cached apps");
     return [...runningAppsCache];
   }
-  
+
   return apps;
 }
 
@@ -277,7 +282,7 @@ export async function preloadAllAppData(): Promise<void> {
     // 获取运行中的应用
     const runningApps = await getOpenedAppsFromSystem();
     console.log(`✅ Found ${runningApps.length} running apps:`, runningApps);
-    
+
     // 初始化运行中应用缓存
     if (runningApps.length > 0) {
       runningAppsCache = runningApps;
@@ -543,8 +548,11 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         .trim()
         .split(", ")
         .filter((app) => app.length > 0);
-      
-      console.log(`✅ getOpenedAppsFromSystem: Found ${apps.length} apps:`, apps);
+
+      console.log(
+        `✅ getOpenedAppsFromSystem: Found ${apps.length} apps:`,
+        apps,
+      );
       resolve(apps);
     });
   });

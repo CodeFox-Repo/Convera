@@ -52,7 +52,7 @@ export function usePreviousApp() {
           `✅ usePreviousApp: Got ${apps.length} apps:`,
           apps.slice(0, 10),
         ); // Show first 10 apps
-        
+
         // 只有当获取到有效的应用列表时才更新
         if (apps && apps.length > 0) {
           setOpenedApps(apps);
