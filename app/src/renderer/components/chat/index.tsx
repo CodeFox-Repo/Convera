@@ -516,7 +516,7 @@ export default function Chat() {
       setIsAppMentionMode(false);
       setAppMentionQuery("");
       console.log("🎯 App selected, closing mention mode");
-      
+
       // Refocus the input to maintain window focus
       setTimeout(() => {
         inputRef.current?.focus();
@@ -877,7 +877,7 @@ export default function Chat() {
           console.log("🔒 Keeping app mention mode open during focus event");
           return;
         }
-        
+
         // Reset chat state when window is activated by shortcut
         resetChat();
         setInputValue("");
@@ -906,14 +906,20 @@ export default function Chat() {
   // Prevent @ mention mode from closing on window blur
   useEffect(() => {
     if (!isAppMentionMode) return;
-    
+
     const handleWindowBlur = () => {
-      console.log("🔒 Window blur detected, keeping @ mention mode:", isAppMentionMode);
+      console.log(
+        "🔒 Window blur detected, keeping @ mention mode:",
+        isAppMentionMode,
+      );
       // Don't do anything - keep the @ mention mode open
     };
-    
+
     const handleWindowFocus = () => {
-      console.log("🔓 Window focus detected, @ mention mode:", isAppMentionMode);
+      console.log(
+        "🔓 Window focus detected, @ mention mode:",
+        isAppMentionMode,
+      );
       // Refocus input when window regains focus
       if (isAppMentionMode) {
         setTimeout(() => {
@@ -921,13 +927,13 @@ export default function Chat() {
         }, 50);
       }
     };
-    
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
-    
+
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+
     return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
     };
   }, [isAppMentionMode]);
 

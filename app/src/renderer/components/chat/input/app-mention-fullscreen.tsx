@@ -232,9 +232,11 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
             : "hover:bg-gray-50/60 dark:hover:bg-gray-900/40 hover:border-gray-100/50 dark:hover:border-gray-800/50 hover:shadow-sm"
         }`}
       >
-        <div className={`w-6 h-6 flex items-center justify-center flex-shrink-0 transition-transform duration-200 ${
-          isSelected ? "scale-110" : ""
-        }`}>
+        <div
+          className={`w-6 h-6 flex items-center justify-center flex-shrink-0 transition-transform duration-200 ${
+            isSelected ? "scale-110" : ""
+          }`}
+        >
           {iconLoading ? (
             <div className="w-5 h-5 rounded bg-gray-200 animate-pulse" />
           ) : appIcon ? (
@@ -246,16 +248,22 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
               }`}
               style={{
                 imageRendering: "auto",
-                filter: isSelected ? "contrast(1.1) brightness(1.05)" : "contrast(1.05)",
+                filter: isSelected
+                  ? "contrast(1.1) brightness(1.05)"
+                  : "contrast(1.05)",
               }}
             />
           ) : (
-            <div className={`w-6 h-6 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center transition-all duration-200 ${
-              isSelected ? "from-blue-200 to-blue-300 shadow-md" : ""
-            }`}>
-              <span className={`text-xs font-semibold transition-colors duration-200 ${
-                isSelected ? "text-blue-700" : "text-gray-600"
-              }`}>
+            <div
+              className={`w-6 h-6 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center transition-all duration-200 ${
+                isSelected ? "from-blue-200 to-blue-300 shadow-md" : ""
+              }`}
+            >
+              <span
+                className={`text-xs font-semibold transition-colors duration-200 ${
+                  isSelected ? "text-blue-700" : "text-gray-600"
+                }`}
+              >
                 {appName.charAt(0).toUpperCase()}
               </span>
             </div>
