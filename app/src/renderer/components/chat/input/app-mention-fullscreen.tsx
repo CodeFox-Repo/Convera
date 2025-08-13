@@ -18,6 +18,7 @@ export function AppMentionFullscreen({
   const { openedApps } = usePreviousApp();
   const [filteredApps, setFilteredApps] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(() => openedApps.length === 0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -81,11 +82,13 @@ export function AppMentionFullscreen({
       ];
     }
 
-    // Don't show anything if we have no apps yet (still loading)
-    // This prevents the Finder fallback from appearing briefly
-
     setFilteredApps(filteredApps);
     setSelectedIndex(0);
+    
+    // Set loading to false once we have processed the apps
+    if (openedApps.length > 0) {
+      setIsLoading(false);
+    }
   }, [openedApps, searchQuery]);
 
   // Handle keyboard navigation
@@ -172,27 +175,46 @@ export function AppMentionFullscreen({
   if (!isOpen) return null;
 
   return (
-    <div className="flex-1 w-full">
+    <div className="flex-1 w-full animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
-        {filteredApps.length === 0 ? (
+        {isLoading ? (
+          <div className="px-4 py-4">
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-0 py-2 animate-in fade-in duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                  <div className="w-4 h-4 rounded bg-foreground/10 animate-pulse" />
+                  <div className="flex-1">
+                    <div className="h-3 bg-foreground/10 rounded animate-pulse mb-1" />
+                    <div className="h-2 bg-foreground/5 rounded animate-pulse w-3/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : filteredApps.length === 0 ? (
           <div className="px-4 py-8 text-center text-foreground/60">
             <div className="text-sm">No matching apps</div>
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto" ref={scrollContainerRef}>
             {filteredApps.map((app, index) => (
-              <AppMentionItem
+              <div
                 key={app}
-                ref={(el) => {
-                  itemRefs.current[index] = el;
-                }}
-                appName={app}
-                isSelected={index === selectedIndex}
-                onSelect={() => {
-                  onSelect(app);
-                }}
-                onMouseEnter={() => setSelectedIndex(index)}
-              />
+                className="animate-in fade-in duration-150"
+                style={{ animationDelay: `${index * 20}ms` }}
+              >
+                <AppMentionItem
+                  ref={(el) => {
+                    itemRefs.current[index] = el;
+                  }}
+                  appName={app}
+                  isSelected={index === selectedIndex}
+                  onSelect={() => {
+                    onSelect(app);
+                  }}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -238,10 +260,10 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         ref={ref}
         onClick={onSelect}
         onMouseEnter={onMouseEnter}
-        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200 ${
+        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200 ease-in-out ${
           isSelected
-            ? "bg-foreground/8"
-            : "hover:bg-foreground/8 active:bg-foreground/12"
+            ? "bg-foreground/8 scale-[1.02]"
+            : "hover:bg-foreground/8 active:bg-foreground/12 hover:scale-[1.01]"
         }`}
       >
         <div className="text-lg flex items-center justify-center">
