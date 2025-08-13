@@ -172,18 +172,14 @@ export function AppMentionFullscreen({
   if (!isOpen) return null;
 
   return (
-    <div className="flex-1 overflow-hidden">
-      {/* App list section - full height, scrollable */}
-      <div
-        ref={scrollContainerRef}
-        className="h-full overflow-y-auto px-1 py-2"
-      >
+    <div className="flex-1 w-full">
+      <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
         {filteredApps.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-sm text-gray-500">No matching apps</div>
+          <div className="px-4 py-8 text-center text-foreground/60">
+            <div className="text-sm">No matching apps</div>
           </div>
         ) : (
-          <div className="space-y-3 min-h-full">
+          <div className="max-h-80 overflow-y-auto" ref={scrollContainerRef}>
             {filteredApps.map((app, index) => (
               <AppMentionItem
                 key={app}
@@ -200,6 +196,27 @@ export function AppMentionFullscreen({
             ))}
           </div>
         )}
+        
+        {/* Bottom action bar - matching Google Translate style */}
+        <div className="border-t border-foreground/10 px-4 py-3">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 text-foreground/60">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                  ⏎
+                </span>
+                <span>Select App</span>
+              </div>
+              <div className="flex items-center gap-1 text-foreground/60">
+                <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                  ESC
+                </span>
+                <span>Cancel</span>
+              </div>
+            </div>
+            <div className="text-foreground/40 text-right">App Mention</div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -221,52 +238,43 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         ref={ref}
         onClick={onSelect}
         onMouseEnter={onMouseEnter}
-        className={`flex items-center gap-3 cursor-pointer pl-0 pr-3 py-3 rounded-lg transition-all duration-200 ease-in-out border border-transparent ${
+        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200 ${
           isSelected
-            ? "bg-gray-100/60 dark:bg-gray-800/40 border-gray-200/50 dark:border-gray-700/50 shadow-sm"
-            : "hover:bg-gray-100/60 dark:hover:bg-gray-800/40 hover:border-gray-200/50 dark:hover:border-gray-700/50 hover:shadow-sm"
+            ? "bg-foreground/8"
+            : "hover:bg-foreground/8 active:bg-foreground/12"
         }`}
       >
-        <div
-          className={`w-6 h-6 flex items-center justify-center flex-shrink-0 transition-transform duration-200 ${
-            isSelected ? "scale-110" : ""
-          }`}
-        >
+        <div className="text-lg flex items-center justify-center">
           {iconLoading ? (
-            <div className="w-5 h-5 rounded bg-gray-200 animate-pulse" />
+            <div className="w-4 h-4 rounded bg-foreground/20 animate-pulse" />
           ) : appIcon ? (
             <img
               src={appIcon}
               alt={`${appName} icon`}
-              className={`w-6 h-6 rounded object-cover transition-all duration-200 ${
-                isSelected ? "shadow-md" : ""
-              }`}
+              className="w-4 h-4 rounded object-cover"
               style={{
                 imageRendering: "auto",
-                filter: isSelected
-                  ? "contrast(1.1) brightness(1.05)"
-                  : "contrast(1.05)",
               }}
             />
           ) : (
-            <div
-              className={`w-6 h-6 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center transition-all duration-200 ${
-                isSelected ? "from-blue-200 to-blue-300 shadow-md" : ""
-              }`}
-            >
-              <span
-                className={`text-xs font-semibold transition-colors duration-200 ${
-                  isSelected ? "text-blue-700" : "text-gray-600"
-                }`}
-              >
+            <div className="w-4 h-4 rounded bg-gradient-to-br from-foreground/20 to-foreground/30 flex items-center justify-center">
+              <span className="text-[10px] font-semibold text-foreground/70">
                 {appName.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
         </div>
-        <span className="text-base font-medium text-gray-900 dark:text-gray-100 flex-1">
-          {appName}
-        </span>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-foreground text-sm">
+            {appName}
+          </div>
+          <div className="text-xs text-foreground/60">
+            Add @{appName} to message
+          </div>
+        </div>
+        <div className="text-xs text-foreground/40 flex items-center justify-center">
+          ⏎
+        </div>
       </div>
     );
   },
