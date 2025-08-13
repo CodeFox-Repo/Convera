@@ -84,7 +84,7 @@ export function AppMentionFullscreen({
 
     setFilteredApps(filteredApps);
     setSelectedIndex(0);
-    
+
     // Set loading to false once we have processed the apps
     if (openedApps.length > 0) {
       setIsLoading(false);
@@ -181,7 +181,11 @@ export function AppMentionFullscreen({
           <div className="px-4 py-4">
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-0 py-2 animate-in fade-in duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-0 py-2 animate-in fade-in duration-300"
+                  style={{ animationDelay: `${i * 50}ms` }}
+                >
                   <div className="w-4 h-4 rounded bg-foreground/10 animate-pulse" />
                   <div className="flex-1">
                     <div className="h-3 bg-foreground/10 rounded animate-pulse mb-1" />
