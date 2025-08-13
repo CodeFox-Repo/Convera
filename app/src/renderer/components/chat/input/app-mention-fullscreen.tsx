@@ -181,14 +181,14 @@ export function AppMentionFullscreen({
       {/* App list section - full height, scrollable */}
       <div
         ref={scrollContainerRef}
-        className="h-full overflow-y-auto px-4 py-2"
+        className="h-full overflow-y-auto px-1 py-2"
       >
         {filteredApps.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-sm text-gray-500">No matching apps</div>
           </div>
         ) : (
-          <div className="space-y-2 min-h-full">
+          <div className="space-y-3 min-h-full">
             {filteredApps.map((app, index) => (
               <AppMentionItem
                 key={app}
@@ -226,34 +226,42 @@ const AppMentionItem = React.forwardRef<HTMLDivElement, AppMentionItemProps>(
         ref={ref}
         onClick={onSelect}
         onMouseEnter={onMouseEnter}
-        className={`flex items-center gap-4 cursor-pointer px-4 py-4 rounded-lg transition-all ${
+        className={`flex items-center gap-3 cursor-pointer pl-0 pr-3 py-3 rounded-lg transition-all duration-200 ease-in-out border border-transparent ${
           isSelected
-            ? "bg-gray-100 dark:bg-gray-800"
-            : "hover:bg-gray-50 dark:hover:bg-gray-900"
+            ? "bg-gray-100/60 dark:bg-gray-800/40 border-gray-200/50 dark:border-gray-700/50 shadow-sm"
+            : "hover:bg-gray-50/60 dark:hover:bg-gray-900/40 hover:border-gray-100/50 dark:hover:border-gray-800/50 hover:shadow-sm"
         }`}
       >
-        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+        <div className={`w-6 h-6 flex items-center justify-center flex-shrink-0 transition-transform duration-200 ${
+          isSelected ? "scale-110" : ""
+        }`}>
           {iconLoading ? (
-            <div className="w-6 h-6 rounded bg-gray-200 animate-pulse" />
+            <div className="w-5 h-5 rounded bg-gray-200 animate-pulse" />
           ) : appIcon ? (
             <img
               src={appIcon}
               alt={`${appName} icon`}
-              className="w-8 h-8 rounded object-cover"
+              className={`w-6 h-6 rounded object-cover transition-all duration-200 ${
+                isSelected ? "shadow-md" : ""
+              }`}
               style={{
                 imageRendering: "auto",
-                filter: "contrast(1.05)",
+                filter: isSelected ? "contrast(1.1) brightness(1.05)" : "contrast(1.05)",
               }}
             />
           ) : (
-            <div className="w-8 h-8 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-              <span className="text-sm font-semibold text-gray-600">
+            <div className={`w-6 h-6 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center transition-all duration-200 ${
+              isSelected ? "from-blue-200 to-blue-300 shadow-md" : ""
+            }`}>
+              <span className={`text-xs font-semibold transition-colors duration-200 ${
+                isSelected ? "text-blue-700" : "text-gray-600"
+              }`}>
                 {appName.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
         </div>
-        <span className="text-base text-gray-900 dark:text-gray-100 flex-1">
+        <span className="text-base font-medium text-gray-900 dark:text-gray-100 flex-1">
           {appName}
         </span>
       </div>

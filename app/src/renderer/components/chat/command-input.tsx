@@ -141,23 +141,23 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
 
           <div className="pl-2">
             {previousApp && (
-              <div className="inline-flex items-center gap-1.5 rounded text-xs font-medium text-foreground/60">
-                <div className="w-4 h-4 flex items-center justify-center">
+              <div className="inline-flex items-center gap-2 rounded text-sm font-medium text-foreground/60">
+                <div className="w-5 h-5 flex items-center justify-center">
                   {iconLoading ? (
-                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
                   ) : appIcon ? (
                     <img
                       src={appIcon}
                       alt={`${previousApp} icon`}
-                      className="w-4 h-4 rounded-sm object-cover"
+                      className="w-5 h-5 rounded-sm object-cover"
                       style={{
                         imageRendering: "auto",
                         filter: "contrast(1.05)",
                       }}
                     />
                   ) : (
-                    <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                      <span className="text-[10px] font-semibold text-gray-600">
+                    <div className="w-5 h-5 rounded-sm bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                      <span className="text-[11px] font-semibold text-gray-600">
                         {previousApp.charAt(0).toUpperCase()}
                       </span>
                     </div>

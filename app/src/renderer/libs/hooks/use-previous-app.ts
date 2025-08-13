@@ -109,9 +109,9 @@ export function usePreviousApp() {
     // Remove file extensions if present
     const nameWithoutExt = name.replace(/\.\w+$/, "");
 
-    // Limit to 12 characters
-    if (nameWithoutExt.length > 12) {
-      return nameWithoutExt.substring(0, 10) + "...";
+    // Increase limit to 20 characters
+    if (nameWithoutExt.length > 20) {
+      return nameWithoutExt.substring(0, 18) + "...";
     }
 
     return nameWithoutExt;

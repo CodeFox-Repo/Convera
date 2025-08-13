@@ -512,12 +512,15 @@ export default function Chat() {
         console.log("🎯 Set new input value:", newValue);
       }
 
-      // Close app mention mode with slight delay to ensure state updates
+      // Close app mention mode after selecting an app
+      setIsAppMentionMode(false);
+      setAppMentionQuery("");
+      console.log("🎯 App selected, closing mention mode");
+      
+      // Refocus the input to maintain window focus
       setTimeout(() => {
-        setIsAppMentionMode(false);
-        setAppMentionQuery("");
-        console.log("🎯 App mention mode closed");
-      }, 0);
+        inputRef.current?.focus();
+      }, 50);
 
       // Don't resize back to compact - keep the expanded size for Pro AI interface
       // The window will remain in expanded state to show "Pro AI Cancel ESC"
@@ -869,6 +872,12 @@ export default function Chat() {
   useEffect(() => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
+        // Don't reset if we're in app mention mode - let user continue selecting apps
+        if (isAppMentionMode) {
+          console.log("🔒 Keeping app mention mode open during focus event");
+          return;
+        }
+        
         // Reset chat state when window is activated by shortcut
         resetChat();
         setInputValue("");
@@ -892,7 +901,35 @@ export default function Chat() {
         removeListener?.();
       };
     }
-  }, [resetChat]);
+  }, [resetChat, isAppMentionMode]);
+
+  // Prevent @ mention mode from closing on window blur
+  useEffect(() => {
+    if (!isAppMentionMode) return;
+    
+    const handleWindowBlur = () => {
+      console.log("🔒 Window blur detected, keeping @ mention mode:", isAppMentionMode);
+      // Don't do anything - keep the @ mention mode open
+    };
+    
+    const handleWindowFocus = () => {
+      console.log("🔓 Window focus detected, @ mention mode:", isAppMentionMode);
+      // Refocus input when window regains focus
+      if (isAppMentionMode) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 50);
+      }
+    };
+    
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+    
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [isAppMentionMode]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
