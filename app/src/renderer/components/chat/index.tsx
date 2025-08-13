@@ -78,7 +78,6 @@ export default function Chat() {
       icon: <LanguagesIcon />,
       type: "input-changed-command",
       execute: async (input?: string) => {
-        console.log("called translate command", input);
         if (!input || !input.trim()) {
           return "Please enter text to translate";
         }
@@ -255,7 +254,6 @@ export default function Chat() {
 
   // Handle input change
   const handleInputChange = async (value: string) => {
-    console.log("🔤 handleInputChange called with:", JSON.stringify(value));
 
     // Don't allow input changes when loading
     if (isLoading) return;
@@ -317,19 +315,8 @@ export default function Chat() {
 
     // Check for app mention mode - match @ at the end or @ followed by letters at the end
     const appMentionMatch = value.match(/@(\w*)$/);
-    console.log(
-      "🔍 Checking app mention for:",
-      value,
-      "Match:",
-      appMentionMatch,
-    );
 
     if (appMentionMatch) {
-      console.log(
-        "✅ Entering app mention mode with query:",
-        appMentionMatch[1],
-      );
-      console.log("✅ Full value:", JSON.stringify(value));
       setIsAppMentionMode(true);
       setIsCommandMode(false);
       setAppMentionQuery(appMentionMatch[1]);
@@ -337,7 +324,6 @@ export default function Chat() {
       return;
     } else if (isAppMentionMode && !value.match(/@\w*$/)) {
       // Exit app mention mode if no @ at the end
-      console.log("❌ Exiting app mention mode");
       setIsAppMentionMode(false);
       setAppMentionQuery("");
     }
@@ -400,7 +386,6 @@ export default function Chat() {
   // Handle command execution
   const handleCommandExecute = useCallback(
     async (command: CommandResult) => {
-      console.log("Executing command:", command);
 
       // Check if this is an input-changed-command
       if (command.type === "input-changed-command") {
@@ -424,33 +409,9 @@ export default function Chat() {
         const response = await window.mcpAPI.mcpToolCall(command.id, {});
 
         if (response.success) {
-          console.log("MCP tool execution result:", response.data);
-
-          // Create a tool result message and add it to chat context
-          const toolResultMessage = {
-            id: `tool-${Date.now()}`,
-            role: "tool" as const,
-            content:
-              typeof response.data === "string"
-                ? response.data
-                : JSON.stringify(response.data, null, 2),
-            createdAt: new Date(),
-            toolName: command.id,
-          };
-
-          // You might need to add this to chat context - for now just log
-          console.log("Tool result message:", toolResultMessage);
+          // Tool executed successfully
         } else {
           console.error("MCP tool execution failed:", response.error);
-          // Show error message
-          const errorMessage = {
-            id: `error-${Date.now()}`,
-            role: "tool" as const,
-            content: `Error executing ${command.id}: ${response.error}`,
-            createdAt: new Date(),
-            toolName: command.id,
-          };
-          console.log("Tool error message:", errorMessage);
         }
       } catch (error) {
         console.error("Error executing MCP tool:", error);
@@ -462,13 +423,10 @@ export default function Chat() {
   // Handle AI chat submission
   const handleAIChatSubmit = useCallback(
     (message: string) => {
-      console.log("📤 handleAIChatSubmit called with message:", message);
       if (!message || message.trim() === "") {
-        console.error("📤 Empty message submitted");
+        console.error("Empty message submitted");
         return;
       }
-
-      console.log("📤 Before clear - inputValue:", inputValue);
 
       // Clear input first
       setInputValue("");
@@ -477,10 +435,6 @@ export default function Chat() {
       setAppMentions([]); // Clear mentions tracking
       setIsAppMentionMode(false); // Exit app mention mode
       setAppMentionQuery(""); // Clear app mention query
-
-      console.log("📤 After setInputValue('') called");
-      console.log("📤 Cleared app mention mode and set showContent=true");
-      console.log("📤 About to call sendMessage with:", message);
       sendMessage(message);
     },
     [sendMessage],
@@ -489,8 +443,6 @@ export default function Chat() {
   // Handle app selection
   const handleAppSelect = useCallback(
     async (appName: string) => {
-      console.log("🎯 handleAppSelect called with:", appName);
-
       // Replace the @query part with the selected app
       const atMatch = inputValue.match(/@\w*$/);
       if (atMatch) {
@@ -509,13 +461,11 @@ export default function Chat() {
         ]);
 
         setInputValue(newValue);
-        console.log("🎯 Set new input value:", newValue);
       }
 
       // Close app mention mode after selecting an app
       setIsAppMentionMode(false);
       setAppMentionQuery("");
-      console.log("🎯 App selected, closing mention mode");
 
       // Refocus the input to maintain window focus
       setTimeout(() => {
@@ -537,36 +487,14 @@ export default function Chat() {
           return;
         }
 
-        console.log("🔴 Enter pressed! State:", {
-          selectedInputCommand: selectedInputCommand?.id,
-          inputValue,
-          commandResult,
-          isCommandMode,
-          resultsLength: results.length,
-          selectedIndex,
-        });
 
         if (selectedInputCommand && inputValue.trim()) {
           // Handle input command submission with command result
-          console.log(
-            "🟡 Calling handleAIChatSubmit with commandResult:",
-            commandResult,
-          );
           handleAIChatSubmit(commandResult);
         } else if (isCommandMode && results.length > 0) {
-          console.log(
-            "🟢 Calling handleCommandExecute with:",
-            results[selectedIndex],
-          );
           handleCommandExecute(results[selectedIndex]);
         } else if (!isCommandMode && inputValue.trim()) {
-          console.log(
-            "🔵 Calling handleAIChatSubmit with inputValue:",
-            inputValue.trim(),
-          );
           handleAIChatSubmit(inputValue.trim());
-        } else {
-          console.log("🔴 No action taken - conditions not met");
         }
       } else if (e.key === "ArrowDown") {
         // Skip arrow handling if in app mention mode - let AppMentionFullscreen handle it
@@ -647,10 +575,6 @@ export default function Chat() {
 
         // Only allow if chat has at least one complete conversation (user + assistant)
         if (messages.length >= 2 && !isLoading && currentConversationId) {
-          console.log(
-            "Switching to main window with conversation:",
-            currentConversationId,
-          );
 
           // Pass conversation ID to main window via localStorage
           localStorage.setItem("switchToConversation", currentConversationId);
@@ -669,12 +593,6 @@ export default function Chat() {
             window.electronAPI.toggleWindow("chat"); // Hide chat
             window.electronAPI.toggleWindow("main"); // Show main
           }
-        } else {
-          console.log("Cannot switch: insufficient messages or still loading", {
-            messagesCount: messages.length,
-            isLoading,
-            conversationId: currentConversationId,
-          });
         }
       }
     };
@@ -874,7 +792,6 @@ export default function Chat() {
       const removeListener = window.electronAPI.onFocusChatInput(() => {
         // Don't reset if we're in app mention mode - let user continue selecting apps
         if (isAppMentionMode) {
-          console.log("🔒 Keeping app mention mode open during focus event");
           return;
         }
 
@@ -908,18 +825,10 @@ export default function Chat() {
     if (!isAppMentionMode) return;
 
     const handleWindowBlur = () => {
-      console.log(
-        "🔒 Window blur detected, keeping @ mention mode:",
-        isAppMentionMode,
-      );
       // Don't do anything - keep the @ mention mode open
     };
 
     const handleWindowFocus = () => {
-      console.log(
-        "🔓 Window focus detected, @ mention mode:",
-        isAppMentionMode,
-      );
       // Refocus input when window regains focus
       if (isAppMentionMode) {
         setTimeout(() => {

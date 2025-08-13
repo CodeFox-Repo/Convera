@@ -21,7 +21,6 @@ export function AppMentionFullscreen({
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // console.log("📱 AppMentionFullscreen: filteredApps count:", filteredApps.length);
 
   // Filter apps based on search query (after @)
   useEffect(() => {
@@ -42,14 +41,6 @@ export function AppMentionFullscreen({
       return !unwantedApps.includes(app);
     });
 
-    console.log(
-      `🔍 AppMentionFullscreen: openedApps count: ${openedApps.length}`,
-      openedApps.slice(0, 5),
-    );
-    console.log(
-      `🔍 AppMentionFullscreen: uniqueApps count: ${uniqueApps.length}`,
-      uniqueApps.slice(0, 5),
-    );
 
     let filteredApps: string[];
     if (!searchQuery) {
@@ -140,32 +131,19 @@ export function AppMentionFullscreen({
   }, [isOpen, filteredApps, selectedIndex, onSelect, onClose]);
 
   // Handle mouse wheel with throttling for smooth scrolling
-  const throttledWheelHandler = useCallback(
-    (() => {
-      let isThrottled = false;
-      return (e: WheelEvent) => {
-        if (isThrottled) return;
-
-        e.preventDefault();
-        isThrottled = true;
-
-        if (e.deltaY > 0) {
-          // Scroll down - move to next item (stop at last item, don't wrap)
-          setSelectedIndex((prev) =>
-            prev < filteredApps.length - 1 ? prev + 1 : prev,
-          );
-        } else {
-          // Scroll up - move to previous item (stop at first item, don't wrap)
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-        }
-
-        setTimeout(() => {
-          isThrottled = false;
-        }, 100); // 100ms throttle for smooth scrolling
-      };
-    })(),
-    [filteredApps.length],
-  );
+  const throttledWheelHandler = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    
+    if (e.deltaY > 0) {
+      // Scroll down - move to next item (stop at last item, don't wrap)
+      setSelectedIndex((prev) =>
+        prev < filteredApps.length - 1 ? prev + 1 : prev,
+      );
+    } else {
+      // Scroll up - move to previous item (stop at first item, don't wrap)
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+    }
+  }, [filteredApps.length]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
