@@ -537,7 +537,6 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
         return resolve([]);
       }
 
-
       if (!stdout || stdout.trim().length === 0) {
         console.warn("⚠️ AppleScript returned empty result");
         return resolve([]);
