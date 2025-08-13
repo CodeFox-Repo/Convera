@@ -5,6 +5,7 @@ import fs from "fs";
 import os from "os";
 import { promisify } from "util";
 import { CHANNELS } from "./channels";
+import { BUILTIN_ICONS } from "./builtin-icons";
 
 // State
 let previousAppName = "";
@@ -652,6 +653,7 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
   return null;
 }
 
+
 export async function getAppIcon(appName: string): Promise<{
   success: boolean;
   iconData?: string;
@@ -663,6 +665,17 @@ export async function getAppIcon(appName: string): Promise<{
       return {
         success: true,
         iconData: iconCache.get(appName)!,
+      };
+    }
+
+    // 检查内置图标映射
+    if (BUILTIN_ICONS[appName]) {
+      const iconData = BUILTIN_ICONS[appName];
+      // 缓存内置图标
+      iconCache.set(appName, iconData);
+      return {
+        success: true,
+        iconData: iconData,
       };
     }
 
