@@ -253,7 +253,6 @@ export async function getOpenedApps(): Promise<string[]> {
 const iconCache = new Map<string, string>();
 let iconCacheInitialized = false;
 
-
 // Running apps cache - avoid frequent AppleScript calls
 let runningAppsCache: string[] = [];
 let runningAppsCacheTime = 0;
