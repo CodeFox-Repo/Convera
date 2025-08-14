@@ -10,8 +10,6 @@ import {
   FALLBACK_APP_LIST,
   ERROR_MESSAGES,
   createErrorResult,
-  createSuccessResult,
-  isValidAppName,
 } from "@/renderer/assets/builtin-app-icons";
 
 // State
