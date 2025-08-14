@@ -5,7 +5,7 @@ import fs from "fs";
 import os from "os";
 import { promisify } from "util";
 import { CHANNELS } from "./channels";
-import { BUILTIN_ICONS } from "./builtin-icons";
+import { BUILTIN_APP_ICONS as BUILTIN_ICONS } from "@/renderer/assets/builtin-app-icons";
 
 // State
 let previousAppName = "";

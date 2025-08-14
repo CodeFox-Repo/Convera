@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { getBuiltinAppIcon } from "@/renderer/assets/builtin-app-icons";
 
 /**
  * Hook to fetch and cache app icons using the new sips-based icon system
+ * Falls back to built-in icons for system apps
  */
 export function useAppIcon(appName?: string) {
   const [iconData, setIconData] = useState<string | null>(null);
@@ -41,8 +43,15 @@ export function useAppIcon(appName?: string) {
           setIconData(result.iconData);
           setError(null);
         } else {
-          setError(result.error || "Failed to get icon");
-          setIconData(null);
+          // Try to get built-in icon as fallback
+          const builtinIcon = getBuiltinAppIcon(appName);
+          if (builtinIcon) {
+            setIconData(builtinIcon);
+            setError(null);
+          } else {
+            setError(result.error || "Failed to get icon");
+            setIconData(null);
+          }
         }
       } catch (err) {
         console.error(`useAppIcon: Error fetching icon for ${appName}:`, err);
