@@ -58,6 +58,8 @@ export default function Chat() {
   const [appMentions, setAppMentions] = useState<
     Array<{ start: number; end: number; app: string }>
   >([]);
+  // Block resize during app mention mode to prevent window truncation
+  const blockResizeRef = useRef(false);
 
   interface CommandResult {
     id: string;
@@ -236,6 +238,17 @@ export default function Chat() {
     [calculateSelectedContentHeight],
   );
 
+  // Safe resize function that checks block state
+  const safeResizeWindow = useCallback((width: number, height: number, preserveCenter: boolean = true) => {
+    if (blockResizeRef.current) {
+      console.log("🚫 Blocked resize attempt during app mention mode:", { width, height });
+      return;
+    }
+    if (window.electronAPI) {
+      window.electronAPI.resizeWindow(width, height, preserveCenter);
+    }
+  }, []);
+
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback((content: { text?: string }) => {
     const timestamp = Date.now();
@@ -320,11 +333,14 @@ export default function Chat() {
       setIsCommandMode(false);
       setAppMentionQuery(appMentionMatch[1]);
       setResults([]);
+      // Don't block resize immediately - let the @ mode expand first
       return;
     } else if (isAppMentionMode && !value.match(/@\w*$/)) {
       // Exit app mention mode if no @ at the end
       setIsAppMentionMode(false);
       setAppMentionQuery("");
+      // Unblock resize when exiting app mention mode
+      blockResizeRef.current = false;
     }
 
     setIsCommandMode(value.startsWith("/"));
@@ -464,6 +480,8 @@ export default function Chat() {
       // Close app mention mode after selecting an app
       setIsAppMentionMode(false);
       setAppMentionQuery("");
+      // Unblock resize when selecting an app
+      blockResizeRef.current = false;
 
       // Refocus the input to maintain window focus
       setTimeout(() => {
@@ -620,7 +638,7 @@ export default function Chat() {
             .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
             .then((res) => {
               requestAnimationFrame(() => {
-                window.electronAPI.resizeWindow(res.width, initialHeight, true);
+                safeResizeWindow(res.width, initialHeight, true);
               });
             });
         } catch (error) {
@@ -661,11 +679,16 @@ export default function Chat() {
         window.electronAPI
           .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
           .then((currentSize) => {
+            // Allow this resize for @ mode expansion
             window.electronAPI.resizeWindow(
               currentSize.width,
               appMentionHeight,
               true,
             );
+            // After resize, block further resizes to prevent truncation
+            setTimeout(() => {
+              blockResizeRef.current = true;
+            }, 100);
           });
         return;
       }
@@ -689,7 +712,7 @@ export default function Chat() {
         .then((currentSize) => {
           // Only resize if height changed significantly (> 10px difference)
           if (Math.abs(currentSize.height - newHeight) > 10) {
-            window.electronAPI.resizeWindow(currentSize.width, newHeight, true);
+            safeResizeWindow(currentSize.width, newHeight, true);
           }
         })
         .catch((error) => {
@@ -749,7 +772,7 @@ export default function Chat() {
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
               .then((currentSize) => {
                 if (Math.abs(currentSize.height - newHeight) > 10) {
-                  window.electronAPI.resizeWindow(
+                  safeResizeWindow(
                     currentSize.width,
                     newHeight,
                     true,
@@ -803,6 +826,7 @@ export default function Chat() {
         setSelectedInputCommand(null);
         setCommandResult("");
         setAppMentions([]); // Clear mentions tracking on reset
+        blockResizeRef.current = false; // Clear resize blocking on reset
 
         // Focus the input after reset
         setTimeout(() => {

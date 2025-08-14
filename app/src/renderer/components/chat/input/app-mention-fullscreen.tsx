@@ -234,8 +234,8 @@ export function AppMentionFullscreen({
                 <span>Select App</span>
               </div>
               <div className="flex items-center gap-1 text-foreground/60">
-                <span className="inline-flex items-center justify-center w-8 h-5 rounded border border-foreground/20 text-[10px] font-medium">
-                  ESC
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded border border-foreground/20 text-[10px] font-medium">
+                  ⌫
                 </span>
                 <span>Cancel</span>
               </div>
