@@ -253,8 +253,6 @@ export async function getOpenedApps(): Promise<string[]> {
 const iconCache = new Map<string, string>();
 let iconCacheInitialized = false;
 
-// App list cache - preload at startup
-let cachedAppList: string[] = [];
 
 // Running apps cache - avoid frequent AppleScript calls
 let runningAppsCache: string[] = [];
@@ -284,13 +282,11 @@ export async function preloadAllAppData(): Promise<void> {
 
     // Merge and deduplicate all apps
     const allApps = [...new Set([...runningApps, ...installedApps])];
-    cachedAppList = allApps;
 
     // Step 2: Parallel preload all icons
 
     // Process in batches to avoid too many parallel requests
     const batchSize = 10;
-    let processed = 0;
 
     for (let i = 0; i < allApps.length; i += batchSize) {
       const batch = allApps.slice(i, i + batchSize);
@@ -299,7 +295,6 @@ export async function preloadAllAppData(): Promise<void> {
           const iconData = await loadAppIconFromDisk(appName);
           if (iconData) {
             iconCache.set(appName, iconData);
-            processed++;
           }
         } catch {
           // Silent error handling to avoid excessive logging
