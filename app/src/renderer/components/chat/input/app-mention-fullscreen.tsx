@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useAppIcon } from "@/renderer/libs/hooks/use-app-icon";
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
+import { FILTERED_APPS } from "@/renderer/assets/builtin-app-icons";
 
 interface AppMentionFullscreenProps {
   isOpen: boolean;
@@ -27,18 +28,7 @@ export function AppMentionFullscreen({
     // Remove duplicates first and filter out unwanted apps
     const uniqueApps = [...new Set(openedApps)].filter((app) => {
       // Filter out system processes and unwanted apps
-      const unwantedApps = [
-        "osascript",
-        "System Events",
-        "loginwindow",
-        "WindowServer",
-        "Dock",
-        "Finder Helper",
-        "SystemUIServer",
-        "ControlCenter",
-        "Spotlight",
-      ];
-      return !unwantedApps.includes(app);
+      return !FILTERED_APPS.includes(app);
     });
 
     let filteredApps: string[];

@@ -140,3 +140,7 @@ export const BUILTIN_APP_ICONS: { [key: string]: string } = {
 export function getBuiltinAppIcon(appName: string): string | undefined {
   return BUILTIN_APP_ICONS[appName];
 }
+
+// Re-export all utilities and constants
+export * from './app-constants';
+export * from './icon-utils';

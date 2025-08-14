@@ -5,7 +5,14 @@ import fs from "fs";
 import os from "os";
 import { promisify } from "util";
 import { CHANNELS } from "./channels";
-import { BUILTIN_APP_ICONS as BUILTIN_ICONS } from "@/renderer/assets/builtin-app-icons";
+import { 
+  BUILTIN_APP_ICONS as BUILTIN_ICONS,
+  FALLBACK_APP_LIST,
+  ERROR_MESSAGES,
+  createErrorResult,
+  createSuccessResult,
+  isValidAppName,
+} from "@/renderer/assets/builtin-app-icons";
 
 // State
 let previousAppName = "";
@@ -225,7 +232,7 @@ export function activatePreviousApp(): void {
 }
 
 export async function getOpenedApps(): Promise<string[]> {
-  // 检查缓存是否有效
+  // Check if cache is valid
   const now = Date.now();
   if (
     runningAppsCache.length > 0 &&
@@ -237,16 +244,16 @@ export async function getOpenedApps(): Promise<string[]> {
     return [...runningAppsCache];
   }
 
-  // 获取新的应用列表
+  // Get fresh app list
   console.log("⚡ Getting currently running apps with preloaded icons...");
   const apps = await getOpenedAppsFromSystem();
 
-  // 只有当返回非空结果时才更新缓存
+  // Only update cache when returning non-empty results
   if (apps.length > 0) {
     runningAppsCache = apps;
     runningAppsCacheTime = now;
   } else if (runningAppsCache.length > 0) {
-    // 如果返回空结果但缓存有数据，返回缓存
+    // If empty result but cache has data, return cache
     console.log("⚠️ AppleScript returned empty, using cached apps");
     return [...runningAppsCache];
   }
@@ -254,19 +261,19 @@ export async function getOpenedApps(): Promise<string[]> {
   return apps;
 }
 
-// 图标缓存系统 - 预加载所有应用图标
+// Icon cache system - preload all app icons
 const iconCache = new Map<string, string>();
 let iconCacheInitialized = false;
 
-// 应用列表缓存 - 启动时预加载
+// App list cache - preload at startup
 let cachedAppList: string[] = [];
 
-// 运行中应用缓存 - 避免频繁调用 AppleScript
+// Running apps cache - avoid frequent AppleScript calls
 let runningAppsCache: string[] = [];
 let runningAppsCacheTime = 0;
-const RUNNING_APPS_CACHE_DURATION = 2000; // 2秒缓存
+const RUNNING_APPS_CACHE_DURATION = 2000; // 2 second cache
 
-// 启动时预加载应用列表和图标
+// Preload app list and icons at startup
 export async function preloadAllAppData(): Promise<void> {
   if (iconCacheInitialized) {
     console.log("⚡ App data already preloaded, skipping...");
@@ -276,24 +283,24 @@ export async function preloadAllAppData(): Promise<void> {
   console.log("🚀 Starting comprehensive app data preloading...");
 
   try {
-    // 第一步：获取所有可能的应用列表
+    // Step 1: Get all possible application lists
     console.log("📱 Step 1: Scanning all applications...");
 
-    // 获取运行中的应用
+    // Get running applications
     const runningApps = await getOpenedAppsFromSystem();
     console.log(`✅ Found ${runningApps.length} running apps:`, runningApps);
 
-    // 初始化运行中应用缓存
+    // Initialize running apps cache
     if (runningApps.length > 0) {
       runningAppsCache = runningApps;
       runningAppsCacheTime = Date.now();
     }
 
-    // 获取所有已安装的应用
+    // Get all installed applications
     const installedApps = await getAllInstalledApps();
     console.log(`✅ Found ${installedApps.length} installed apps`);
 
-    // 合并并去重所有应用
+    // Merge and deduplicate all apps
     const allApps = [...new Set([...runningApps, ...installedApps])];
     cachedAppList = allApps;
     console.log(`🎯 Total unique apps to cache: ${allApps.length}`);
@@ -303,10 +310,10 @@ export async function preloadAllAppData(): Promise<void> {
       allApps.length > 15 ? "..." : "",
     );
 
-    // 第二步：并行预加载所有图标
+    // Step 2: Parallel preload all icons
     console.log("🎨 Step 2: Preloading ALL app icons...");
 
-    // 分批处理，避免太多并行请求
+    // Process in batches to avoid too many parallel requests
     const batchSize = 10;
     let processed = 0;
 
@@ -325,7 +332,7 @@ export async function preloadAllAppData(): Promise<void> {
             }
           }
         } catch {
-          // 静默处理错误，避免日志过多
+          // Silent error handling to avoid excessive logging
         }
       });
 
@@ -342,14 +349,14 @@ export async function preloadAllAppData(): Promise<void> {
   }
 }
 
-// 获取所有已安装应用的函数
+// Get all installed applications
 async function getAllInstalledApps(): Promise<string[]> {
   return new Promise((resolve) => {
     if (process.platform !== "darwin") {
       return resolve([]);
     }
 
-    // 使用find命令扫描所有.app文件
+    // Use find command to scan all .app files
     const command = `find /Applications /System/Applications -name "*.app" -type d -maxdepth 2 2>/dev/null | sed 's|.*/\\([^/]*\\)\\.app|\\1|' | sort -u`;
 
     exec(
@@ -360,152 +367,7 @@ async function getAllInstalledApps(): Promise<string[]> {
           console.log(
             "⚠️ Error scanning installed apps, using comprehensive fallback list",
           );
-          // 返回大量常见应用作为fallback
-          resolve([
-            // 系统应用
-            "Finder",
-            "System Preferences",
-            "System Settings",
-            "Activity Monitor",
-            "Terminal",
-            "Console",
-            "Keychain Access",
-            "Migration Assistant",
-            "Boot Camp Assistant",
-
-            // 浏览器
-            "Safari",
-            "Google Chrome",
-            "Chrome",
-            "Firefox",
-            "Arc",
-            "Microsoft Edge",
-            "Edge",
-            "Opera",
-            "Brave Browser",
-
-            // 办公软件
-            "Microsoft Word",
-            "Microsoft Excel",
-            "Microsoft PowerPoint",
-            "Microsoft Outlook",
-            "Pages",
-            "Numbers",
-            "Keynote",
-            "LibreOffice",
-            "OpenOffice",
-
-            // 开发工具
-            "Visual Studio Code",
-            "Code",
-            "Xcode",
-            "IntelliJ IDEA",
-            "PyCharm",
-            "WebStorm",
-            "Sublime Text",
-            "Atom",
-            "Vim",
-            "Emacs",
-            "iTerm",
-            "iTerm2",
-            "Terminal",
-
-            // 设计工具
-            "Adobe Photoshop",
-            "Photoshop",
-            "Adobe Illustrator",
-            "Illustrator",
-            "Adobe After Effects",
-            "After Effects",
-            "Adobe Premiere Pro",
-            "Premiere Pro",
-            "Sketch",
-            "Figma",
-            "Canva",
-            "Affinity Designer",
-            "Affinity Photo",
-            "Pixelmator Pro",
-            "GIMP",
-
-            // 通信协作
-            "Slack",
-            "Discord",
-            "Microsoft Teams",
-            "Teams",
-            "Zoom",
-            "Skype",
-            "WhatsApp",
-            "Telegram",
-            "Signal",
-            "WeChat",
-
-            // 生产力
-            "Notion",
-            "Obsidian",
-            "Evernote",
-            "OneNote",
-            "Bear",
-            "Ulysses",
-            "Typora",
-            "Markdown Editor",
-            "TaskPaper",
-            "Things 3",
-            "Todoist",
-            "Any.do",
-
-            // 媒体
-            "Music",
-            "TV",
-            "Photos",
-            "QuickTime Player",
-            "VLC",
-            "IINA",
-            "Plex",
-            "Spotify",
-            "Apple Music",
-            "SoundCloud",
-            "YouTube Music",
-
-            // 实用工具
-            "1Password",
-            "Bitwarden",
-            "CleanMyMac",
-            "CleanMyMac X",
-            "The Unarchiver",
-            "Keka",
-            "AppCleaner",
-            "Disk Utility",
-            "Preview",
-            "TextEdit",
-            "Notes",
-            "Calculator",
-            "Calendar",
-            "Contacts",
-            "Reminders",
-            "Mail",
-            "FaceTime",
-            "Messages",
-
-            // 启动器和工具
-            "Raycast",
-            "Alfred",
-            "LaunchBar",
-            "Spotlight",
-            "PopClip",
-            "BetterTouchTool",
-            "Karabiner-Elements",
-            "Rectangle",
-            "Magnet",
-
-            // 云存储
-            "Dropbox",
-            "Google Drive",
-            "OneDrive",
-            "iCloud",
-            "Box",
-            "Sync.com",
-            "pCloud",
-          ]);
+          resolve(FALLBACK_APP_LIST);
         } else {
           const apps = (stdout as string)
             .trim()
@@ -518,7 +380,7 @@ async function getAllInstalledApps(): Promise<string[]> {
   });
 }
 
-// 从系统获取应用列表的内部函数
+// Internal function to get app list from system
 async function getOpenedAppsFromSystem(): Promise<string[]> {
   return new Promise((resolve) => {
     if (process.platform !== "darwin") {
@@ -552,7 +414,7 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
   });
 }
 
-// 从磁盘加载应用图标的核心函数
+// Core function to load app icon from disk
 async function loadAppIconFromDisk(appName: string): Promise<string | null> {
   if (process.platform !== "darwin") {
     return null;
@@ -682,15 +544,9 @@ export async function getAppIcon(appName: string): Promise<{
       };
     }
 
-    return {
-      success: false,
-      error: `无法找到应用图标文件: ${appName}`,
-    };
+    return createErrorResult(`${ERROR_MESSAGES.ICON_NOT_FOUND}: ${appName}`);
   } catch (error) {
     console.error("❌ Error getting app icon:", error);
-    return {
-      success: false,
-      error: `获取图标失败: ${error instanceof Error ? error.message : String(error)}`,
-    };
+    return createErrorResult(`${ERROR_MESSAGES.ICON_LOAD_FAILED}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
