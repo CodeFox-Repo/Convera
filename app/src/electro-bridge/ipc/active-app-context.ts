@@ -54,7 +54,6 @@ export function startAppContentMonitoring(appName: string): void {
     swiftProcess = null;
   }
 
-  console.log("monitoring : ", appName);
 
   const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
@@ -150,13 +149,11 @@ export function setPreviousApp(appName: string, appId?: number): void {
     if (appName) {
       grantAccess()
         .then(() => {
-          console.log("finish granted access:", appName);
           startAppContentMonitoring(appName);
         })
         .catch((err) => {
           console.error("failed to grant access:", err);
         });
-      console.log("granted apps: ", accessGrantedApps);
     }
 
     BrowserWindow.getAllWindows().forEach((win) => {
@@ -187,7 +184,6 @@ export function activatePreviousApp(): void {
   const prevAppId = getPreviousAppID();
 
   if (!prevApp) {
-    console.log("No previous app detected, can't switch focus");
     return;
   }
 
@@ -236,14 +232,10 @@ export async function getOpenedApps(): Promise<string[]> {
     runningAppsCache.length > 0 &&
     now - runningAppsCacheTime < RUNNING_APPS_CACHE_DURATION
   ) {
-    console.log(
-      `⚡ Returning cached running apps: ${runningAppsCache.length} apps`,
-    );
     return [...runningAppsCache];
   }
 
   // Get fresh app list
-  console.log("⚡ Getting currently running apps with preloaded icons...");
   const apps = await getOpenedAppsFromSystem();
 
   // Only update cache when returning non-empty results
@@ -252,7 +244,6 @@ export async function getOpenedApps(): Promise<string[]> {
     runningAppsCacheTime = now;
   } else if (runningAppsCache.length > 0) {
     // If empty result but cache has data, return cache
-    console.log("⚠️ AppleScript returned empty, using cached apps");
     return [...runningAppsCache];
   }
 
@@ -274,19 +265,15 @@ const RUNNING_APPS_CACHE_DURATION = 2000; // 2 second cache
 // Preload app list and icons at startup
 export async function preloadAllAppData(): Promise<void> {
   if (iconCacheInitialized) {
-    console.log("⚡ App data already preloaded, skipping...");
     return;
   }
 
-  console.log("🚀 Starting comprehensive app data preloading...");
 
   try {
     // Step 1: Get all possible application lists
-    console.log("📱 Step 1: Scanning all applications...");
 
     // Get running applications
     const runningApps = await getOpenedAppsFromSystem();
-    console.log(`✅ Found ${runningApps.length} running apps:`, runningApps);
 
     // Initialize running apps cache
     if (runningApps.length > 0) {
@@ -296,20 +283,12 @@ export async function preloadAllAppData(): Promise<void> {
 
     // Get all installed applications
     const installedApps = await getAllInstalledApps();
-    console.log(`✅ Found ${installedApps.length} installed apps`);
 
     // Merge and deduplicate all apps
     const allApps = [...new Set([...runningApps, ...installedApps])];
     cachedAppList = allApps;
-    console.log(`🎯 Total unique apps to cache: ${allApps.length}`);
-    console.log(
-      `📋 Sample apps:`,
-      allApps.slice(0, 15),
-      allApps.length > 15 ? "..." : "",
-    );
 
     // Step 2: Parallel preload all icons
-    console.log("🎨 Step 2: Preloading ALL app icons...");
 
     // Process in batches to avoid too many parallel requests
     const batchSize = 10;
@@ -323,11 +302,6 @@ export async function preloadAllAppData(): Promise<void> {
           if (iconData) {
             iconCache.set(appName, iconData);
             processed++;
-            if (processed % 5 === 0) {
-              console.log(
-                `🔄 Progress: ${processed}/${allApps.length} icons cached`,
-              );
-            }
           }
         } catch {
           // Silent error handling to avoid excessive logging
@@ -338,11 +312,8 @@ export async function preloadAllAppData(): Promise<void> {
     }
 
     iconCacheInitialized = true;
-    console.log(
-      `🎉 COMPLETE! Cached ${cachedAppList.length} apps, ${iconCache.size} icons loaded!`,
-    );
   } catch (error) {
-    console.error("❌ Error during app data preloading:", error);
+    console.error("Error during app data preloading:", error);
     iconCacheInitialized = true;
   }
 }
@@ -362,9 +333,6 @@ async function getAllInstalledApps(): Promise<string[]> {
       { maxBuffer: 10 * 1024 * 1024 },
       (err: unknown, stdout: unknown) => {
         if (err) {
-          console.log(
-            "⚠️ Error scanning installed apps, using comprehensive fallback list",
-          );
           resolve(FALLBACK_APP_LIST);
         } else {
           const apps = (stdout as string)
@@ -393,12 +361,11 @@ async function getOpenedAppsFromSystem(): Promise<string[]> {
     `;
     execFile("osascript", ["-e", script], (err, stdout) => {
       if (err) {
-        console.error("❌ Error getting opened apps:", err);
+        console.error("Error getting opened apps:", err);
         return resolve([]);
       }
 
       if (!stdout || stdout.trim().length === 0) {
-        console.warn("⚠️ AppleScript returned empty result");
         return resolve([]);
       }
 
@@ -420,7 +387,6 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
 
   const execAsync = promisify(exec);
 
-  // 常见应用路径
   const appPaths = [
     `/Applications/${appName}.app`,
     `/System/Applications/${appName}.app`,
@@ -433,7 +399,6 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
         continue;
       }
 
-      // 寻找图标文件
       const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
       const iconPaths = [];
 
@@ -461,7 +426,6 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
         }
       }
 
-      // 添加常见图标名
       iconPaths.push(
         path.join(appPath, "Contents", "Resources", "AppIcon.icns"),
         path.join(appPath, "Contents", "Resources", "icon.icns"),
@@ -469,11 +433,11 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
         path.join(appPath, "Contents", "Resources", "app.icns"),
       );
 
-      // 尝试每个图标路径
+      // Try each icon path
       for (const iconPath of iconPaths) {
         if (fs.existsSync(iconPath)) {
           try {
-            // 使用sips转换为PNG
+            // Use sips to convert to PNG
             const tmpDir = os.tmpdir();
             const tmpPngPath = path.join(
               tmpDir,
@@ -488,7 +452,7 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
               const base64Data = pngBuffer.toString("base64");
               const dataUrl = `data:image/png;base64,${base64Data}`;
 
-              // 清理临时文件
+              // Clean up temporary file
               fs.unlinkSync(tmpPngPath);
 
               return dataUrl;
@@ -512,7 +476,7 @@ export async function getAppIcon(appName: string): Promise<{
   error?: string;
 }> {
   try {
-    // 先检查缓存
+    // Check cache first
     if (iconCache.has(appName)) {
       return {
         success: true,
@@ -520,10 +484,10 @@ export async function getAppIcon(appName: string): Promise<{
       };
     }
 
-    // 检查内置图标映射
+    // Check builtin icon mapping
     if (BUILTIN_ICONS[appName]) {
       const iconData = BUILTIN_ICONS[appName];
-      // 缓存内置图标
+      // Cache builtin icon
       iconCache.set(appName, iconData);
       return {
         success: true,
@@ -531,10 +495,10 @@ export async function getAppIcon(appName: string): Promise<{
       };
     }
 
-    // 缓存中没有，尝试即时加载
+    // Not in cache, try loading from disk
     const iconData = await loadAppIconFromDisk(appName);
     if (iconData) {
-      // 存入缓存以备后用
+      // Store in cache for future use
       iconCache.set(appName, iconData);
       return {
         success: true,
@@ -544,7 +508,7 @@ export async function getAppIcon(appName: string): Promise<{
 
     return createErrorResult(`${ERROR_MESSAGES.ICON_NOT_FOUND}: ${appName}`);
   } catch (error) {
-    console.error("❌ Error getting app icon:", error);
+    console.error("Error getting app icon:", error);
     return createErrorResult(
       `${ERROR_MESSAGES.ICON_LOAD_FAILED}: ${error instanceof Error ? error.message : String(error)}`,
     );
