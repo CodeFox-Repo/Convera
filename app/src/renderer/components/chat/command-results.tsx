@@ -165,7 +165,6 @@ const CommandResults: React.FC<CommandResultsProps> = ({
               </div>
             </div>
           </div>
-
         </div>
       </div>
     );

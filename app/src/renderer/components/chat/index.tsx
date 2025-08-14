@@ -239,15 +239,21 @@ export default function Chat() {
   );
 
   // Safe resize function that checks block state
-  const safeResizeWindow = useCallback((width: number, height: number, preserveCenter: boolean = true) => {
-    if (blockResizeRef.current) {
-      console.log("🚫 Blocked resize attempt during app mention mode:", { width, height });
-      return;
-    }
-    if (window.electronAPI) {
-      window.electronAPI.resizeWindow(width, height, preserveCenter);
-    }
-  }, []);
+  const safeResizeWindow = useCallback(
+    (width: number, height: number, preserveCenter: boolean = true) => {
+      if (blockResizeRef.current) {
+        console.log("🚫 Blocked resize attempt during app mention mode:", {
+          width,
+          height,
+        });
+        return;
+      }
+      if (window.electronAPI) {
+        window.electronAPI.resizeWindow(width, height, preserveCenter);
+      }
+    },
+    [],
+  );
 
   // Helper function to create selected content with deduplication
   const createSelectedContent = useCallback((content: { text?: string }) => {
@@ -772,11 +778,7 @@ export default function Chat() {
               .getCurrentWindowSize(WINDOW_SIZE_PRESETS.CHAT)
               .then((currentSize) => {
                 if (Math.abs(currentSize.height - newHeight) > 10) {
-                  safeResizeWindow(
-                    currentSize.width,
-                    newHeight,
-                    true,
-                  );
+                  safeResizeWindow(currentSize.width, newHeight, true);
                 }
               })
               .catch((error) => {
