@@ -93,6 +93,13 @@ export interface IElectronAPI {
   // File operations
   openPath: (path: string) => Promise<void>;
 
+  // Process icon operations
+  getProcessIcon: (appName: string) => Promise<{
+    success: boolean;
+    iconData?: string;
+    error?: string;
+  }>;
+
   // Event listeners (Main -> Renderer)
   onFocusChatInput: (callback: () => void) => () => void;
   onAppChanged: (

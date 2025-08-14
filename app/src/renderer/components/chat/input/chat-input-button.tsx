@@ -313,8 +313,8 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         {/* <ModelSelector /> */}
         {/* previous app - only show when there's a valid previous app */}
         {previousApp && formatAppName(previousApp) && (
-          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2 py-0.5 text-xs font-medium">
-            <Monitor size={12} className="mr-1" />
+          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2.5 py-1 text-sm font-medium">
+            <Monitor size={14} className="mr-1.5" />
             {formatAppName(previousApp)}
           </div>
         )}

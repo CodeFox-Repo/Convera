@@ -14,7 +14,18 @@ export interface PreviousAppContent {
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
   const [previousAppContent, setPreviousAppContent] = useState<string>();
-  const [openedApps, setOpenedApps] = useState<string[]>([]);
+  // Initialize from localStorage to avoid empty array causing Finder fallback
+  const [openedApps, setOpenedApps] = useState<string[]>(() => {
+    const cached = localStorage.getItem("cachedOpenedApps");
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   // Function to fetch the previous active application
   const fetchPreviousApp = async () => {
@@ -36,10 +47,18 @@ export function usePreviousApp() {
     try {
       if (window.activeAppAPI) {
         const apps = await window.activeAppAPI.getOpenedApps();
-        setOpenedApps(apps);
+
+        // Only update when getting valid app list
+        if (apps && apps.length > 0) {
+          setOpenedApps(apps);
+          // Cache to localStorage
+          localStorage.setItem("cachedOpenedApps", JSON.stringify(apps));
+        }
+      } else {
+        console.warn("usePreviousApp: window.activeAppAPI not available");
       }
     } catch (error) {
-      console.error("Error fetching opened apps:", error);
+      console.error("usePreviousApp: Error fetching opened apps:", error);
     }
   };
 
@@ -55,14 +74,11 @@ export function usePreviousApp() {
     return unsubscribe;
   }, [previousApp]);
 
-  useEffect(() => {
-    fetchOpenedApps();
-  }, [previousApp]);
-
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch - immediately preload app data
     fetchPreviousApp();
+    fetchOpenedApps(); // Load app list immediately when component mounts
 
     // Setup event listener for app changes
     if (window.electronAPI?.onAppChanged) {
@@ -87,9 +103,9 @@ export function usePreviousApp() {
     // Remove file extensions if present
     const nameWithoutExt = name.replace(/\.\w+$/, "");
 
-    // Limit to 12 characters
-    if (nameWithoutExt.length > 12) {
-      return nameWithoutExt.substring(0, 10) + "...";
+    // Increase limit to 20 characters
+    if (nameWithoutExt.length > 20) {
+      return nameWithoutExt.substring(0, 18) + "...";
     }
 
     return nameWithoutExt;

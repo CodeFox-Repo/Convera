@@ -141,7 +141,7 @@ const CommandResults: React.FC<CommandResultsProps> = ({
   // AI Chat mode preview
   if (query.trim()) {
     return (
-      <div className=" mt-2 w-full">
+      <div className="mt-2 w-full">
         <div className="rounded-lg border border-foreground/10 backdrop-blur-sm bg-white/5 shadow-sm overflow-hidden">
           <div>
             <div
