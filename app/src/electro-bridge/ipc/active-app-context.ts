@@ -54,7 +54,6 @@ export function startAppContentMonitoring(appName: string): void {
     swiftProcess = null;
   }
 
-
   const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
   swiftProcess = spawn("swift", [swiftScriptPath, appName], {
@@ -267,7 +266,6 @@ export async function preloadAllAppData(): Promise<void> {
   if (iconCacheInitialized) {
     return;
   }
-
 
   try {
     // Step 1: Get all possible application lists
