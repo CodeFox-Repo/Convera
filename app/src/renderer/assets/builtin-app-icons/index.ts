@@ -142,5 +142,5 @@ export function getBuiltinAppIcon(appName: string): string | undefined {
 }
 
 // Re-export all utilities and constants
-export * from './app-constants';
-export * from './icon-utils';
+export * from "./app-constants";
+export * from "./icon-utils";

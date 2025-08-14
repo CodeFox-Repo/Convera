@@ -5,7 +5,7 @@ import fs from "fs";
 import os from "os";
 import { promisify } from "util";
 import { CHANNELS } from "./channels";
-import { 
+import {
   BUILTIN_APP_ICONS as BUILTIN_ICONS,
   FALLBACK_APP_LIST,
   ERROR_MESSAGES,
@@ -547,6 +547,8 @@ export async function getAppIcon(appName: string): Promise<{
     return createErrorResult(`${ERROR_MESSAGES.ICON_NOT_FOUND}: ${appName}`);
   } catch (error) {
     console.error("❌ Error getting app icon:", error);
-    return createErrorResult(`${ERROR_MESSAGES.ICON_LOAD_FAILED}: ${error instanceof Error ? error.message : String(error)}`);
+    return createErrorResult(
+      `${ERROR_MESSAGES.ICON_LOAD_FAILED}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }

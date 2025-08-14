@@ -23,7 +23,7 @@ export const ICON_CACHE_CONFIG = {
 // Common app paths for macOS
 export const COMMON_APP_PATHS = [
   "/Applications",
-  "/System/Applications", 
+  "/System/Applications",
   "/System/Applications/Utilities",
 ];
 
@@ -31,7 +31,7 @@ export const COMMON_APP_PATHS = [
 export const ICON_FILE_NAMES = [
   "AppIcon.icns",
   "icon.icns",
-  "Icon.icns", 
+  "Icon.icns",
   "app.icns",
 ];
 
@@ -47,14 +47,16 @@ export const ERROR_MESSAGES = {
 
 // Helper function to validate app names
 export function isValidAppName(appName: string): boolean {
-  return typeof appName === 'string' && 
-         appName.trim().length > 0 && 
-         appName.length < 100; // Reasonable limit
+  return (
+    typeof appName === "string" &&
+    appName.trim().length > 0 &&
+    appName.length < 100
+  ); // Reasonable limit
 }
 
 // Helper function to sanitize app names for file operations
 export function sanitizeAppName(appName: string): string {
-  return appName.replace(/[^a-zA-Z0-9\s\-_.]/g, '').trim();
+  return appName.replace(/[^a-zA-Z0-9\s\-_.]/g, "").trim();
 }
 
 // Helper function to create error results
@@ -65,7 +67,7 @@ export function createErrorResult(error: string): AppIconResult {
   };
 }
 
-// Helper function to create success results  
+// Helper function to create success results
 export function createSuccessResult(iconData: string): AppIconResult {
   return {
     success: true,

@@ -3,7 +3,7 @@
 
 export const SYSTEM_APPS = [
   "Finder",
-  "System Preferences", 
+  "System Preferences",
   "System Settings",
   "Activity Monitor",
   "Terminal",
@@ -16,7 +16,7 @@ export const SYSTEM_APPS = [
 export const BROWSERS = [
   "Safari",
   "Google Chrome",
-  "Chrome", 
+  "Chrome",
   "Firefox",
   "Arc",
   "Microsoft Edge",
@@ -27,7 +27,7 @@ export const BROWSERS = [
 
 export const OFFICE_APPS = [
   "Microsoft Word",
-  "Microsoft Excel", 
+  "Microsoft Excel",
   "Microsoft PowerPoint",
   "Microsoft Outlook",
   "Pages",
@@ -40,7 +40,7 @@ export const OFFICE_APPS = [
 export const DEV_TOOLS = [
   "Visual Studio Code",
   "Code",
-  "Xcode", 
+  "Xcode",
   "IntelliJ IDEA",
   "PyCharm",
   "WebStorm",
@@ -56,7 +56,7 @@ export const DEV_TOOLS = [
 export const DESIGN_TOOLS = [
   "Adobe Photoshop",
   "Photoshop",
-  "Adobe Illustrator", 
+  "Adobe Illustrator",
   "Illustrator",
   "Adobe After Effects",
   "After Effects",
@@ -66,7 +66,7 @@ export const DESIGN_TOOLS = [
   "Figma",
   "Canva",
   "Affinity Designer",
-  "Affinity Photo", 
+  "Affinity Photo",
   "Pixelmator Pro",
   "GIMP",
 ];
@@ -77,7 +77,7 @@ export const COMMUNICATION_APPS = [
   "Microsoft Teams",
   "Teams",
   "Zoom",
-  "Skype", 
+  "Skype",
   "WhatsApp",
   "Telegram",
   "Signal",
@@ -93,7 +93,7 @@ export const PRODUCTIVITY_APPS = [
   "Ulysses",
   "Typora",
   "Markdown Editor",
-  "TaskPaper", 
+  "TaskPaper",
   "Things 3",
   "Todoist",
   "Any.do",
@@ -125,7 +125,7 @@ export const UTILITY_APPS = [
   "Preview",
   "TextEdit",
   "Notes",
-  "Calculator", 
+  "Calculator",
   "Calendar",
   "Contacts",
   "Reminders",
@@ -149,7 +149,7 @@ export const LAUNCHER_TOOLS = [
 export const CLOUD_STORAGE = [
   "Dropbox",
   "Google Drive",
-  "OneDrive", 
+  "OneDrive",
   "iCloud",
   "Box",
   "Sync.com",
@@ -175,7 +175,7 @@ export const FALLBACK_APP_LIST = [
 export const FILTERED_APPS = [
   "osascript",
   "System Events",
-  "loginwindow", 
+  "loginwindow",
   "WindowServer",
   "Dock",
   "Finder Helper",
@@ -183,6 +183,6 @@ export const FILTERED_APPS = [
   "ControlCenter",
   "Spotlight",
   "Electron",
-  "FoxyChat", 
+  "FoxyChat",
   "foxfoxy",
 ];
