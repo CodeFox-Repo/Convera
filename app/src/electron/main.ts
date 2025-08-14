@@ -299,14 +299,14 @@ app.whenReady().then(async () => {
       });
 
     // Start app data preloading immediately (in background)
-    console.log("🚀 Starting app data preloading immediately...");
+    console.log("Starting app data preloading immediately...");
     preloadAllAppData()
       .then(() => {
-        console.log("✅ App data preloading completed successfully");
+        console.log("App data preloading completed successfully");
         logger.info("App data preloading completed");
       })
       .catch((error) => {
-        console.error("❌ App data preloading failed:", error);
+        console.error("App data preloading failed:", error);
         logger.error("App data preloading failed:", error);
       });
 
