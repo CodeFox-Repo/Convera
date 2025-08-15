@@ -34,30 +34,30 @@ function UserLayout() {
   }
 
   return (
-    <div className="relative min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="relative min-h-screen bg-zinc-950">
       {/* Grid background pattern */}
       <div 
         className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]"
         style={{
           backgroundImage: `linear-gradient(to right, rgb(161 161 170) 1px, transparent 1px),
                            linear-gradient(to bottom, rgb(161 161 170) 1px, transparent 1px)`,
-          backgroundSize: '32px 32px',
+          backgroundSize: "32px 32px",
         }}
       />
-      
+
       <Navbar />
       
       <div className="container relative mx-auto max-w-4xl py-8 pt-24">
         {/* Main content card with clear boundaries */}
-        <div className="relative overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl">
+        <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl">
           {/* Continuous border effect from top-left down */}
-          <div className="absolute left-0 top-0 h-full w-[1px] bg-zinc-300 dark:bg-zinc-700" />
-          <div className="absolute left-0 top-0 h-[1px] w-full bg-zinc-300 dark:bg-zinc-700" />
-          
+          <div className="absolute top-0 left-0 h-full w-[1px] bg-zinc-700" />
+          <div className="absolute top-0 left-0 h-[1px] w-full bg-zinc-700" />
+
           {/* Bottom border */}
-          <div className="absolute bottom-0 left-0 h-[1px] w-full bg-zinc-300 dark:bg-zinc-700" />
-          <div className="absolute right-0 top-0 h-full w-[1px] bg-zinc-300 dark:bg-zinc-700" />
-          
+          <div className="absolute bottom-0 left-0 h-[1px] w-full bg-zinc-700" />
+          <div className="absolute top-0 right-0 h-full w-[1px] bg-zinc-700" />
+
           {/* Content */}
           <div className="relative p-8">
             <Outlet />
