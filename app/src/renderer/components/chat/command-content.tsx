@@ -20,7 +20,7 @@ import {
  */
 const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  
+
   if (!toolInvocation) return null;
 
   const toolName = toolInvocation.toolName || "Tool";
@@ -63,13 +63,11 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
   return (
     <div className="space-y-3">
       {/* Tool Call Header - Clickable */}
-      <div 
+      <div
         className="flex items-center gap-2 text-xs text-foreground/60 font-medium cursor-pointer hover:text-foreground/80 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="select-none">
-          {isExpanded ? "▼" : "▶"}
-        </span>
+        <span className="select-none">{isExpanded ? "▼" : "▶"}</span>
         <span>I&apos;ll use {toolName}</span>
         {!isCompleted && <Loader2 className="h-3 w-3 animate-spin" />}
       </div>
@@ -80,7 +78,9 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
           {/* Tool Arguments */}
           {hasArguments && (
             <div className="space-y-1">
-              <div className="text-xs text-foreground/60 font-medium">Arguments:</div>
+              <div className="text-xs text-foreground/60 font-medium">
+                Arguments:
+              </div>
               <div className="text-xs font-mono bg-foreground/5 rounded p-2 whitespace-pre-wrap text-foreground/70">
                 {argumentsDisplay}
               </div>
@@ -90,7 +90,9 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
           {/* Tool Result */}
           {isCompleted && (
             <div className="space-y-1">
-              <div className="text-xs text-foreground/60 font-medium">Result:</div>
+              <div className="text-xs text-foreground/60 font-medium">
+                Result:
+              </div>
               <div className="text-sm text-foreground">
                 {typeof result === "string" ? (
                   <Markdown>{result}</Markdown>
