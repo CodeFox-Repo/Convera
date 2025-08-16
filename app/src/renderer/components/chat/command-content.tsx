@@ -19,6 +19,8 @@ import {
  * Component for rendering tool calls with styled output
  */
 const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
   if (!toolInvocation) return null;
 
   const toolName = toolInvocation.toolName || "Tool";
@@ -32,6 +34,14 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
   // Default renderer
   let result = "Pending result...";
   let isCompleted = false;
+  let hasArguments = false;
+  let argumentsDisplay = "";
+
+  // Check for tool arguments
+  if (toolInvocation.args && Object.keys(toolInvocation.args).length > 0) {
+    hasArguments = true;
+    argumentsDisplay = JSON.stringify(toolInvocation.args, null, 2);
+  }
 
   // Check if the tool invocation has a result (AI SDK structure)
   if (toolInvocation.state === "result" && "result" in toolInvocation) {
@@ -52,25 +62,48 @@ const ToolCallRenderer = memo(({ toolInvocation }: ToolCallRendererProps) => {
 
   return (
     <div className="space-y-3">
-      {/* Tool Call */}
-      <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
+      {/* Tool Call Header - Clickable */}
+      <div
+        className="flex items-center gap-2 text-xs text-foreground/60 font-medium cursor-pointer hover:text-foreground/80 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <span className="select-none">{isExpanded ? "▼" : "▶"}</span>
         <span>I&apos;ll use {toolName}</span>
         {!isCompleted && <Loader2 className="h-3 w-3 animate-spin" />}
       </div>
 
-      {/* Tool Result */}
-      {isCompleted && (
-        <div className="space-y-1">
-          <div className="text-xs text-foreground/60 font-medium">I got:</div>
-          <div className="text-sm text-foreground pl-4">
-            {typeof result === "string" ? (
-              <Markdown>{result}</Markdown>
-            ) : (
-              <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/70">
-                {JSON.stringify(result, null, 2)}
-              </pre>
-            )}
-          </div>
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <div className="space-y-3 pl-4 border-l-2 border-foreground/10">
+          {/* Tool Arguments */}
+          {hasArguments && (
+            <div className="space-y-1">
+              <div className="text-xs text-foreground/60 font-medium">
+                Arguments:
+              </div>
+              <div className="text-xs font-mono bg-foreground/5 rounded p-2 whitespace-pre-wrap text-foreground/70">
+                {argumentsDisplay}
+              </div>
+            </div>
+          )}
+
+          {/* Tool Result */}
+          {isCompleted && (
+            <div className="space-y-1">
+              <div className="text-xs text-foreground/60 font-medium">
+                Result:
+              </div>
+              <div className="text-sm text-foreground">
+                {typeof result === "string" ? (
+                  <Markdown>{result}</Markdown>
+                ) : (
+                  <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/70 bg-foreground/5 rounded p-2">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
