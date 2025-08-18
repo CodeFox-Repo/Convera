@@ -89,9 +89,9 @@ export function startAppContentMonitoring(appName: string): void {
     }
   });
 
-  swiftProcess.stderr?.on("data", (data: Buffer) => {
-    console.error("Swift error:", data.toString());
-  });
+  // swiftProcess.stderr?.on("data", (data: Buffer) => {
+  //   console.error("Swift error:", data.toString());
+  // });
 
   swiftProcess.on("exit", (code) => {
     console.log(`Swift process exit, code: ${code}`);

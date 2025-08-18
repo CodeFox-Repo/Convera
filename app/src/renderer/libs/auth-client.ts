@@ -4,6 +4,12 @@ import { getBaseUrl } from "./env";
 // Create auth client with environment-aware configuration
 export const authClient = createAuthClient({
   baseURL: getBaseUrl(),
+  session: {
+    refresh: true,
+  },
+  fetchOptions: {
+    credentials: "include",
+  },
 });
 
 // Check if user is currently logged in

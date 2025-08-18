@@ -15,6 +15,7 @@ import { Route as UserRouteImport } from './routes/_user'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RedirectAuthRouteImport } from './routes/redirect.auth'
 import { Route as AuthPathnameRouteImport } from './routes/auth.$pathname'
 import { Route as UserSettingsRouteImport } from './routes/_user/settings'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
@@ -47,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RedirectAuthRoute = RedirectAuthRouteImport.update({
+  id: '/redirect/auth',
+  path: '/redirect/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthPathnameRoute = AuthPathnameRouteImport.update({
   id: '/auth/$pathname',
   path: '/auth/$pathname',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AdminDashboardRoute
   '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/redirect/auth': typeof RedirectAuthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AdminDashboardRoute
   '/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/redirect/auth': typeof RedirectAuthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/_admin/dashboard': typeof AdminDashboardRoute
   '/_user/settings': typeof UserSettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
+  '/redirect/auth': typeof RedirectAuthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/auth/$pathname'
+    | '/redirect/auth'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/auth/$pathname'
+    | '/redirect/auth'
   id:
     | '__root__'
     | '/'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/_admin/dashboard'
     | '/_user/settings'
     | '/auth/$pathname'
+    | '/redirect/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -133,6 +145,7 @@ export interface RootRouteChildren {
   DownloadRoute: typeof DownloadRoute
   PricingRoute: typeof PricingRoute
   AuthPathnameRoute: typeof AuthPathnameRoute
+  RedirectAuthRoute: typeof RedirectAuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -177,6 +190,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redirect/auth': {
+      id: '/redirect/auth'
+      path: '/redirect/auth'
+      fullPath: '/redirect/auth'
+      preLoaderRoute: typeof RedirectAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/$pathname': {
@@ -231,6 +251,7 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadRoute: DownloadRoute,
   PricingRoute: PricingRoute,
   AuthPathnameRoute: AuthPathnameRoute,
+  RedirectAuthRoute: RedirectAuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

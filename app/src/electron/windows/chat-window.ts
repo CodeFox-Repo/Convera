@@ -9,6 +9,7 @@ import {
   BrowserWindow,
   BrowserWindowConstructorOptions,
   screen,
+  shell,
 } from "electron";
 import path from "path";
 import { getLogger } from "../logger";
@@ -96,6 +97,31 @@ function loadWindowContent(window: BrowserWindow) {
 
 // Setup chat window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
+  // Intercept navigations that might be triggered by OAuth flows and open externally
+  const maybeOpenExternal = (targetUrl: string): boolean => {
+    try {
+      if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+        shell.openExternal(targetUrl);
+        return true;
+      }
+    } catch (e) {
+      logger.error("Error handling navigation to external URL:", e);
+    }
+    return false;
+  };
+
+  window.webContents.on("will-navigate", (event, url) => {
+    if (maybeOpenExternal(url)) {
+      event.preventDefault();
+    }
+  });
+
+  window.webContents.on("will-redirect", (event, url) => {
+    if (maybeOpenExternal(url)) {
+      event.preventDefault();
+    }
+  });
+
   // Handle ready-to-show event
   window.once("ready-to-show", () => {
     logger.info("Chat window ready, positioning and hiding");

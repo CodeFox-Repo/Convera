@@ -4,7 +4,11 @@ import {
   WindowDimensions,
 } from "@/electron/windows/window-size";
 import { inDevelopment } from "@/shared/constants/dev";
-import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
+import {
+  BrowserWindow,
+  BrowserWindowConstructorOptions,
+  shell,
+} from "electron";
 import path from "path";
 import { getLogger } from "../logger";
 
@@ -85,6 +89,31 @@ function loadWindowContent(window: BrowserWindow) {
 
 // Setup window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
+  // Intercept navigations that might be triggered by OAuth flows and open externally
+  const maybeOpenExternal = (targetUrl: string): boolean => {
+    try {
+      if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+        shell.openExternal(targetUrl);
+        return true;
+      }
+    } catch (e) {
+      console.error("Error handling navigation to external URL:", e);
+    }
+    return false;
+  };
+
+  window.webContents.on("will-navigate", (event, url) => {
+    if (maybeOpenExternal(url)) {
+      event.preventDefault();
+    }
+  });
+
+  window.webContents.on("will-redirect", (event, url) => {
+    if (maybeOpenExternal(url)) {
+      event.preventDefault();
+    }
+  });
+
   window.webContents.on("did-finish-load", () => {
     console.log(
       "Main page loaded in settings window, redirecting to settings...",

@@ -33,6 +33,7 @@ export default function BaseLayout({
             navigate={(href) => router.navigate({ href })}
             replace={(href) => router.navigate({ href, replace: true })}
             Link={({ href, ...props }) => <Link to={href} {...props} />}
+            providers={["github", "google"]}
           >
             <main className="text-foreground h-full w-full bg-background/80">
               <ChatProvider>{children}</ChatProvider>
