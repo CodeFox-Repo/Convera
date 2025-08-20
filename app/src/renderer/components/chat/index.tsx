@@ -297,6 +297,12 @@ export default function Chat() {
     setInputValue(value);
     setSelectedIndex(0); // Reset selection when input changes
 
+    // Reset showContent only when user starts typing commands to allow command results to show
+    // Don't reset for app mentions (@) or empty values
+    if (showContent && value.trim() && value.startsWith("/")) {
+      setShowContent(false);
+    }
+
     // Check if we're in input change command mode
     if (selectedInputCommand) {
       // Generate real-time result using the selected command
@@ -358,7 +364,11 @@ export default function Chat() {
       // Handle AI chat mode
       setResults([]);
     } else {
+      // when input is empty, restore chat history if there are messages
       setResults([]);
+      if (messages.length > 0 && !showContent) {
+        setShowContent(true);
+      }
     }
   };
 
@@ -427,14 +437,52 @@ export default function Chat() {
       try {
         // Call MCP tool with no arguments since it's a non-input param tool
         const response = await window.mcpAPI.mcpToolCall(command.id, {});
+        console.log("MCP tool executed successfully:", response);
 
-        if (response.success) {
-          // Tool executed successfully
+        if (response.success && response.data) {
+          // Tool executed successfully - create a message with the result
+          const toolResult = response.data;
+
+          // Extract text content from the MCP response
+          let resultText = "";
+          if (
+            toolResult &&
+            typeof toolResult === "object" &&
+            "content" in toolResult
+          ) {
+            const content = toolResult.content;
+            if (Array.isArray(content) && content.length > 0) {
+              // Handle content array format (like from your calendar tool)
+              resultText = content
+                .map((item: any) => item.text || String(item))
+                .join("\n");
+            } else if (typeof content === "string") {
+              resultText = content;
+            } else {
+              resultText = JSON.stringify(content, null, 2);
+            }
+          } else if (typeof toolResult === "string") {
+            resultText = toolResult;
+          } else {
+            resultText = JSON.stringify(toolResult, null, 2);
+          }
+
+          // Create a formatted message showing the tool execution and result
+          const messageText = `Executed command: **${command.name}**\n\nResult:\n\`\`\`json\n${resultText}\n\`\`\``;
+
+          // Send the result as a chat message
+          sendMessage(messageText);
         } else {
           console.error("MCP tool execution failed:", response.error);
+          // Send error message to chat
+          const errorMessage = `Command execution failed: **${command.name}**\n\nError: ${response.error || "Unknown error"}`;
+          sendMessage(errorMessage);
         }
       } catch (error) {
         console.error("Error executing MCP tool:", error);
+        // Send error message to chat
+        const errorMessage = `Command execution error: **${command.name}**\n\nError: ${error instanceof Error ? error.message : String(error)}`;
+        sendMessage(errorMessage);
       }
     },
     [sendMessage],
