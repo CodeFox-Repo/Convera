@@ -286,7 +286,7 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
                       <div className="flex items-center justify-between ">
                         <div className="flex items-center gap-2 text-xs text-foreground/60">
                           <Bot size={12} />
-                          <span>GPT-4o mini</span>
+                          <span>foxychat</span>
                         </div>
                         <button
                           onClick={() => {
