@@ -97,6 +97,13 @@ interface ChatContextType {
     args: Record<string, unknown>,
   ) => Promise<ToolCallResult>;
 
+  // Add tool execution record without AI response
+  addToolExecutionRecord: (
+    toolName: string,
+    result: string,
+    error?: string,
+  ) => void;
+
   // Speech-to-text state
   speechState: {
     isRecording: boolean;
@@ -840,6 +847,39 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     toggleHistoryWindow();
   }, [toggleHistoryWindow]);
 
+  // Add tool execution record without triggering AI response
+  const addToolExecutionRecord = useCallback(
+    (toolName: string, result: string, error?: string) => {
+      // Generate conversation ID if this is the first message
+      let conversationIdToUse = currentConversationId;
+
+      if (!conversationIdToUse) {
+        conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        setCurrentConversationId(conversationIdToUse);
+      }
+
+      // Create a tool execution message
+      const toolMessage: Message = {
+        id: `tool_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        role: "user",
+        content: `[Tool Execution] ${toolName}`,
+      };
+
+      // Create a result message
+      const resultMessage: Message = {
+        id: `result_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        role: "assistant",
+        content: error
+          ? `Tool execution failed: ${error}`
+          : `Tool execution result:\n\`\`\`json\n${result}\n\`\`\``,
+      };
+
+      // Add both messages to the chat API directly
+      chatAPI.setMessages([...chatAPI.messages, toolMessage, resultMessage]);
+    },
+    [currentConversationId, setCurrentConversationId, chatAPI],
+  );
+
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
@@ -881,6 +921,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     getAvailableTools,
     executeTool,
     callTool,
+    addToolExecutionRecord,
   };
 
   // Show loading state if settings are not loaded yet

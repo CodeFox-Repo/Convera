@@ -40,6 +40,7 @@ export default function Chat() {
     isLoading,
     resetChat,
     currentConversationId,
+    addToolExecutionRecord,
   } = useChatContext();
   const { previousApp } = usePreviousApp();
 
@@ -467,25 +468,26 @@ export default function Chat() {
             resultText = JSON.stringify(toolResult, null, 2);
           }
 
-          // Create a formatted message showing the tool execution and result
-          const messageText = `Executed command: **${command.name}**\n\nResult:\n\`\`\`json\n${resultText}\n\`\`\``;
-
-          // Send the result as a chat message
-          sendMessage(messageText);
+          // Add tool execution record without triggering AI response
+          addToolExecutionRecord(command.name, resultText);
         } else {
           console.error("MCP tool execution failed:", response.error);
-          // Send error message to chat
-          const errorMessage = `Command execution failed: **${command.name}**\n\nError: ${response.error || "Unknown error"}`;
-          sendMessage(errorMessage);
+          // Add error record without triggering AI response
+          addToolExecutionRecord(
+            command.name,
+            "",
+            response.error || "Unknown error",
+          );
         }
       } catch (error) {
         console.error("Error executing MCP tool:", error);
-        // Send error message to chat
-        const errorMessage = `Command execution error: **${command.name}**\n\nError: ${error instanceof Error ? error.message : String(error)}`;
-        sendMessage(errorMessage);
+        // Add error record without triggering AI response
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        addToolExecutionRecord(command.name, "", errorMessage);
       }
     },
-    [sendMessage],
+    [addToolExecutionRecord],
   );
 
   // Handle AI chat submission
