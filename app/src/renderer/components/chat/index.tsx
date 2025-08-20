@@ -62,6 +62,16 @@ export default function Chat() {
   // Block resize during app mention mode to prevent window truncation
   const blockResizeRef = useRef(false);
 
+  // Type for MCP tool result content items
+  interface MCPContentItem {
+    text?: string;
+    type?: string;
+    [key: string]: unknown;
+  }
+
+  // Type for command execution result
+  type CommandExecutionResult = string | number | boolean | object | null;
+
   interface CommandResult {
     id: string;
     name: string;
@@ -69,8 +79,7 @@ export default function Chat() {
     icon: string | React.ReactNode;
     // default is mcp, input-changed-command means the command is triggered by input change
     type?: "mcp" | "input-changed-command";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute?: (input?: string) => Promise<any>;
+    execute?: (input?: string) => Promise<CommandExecutionResult>;
   }
 
   const presetCommands: CommandResult[] = [
@@ -455,7 +464,7 @@ export default function Chat() {
             if (Array.isArray(content) && content.length > 0) {
               // Handle content array format (like from your calendar tool)
               resultText = content
-                .map((item: any) => item.text || String(item))
+                .map((item: MCPContentItem) => item.text || String(item))
                 .join("\n");
             } else if (typeof content === "string") {
               resultText = content;
