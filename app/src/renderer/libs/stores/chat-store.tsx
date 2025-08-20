@@ -870,8 +870,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         id: `result_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         role: "assistant",
         content: error
-          ? `Tool execution failed: ${error}`
-          : `Tool execution result:\n\`\`\`json\n${result}\n\`\`\``,
+          ? `❌ **Error**: ${error}`
+          : `\`\`\`json\n${result}\n\`\`\``,
       };
 
       // Add both messages to the chat API directly
