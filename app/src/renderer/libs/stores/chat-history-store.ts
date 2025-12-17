@@ -58,7 +58,6 @@ interface ChatHistoryState {
   initializeStore: () => Promise<void>;
   syncConversationToServer: (conversation: ConversationData) => Promise<void>;
   syncLocalToServer: () => Promise<void>;
-  toggleHistoryWindow: () => Promise<void>;
 }
 
 export const useChatHistoryStore = create<ChatHistoryState>()(
@@ -265,14 +264,6 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           });
           localStorage.setItem("selectedConversation", eventData);
 
-          // Close history window if in Electron and it's currently open
-          if (window.electronAPI) {
-            // Check if history window is open before toggling
-            // Only toggle if we're in the history window context
-            if (window.location?.pathname === "/history") {
-              window.electronAPI.toggleWindow("history");
-            }
-          }
         } else {
           set({ error: "Conversation not found" });
         }
@@ -391,14 +382,6 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           await get().syncConversationToServer(localConv);
         }
       },
-
-      toggleHistoryWindow: async () => {
-        try {
-          await window.electronAPI?.toggleWindow("history");
-        } catch (error) {
-          console.error("Error toggling chat history window:", error);
-        }
-      },
     }),
     {
       name: "chat-history-storage",
@@ -489,6 +472,5 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
     selectChat,
     deleteChat,
     createConversation: store.createConversation,
-    toggleHistoryWindow: store.toggleHistoryWindow,
   };
 }

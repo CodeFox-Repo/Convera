@@ -186,7 +186,7 @@ interface CommandContentProps {
  * - Clean typography for improved readability
  */
 const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
-  const { messages, isLoading, currentConversationId } = useChatContext();
+  const { messages, isLoading } = useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
@@ -281,54 +281,13 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
                       )}
                     </div>
 
-                    {/* Bottom section with model and continue button - only after last pair, no divider */}
+                    {/* Bottom section with model info - only after last pair, no divider */}
                     {isLastPair && pair.assistant && (
-                      <div className="flex items-center justify-between ">
+                      <div className="flex items-center">
                         <div className="flex items-center gap-2 text-xs text-foreground/60">
                           <Bot size={12} />
                           <span>GPT-4o mini</span>
                         </div>
-                        <button
-                          onClick={() => {
-                            if (
-                              currentConversationId &&
-                              window.electronAPI?.toggleWindow
-                            ) {
-                              console.log(
-                                "Continue in Chat button - switching with conversation:",
-                                currentConversationId,
-                              );
-
-                              // Pass conversation ID to main window via localStorage
-                              localStorage.setItem(
-                                "switchToConversation",
-                                currentConversationId,
-                              );
-
-                              // Trigger storage event for same-window detection
-                              window.dispatchEvent(
-                                new StorageEvent("storage", {
-                                  key: "switchToConversation",
-                                  newValue: currentConversationId,
-                                  oldValue: null,
-                                }),
-                              );
-
-                              // Hide current chat window and show main window
-                              window.electronAPI.toggleWindow("chat"); // Hide chat
-                              window.electronAPI.toggleWindow("main"); // Show main
-                            }
-                          }}
-                          className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors flex items-center gap-1"
-                        >
-                          <span>Continue in Chat</span>
-                          <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">
-                            ⌘
-                          </span>
-                          <span className="text-[10px] px-1 py-0.5 rounded border border-foreground/20">
-                            J
-                          </span>
-                        </button>
                       </div>
                     )}
                   </div>

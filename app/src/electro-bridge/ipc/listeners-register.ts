@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { WindowSizeConfig } from "@/electron/windows/window-size";
-import { ThemeMode, WindowType } from "@/shared/types/electron";
+import { ThemeMode } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import {
   getOpenedApps,
@@ -28,7 +28,6 @@ import {
   setInputContent,
   setTheme,
   toggleViewMode,
-  toggleWindow,
   updateGlobalShortcut,
 } from "./ipc-handlers";
 import { setupLoggerIPC } from "./logger-context";
@@ -125,10 +124,6 @@ export interface ListenerOptions {
 export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   const { mainWindow, registerGlobalShortcuts } = options;
   // Unified Window Control
-  ipcMain.handle(CHANNELS.WINDOW.TOGGLE, (_event, type: WindowType) => {
-    return toggleWindow(type);
-  });
-
   ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
     const window = mainWindow?.() || null;
     return closeWindow(window);

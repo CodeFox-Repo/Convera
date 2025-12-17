@@ -3,40 +3,14 @@ import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
-import { ThemeMode, WindowType } from "@/shared/types/electron";
+import { ThemeMode } from "@/shared/types/electron";
 import os from "os";
 import path from "path";
 import { activatePreviousApp } from "./active-app-context";
 import { CHANNELS } from "./channels";
 
-// Import window getters and creators
-import {
-  createMainWindow,
-  getMainWindow,
-} from "@/electron/windows/main-window";
-
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
-
-// ========== UNIFIED WINDOW CONTROL ==========
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function toggleWindow(_type: WindowType): void {
-  // In single-window mode, all toggle requests go to main window
-  const mainWindow = getMainWindow();
-
-  if (!mainWindow) {
-    createMainWindow();
-    return;
-  }
-
-  if (mainWindow.isVisible()) {
-    mainWindow.hide();
-  } else {
-    mainWindow.show();
-    mainWindow.focus();
-  }
-}
 
 // ========== UNIFIED THEME CONTROL ==========
 

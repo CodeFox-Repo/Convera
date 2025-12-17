@@ -39,7 +39,6 @@ export default function Chat() {
     sendMessage,
     isLoading,
     resetChat,
-    currentConversationId,
   } = useChatContext();
   const { previousApp } = usePreviousApp();
 
@@ -587,42 +586,6 @@ export default function Chat() {
       appMentions,
     ],
   );
-
-  // Handle global Cmd+J shortcut
-  useEffect(() => {
-    const handleGlobalKeydown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
-        e.preventDefault();
-
-        // Only allow if chat has at least one complete conversation (user + assistant)
-        if (messages.length >= 2 && !isLoading && currentConversationId) {
-          // Pass conversation ID to main window via localStorage
-          localStorage.setItem("switchToConversation", currentConversationId);
-
-          // Trigger storage event for same-window detection
-          window.dispatchEvent(
-            new StorageEvent("storage", {
-              key: "switchToConversation",
-              newValue: currentConversationId,
-              oldValue: null,
-            }),
-          );
-
-          if (window.electronAPI?.toggleWindow) {
-            // Hide current chat window and show main window
-            window.electronAPI.toggleWindow("chat"); // Hide chat
-            window.electronAPI.toggleWindow("main"); // Show main
-          }
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleGlobalKeydown);
-
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeydown);
-    };
-  }, [messages.length, isLoading, currentConversationId]);
 
   useEffect(() => {
     const mountTimer = setTimeout(() => {
