@@ -212,7 +212,7 @@ export function HomePage() {
         <SidebarDragRegion className="flex-1 flex flex-col h-full">
           {/* Sidebar Header */}
           {!sidebarCollapsed && (
-            <div className="p-4 relative">
+            <div className="pt-8 px-4 pb-4 relative">
               {/* Drag whitespace area */}
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
@@ -409,7 +409,7 @@ export function HomePage() {
 
       {/* Floating Controls - positioned at left edge when sidebar is collapsed */}
       {sidebarCollapsed && (
-        <div className="absolute top-4 left-4 z-20 flex gap-2">
+        <div className="absolute top-8 left-4 z-20 flex gap-2">
           <button
             onClick={() => setSidebarCollapsed(false)}
             className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
