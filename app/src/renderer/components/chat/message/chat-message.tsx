@@ -1,3 +1,4 @@
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { authClient } from "@/renderer/libs/auth-client";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import { Attachment, UIMessage } from "ai";
@@ -54,8 +55,6 @@ export interface ChatMessageProps {
   onRegenerate: () => void;
   renderContent: React.ReactNode;
 }
-
-const avatar = "./images/icon.png";
 
 // Attachment preview component - simplified for file display above content
 const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
@@ -273,22 +272,7 @@ const ChatMessage = memo(
                     <User size={16} className="text-muted-foreground" />
                   )
                 ) : (
-                  <img
-                    src={avatar}
-                    alt="Agent"
-                    className="size-6 object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      const parent = target.parentElement!;
-                      parent.innerHTML = "";
-                      const botIcon = document.createElement("div");
-                      botIcon.innerHTML =
-                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H9V3H15V9H21ZM7 24H17V14H7V24ZM9 16H15V22H9V16Z" fill="currentColor"/></svg>';
-                      botIcon.className = "text-muted-foreground";
-                      parent.appendChild(botIcon);
-                    }}
-                  />
+                  <BaseLogo size={24} />
                 )}
               </div>
             </div>

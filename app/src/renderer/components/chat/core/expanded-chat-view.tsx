@@ -1,10 +1,11 @@
 // app/src/renderer/components/chat/expanded-chat-view.tsx
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useChatUIStore } from "@/renderer/libs/stores/chat-ui-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutDashboard, Plus, Sparkles, X } from "lucide-react";
+import { LayoutDashboard, Plus, X } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import ChatInput, { ChatInputRef } from "../input/chat-input";
 import ChatContent from "../message/chat-content";
@@ -94,7 +95,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
                   {/* Left side - branding */}
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
-                      <Sparkles size={16} className="text-orange-500" />
+                      <BaseLogo size={16} />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                         Convera
                       </span>
