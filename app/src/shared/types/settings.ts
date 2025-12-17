@@ -1,9 +1,32 @@
+/**
+ * Model configuration for custom API endpoints
+ */
+export interface ModelConfig {
+  id: string; // Unique identifier, e.g., "openrouter-1" or "custom-openai"
+  name: string; // Display name, e.g., "OpenRouter" or "My OpenAI"
+  endpoint: string; // API endpoint
+  apiKey: string; // API key
+  models: string[]; // Available models for this config
+  isDefault?: boolean; // Whether this is the default config
+}
+
+/**
+ * Special config ID for Foxychat remote server
+ */
+export const FOXYCHAT_CONFIG_ID = "foxychat-remote";
+
 export interface OpenAISettings {
+  // Legacy fields (kept for backward compatibility)
   endpoint: string;
   apiKey: string;
   modelId: string;
   supportedModels: string[];
   useRemoteStore: boolean;
+
+  // New model config fields
+  modelConfigs?: ModelConfig[];
+  selectedConfigId?: string; // Current selected config ID
+  selectedModelId?: string; // Current selected model ID within the config
 }
 
 export interface ShortcutSettings {

@@ -1,5 +1,6 @@
 import { authClient } from "@/renderer/libs/auth-client";
-import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
+import { FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
 import { AnimatePresence } from "framer-motion";
 import { ChevronUp, Key, LogOut, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -16,17 +17,12 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { signOut } = authClient;
-  const { settings } = useSettingsStore();
+  const { modelConfigs, selectedConfigId } = useModelConfigStore();
 
-  // Determine if custom API is configured
-  const hasValidCustomApi =
-    settings?.openai?.apiKey &&
-    settings.openai.apiKey.trim() !== "" &&
-    settings?.openai?.endpoint &&
-    settings.openai.endpoint.trim() !== "";
-
-  const useRemoteStore = settings?.openai?.useRemoteStore !== false;
-  const isUsingCustomApi = !session?.user && hasValidCustomApi && !useRemoteStore;
+  // Determine if using custom model config (not foxychat remote)
+  const hasModelConfigs = modelConfigs.length > 0;
+  const isUsingCustomConfig =
+    selectedConfigId !== FOXYCHAT_CONFIG_ID && hasModelConfigs;
 
   // Get user initials for fallback
   const getUserInitials = (name?: string, email?: string) => {
@@ -66,19 +62,16 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
     }
   }, [session?.user, showAuthModal]);
 
-  // Close modal when custom API is configured
+  // Close modal when model config is saved
   useEffect(() => {
-    const handleCustomApiConfigured = () => {
+    const handleModelConfigSaved = () => {
       setShowAuthModal(false);
     };
 
-    window.addEventListener("custom-api-configured", handleCustomApiConfigured);
+    window.addEventListener("model-config-saved", handleModelConfigSaved);
 
     return () => {
-      window.removeEventListener(
-        "custom-api-configured",
-        handleCustomApiConfigured,
-      );
+      window.removeEventListener("model-config-saved", handleModelConfigSaved);
     };
   }, []);
 
@@ -182,8 +175,8 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
             </div>
           </PopoverContent>
         </Popover>
-      ) : isUsingCustomApi ? (
-        // Custom API mode - not logged in but has custom API configured
+      ) : isUsingCustomConfig ? (
+        // Custom model config mode - using custom API endpoint
         <button
           onClick={handleClick}
           className={`${
@@ -194,7 +187,10 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
         >
           <Key size={16} className="flex-shrink-0 text-orange-500" />
           {!collapsed && (
-            <span className="truncate flex-1 text-left">Custom API</span>
+            <span className="truncate flex-1 text-left">
+              {modelConfigs.find((c) => c.id === selectedConfigId)?.name ||
+                "Custom Model"}
+            </span>
           )}
         </button>
       ) : (
