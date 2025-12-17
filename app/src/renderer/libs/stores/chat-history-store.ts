@@ -263,7 +263,6 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
             conversation,
           });
           localStorage.setItem("selectedConversation", eventData);
-
         } else {
           set({ error: "Conversation not found" });
         }
