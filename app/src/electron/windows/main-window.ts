@@ -1,12 +1,8 @@
-import { calculateWindowDimensions } from "@/electron/windows/utils";
-import {
-  WINDOW_SIZE_PRESETS,
-  WindowDimensions,
-} from "@/electron/windows/window-size";
 import { inDevelopment } from "@/shared/constants/dev";
 import {
   BrowserWindow,
   BrowserWindowConstructorOptions,
+  screen,
   shell,
 } from "electron";
 import path from "path";
@@ -19,14 +15,24 @@ const logger = getLogger("main-window");
 let mainWindow: BrowserWindow | null = null;
 
 // Create platform-specific configuration for main window
-function createPlatformSpecificConfig(
-  dimensions: WindowDimensions,
-): BrowserWindowConstructorOptions {
+function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } =
+    primaryDisplay.workAreaSize;
+
+  // Default window size: 80% of screen, centered
+  const width = Math.round(screenWidth * 0.8);
+  const height = Math.round(screenHeight * 0.8);
+  const x = Math.round((screenWidth - width) / 2);
+  const y = Math.round((screenHeight - height) / 2);
+
   const baseConfig: BrowserWindowConstructorOptions = {
-    width: dimensions.width,
-    height: dimensions.height,
-    x: dimensions.x,
-    y: dimensions.y,
+    width,
+    height,
+    x,
+    y,
+    minWidth: 900,
+    minHeight: 600,
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
@@ -34,18 +40,16 @@ function createPlatformSpecificConfig(
       nodeIntegrationInSubFrames: false,
       preload: path.join(__dirname, "preload.js"),
     },
-    modal: false,
     show: false,
     titleBarStyle: "hiddenInset",
     transparent: true,
     frame: false,
     visualEffectState: "active",
-    thickFrame: false,
     autoHideMenuBar: true,
     hasShadow: true,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
+    resizable: true,
+    maximizable: true,
+    fullscreenable: true,
     roundedCorners: true,
     vibrancy: "fullscreen-ui",
   };
@@ -56,15 +60,14 @@ function createPlatformSpecificConfig(
 // Configure platform-specific appearance
 function configurePlatformAppearance(window: BrowserWindow) {
   if (process.platform === "darwin") {
-    window.setWindowButtonVisibility(false);
+    // Show window buttons for standard window behavior
+    window.setWindowButtonVisibility(true);
   }
 }
 
 // Configure window properties
-function configureWindowProperties(window: BrowserWindow) {
-  window.on("will-resize", (event) => {
-    event.preventDefault();
-  });
+function configureWindowProperties(_window: BrowserWindow) {
+  // Window is now resizable, no need to prevent resize
 }
 
 // Load window content
@@ -149,31 +152,13 @@ function setupWindowEventHandlers(window: BrowserWindow) {
 }
 
 // Pre-create main window
-export function preCreateMainWindow(
-  chatWindow?: BrowserWindow,
-): BrowserWindow | null {
+export function preCreateMainWindow(): BrowserWindow | null {
   if (mainWindow) return mainWindow;
 
   logger.info("Pre-creating main window");
 
-  const dimensions = calculateWindowDimensions(
-    WINDOW_SIZE_PRESETS.SETTINGS,
-    undefined,
-    true,
-    true,
-  );
-
-  logger.debug("Main window dimensions calculated", { dimensions });
-
   // Create window with platform-specific configuration
-  const config = createPlatformSpecificConfig(dimensions);
-
-  // Add parent window if provided
-  if (chatWindow) {
-    config.parent = chatWindow;
-    logger.debug("Main window will be child of chat window");
-  }
-
+  const config = createPlatformSpecificConfig();
   mainWindow = new BrowserWindow(config);
 
   logger.debug("Main window created with platform-specific config");
@@ -187,9 +172,6 @@ export function preCreateMainWindow(
 
   // Setup event handlers
   setupWindowEventHandlers(mainWindow);
-
-  // Ensure main window stays hidden after creation
-  mainWindow.hide();
 
   logger.info("Main window pre-creation completed");
 

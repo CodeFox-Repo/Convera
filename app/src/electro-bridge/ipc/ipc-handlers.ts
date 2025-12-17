@@ -1,11 +1,6 @@
 import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
-import {
-  resizeWindowAndMaintainPosition,
-  toggleChatWindowVisibility,
-} from "@/electron/windows/window-position";
-import { setMainWindowResizable } from "@/electron/windows/window-resize";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import robot from "@/shared/robot";
 import { ThemeMode, WindowType } from "@/shared/types/electron";
@@ -16,26 +11,9 @@ import { CHANNELS } from "./channels";
 
 // Import window getters and creators
 import {
-  createAgentPopoverWindow,
-  getAgentPopoverWindow,
-} from "@/electron/windows/agent-popover-window";
-import { getChatWindow } from "@/electron/windows/chat-window";
-import {
-  createHistoryWindow,
-  getHistoryWindow,
-} from "@/electron/windows/history-window";
-import {
   createMainWindow,
   getMainWindow,
 } from "@/electron/windows/main-window";
-import {
-  createModelSelectorWindow,
-  getModelSelectorWindow,
-} from "@/electron/windows/model-selector-window";
-import {
-  createSettingsWindow,
-  getSettingsWindow,
-} from "@/electron/windows/settings-window";
 
 // Simple in-memory storage for current shortcut
 let currentActivateShortcut = "";
@@ -43,44 +21,19 @@ let currentActivateShortcut = "";
 // ========== UNIFIED WINDOW CONTROL ==========
 
 export function toggleWindow(type: WindowType): void {
-  switch (type) {
-    case "settings":
-      toggleGenericWindow(getSettingsWindow, createSettingsWindow);
-      break;
+  // In single-window mode, all toggle requests go to main window
+  const mainWindow = getMainWindow();
 
-    case "history":
-      toggleGenericWindow(getHistoryWindow, createHistoryWindow);
-      break;
-
-    case "main":
-      toggleGenericWindow(getMainWindow, createMainWindow);
-      break;
-
-    case "chat":
-      toggleChatWindowVisibility(getChatWindow());
-      break;
-
-    default:
-      console.warn(`Unknown window type: ${type}`);
-  }
-}
-
-function toggleGenericWindow(
-  getWindow: () => BrowserWindow | null,
-  createWindow: () => void,
-): void {
-  const window = getWindow();
-
-  if (!window) {
-    createWindow();
+  if (!mainWindow) {
+    createMainWindow();
     return;
   }
 
-  if (window.isVisible()) {
-    window.hide();
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
   } else {
-    window.show();
-    window.focus();
+    mainWindow.show();
+    mainWindow.focus();
   }
 }
 
@@ -149,18 +102,7 @@ export function setSystemTheme(): string {
   return setTheme("system");
 }
 
-export function toggleSettingsWindow(): void {
-  console.log("Legacy toggleSettingsWindow called");
-  toggleWindow("settings");
-}
-
-export function closeSettingsWindow(): void {
-  console.log("Legacy closeSettingsWindow called");
-  const settingsWindow = getSettingsWindow();
-  if (settingsWindow) {
-    settingsWindow.hide();
-  }
-}
+// Legacy functions removed - single window mode
 
 // ========== GLOBAL SHORTCUTS ==========
 
@@ -214,22 +156,8 @@ export function maximizeWindow(mainWindow: BrowserWindow | null): void {
 
 export function closeWindow(mainWindow: BrowserWindow | null): void {
   if (mainWindow) {
-    // Only hide the window, don't toggle - prevents ESC from reopening
-    const bounds = mainWindow.getBounds();
-    const isCurrentlyOffscreen = bounds.x < -1000 || bounds.y < -1000;
-    const isCurrentlyTransparent = mainWindow.getOpacity() < 0.1;
-
-    // Only hide if the window is currently visible
-    if (!isCurrentlyOffscreen && !isCurrentlyTransparent) {
-      console.log("Hiding window via closeWindow");
-      mainWindow.setBounds({
-        x: -2000,
-        y: -2000,
-        width: bounds.width,
-        height: bounds.height,
-      });
-      mainWindow.setOpacity(0);
-    }
+    console.log("Hiding main window via closeWindow");
+    mainWindow.hide();
   }
 }
 
@@ -237,11 +165,16 @@ export function resizeWindow(
   mainWindow: BrowserWindow | null,
   width: number,
   height: number,
-  preserveX: boolean = false,
+  _preserveX: boolean = false,
 ): void {
   if (mainWindow) {
-    // Use resizeWindowAndMaintainPosition which will automatically update expectedPosition
-    resizeWindowAndMaintainPosition(mainWindow, width, height, preserveX);
+    const currentBounds = mainWindow.getBounds();
+    mainWindow.setBounds({
+      x: currentBounds.x,
+      y: currentBounds.y,
+      width,
+      height,
+    });
   }
 }
 
@@ -288,53 +221,7 @@ export function resizeMessageContent(
   resizeWindow(mainWindow, width, height, preserveX);
 }
 
-// ========== AGENT POPOVER HANDLERS ==========
-
-export function toggleAgentPopoverWindow(
-  x?: number,
-  y?: number,
-  width?: number,
-  height?: number,
-): void {
-  const agentWindow = getAgentPopoverWindow();
-
-  if (agentWindow && agentWindow.isVisible()) {
-    agentWindow.hide();
-  } else if (x !== undefined && y !== undefined) {
-    createAgentPopoverWindow(x, y, width, height);
-  }
-}
-
-export function hideAgentPopoverWindow(): void {
-  const agentWindow = getAgentPopoverWindow();
-  if (agentWindow && agentWindow.isVisible()) {
-    agentWindow.hide();
-  }
-}
-
-// ========== MODEL SELECTOR HANDLERS ==========
-
-export function toggleModelSelectorWindow(
-  x?: number,
-  y?: number,
-  width?: number,
-  height?: number,
-): void {
-  const modelWindow = getModelSelectorWindow();
-
-  if (modelWindow && modelWindow.isVisible()) {
-    modelWindow.hide();
-  } else if (x !== undefined && y !== undefined) {
-    createModelSelectorWindow(x, y, width, height);
-  }
-}
-
-export function hideModelSelectorWindow(): void {
-  const modelWindow = getModelSelectorWindow();
-  if (modelWindow && modelWindow.isVisible()) {
-    modelWindow.hide();
-  }
-}
+// Agent popover and model selector windows removed - now using inline popovers
 
 export function modelSelected(
   mainWindow: BrowserWindow | null,
@@ -364,34 +251,12 @@ export function modelSelected(
   );
 }
 
-// Toggle window view mode between compact and expanded
+// Toggle window view mode - simplified for single resizable window
 export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
-  console.log(`Toggling view mode to: ${expanded ? "expanded" : "compact"}`);
-
-  try {
-    // Call setMainWindowResizable with the mainWindow parameter
-    setMainWindowResizable(expanded, mainWindow);
-
-    // You might want to also adjust the window size when toggling to expanded mode
-    if (expanded) {
-      // Optionally set a larger size when switching to expanded mode
-      const currentBounds = mainWindow.getBounds();
-      const newHeight = Math.max(currentBounds.height, 600);
-
-      // Use resizeWindowAndMaintainPosition instead of directly using setBounds
-      resizeWindowAndMaintainPosition(
-        mainWindow,
-        currentBounds.width,
-        newHeight,
-        true, // Preserve X position
-      );
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error toggling view mode:", error);
-    return false;
-  }
+  console.log(`View mode toggle requested: ${expanded ? "expanded" : "compact"}`);
+  // In single-window mode with resizable window, view mode toggle is a no-op
+  // The window is always resizable and user can adjust size freely
+  return true;
 }
 
 // ========== WINDOW SIZE HANDLERS ==========

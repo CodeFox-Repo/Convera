@@ -264,7 +264,7 @@ export default function AgentPopover() {
       console.log("Immediately updated MCP tools state:", newMcpToolsEnabled);
     }
 
-    window.electronAPI.toggleAgentPopover();
+    // Popover closes automatically via parent component
   };
 
   // Common function to update agent with disabled tool references
@@ -510,30 +510,7 @@ export default function AgentPopover() {
     setExpandedMcpServers((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
   };
 
-  // Handle click outside to close popover
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
-      ) {
-        window.electronAPI.toggleAgentPopover();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        window.electronAPI.toggleAgentPopover();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  // Click outside and ESC key handling is managed by parent Popover component
 
   // Count enabled tools for MCP server
   const getEnabledToolsCount = (serverId: string) => {

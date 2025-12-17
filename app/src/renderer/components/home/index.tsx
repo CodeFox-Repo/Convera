@@ -3,19 +3,23 @@ import { useChatHistory } from "@/renderer/libs/stores/chat-history-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { cleanTitle } from "@/renderer/libs/utils/tag";
 import * as Popover from "@radix-ui/react-popover";
-import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
+  Bot,
   ChevronLeft,
   ChevronRight,
+  Code,
+  LayoutGrid,
   MessageSquare,
+  Moon,
   MoreHorizontal,
   Plus,
+  Server,
   Settings,
   Sparkles,
+  Sun,
   Trash2,
-  X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { UserButton } from "../auth/user-button";
@@ -25,6 +29,17 @@ import {
   EnhancedDragRegion,
   SidebarDragRegion,
 } from "../ui/enhanced-drag-region";
+
+// Import settings pages
+import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
+import { AppSettingsPage } from "@/renderer/components/settings/pages/app-page";
+import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
+import { GeneralSettingsPage } from "@/renderer/components/settings/pages/general-page";
+import { McpSettingsPage } from "@/renderer/components/settings/pages/mcp-page";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+
+type ViewType = "chat" | "settings";
+type SettingsTab = "general" | "app" | "agents" | "mcp" | "developer";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -40,6 +55,7 @@ export function HomePage() {
   } = useChatContext();
 
   const { agentChanged, handleAgentChange } = useAgentStore();
+  const { currentTheme, handleToggleTheme } = useSettingsStore();
 
   // Use real chat history
   const {
@@ -55,6 +71,18 @@ export function HomePage() {
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ViewType>("chat");
+  const [activeSettingsTab, setActiveSettingsTab] =
+    useState<SettingsTab>("general");
+
+  // Listen for navigate-to-settings from main process (tray menu)
+  useEffect(() => {
+    const handleNavigateToSettings = () => {
+      setActiveView("settings");
+    };
+
+    window.electronAPI?.onNavigateToSettings?.(handleNavigateToSettings);
+  }, []);
 
   // Listen for conversation switching from chat popup window
   useEffect(() => {
@@ -74,6 +102,7 @@ export function HomePage() {
           try {
             console.log("Loading conversation:", conversationId);
             setCurrentSessionId(conversationId);
+            setActiveView("chat");
             await selectChat(conversationId);
             console.log("Successfully loaded conversation in main window");
           } catch (error) {
@@ -102,10 +131,12 @@ export function HomePage() {
     // Clear current messages to start a new chat
     resetChat();
     setCurrentSessionId("");
+    setActiveView("chat");
   };
 
   const handleSelectChat = async (chatId: string) => {
     setCurrentSessionId(chatId);
+    setActiveView("chat");
     await selectChat(chatId);
   };
 
@@ -131,6 +162,35 @@ export function HomePage() {
       return date.toLocaleDateString();
     } catch {
       return dateString;
+    }
+  };
+
+  // Settings navigation items
+  const settingsNavItems = [
+    { id: "general" as SettingsTab, label: "General", icon: Settings },
+    { id: "app" as SettingsTab, label: "Apps", icon: LayoutGrid },
+    { id: "agents" as SettingsTab, label: "Agents", icon: Bot },
+    { id: "mcp" as SettingsTab, label: "MCP Servers", icon: Server },
+    { id: "developer" as SettingsTab, label: "Developer", icon: Code },
+  ];
+
+  // Render settings content based on active tab
+  const renderSettingsContent = () => {
+    switch (activeSettingsTab) {
+      case "general":
+        return <GeneralSettingsPage />;
+      case "agents":
+        return (
+          <AgentsSettingsPage onNavigateToMcp={() => setActiveSettingsTab("mcp")} />
+        );
+      case "mcp":
+        return <McpSettingsPage />;
+      case "app":
+        return <AppSettingsPage />;
+      case "developer":
+        return <DeveloperSettingsPage />;
+      default:
+        return <GeneralSettingsPage />;
     }
   };
 
@@ -219,7 +279,7 @@ export function HomePage() {
                       key={chat.id}
                       onClick={() => handleSelectChat(chat.id)}
                       className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all pointer-events-auto ${
-                        currentSessionId === chat.id
+                        currentSessionId === chat.id && activeView === "chat"
                           ? "bg-accent text-accent-foreground"
                           : menuOpenId === chat.id
                             ? "bg-accent/50 text-muted-foreground"
@@ -329,12 +389,17 @@ export function HomePage() {
                   <Archive size={16} className="flex-shrink-0" />
                   <span>Archive</span>
                 </button>
-                <Link to="/settings" search={{ from: "/" }}>
-                  <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
-                    <Settings size={16} className="flex-shrink-0" />
-                    <span>Settings</span>
-                  </button>
-                </Link>
+                <button
+                  onClick={() => setActiveView("settings")}
+                  className={`w-full px-3 py-2.5 rounded-lg transition-colors flex items-center gap-3 text-sm pointer-events-auto ${
+                    activeView === "settings"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <Settings size={16} className="flex-shrink-0" />
+                  <span>Settings</span>
+                </button>
                 <UserButton collapsed={false} />
               </div>
             </div>
@@ -364,117 +429,155 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Main Chat Area */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-background relative">
-        {/* Close Button - Top Right */}
-        <button
-          onClick={() => window.electronAPI.toggleWindow("chat")}
-          className="absolute top-4 right-4 z-20 p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
-          aria-label="Close window"
-          title="Close Window"
-        >
-          <X size={16} />
-        </button>
+        {activeView === "chat" ? (
+          <>
+            {/* Messages Area */}
+            {messages.length > 0 ? (
+              <div className="flex-1 overflow-y-auto relative">
+                {/* Chat area background drag region - avoid button zones */}
+                <div
+                  className="absolute draglayer z-0"
+                  style={{
+                    top: "70px",
+                    left: "0",
+                    right: "0",
+                    bottom: "0",
+                  }}
+                ></div>
 
-        {/* Messages Area */}
-        {messages.length > 0 ? (
-          <div className="flex-1 overflow-y-auto relative">
-            {/* Chat area background drag region - avoid button zones */}
-            <div
-              className="absolute draglayer z-0"
-              style={{
-                top: "70px",
-                left: "0",
-                right: "0",
-                bottom: "0",
-              }}
-            ></div>
+                <div className="max-w-4xl mx-auto p-6 relative z-10">
+                  <ChatContent
+                    messages={messages}
+                    messagesEndRef={messagesEndRef}
+                    isLoading={isLoading}
+                    onEditMessage={editMessage}
+                    onRegenerateMessage={regenerateMessage}
+                    agentChanged={agentChanged}
+                    onRegenerateWithNewAgent={() => handleAgentChange(true)}
+                    onIgnoreAgentChange={() => handleAgentChange(false)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center relative">
+                {/* Welcome page background drag areas - multiple regions avoiding buttons */}
 
-            <div className="max-w-4xl mx-auto p-6 relative z-10">
-              <ChatContent
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                isLoading={isLoading}
-                onEditMessage={editMessage}
-                onRegenerateMessage={regenerateMessage}
-                agentChanged={agentChanged}
-                onRegenerateWithNewAgent={() => handleAgentChange(true)}
-                onIgnoreAgentChange={() => handleAgentChange(false)}
-              />
+                {/* Top area - avoid both left and right button zones */}
+                <div
+                  className="absolute top-0 draglayer z-0"
+                  style={{
+                    left: sidebarCollapsed ? "120px" : "0",
+                    right: "80px",
+                    height: "70px",
+                  }}
+                ></div>
+
+                {/* Main center area - full width below buttons */}
+                <div
+                  className="absolute draglayer z-0"
+                  style={{
+                    top: "70px",
+                    left: "0",
+                    right: "0",
+                    bottom: "120px",
+                  }}
+                ></div>
+
+                <div className="text-center space-y-6 max-w-md relative z-10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center mx-auto">
+                    <Sparkles size={32} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-foreground mb-2">
+                      Welcome to Convera
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {chatHistory.length > 0
+                        ? "Select a conversation from the sidebar or start a new chat"
+                        : "Start a conversation by typing a message below"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mx-6 mb-4"
+                >
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                    <p className="text-destructive text-sm">
+                      {error.message ||
+                        "An error occurred. Please check your API key or try again later."}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Input Area */}
+            <div className="p-6 relative pointer-events-auto">
+              <div className="max-w-4xl mx-auto relative z-10">
+                <ChatInput
+                  ref={chatInputRef}
+                  hasMessages={messages.length > 0}
+                  placeholder="Message Convera..."
+                />
+              </div>
             </div>
-          </div>
+          </>
         ) : (
-          <div className="flex-1 flex items-center justify-center relative">
-            {/* Welcome page background drag areas - multiple regions avoiding buttons */}
-
-            {/* Top area - avoid both left and right button zones */}
-            <div
-              className="absolute top-0 draglayer z-0"
-              style={{
-                left: sidebarCollapsed ? "120px" : "0",
-                right: "80px",
-                height: "70px",
-              }}
-            ></div>
-
-            {/* Main center area - full width below buttons */}
-            <div
-              className="absolute draglayer z-0"
-              style={{
-                top: "70px",
-                left: "0",
-                right: "0",
-                bottom: "120px",
-              }}
-            ></div>
-
-            <div className="text-center space-y-6 max-w-md relative z-10">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center mx-auto">
-                <Sparkles size={32} className="text-white" />
+          /* Settings View */
+          <div className="flex-1 flex overflow-hidden">
+            {/* Settings Tabs Navigation */}
+            <div className="w-56 border-r border-border/60 p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Settings
+                </h2>
+                <button
+                  onClick={handleToggleTheme}
+                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Toggle theme"
+                >
+                  {currentTheme === "dark" ? (
+                    <Sun size={16} />
+                  ) : (
+                    <Moon size={16} />
+                  )}
+                </button>
               </div>
-              <div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  Welcome to Convera
-                </h3>
-                <p className="text-muted-foreground">
-                  {chatHistory.length > 0
-                    ? "Select a conversation from the sidebar or start a new chat"
-                    : "Start a conversation by typing a message below"}
-                </p>
-              </div>
+              <nav className="space-y-1">
+                {settingsNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSettingsTab(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                      activeSettingsTab === item.id
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon size={16} className="flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            {/* Settings Content */}
+            <div className="flex-1 overflow-y-auto">
+              {renderSettingsContent()}
             </div>
           </div>
         )}
-
-        {/* Error Display */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mx-6 mb-4"
-            >
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                <p className="text-destructive text-sm">
-                  {error.message ||
-                    "An error occurred. Please check your API key or try again later."}
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Input Area */}
-        <div className="p-6 relative pointer-events-auto">
-          <div className="max-w-4xl mx-auto relative z-10">
-            <ChatInput
-              ref={chatInputRef}
-              hasMessages={messages.length > 0}
-              placeholder="Message Convera..."
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

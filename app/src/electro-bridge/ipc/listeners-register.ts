@@ -17,8 +17,6 @@ import {
   getCurrentTheme,
   getCurrentWindowPosition,
   getCurrentWindowSize,
-  hideAgentPopoverWindow,
-  hideModelSelectorWindow,
   initGlobalShortcut,
   maximizeWindow,
   minimizeWindow,
@@ -29,8 +27,6 @@ import {
   resizeWindow,
   setInputContent,
   setTheme,
-  toggleAgentPopoverWindow,
-  toggleModelSelectorWindow,
   toggleViewMode,
   toggleWindow,
   updateGlobalShortcut,
@@ -118,7 +114,7 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
 
 // Listener options that define what handlers are available for registration
 export interface ListenerOptions {
-  chatWindow?: () => BrowserWindow | null;
+  mainWindow?: () => BrowserWindow | null;
   registerGlobalShortcuts?: () => void;
 }
 
@@ -127,14 +123,14 @@ export interface ListenerOptions {
  * This is a cleaner way to register standard Electron API handlers
  */
 export function setupElectronAPIIPC(options: ListenerOptions = {}) {
-  const { chatWindow, registerGlobalShortcuts } = options;
+  const { mainWindow, registerGlobalShortcuts } = options;
   // Unified Window Control
   ipcMain.handle(CHANNELS.WINDOW.TOGGLE, (_event, type: WindowType) => {
     return toggleWindow(type);
   });
 
   ipcMain.handle(CHANNELS.WINDOW.CLOSE, () => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     return closeWindow(window);
   });
 
@@ -171,7 +167,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   ipcMain.handle(
     CHANNELS.APP.SET_INPUT_CONTENT,
     (_event, content: { text?: string }) => {
-      const window = chatWindow?.() || null;
+      const window = mainWindow?.() || null;
       return setInputContent(window, content);
     },
   );
@@ -197,19 +193,19 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
   // Unified Window Management
   ipcMain.handle(CHANNELS.WINDOW.MINIMIZE, () => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     return minimizeWindow(window);
   });
 
   ipcMain.handle(CHANNELS.WINDOW.MAXIMIZE, () => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     return maximizeWindow(window);
   });
 
   ipcMain.handle(
     CHANNELS.WINDOW.RESIZE,
     (_event, width: number, height: number, preserveX?: boolean) => {
-      const window = chatWindow?.() || null;
+      const window = mainWindow?.() || null;
       return resizeWindow(window, width, height, preserveX);
     },
   );
@@ -217,13 +213,13 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
   ipcMain.handle(
     CHANNELS.WINDOW.RESIZE_AND_CENTER,
     (_event, width: number, height: number) => {
-      const window = chatWindow?.() || null;
+      const window = mainWindow?.() || null;
       return resizeAndCenterWindow(window, width, height);
     },
   );
 
   ipcMain.handle(CHANNELS.WINDOW.GET_POSITION, () => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     return getCurrentWindowPosition(window);
   });
 
@@ -236,7 +232,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
   // View Mode
   ipcMain.handle(CHANNELS.APP.TOGGLE_VIEW_MODE, (_event, expanded: boolean) => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     if (!window) {
       console.warn("No chat window available for view mode toggle");
       return false;
@@ -246,7 +242,7 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
   // Model functionality
   ipcMain.handle(CHANNELS.MODEL.MODEL_SELECTED, (_event, modelId: string) => {
-    const window = chatWindow?.() || null;
+    const window = mainWindow?.() || null;
     return modelSelected(window, modelId);
   });
 
@@ -260,29 +256,8 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     return getAppIcon(appName);
   });
 
-  // Model selector functionality
-  ipcMain.handle(
-    CHANNELS.MODEL.TOGGLE_SELECTOR,
-    (_event, x?: number, y?: number, width?: number, height?: number) => {
-      return toggleModelSelectorWindow(x, y, width, height);
-    },
-  );
-
-  ipcMain.handle(CHANNELS.MODEL.HIDE_SELECTOR, () => {
-    return hideModelSelectorWindow();
-  });
-
-  // Agent popover functionality
-  ipcMain.handle(
-    CHANNELS.AGENT.TOGGLE_POPOVER,
-    (_event, x?: number, y?: number, width?: number, height?: number) => {
-      return toggleAgentPopoverWindow(x, y, width, height);
-    },
-  );
-
-  ipcMain.handle(CHANNELS.AGENT.HIDE_POPOVER, () => {
-    return hideAgentPopoverWindow();
-  });
+  // Model selector and Agent popover now use inline popovers in renderer
+  // No separate window IPC handlers needed
 
   console.log("Electron API IPC handlers registered successfully");
 }

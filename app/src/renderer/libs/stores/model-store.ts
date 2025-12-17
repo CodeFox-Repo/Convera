@@ -36,7 +36,6 @@ export const useModelStore = create<ModelState>()(
           console.log("triggering model-selected event modelId:", modelId);
           localStorage.setItem("selectedModelId", modelId);
 
-          window.electronAPI.hideModelSelector();
           window.electronAPI.modelSelected(modelId);
 
           window.dispatchEvent(

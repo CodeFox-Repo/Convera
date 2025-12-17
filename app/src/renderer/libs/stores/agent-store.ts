@@ -281,34 +281,15 @@ export const useAgentStore = create<AgentState>()(
           e: React.MouseEvent<HTMLButtonElement>,
           selectedAgent: Agent | null | undefined,
         ) => {
-          const button = e.currentTarget;
-          const rect = button.getBoundingClientRect();
-
-          if (!window.electronAPI) {
-            get().setSelectedAgent(selectedAgent ?? null);
-            return;
-          }
-
           e.stopPropagation();
 
-          try {
-            const { x: winX, y: winY } =
-              await window.electronAPI.getCurrentWindowPosition();
-
-            // Calculate absolute position relative to the window
-            // Position the popover above the button, aligned to the left
-            const absX = Math.round(winX + rect.left);
-            const absY = Math.round(winY + rect.top - 350 - 8); // 8px gap above button, 350px is the popover height
-
-            console.log(
-              `Positioning agent popover at: x=${absX}, y=${absY} (button rect: ${rect.left}, ${rect.top}, window: ${winX}, ${winY})`,
-            );
-
-            window.electronAPI.toggleAgentPopover(absX, absY);
-          } catch (err) {
-            console.error("Failed to get window position:", err);
-            get().setSelectedAgent(selectedAgent ?? null);
-          }
+          // Dispatch event to toggle agent popover visibility
+          // The popover is now embedded in the main window and listens for this event
+          window.dispatchEvent(
+            new CustomEvent("toggle-agent-popover", {
+              detail: { selectedAgent: selectedAgent ?? null },
+            }),
+          );
         },
 
         handleAgentChange: (accept) => {

@@ -73,22 +73,6 @@ export interface IElectronAPI {
 
   // Model functionality
   modelSelected: (modelId: string) => Promise<boolean>;
-  toggleModelSelector: (
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-  ) => Promise<void>;
-  hideModelSelector: () => Promise<void>;
-
-  // Agent functionality
-  toggleAgentPopover: (
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-  ) => Promise<void>;
-  hideAgentPopover: () => Promise<void>;
 
   // File operations
   openPath: (path: string) => Promise<void>;
@@ -111,6 +95,7 @@ export interface IElectronAPI {
     callback: (content: { text?: string }) => void,
   ) => () => void;
   onThemeChanged: (callback: (theme: string) => void) => () => void;
+  onNavigateToSettings: (callback: () => void) => () => void;
 }
 
 export interface IActiveAppAPI {

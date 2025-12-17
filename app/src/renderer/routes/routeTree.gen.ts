@@ -11,38 +11,10 @@
 // Import Routes
 
 import { Route as rootRoute } from './__root'
-import { Route as SettingsImport } from './settings'
-import { Route as HistoryImport } from './history'
-import { Route as ChatImport } from './chat'
-import { Route as AgentPopoverImport } from './agent-popover'
 import { Route as IndexImport } from './index'
 import { Route as AuthPathnameImport } from './auth/$pathname'
 
 // Create/Update Routes
-
-const SettingsRoute = SettingsImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const HistoryRoute = HistoryImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const ChatRoute = ChatImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const AgentPopoverRoute = AgentPopoverImport.update({
-  id: '/agent-popover',
-  path: '/agent-popover',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const IndexRoute = IndexImport.update({
   id: '/',
@@ -67,34 +39,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/agent-popover': {
-      id: '/agent-popover'
-      path: '/agent-popover'
-      fullPath: '/agent-popover'
-      preLoaderRoute: typeof AgentPopoverImport
-      parentRoute: typeof rootRoute
-    }
-    '/chat': {
-      id: '/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof ChatImport
-      parentRoute: typeof rootRoute
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryImport
-      parentRoute: typeof rootRoute
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsImport
-      parentRoute: typeof rootRoute
-    }
     '/auth/$pathname': {
       id: '/auth/$pathname'
       path: '/auth/$pathname'
@@ -109,75 +53,36 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/agent-popover': typeof AgentPopoverRoute
-  '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
-  '/settings': typeof SettingsRoute
   '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/agent-popover'
-    | '/chat'
-    | '/history'
-    | '/settings'
-    | '/auth/$pathname'
+  fullPaths: '/' | '/auth/$pathname'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/agent-popover'
-    | '/chat'
-    | '/history'
-    | '/settings'
-    | '/auth/$pathname'
-  id:
-    | '__root__'
-    | '/'
-    | '/agent-popover'
-    | '/chat'
-    | '/history'
-    | '/settings'
-    | '/auth/$pathname'
+  to: '/' | '/auth/$pathname'
+  id: '__root__' | '/' | '/auth/$pathname'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AgentPopoverRoute: typeof AgentPopoverRoute
-  ChatRoute: typeof ChatRoute
-  HistoryRoute: typeof HistoryRoute
-  SettingsRoute: typeof SettingsRoute
   AuthPathnameRoute: typeof AuthPathnameRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AgentPopoverRoute: AgentPopoverRoute,
-  ChatRoute: ChatRoute,
-  HistoryRoute: HistoryRoute,
-  SettingsRoute: SettingsRoute,
   AuthPathnameRoute: AuthPathnameRoute,
 }
 
@@ -192,27 +97,11 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/agent-popover",
-        "/chat",
-        "/history",
-        "/settings",
         "/auth/$pathname"
       ]
     },
     "/": {
       "filePath": "index.tsx"
-    },
-    "/agent-popover": {
-      "filePath": "agent-popover.tsx"
-    },
-    "/chat": {
-      "filePath": "chat.tsx"
-    },
-    "/history": {
-      "filePath": "history.tsx"
-    },
-    "/settings": {
-      "filePath": "settings.tsx"
     },
     "/auth/$pathname": {
       "filePath": "auth/$pathname.tsx"

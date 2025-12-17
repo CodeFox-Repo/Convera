@@ -24,30 +24,7 @@ export default function ModelSelector() {
     new URLSearchParams(window.location.search).get("view") ===
       "model-selector";
 
-  // Handle click outside and ESC key for popover mode
-  useEffect(() => {
-    if (!isPopover) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest(".bg-background")) {
-        window.electronAPI.toggleModelSelector();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        window.electronAPI.toggleModelSelector();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isPopover]);
+  // Click outside and ESC key handling is managed by parent Popover component
 
   /**
    * Handle clicks outside the dropdown to close it (for non-popover mode)
@@ -101,10 +78,7 @@ export default function ModelSelector() {
     setSelectedModelId(model);
     setIsOpen(false);
 
-    // Close popover window if in popover mode
-    if (isPopover) {
-      window.electronAPI.toggleModelSelector();
-    }
+    // Popover closes automatically via parent component
   };
 
   if (isPopover) {
@@ -179,17 +153,7 @@ export default function ModelSelector() {
           const button = e.currentTarget;
           const rect = button.getBoundingClientRect();
 
-          window.electronAPI
-            .getCurrentWindowPosition()
-            .then(({ x: winX, y: winY }) => {
-              const absX = Math.round(winX + rect.left);
-              const absY = Math.round(winY + rect.top - getHeightPx() - 8);
-
-              window.electronAPI.toggleModelSelector(absX, absY);
-            })
-            .catch((err: Error) => {
-              console.error("Failed to get window position:", err);
-            });
+          setIsOpen(!isOpen);
         }}
         className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium"
       >

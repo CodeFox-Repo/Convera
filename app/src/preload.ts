@@ -7,7 +7,21 @@ import { exposeMCPContext } from "./electro-bridge/ipc/mcp-context";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
 // expose electronAPI to renderer process
-contextBridge.exposeInMainWorld("electronAPI", createElectronAPI(ipcRenderer));
+const electronAPI = createElectronAPI(ipcRenderer);
+
+// Add navigate-to-settings listener
+const extendedAPI = {
+  ...electronAPI,
+  onNavigateToSettings: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("navigate-to-settings", handler);
+    return () => {
+      ipcRenderer.removeListener("navigate-to-settings", handler);
+    };
+  },
+};
+
+contextBridge.exposeInMainWorld("electronAPI", extendedAPI);
 
 // Expose MCP API to renderer process
 exposeMCPContext();

@@ -1,8 +1,8 @@
 import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
-import { createSettingsWindow } from "./windows/settings-window";
 import { toggleWindow } from "../electro-bridge/ipc/ipc-handlers";
+import { createMainWindow, getMainWindow } from "./windows/main-window";
 
 let tray: Tray | null = null;
 
@@ -52,7 +52,15 @@ export function createSystemTray() {
     {
       label: "Open Settings",
       click: () => {
-        createSettingsWindow();
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          // Navigate to settings view in renderer
+          mainWindow.webContents.send("navigate-to-settings");
+        } else {
+          createMainWindow();
+        }
       },
     },
     {
@@ -71,7 +79,7 @@ export function createSystemTray() {
   // Left click to show menu with better state management
   let menuShown = false;
   tray.on("click", () => {
-    if (!menuShown) {
+    if (!menuShown && tray) {
       tray.popUpContextMenu();
       menuShown = true;
       // Reset flag after a short delay to allow for menu interaction

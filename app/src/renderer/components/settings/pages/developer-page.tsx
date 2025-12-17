@@ -107,62 +107,33 @@ export function DeveloperSettingsPage() {
 
   const windowControls = [
     {
-      id: "settings",
-      title: "Settings",
-      description: "Configuration window",
+      id: "main",
+      title: "Main Window",
+      description: "Primary application window",
       icon: <Settings className="h-4 w-4 text-muted-foreground" />,
-      onToggle: () => window.electronAPI?.toggleWindow("settings"),
-    },
-    {
-      id: "history",
-      title: "History",
-      description: "Chat history browser",
-      icon: <PanelBottom className="h-4 w-4 text-muted-foreground" />,
-      onToggle: () => window.electronAPI?.toggleWindow("history"),
+      onToggle: () => window.electronAPI?.toggleWindow("main"),
     },
     {
       id: "agent",
       title: "Agent Popover",
-      description: "Agent selection overlay",
+      description: "Agent selection (embedded)",
       icon: <MousePointer className="h-4 w-4 text-muted-foreground" />,
       onToggle: () => {
-        // Get the button element from the component
-        const button = document.activeElement as HTMLButtonElement;
-        if (button) {
-          const rect = button.getBoundingClientRect();
-          const x = rect.right + 10;
-          const y = rect.top;
-          window.electronAPI?.toggleAgentPopover(
-            Math.round(x),
-            Math.round(y),
-            280,
-            200,
-          );
-        }
+        // Dispatch event to toggle agent popover visibility
+        window.dispatchEvent(new CustomEvent("toggle-agent-popover"));
       },
-      badge: "Popover",
+      badge: "Embedded",
     },
     {
       id: "model",
       title: "Model Selector",
-      description: "Model selection overlay",
+      description: "Model selection (embedded)",
       icon: <Layers className="h-4 w-4 text-muted-foreground" />,
       onToggle: () => {
-        // Get the button element from the component
-        const button = document.activeElement as HTMLButtonElement;
-        if (button) {
-          const rect = button.getBoundingClientRect();
-          const x = rect.right + 10;
-          const y = rect.top;
-          window.electronAPI?.toggleModelSelector(
-            Math.round(x),
-            Math.round(y),
-            280,
-            200,
-          );
-        }
+        // Dispatch event to toggle model selector visibility
+        window.dispatchEvent(new CustomEvent("toggle-model-selector"));
       },
-      badge: "Popover",
+      badge: "Embedded",
     },
   ];
 

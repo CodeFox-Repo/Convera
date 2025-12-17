@@ -3,48 +3,28 @@ import {
   BrowserWindow,
   CookiesSetDetails,
   globalShortcut,
-  screen,
 } from "electron";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
-import {
-  expectedPosition,
-  isHiddenOffscreen,
-  toggleChatWindowVisibility,
-} from "@/electron/windows/window-position";
-import { WINDOW_SIZE_PRESETS } from "@/electron/windows/window-size";
 import { exec } from "child_process";
-
-import { calculateWindowDimensions } from "@/electron/windows/utils";
 
 import {
   setPreviousApp,
   preloadAllAppData,
 } from "@/electro-bridge/ipc/active-app-context";
-import {
-  getCurrentShortcut,
-  setInputContent,
-} from "@/electro-bridge/ipc/ipc-handlers";
-
-import robot from "@/shared/robot";
-import { clipboard } from "electron";
+import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
 import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
 import { createSystemTray, destroySystemTray } from "./tray";
-import { preCreateAgentPopoverWindow } from "./windows/agent-popover-window";
-import { getChatWindow } from "./windows/chat-window";
-import { preCreateHistoryWindow } from "./windows/history-window";
-import { getMainWindow, preCreateMainWindow } from "./windows/main-window";
-import { preCreateModelSelectorWindow } from "./windows/model-selector-window";
 import {
-  getSettingsWindow,
-  preCreateSettingsWindow,
-} from "./windows/settings-window";
-import { isInExpandedViewMode } from "./windows/window-resize";
+  createMainWindow,
+  getMainWindow,
+  preCreateMainWindow,
+} from "./windows/main-window";
 
 const { activeWindowSync } =
   process.platform === "win32"
@@ -54,54 +34,8 @@ const { activeWindowSync } =
 
 let trackingAppFocus = false;
 
-// Clipboard buffer for restoring original content
-let originalClipboardContent = "";
-
-// Previous clipboard buffer to avoid duplicates
-let prevClipboardContent = "";
-
-// Prevent duplicate shortcut processing
-let shortcutInProgress = false;
-
 // Initialize logger for main process
 const logger = getLogger("main-process");
-
-async function simulateClipboardCopy(): Promise<void> {
-  try {
-    originalClipboardContent = clipboard.readText();
-
-    robot?.keyToggle("shift", "up");
-    robot?.keyToggle("control", "up");
-    robot?.keyToggle("alt", "up");
-
-    // Use setImmediate for minimal delay without blocking
-    await new Promise((resolve) => setImmediate(resolve));
-
-    if (process.platform === "darwin") {
-      robot?.keyTap("c", "command");
-    } else {
-      robot?.keyTap("c", "control");
-    }
-
-    // Minimal delay for copy operation to complete
-    await new Promise((resolve) => setTimeout(resolve, 30));
-  } catch (error) {
-    logger.error("Error simulating copy command:", error);
-    throw error;
-  }
-}
-
-function restoreClipboard(): void {
-  try {
-    if (originalClipboardContent !== undefined) {
-      clipboard.writeText(originalClipboardContent);
-    }
-
-    originalClipboardContent = "";
-  } catch (error) {
-    logger.error("Error restoring clipboard:", error);
-  }
-}
 
 // Start background app tracking on macOS and Windows
 function startAppFocusTracking() {
@@ -180,55 +114,18 @@ function registerGlobalShortcuts() {
 
   console.log(`Attempting to register global shortcut: ${currentShortcut}`);
   try {
-    const ret = globalShortcut.register(currentShortcut, async () => {
-      if (shortcutInProgress) return;
-
-      shortcutInProgress = true;
-
-      try {
-        await simulateClipboardCopy();
-
-        const selectedText = clipboard.readText();
-
-        // Check for duplicates
-        let isTextDuplicate = false;
-
-        if (selectedText && selectedText === prevClipboardContent) {
-          isTextDuplicate = true;
+    const ret = globalShortcut.register(currentShortcut, () => {
+      // Show and focus main window
+      const mainWindow = getMainWindow();
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore();
         }
-
-        // Skip content processing if all content is duplicate or no content
-        const noContent = !selectedText;
-
-        const chatWindow = getChatWindow();
-        if (chatWindow) {
-          // Toggle chat window visibility using the proper function
-          toggleChatWindowVisibility(chatWindow);
-
-          // Process content immediately if we have new content
-          if (!isTextDuplicate && !noContent) {
-            const contentToSend: { text?: string } = {};
-
-            if (selectedText && !isTextDuplicate) {
-              contentToSend.text = selectedText;
-              prevClipboardContent = selectedText;
-            }
-
-            if (contentToSend.text) {
-              setInputContent(chatWindow, contentToSend);
-            }
-          }
-        }
-
-        // Restore clipboard asynchronously
-        setImmediate(() => {
-          restoreClipboard();
-        });
-      } catch (error) {
-        logger.error("Clipboard operation failed:", error);
-        restoreClipboard();
-      } finally {
-        shortcutInProgress = false;
+        mainWindow.show();
+        mainWindow.focus();
+      } else {
+        // Create main window if it doesn't exist
+        createMainWindow();
       }
     });
 
@@ -249,43 +146,10 @@ function registerGlobalShortcuts() {
   }
 }
 
-// Handle screen resize events
+// Handle screen resize events - simplified for single window
 function setupScreenResizeHandlers() {
-  let resizeTimeout: NodeJS.Timeout | null = null;
-
-  // Listen for primary display metrics change (resolution or scale factor change)
-  screen.on("display-metrics-changed", (_event, display, changedMetrics) => {
-    if (display.id === screen.getPrimaryDisplay().id) {
-      console.log("Primary display metrics changed:", changedMetrics);
-
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-
-      resizeTimeout = setTimeout(() => {
-        // Update main window if it exists
-        const mainWindow = getMainWindow();
-        if (mainWindow && !isHiddenOffscreen && !isInExpandedViewMode()) {
-          const dimensions = expectedPosition
-            ? expectedPosition
-            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.CHAT);
-          getChatWindow().setBounds(dimensions);
-        }
-
-        // Update settings window if visible
-        const settingsWindow = getSettingsWindow();
-
-        if (settingsWindow && settingsWindow.isVisible()) {
-          const dimensions = expectedPosition
-            ? expectedPosition
-            : calculateWindowDimensions(WINDOW_SIZE_PRESETS.SETTINGS);
-          settingsWindow.setBounds(dimensions);
-        }
-
-        resizeTimeout = null;
-      }, 150);
-    }
-  });
+  // No special handling needed for resizable single window
+  // The window will handle resize naturally
 }
 
 app.whenReady().then(async () => {
@@ -321,16 +185,16 @@ app.whenReady().then(async () => {
     registerGlobalShortcuts();
     setupScreenResizeHandlers();
 
-    // Pre-create windows
-    preCreateAgentPopoverWindow();
-    preCreateSettingsWindow();
-    preCreateModelSelectorWindow();
-    preCreateHistoryWindow();
-    preCreateMainWindow();
+    // Pre-create and show main window
+    const mainWindow = preCreateMainWindow();
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
 
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
-      chatWindow: () => getChatWindow(),
+      mainWindow: () => getMainWindow(),
       registerGlobalShortcuts,
     };
 
@@ -338,8 +202,13 @@ app.whenReady().then(async () => {
     registerListeners(listenerOptions);
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        logger.info("App activated, creating chat window");
+      const mainWin = getMainWindow();
+      if (mainWin) {
+        mainWin.show();
+        mainWin.focus();
+      } else if (BrowserWindow.getAllWindows().length === 0) {
+        logger.info("App activated, creating main window");
+        createMainWindow();
       }
     });
 
@@ -385,7 +254,7 @@ app.on("open-url", (event, urlStr) => {
     const exchangeToken = url.searchParams.get("token");
 
     const afterNavigate = () => {
-      const win = getSettingsWindow() || preCreateSettingsWindow();
+      const win = getMainWindow();
       if (win) {
         win.show();
         win.focus();

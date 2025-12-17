@@ -20,7 +20,6 @@ export interface IPCServer {
   getClipboardText(): string;
   setInputContent(content: { text?: string }): void;
   pasteModifiedContent(content: string): void;
-  getPreviousAppContent(): Promise<string>;
   getOpenedApps(): Promise<string[]>;
 
   // Platform detection
@@ -46,22 +45,6 @@ export interface IPCServer {
 
   // Model functionality
   modelSelected(modelId: string): boolean;
-  toggleModelSelector(
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-  ): void;
-  hideModelSelector(): void;
-
-  // Agent functionality
-  toggleAgentPopover(
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-  ): void;
-  hideAgentPopover(): void;
 
   // File operations
   openPath(path: string): void;
@@ -170,12 +153,6 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
 
   // Model functionality
   modelSelected: CHANNELS.MODEL.MODEL_SELECTED,
-  toggleModelSelector: CHANNELS.MODEL.TOGGLE_SELECTOR,
-  hideModelSelector: CHANNELS.MODEL.HIDE_SELECTOR,
-
-  // Agent functionality
-  toggleAgentPopover: CHANNELS.AGENT.TOGGLE_POPOVER,
-  hideAgentPopover: CHANNELS.AGENT.HIDE_POPOVER,
 
   // File operations
   openPath: CHANNELS.FILE.OPEN_PATH,
