@@ -7,34 +7,6 @@ export function useGlobalShortcuts() {
   useEffect(() => {
     // Handle keyboard shortcuts
     const handleKeyDown = async (event: KeyboardEvent) => {
-      console.log(`Key pressed: ${event.key}, metaKey: ${event.metaKey}`);
-      console.log(`Key pressed: ${event.key}, ctrlKey: ${event.ctrlKey}`);
-
-      // Command+. (period) or Command+, (comma) or Control+E to open settings
-      if (
-        (event.metaKey && (event.key === "." || event.key === ",")) ||
-        (event.ctrlKey &&
-          (event.key === "." ||
-            event.key === "," ||
-            event.key.toLowerCase() === "e"))
-      ) {
-        event.preventDefault();
-        console.log(
-          "Settings shortcut triggered, calling window.electronAPI.toggleSettingsWindow()",
-        );
-        try {
-          // window.ipcRenderer.invoke("app:toggle-settings");
-          if (window.electronAPI) {
-            window.electronAPI.toggleWindow("settings");
-          } else {
-            console.error("electronAPI is not available!");
-          }
-        } catch (error) {
-          console.error("Error toggling settings window:", error);
-        }
-        return;
-      }
-
       // Handle custom shortcuts from settings
       const settings = await getSettings();
       const enabledShortcuts = settings.shortcuts.filter((s) => s.enabled);
