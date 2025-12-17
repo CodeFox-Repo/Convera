@@ -108,7 +108,9 @@ export function CustomApiForm() {
   return (
     <div className="space-y-6 p-6 bg-card rounded-lg">
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl font-bold text-primary">Configure Custom API</h2>
+        <h2 className="text-2xl font-bold text-primary">
+          Configure Custom API
+        </h2>
         <p className="text-foreground/80 text-sm">
           Use your own OpenAI-compatible API (e.g., OpenRouter)
         </p>

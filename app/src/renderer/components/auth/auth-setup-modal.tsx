@@ -78,33 +78,33 @@ export function AuthSetupModal({ open, onClose }: AuthSetupModalProps) {
       {/* Centered Content Area */}
       <div className="no-drag-region w-full px-6 flex justify-center">
         <div className="w-full max-w-lg">
-        <AnimatePresence mode="wait">
-          {activeTab === "login" && (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="w-full"
-            >
-              <AuthModal />
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {activeTab === "login" && (
+              <motion.div
+                key="login"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="w-full"
+              >
+                <AuthModal />
+              </motion.div>
+            )}
 
-          {activeTab === "custom-api" && (
-            <motion.div
-              key="custom-api"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="w-full"
-            >
-              <CustomApiForm />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {activeTab === "custom-api" && (
+              <motion.div
+                key="custom-api"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="w-full"
+              >
+                <CustomApiForm />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>,

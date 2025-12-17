@@ -489,7 +489,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        console.error("Tool execution failed:", serverId, toolName, errorMessage);
+        console.error(
+          "Tool execution failed:",
+          serverId,
+          toolName,
+          errorMessage,
+        );
         throw error;
       }
     },
