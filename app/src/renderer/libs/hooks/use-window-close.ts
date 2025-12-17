@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 
 type WindowCloseAction =
-  | { type: "toggle"; windowType: "settings" | "history" | "main" }
   | { type: "close" } // For chat window deactivation
   | { type: "custom"; handler: () => void | Promise<void> };
 
@@ -27,18 +26,6 @@ export function useWindowClose(action: WindowCloseAction) {
           }
 
           switch (action.type) {
-            case "toggle":
-              console.log(`Toggling window: ${action.windowType}`);
-              window.electronAPI
-                .toggleWindow(action.windowType)
-                .catch((error: unknown) => {
-                  console.error(
-                    `Error toggling ${action.windowType} window:`,
-                    error,
-                  );
-                });
-              break;
-
             case "close":
               console.log("Triggering chat window deactivation");
               window.electronAPI.closeWindow().catch((error: unknown) => {

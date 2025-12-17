@@ -79,8 +79,6 @@ interface ChatContextType {
   // Chat-related actions (previously in app-actions)
   resetChatWindow: () => void;
   handleVoiceInput: () => void;
-  openSettings: () => void;
-  openHistoryWindow: () => void;
   isVoiceInputActive: boolean;
 
   // MCP Tools methods
@@ -349,7 +347,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [chatAPI.input]);
 
   // Integrate the useChatHistory hook
-  const { toggleHistoryWindow } = useChatHistory(chatAPI.setMessages);
+  useChatHistory(chatAPI.setMessages);
 
   // Handle conversation selection from history
   useEffect(() => {
@@ -822,16 +820,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [speechToText, setInput]);
 
-  const openSettings = useCallback(() => {
-    window.electronAPI.toggleWindow("settings").catch((error) => {
-      console.error("Failed to toggle settings window:", error);
-    });
-  }, []);
-
-  const openHistoryWindow = useCallback(() => {
-    toggleHistoryWindow();
-  }, [toggleHistoryWindow]);
-
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
@@ -859,8 +847,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     clearAttachments,
     resetChatWindow,
     handleVoiceInput,
-    openSettings,
-    openHistoryWindow,
     isVoiceInputActive: speechToText.isRecording || isVoiceInputActive,
     speechState: {
       isRecording: speechToText.isRecording,

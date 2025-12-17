@@ -1,13 +1,8 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
-import {
-  ThemeMode,
-  WindowControlOptions,
-  WindowType,
-} from "@/shared/types/electron";
+import { ThemeMode } from "@/shared/types/electron";
 
 export interface IPCServer {
   // Unified Window Control
-  toggleWindow(type: WindowType, options?: WindowControlOptions): void;
   closeWindow(): void;
 
   // Global shortcuts
@@ -59,7 +54,6 @@ export interface IPCServer {
 
 export const CHANNELS = {
   WINDOW: {
-    TOGGLE: "window:toggle",
     CLOSE: "window:close",
     MINIMIZE: "window:minimize",
     MAXIMIZE: "window:maximize",
@@ -114,7 +108,6 @@ export const CHANNELS = {
 
 export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // Unified Window Control
-  toggleWindow: CHANNELS.WINDOW.TOGGLE,
   closeWindow: CHANNELS.WINDOW.CLOSE,
 
   // Global shortcuts

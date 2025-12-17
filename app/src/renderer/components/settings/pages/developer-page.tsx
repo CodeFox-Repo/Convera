@@ -10,7 +10,6 @@ import {
   Layers,
   Monitor,
   MousePointer,
-  Settings,
   Terminal,
 } from "lucide-react";
 import React from "react";
@@ -105,13 +104,6 @@ export function DeveloperSettingsPage() {
   } = useSettingsStore();
 
   const windowControls = [
-    {
-      id: "main",
-      title: "Main Window",
-      description: "Primary application window",
-      icon: <Settings className="h-4 w-4 text-muted-foreground" />,
-      onToggle: () => window.electronAPI?.toggleWindow("main"),
-    },
     {
       id: "agent",
       title: "Agent Popover",

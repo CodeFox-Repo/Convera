@@ -34,10 +34,6 @@ export interface WindowLogger {
 // Define the structure of the API exposed via contextBridge
 export interface IElectronAPI {
   // Unified Window Control
-  toggleWindow: (
-    type: WindowType,
-    options?: WindowControlOptions,
-  ) => Promise<void>;
   closeWindow: () => Promise<void>;
 
   // Global shortcuts

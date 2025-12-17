@@ -1,7 +1,6 @@
 import { Menu, Tray, app, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
-import { toggleWindow } from "../electro-bridge/ipc/ipc-handlers";
 import { createMainWindow, getMainWindow } from "./windows/main-window";
 
 let tray: Tray | null = null;
@@ -41,9 +40,15 @@ export function createSystemTray() {
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Toggle Main Window",
+      label: "Show Main Window",
       click: () => {
-        toggleWindow("main");
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createMainWindow();
+        }
       },
     },
     {
