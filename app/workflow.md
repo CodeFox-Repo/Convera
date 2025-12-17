@@ -24,16 +24,19 @@ sequenceDiagram
 ## Workflow Description
 
 1. **Activation Flow**:
+
    - User works with active application
    - Presses global hotkey (Control+Shift+Space)
    - Convera window appears and gains focus
 
 2. **Command Processing Flow**:
+
    - User enters command and presses Enter
    - Convera sends command and context to server
    - Server uses MCP to find and execute appropriate tools
 
 3. **Execution Flow**:
+
    - MCP tools directly control active application
    - Operation results are provided back to user
    - User can hide Convera with hotkey to continue working

@@ -186,7 +186,9 @@ export function HomePage() {
         return <GeneralSettingsPage />;
       case "agents":
         return (
-          <AgentsSettingsPage onNavigateToMcp={() => setActiveSettingsTab("mcp")} />
+          <AgentsSettingsPage
+            onNavigateToMcp={() => setActiveSettingsTab("mcp")}
+          />
         );
       case "mcp":
         return <McpSettingsPage />;

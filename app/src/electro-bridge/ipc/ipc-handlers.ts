@@ -253,7 +253,9 @@ export function modelSelected(
 
 // Toggle window view mode - simplified for single resizable window
 export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
-  console.log(`View mode toggle requested: ${expanded ? "expanded" : "compact"}`);
+  console.log(
+    `View mode toggle requested: ${expanded ? "expanded" : "compact"}`,
+  );
   // In single-window mode with resizable window, view mode toggle is a no-op
   // The window is always resizable and user can adjust size freely
   return true;
