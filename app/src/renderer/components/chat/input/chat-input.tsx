@@ -27,7 +27,7 @@ export interface ChatInputRef {
 }
 
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  ({ hasMessages = false, placeholder = "Message FoxyChat..." }, ref) => {
+  ({ hasMessages = false, placeholder = "Message Convera..." }, ref) => {
     const editorRef = useRef<TiptapEditorRef>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [editorContent, setEditorContent] = useState("");

@@ -1,4 +1,4 @@
-# @foxychat/app
+# @convera/app
 
 ## 0.0.21
 
@@ -46,7 +46,7 @@
   1. **Fixed PATH resolution for npx commands in packaged apps**: Enhanced the environment PATH to include common Node.js installation directories (`/usr/local/bin`, `/opt/homebrew/bin`, etc.) on macOS, Windows, and Linux. This ensures that `npx` commands can be found and executed when the app is packaged as an ASAR bundle.
   2. **Fixed server filtering logic for undefined disabled property**: Changed the server initialization filter from `serverConfig.disabled === false` to `serverConfig.disabled !== true`. This allows servers without an explicit `disabled` property (which defaults to undefined) to start automatically, matching the expected behavior where only explicitly disabled servers (`disabled: true`) should be prevented from starting.
 
-  These fixes ensure that MCP servers configured in `~/.foxychat/mcp.json` will start reliably in both development and production environments.
+  These fixes ensure that MCP servers configured in `~/.convera/mcp.json` will start reliably in both development and production environments.
 
 ## 0.0.14
 
@@ -54,7 +54,7 @@
 
 - da56346: # Add Speech-to-Text Support
 
-  This release introduces comprehensive speech-to-text functionality to FoxyChat, enabling users to input messages using voice recognition powered by Google Cloud Speech API.
+  This release introduces comprehensive speech-to-text functionality to Convera, enabling users to input messages using voice recognition powered by Google Cloud Speech API.
 
   ## 🎤 New Features
 

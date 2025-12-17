@@ -16,7 +16,7 @@ const Logo: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) 
 //LogoImage
 export const LogoImage: React.FC<LogoProps> = ({ className = '', height = 40, width = 40 }) => {
   return (
-    <img src="/icon.png" width={width} height={height} alt="Foxychat" className={className} />
+    <img src="/icon.png" width={width} height={height} alt="Convera" className={className} />
   );
 };
 

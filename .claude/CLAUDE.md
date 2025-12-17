@@ -1,6 +1,6 @@
-# FoxyChat Project
+# Convera Project
 
-FoxyChat is an advanced chat application built with Electron and React, featuring MCP (Model Context Protocol) integration for extensible AI capabilities.
+Convera is an advanced chat application built with Electron and React, featuring MCP (Model Context Protocol) integration for extensible AI capabilities.
 
 ## Project Structure
 
@@ -12,7 +12,7 @@ FoxyChat is an advanced chat application built with Electron and React, featurin
 
 **Location**: `/Volumes/ssd/i/Remote-MCP-Servers`
 
-This repository contains the FoxyChat MCP servers collection, providing stdio and SSE protocol implementations for various integrations:
+This repository contains the Convera MCP servers collection, providing stdio and SSE protocol implementations for various integrations:
 
 #### Available Servers:
 
@@ -45,17 +45,17 @@ This repository contains the FoxyChat MCP servers collection, providing stdio an
 
 ## MCP Integration
 
-FoxyChat integrates with MCP servers to provide extensible AI capabilities. The MCP servers are managed separately in the Remote-MCP-Servers repository but can be configured within FoxyChat for seamless operation.
+Convera integrates with MCP servers to provide extensible AI capabilities. The MCP servers are managed separately in the Remote-MCP-Servers repository but can be configured within Convera for seamless operation.
 
 ### Usage:
 
 1. Build desired MCP servers from Remote-MCP-Servers
-2. Configure FoxyChat to connect to the servers
-3. Use the integrated tools within FoxyChat interface
+2. Configure Convera to connect to the servers
+3. Use the integrated tools within Convera interface
 
 ## Development Notes
 
 - Use TypeScript for all new code
 - Follow existing code patterns and conventions
 - MCP servers should be developed in Remote-MCP-Servers repository
-- Main FoxyChat app development happens in this repository
+- Main Convera app development happens in this repository

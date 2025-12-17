@@ -35,14 +35,14 @@ const config: ForgeConfig = {
     }),
     extendInfo: {
       NSAppleEventsUsageDescription:
-        "FoxyChat needs access to control other applications for seamless integration.",
+        "Convera needs access to control other applications for seamless integration.",
       NSAccessibilityUsageDescription:
-        "FoxyChat needs accessibility permissions to read content from other applications.",
-      // Register custom URL scheme so macOS recognizes foxychat:// links
+        "Convera needs accessibility permissions to read content from other applications.",
+      // Register custom URL scheme so macOS recognizes convera:// links
       CFBundleURLTypes: [
         {
-          CFBundleURLName: "foxychat",
-          CFBundleURLSchemes: ["foxychat"],
+          CFBundleURLName: "convera",
+          CFBundleURLSchemes: ["convera"],
         },
       ],
     },

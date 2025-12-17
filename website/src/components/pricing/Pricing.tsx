@@ -198,7 +198,7 @@ const Pricing: React.FC = () => {
                     isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
                   }`}
                 >
-                  Choose the plan that fits your needs and start using Foxychat today.
+                  Choose the plan that fits your needs and start using Convera today.
                 </p>
               </div>
             </div>

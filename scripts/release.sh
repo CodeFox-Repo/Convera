@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Release script for FoxyChat
+# Release script for Convera
 # This script handles version bumping using changesets and creates git tags
 
 set -e
 
-echo "🚀 Starting FoxyChat release process..."
+echo "🚀 Starting Convera release process..."
 
 # Check if we're on main branch
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)

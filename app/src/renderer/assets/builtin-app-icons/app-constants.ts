@@ -183,6 +183,6 @@ export const FILTERED_APPS = [
   "ControlCenter",
   "Spotlight",
   "Electron",
-  "FoxyChat",
-  "foxfoxy",
+  "Convera",
+  "convera",
 ];

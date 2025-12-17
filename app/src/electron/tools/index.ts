@@ -1,5 +1,5 @@
 /**
- * FoxyChat Agent Tools
+ * Convera Agent Tools
  *
  * Collection of AI SDK tools for agent functionality
  */

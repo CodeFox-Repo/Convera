@@ -82,7 +82,7 @@ const LogoBrand: React.FC<LogoBrandProps> = ({
             filter: "drop-shadow(0 0 8px var(--orange-primary))",
           }}
         >
-          Foxychat
+          Convera
         </span>
 
         {/* Terminal cursor effect */}

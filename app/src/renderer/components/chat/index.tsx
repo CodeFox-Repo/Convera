@@ -966,7 +966,7 @@ export default function Chat() {
                 ? "Search commands..."
                 : isLoading
                   ? "AI is thinking..."
-                  : "Ask FoxyChat AI anything or type / for commands"
+                  : "Ask Convera AI anything or type / for commands"
           }
         />
       </div>

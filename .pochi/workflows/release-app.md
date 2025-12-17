@@ -1,6 +1,6 @@
-# FoxyChat Release Workflow Instructions for Pochi Agent
+# Convera Release Workflow Instructions for Pochi Agent
 
-This document provides step-by-step instructions for the Pochi agent to perform automated releases of the FoxyChat application.
+This document provides step-by-step instructions for the Pochi agent to perform automated releases of the Convera application.
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ If no changesets exist, create one to document changes:
 pnpm changeset
 
 # When prompted:
-# - Select packages: Choose "@foxychat/app"
+# - Select packages: Choose "@convera/app"
 # - Select version bump type: patch/minor/major
 # - Enter summary: Describe the changes
 ```
@@ -55,7 +55,7 @@ Expected output format:
 
 ```
 🦋  info Packages to be bumped at patch
-🦋  - @foxychat/app 0.0.X
+🦋  - @convera/app 0.0.X
 ```
 
 ### 4. Execute Release
@@ -159,7 +159,7 @@ Here's the complete sequence for Pochi agent to execute:
 #!/bin/bash
 # Complete release workflow for Pochi agent
 
-echo "🤖 Pochi: Starting FoxyChat release process..."
+echo "🤖 Pochi: Starting Convera release process..."
 
 # Step 1: Verify prerequisites
 echo "📋 Checking prerequisites..."

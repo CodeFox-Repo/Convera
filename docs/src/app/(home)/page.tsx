@@ -30,7 +30,7 @@ export default function HomePage() {
         <div className="container relative mx-auto max-w-6xl px-4">
           <div className="flex flex-col items-center justify-center text-center">
             <h1 className="mb-8 bg-gradient-to-r from-gray-800 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-5xl font-bold tracking-tight text-transparent md:text-7xl">
-              FoxyChat Documentation
+              Convera Documentation
             </h1>
             <p className="mb-12 max-w-2xl text-lg text-gray-600 dark:text-gray-300 md:text-xl">
               All-in-one chat application built with Electron. Connect to various AI models through a clean, intuitive interface.

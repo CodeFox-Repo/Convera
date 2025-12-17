@@ -96,7 +96,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
                     <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 dark:bg-black/20 border border-white/20 dark:border-white/10">
                       <Sparkles size={16} className="text-orange-500" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                        FoxyChat
+                        Convera
                       </span>
                     </div>
                   </div>
@@ -162,7 +162,7 @@ const ExpandedChatView: React.FC<ExpandedChatViewProps> = ({
                 <ChatInput
                   ref={chatInputRef}
                   hasMessages={true}
-                  placeholder="Message to FoxyChat..."
+                  placeholder="Message to Convera..."
                 />
               </div>
             </div>

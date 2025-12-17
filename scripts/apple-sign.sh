@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Apple code signing script for FoxyChat
+# Apple code signing script for Convera
 # This script handles code signing for the packaged app
 
 echo "🔐 Starting Apple code signing process..."
@@ -11,7 +11,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
     exit 0
 fi
 
-APP="./out/FoxyChat-darwin-arm64/FoxyChat.app"
+APP="./out/Convera-darwin-arm64/Convera.app"
 
 # Check if app exists
 if [ ! -d "$APP" ]; then
@@ -50,7 +50,7 @@ codesign --force --deep --options runtime \
 
 if [ $? -eq 0 ]; then
     echo "✅ App signing completed successfully!"
-    echo "🎉 FoxyChat.app is now signed with: $IDENT"
+    echo "🎉 Convera.app is now signed with: $IDENT"
 else
     echo "❌ App signing failed!"
     exit 1

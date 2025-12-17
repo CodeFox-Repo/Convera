@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FoxChat Fix and Push Script
+# Convera Fix and Push Script
 # This script helps fix linting issues and re-runs tests when pre-push hook fails
 
-printf '\033[1;36m[foxychat] Fix and Push Helper 🛠️\033[0m\n'
+printf '\033[1;36m[convera] Fix and Push Helper 🛠️\033[0m\n'
 printf '\033[1;33m[INFO] This script is mainly for fixing ESLint errors and test failures.\033[0m\n'
 printf '\033[1;33m[INFO] Formatting issues are now auto-fixed by the pre-push hook.\033[0m\n'
 

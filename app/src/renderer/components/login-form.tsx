@@ -58,7 +58,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           {isSignUp ? "Create Account" : "Sign In"}
         </h2>
         <p className="text-muted-foreground text-center mt-2">
-          {isSignUp ? "Join FoxyChat today" : "Welcome back to FoxyChat"}
+          {isSignUp ? "Join Convera today" : "Welcome back to Convera"}
         </p>
       </div>
 

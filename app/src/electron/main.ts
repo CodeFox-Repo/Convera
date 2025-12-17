@@ -134,7 +134,7 @@ function startAppFocusTracking() {
           const appName = stdout.trim();
 
           // Ignore self-referential applications
-          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          const ignoreList = ["Electron", "Convera", "convera"];
           if (appName && !ignoreList.some((name) => appName.includes(name))) {
             setPreviousApp(appName);
           }
@@ -150,7 +150,7 @@ function startAppFocusTracking() {
           // console.log(`Detected active application: ${appName}`);
 
           // Ignore self-referential applications
-          const ignoreList = ["electron", "FoxyChat", "foxfoxy"];
+          const ignoreList = ["electron", "Convera", "convera"];
           if (
             appName &&
             !ignoreList.some((name) =>
@@ -348,8 +348,8 @@ app.whenReady().then(async () => {
     // Register custom protocol for deep link callbacks (macOS)
     try {
       if (process.platform === "darwin") {
-        app.setAsDefaultProtocolClient("foxychat");
-        logger.info(`Registered custom protocol 'foxychat': ok`);
+        app.setAsDefaultProtocolClient("convera");
+        logger.info(`Registered custom protocol 'convera': ok`);
       }
     } catch (e) {
       logger.error("Failed to register custom protocol:", e);
@@ -375,7 +375,7 @@ app.on("window-all-closed", () => {
   }
 });
 
-// Handle deep link callbacks like foxychat://auth/callback?next=/settings
+// Handle deep link callbacks like convera://auth/callback?next=/settings
 app.on("open-url", (event, urlStr) => {
   try {
     event.preventDefault();

@@ -156,12 +156,12 @@ function SettingsPage() {
                 <div className="w-8 h-8 flex items-center justify-center">
                   <img
                     src="./images/logo.png"
-                    alt="FoxyChat Logo"
+                    alt="Convera Logo"
                     className="w-8 h-8"
                   />
                 </div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  FoxyChat
+                  Convera
                 </h1>
               </div>
             )}

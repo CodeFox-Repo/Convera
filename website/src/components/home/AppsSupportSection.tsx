@@ -56,7 +56,7 @@ const AppsSupportSection = ({ isVisible }: AppsSupportSectionProps) => {
     >
       <div className="text-center">
         <p className="text-muted-foreground mx-auto max-w-[600px] text-lg font-medium md:text-xl">
-          Foxychat's App integrates seamlessly with your favorite productivity tools
+          Convera's App integrates seamlessly with your favorite productivity tools
         </p>
       </div>
 

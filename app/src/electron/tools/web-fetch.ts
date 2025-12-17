@@ -1,5 +1,5 @@
 /**
- * FoxyChat Agent Tools - Web Fetch
+ * Convera Agent Tools - Web Fetch
  *
  * Simple web fetching tool for AI agents.
  */
@@ -32,7 +32,7 @@ async function fetchUrl(
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "FoxyChat/1.0 (Web Fetch Tool)",
+        "User-Agent": "Convera/1.0 (Web Fetch Tool)",
       },
     });
 

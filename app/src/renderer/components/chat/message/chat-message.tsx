@@ -304,7 +304,7 @@ const ChatMessage = memo(
                         session.user.email?.split("@")[0] ||
                         "You"
                       : "You"
-                    : "FoxyChat"}
+                    : "Convera"}
                 </span>
                 <span className="text-xs text-muted-foreground/80">
                   {formatTimestamp(message.createdAt)}

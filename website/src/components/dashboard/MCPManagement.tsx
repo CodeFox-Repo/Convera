@@ -730,7 +730,7 @@ export function MCPManagement() {
       "name": "App MCP Name",
       "description": "App MCP description",
       "command": "npx",
-      "args": ["-y", "@foxychat-mcp/package-name"],
+      "args": ["-y", "@convera-mcp/package-name"],
       "enabled": true
     }
   }

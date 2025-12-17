@@ -5,7 +5,7 @@ const HeroImage: React.FC = () => {
     <div className="relative h-[420px] w-full overflow-hidden rounded-lg md:h-[480px] lg:h-[520px] xl:h-[540px]">
       <img 
         src="/images/demo.jpg" 
-        alt="Foxychat Demo" 
+        alt="Convera Demo" 
         className="h-full w-full object-contain"
       />
     </div>

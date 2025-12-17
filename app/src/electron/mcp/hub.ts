@@ -42,8 +42,8 @@ export class MCPHub extends EventEmitter {
   constructor(configPath?: string) {
     super();
 
-    // Default configuration path is ~/.foxychat/mcp.json
-    const defaultDir = path.join(os.homedir(), ".foxychat");
+    // Default configuration path is ~/.convera/mcp.json
+    const defaultDir = path.join(os.homedir(), ".convera");
     this.configPath = configPath || path.join(defaultDir, "mcp.json");
 
     // Ensure directory exists
@@ -372,7 +372,7 @@ export class MCPHub extends EventEmitter {
     return {
       name: "builtin",
       displayName: "Builtin Tools",
-      description: "Built-in system tools available in FoxyChat",
+      description: "Built-in system tools available in Convera",
       transportType: "builtin",
       status: "connected",
       capabilities: {

@@ -99,7 +99,7 @@ export const useAgentStore = create<AgentState>()(
 
         fetchAgents: async () => {
           try {
-            console.log("Fetching available agents from foxychat-server...");
+            console.log("Fetching available agents from convera-server...");
             const response = await fetch(`${baseUrl}/agents`, {
               headers: {
                 "Content-Type": "application/json",

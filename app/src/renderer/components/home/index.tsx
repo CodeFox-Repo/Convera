@@ -160,7 +160,7 @@ export function HomePage() {
                 <div className="flex items-center gap-2">
                   <Sparkles size={20} className="text-orange-500" />
                   <h1 className="text-lg font-semibold text-foreground">
-                    FoxyChat
+                    Convera
                   </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export function HomePage() {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">
-                  Welcome to FoxyChat
+                  Welcome to Convera
                 </h3>
                 <p className="text-muted-foreground">
                   {chatHistory.length > 0
@@ -471,7 +471,7 @@ export function HomePage() {
             <ChatInput
               ref={chatInputRef}
               hasMessages={messages.length > 0}
-              placeholder="Message FoxyChat..."
+              placeholder="Message Convera..."
             />
           </div>
         </div>

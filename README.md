@@ -1,6 +1,6 @@
-# FoxyChat
+# Convera
 
-FoxyChat is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces....
+Convera is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces....
 
 ## Getting Started
 
@@ -35,7 +35,7 @@ pnpm test:all  # run all tests
 
 ## Packages
 
-- **app** – Electron application containing the FoxyChat desktop client.
+- **app** – Electron application containing the Convera desktop client.
 - **website** – Documentation and marketing site.
 - **market** – Express server providing a simple MCP marketplace.
 
@@ -45,11 +45,11 @@ Environment variables are no longer required. Any configurable values can be set
 
 ### macOS "App is damaged" Error
 
-If you encounter "FoxyChat is damaged and can't be opened" error on macOS, run this command in Terminal:
+If you encounter "Convera is damaged and can't be opened" error on macOS, run this command in Terminal:
 
 ```bash
 # Remove quarantine attribute from the app
-sudo xattr -rd com.apple.quarantine /Applications/FoxyChat.app
+sudo xattr -rd com.apple.quarantine /Applications/Convera.app
 ```
 
 This error occurs because the app is not code-signed. The command above removes the quarantine attribute that macOS applies to downloaded applications.

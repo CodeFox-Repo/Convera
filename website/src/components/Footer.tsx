@@ -78,7 +78,7 @@ const Footer = () => {
         </div>
         <Separator className="mb-6 bg-orange-800/30" />
         <div className="text-center text-sm text-orange-300/60">
-          <p>&copy; 2025 Foxychat. All rights reserved. Built with ❤️ for productivity enthusiasts.</p>
+          <p>&copy; 2025 Convera. All rights reserved. Built with ❤️ for productivity enthusiasts.</p>
         </div>
       </div>
     </footer>

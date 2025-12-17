@@ -10,10 +10,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'FoxyChat Documentation',
-    template: '%s | FoxyChat Docs',
+    default: 'Convera Documentation',
+    template: '%s | Convera Docs',
   },
-  description: 'Official documentation for FoxyChat - All in one Chat App',
+  description: 'Official documentation for Convera - All in one Chat App',
   icons: {
     icon: '/favicon.ico',
   },

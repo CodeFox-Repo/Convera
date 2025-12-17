@@ -97,8 +97,8 @@ const Download = () => {
         // Fallback to default values
         setLatestRelease({
           tag_name: "v0.0.8",
-          name: "FoxyChat 0.0.8",
-          body: "Latest version of FoxyChat with improved performance and new features.",
+          name: "Convera 0.0.8",
+          body: "Latest version of Convera with improved performance and new features.",
           published_at: "2025-01-01T00:00:00Z",
           assets: [],
         });
@@ -193,7 +193,7 @@ const Download = () => {
       version: "Windows 10+",
       size: "95 MB",
       type: "MSI Installer",
-      downloadUrl: "/FoxyChat-0.0.8-win64.msi",
+      downloadUrl: "/Convera-0.0.8-win64.msi",
       recommended: false,
       architecture: "x64",
       minRequirements: "Windows 10 version 1903 or later",
@@ -205,7 +205,7 @@ const Download = () => {
       version: "Ubuntu 20.04+",
       size: "89 MB",
       type: "AppImage",
-      downloadUrl: "/FoxyChat-0.0.8-linux.AppImage",
+      downloadUrl: "/Convera-0.0.8-linux.AppImage",
       recommended: false,
       architecture: "x64",
       minRequirements: "Ubuntu 20.04, Debian 11, or equivalent",
@@ -216,7 +216,7 @@ const Download = () => {
   const getReleaseNotes = () => {
     if (!latestRelease?.body) {
       return [
-        "🎉 Initial public release of Foxychat",
+        "🎉 Initial public release of Convera",
         "🤖 Integrated with Model Context Protocol (MCP)",
         "💬 Natural language desktop automation",
         "🔧 Support for popular productivity apps",
@@ -299,7 +299,7 @@ const Download = () => {
               <h1
                 className={`gradient-orange-text text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
               >
-                Download <span className="gradient-orange-text">Foxychat</span>
+                Download <span className="gradient-orange-text">Convera</span>
               </h1>
               <p
                 className={`text-secondary mx-auto max-w-3xl text-lg leading-relaxed md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
@@ -368,7 +368,7 @@ const Download = () => {
               Choose Your Platform
             </h2>
             <p className="text-secondary mx-auto max-w-2xl text-lg md:text-xl">
-              Download Foxychat for your operating system and start automating your workflow today.
+              Download Convera for your operating system and start automating your workflow today.
             </p>
           </div>
 
@@ -588,7 +588,7 @@ const Download = () => {
                     <div>
                       <h4 className="mb-1 text-sm font-medium">Launch Application</h4>
                       <p className="text-muted-foreground text-xs">
-                        Open Foxychat and complete the initial setup
+                        Open Convera and complete the initial setup
                       </p>
                     </div>
                   </div>

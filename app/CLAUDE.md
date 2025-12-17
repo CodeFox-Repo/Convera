@@ -1,10 +1,10 @@
-# Claude Code Development Guide for FoxyChat
+# Claude Code Development Guide for Convera
 
-This guide provides context for future Claude Code instances working with the FoxyChat codebase.
+This guide provides context for future Claude Code instances working with the Convera codebase.
 
 ## Project Overview
 
-FoxyChat is an Electron-based AI chat application with Model Context Protocol (MCP) integration. The app allows users to interact with AI models while leveraging MCP servers for extended functionality through tools, resources, and prompts.
+Convera is an Electron-based AI chat application with Model Context Protocol (MCP) integration. The app allows users to interact with AI models while leveraging MCP servers for extended functionality through tools, resources, and prompts.
 
 ## Architecture
 

@@ -34,7 +34,7 @@ export function usePreviousApp() {
         const appName = await window.activeAppAPI.getPreviousApp();
 
         // Ignore self-referential applications
-        const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+        const ignoreList = ["Electron", "Convera", "convera"];
         if (appName && !ignoreList.some((name) => appName.includes(name))) {
           setPreviousApp(appName);
         }
@@ -85,7 +85,7 @@ export function usePreviousApp() {
       const unsubscribe = window.electronAPI.onAppChanged((appName: string) => {
         if (appName) {
           // Use same filtering logic for events
-          const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+          const ignoreList = ["Electron", "Convera", "convera"];
           if (!ignoreList.some((name) => appName.includes(name))) {
             setPreviousApp(appName);
           }

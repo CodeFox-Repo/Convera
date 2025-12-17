@@ -36,7 +36,7 @@ export function createSystemTray() {
 
   // Let system handle natural click behavior on macOS
 
-  tray.setToolTip("FoxyChat");
+  tray.setToolTip("Convera");
 
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
@@ -59,7 +59,7 @@ export function createSystemTray() {
       type: "separator",
     },
     {
-      label: "Quit FoxyChat",
+      label: "Quit Convera",
       click: () => {
         app.quit();
       },

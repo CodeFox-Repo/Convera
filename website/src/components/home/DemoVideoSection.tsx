@@ -17,7 +17,7 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
           url: "/demos/create-website-demo.mp4",
           title: "From Idea to Website in Minutes",
           description:
-            "Watch how Foxychat transforms your vision into a fully functional website with just a conversation",
+            "Watch how Convera transforms your vision into a fully functional website with just a conversation",
           gradientColors: "bg-linear-to-r from-orange-50 to-orange-100",
         },
       ],
@@ -40,9 +40,9 @@ const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
       className={`space-y-12 transition-all delay-400 duration-1000 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
     >
       <div className="mb-8 text-center">
-        <h3 className="mb-4 text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">See Foxychat in Action</h3>
+        <h3 className="mb-4 text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">See Convera in Action</h3>
         <p className="text-orange-200/90 text-lg">
-          Watch how Foxychat transforms your daily workflows
+          Watch how Convera transforms your daily workflows
         </p>
       </div>
 

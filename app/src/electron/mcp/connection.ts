@@ -242,8 +242,8 @@ export class MCPConnection extends EventEmitter {
             ...process.env,
             ELECTRON_APP_PATH: app.getAppPath(),
             ELECTRON_USER_DATA: app.getPath("userData"),
-            FOXYCHAT_APP_PATH: app.getAppPath(),
-            FOXYCHAT_USER_DATA: app.getPath("userData"),
+            CONVERA_APP_PATH: app.getAppPath(),
+            CONVERA_USER_DATA: app.getPath("userData"),
             ...resolvedConfig.env,
           },
           cwd: resolvedConfig.cwd || app.getPath("userData"),
@@ -256,7 +256,7 @@ export class MCPConnection extends EventEmitter {
 
         this.client = await experimental_createMCPClient({
           transport,
-          name: `foxychat-electron`,
+          name: `convera-electron`,
           onUncaughtError: (error) => {
             console.error(
               `Uncaught error in MCP client '${this.name}':`,
@@ -543,7 +543,7 @@ export class MCPConnection extends EventEmitter {
       {
         requestInit: {
           headers: {
-            "User-Agent": `FoxyChat/${app.getVersion()} (Electron)`,
+            "User-Agent": `Convera/${app.getVersion()} (Electron)`,
             ...(resolvedConfig.apiKey && {
               Authorization: `Bearer ${resolvedConfig.apiKey}`,
             }),
@@ -554,7 +554,7 @@ export class MCPConnection extends EventEmitter {
 
     this.mcpClient = new Client(
       {
-        name: "foxychat-electron",
+        name: "convera-electron",
         version: "1.0.0",
       },
       {
@@ -580,13 +580,13 @@ export class MCPConnection extends EventEmitter {
         type: "sse",
         url: resolvedConfig.url!,
         headers: {
-          "User-Agent": `FoxyChat/${app.getVersion()} (Electron)`,
+          "User-Agent": `Convera/${app.getVersion()} (Electron)`,
           ...(resolvedConfig.apiKey && {
             Authorization: `Bearer ${resolvedConfig.apiKey}`,
           }),
         },
       },
-      name: `foxychat-electron`,
+      name: `convera-electron`,
       onUncaughtError: (error) => {
         console.error(`Uncaught error in MCP client '${this.name}':`, error);
         this.emit("error", { server: this.name, error });

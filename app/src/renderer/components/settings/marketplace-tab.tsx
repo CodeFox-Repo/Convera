@@ -34,8 +34,8 @@ type MarketplaceSectionProps = {
   onRefreshServers?: () => void;
 };
 
-const MCP_CONFIG_FOLDER_PATH = "~/.foxychat";
-const MCP_CONFIG_FILE_PATH = "~/.foxychat/mcp.json";
+const MCP_CONFIG_FOLDER_PATH = "~/.convera";
+const MCP_CONFIG_FILE_PATH = "~/.convera/mcp.json";
 
 export function MarketplaceSection({
   mcpServers,

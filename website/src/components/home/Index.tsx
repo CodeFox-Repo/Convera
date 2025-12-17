@@ -135,14 +135,14 @@ const Index = () => {
         <div className="relative z-10 container mx-auto max-w-7xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 gradient-orange-text text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Foxychat Always Ready
+              Convera Always Ready
               <br />
               <span className="gradient-orange-text">
                 Collaborate On you Computer
               </span>
             </h2>
             <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-secondary md:text-xl">
-              Foxychat simplifies your daily computer interactions with AI.
+              Convera simplifies your daily computer interactions with AI.
             </p>
           </div>
 
@@ -152,7 +152,7 @@ const Index = () => {
             <div className="md:row-span-2 h-full">
               <FeatureCard
                 title="Smart App Detection"
-                description="Foxychat knows exactly what you are currently doing when you call it. It intelligently detects your active applications and provides context-aware assistance, making your interactions more efficient and productive."
+                description="Convera knows exactly what you are currently doing when you call it. It intelligently detects your active applications and provides context-aware assistance, making your interactions more efficient and productive."
                 icon={<Brain className="h-7 w-7" />}
                 badge="Core"
                 gradient="from-orange-600/30 to-red-500/20"
@@ -188,7 +188,7 @@ const Index = () => {
             <div className="md:col-span-2 h-full">
               <FeatureCard
                 title="Quick Tools & App Market"
-                description="Quick access to your favorite tools and apps. Find and install apps from the Foxychat App Market."
+                description="Quick access to your favorite tools and apps. Find and install apps from the Convera App Market."
                 icon={<Store className="h-6 w-6" />}
                 badge="Featured"
                 gradient="from-orange-700/20 to-amber-600/10"
@@ -217,17 +217,17 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Join Foxychat Community Section */}
+      {/* Join Convera Community Section */}
       <section className="relative w-full overflow-hidden py-20 md:py-28">
         <SimpleBackground />
 
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-6 gradient-orange-text text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Join Foxychat Community
+              Join Convera Community
             </h2>
             <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-secondary md:text-xl">
-              Get started with Foxychat today and become part of our growing community
+              Get started with Convera today and become part of our growing community
             </p>
           </div>
 
@@ -235,7 +235,7 @@ const Index = () => {
             <CommunityCard
               icon={Download}
               title="Download Now"
-              description="Get the latest version of Foxychat and start enhancing your productivity today."
+              description="Get the latest version of Convera and start enhancing your productivity today."
               buttonText="Download Free"
               href="/download"
             />
@@ -244,7 +244,7 @@ const Index = () => {
               title="Join Our Discord"
               description="Connect with other users, get support, and share your experiences with the community."
               buttonText="Join Discord"
-              href="https://discord.gg/foxychat"
+              href="https://discord.gg/convera"
               isExternal={true}
             />
             <CommunityCard

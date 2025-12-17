@@ -1,8 +1,8 @@
 {
-  "name": "foxfoxy-workspace",
+  "name": "convera-workspace",
   "private": true,
   "version": "0.0.21",
-  "description": "FoxyChat Workspace",
+  "description": "Convera Workspace",
   "scripts": {
     "start": "cd app && pnpm start",
     "make": "cd app && pnpm make",

@@ -1,6 +1,6 @@
 # Client-Side Tool Development Guide
 
-This document provides a comprehensive guide on how to develop a complete client-side tool in FoxyChat, from tool implementation to UI rendering.
+This document provides a comprehensive guide on how to develop a complete client-side tool in Convera, from tool implementation to UI rendering.
 
 ## Table of Contents
 1. [Tool Architecture Overview](#tool-architecture-overview)
@@ -14,7 +14,7 @@ This document provides a comprehensive guide on how to develop a complete client
 
 ## Tool Architecture Overview
 
-FoxyChat's tool system is organized into several layers:
+Convera's tool system is organized into several layers:
 
 ```
 ┌─────────────────────────────────────────┐

@@ -47,7 +47,7 @@ export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSi
       {/* Brand Header */}
       <div className="flex items-center border-b border-gray-200 p-6">
         <img src={Logo} alt="FoxChat" width={32} height={32} />
-        <span className="ml-1 text-lg font-semibold text-gray-900">Foxychat</span>
+        <span className="ml-1 text-lg font-semibold text-gray-900">Convera</span>
       </div>
 
       {/* Navigation */}

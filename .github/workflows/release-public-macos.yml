@@ -61,7 +61,7 @@ jobs:
             RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME")
             
-            RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name // "FoxyChat '$VERSION'"')
+            RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name // "Convera '$VERSION'"')
             RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available"')
             
             echo "📝 Release Name: $RELEASE_NAME"
@@ -70,7 +70,7 @@ jobs:
             echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
-            echo "RELEASE_NAME=FoxyChat $VERSION" >> $GITHUB_OUTPUT
+            echo "RELEASE_NAME=Convera $VERSION" >> $GITHUB_OUTPUT
             echo "RELEASE_BODY=Development build" >> $GITHUB_OUTPUT
           fi
 
@@ -152,7 +152,7 @@ jobs:
           echo "✅ DMG SHA256: $DMG_SHA"
 
           # Copy to expected location
-          cp "$DMG_PATH" "FoxyChat-${VERSION}-arm64.dmg"
+          cp "$DMG_PATH" "Convera-${VERSION}-arm64.dmg"
 
           echo "DMG_PATH=$DMG_PATH" >> $GITHUB_OUTPUT
           echo "DMG_SHA=$DMG_SHA" >> $GITHUB_ENV
@@ -184,7 +184,7 @@ jobs:
           fi
 
           # Create release using GitHub API with properly escaped JSON using jq
-          RELEASE_BODY_TEXT="FoxyChat version $VERSION - Built and synced from main repository\n\n**Source Repository:** https://github.com/CodeFox-Repo/foxychat/tree/$TAG_NAME\n**Download:** Direct from homebrew repository for faster and more reliable distribution."
+          RELEASE_BODY_TEXT="Convera version $VERSION - Built and synced from main repository\n\n**Source Repository:** https://github.com/CodeFox-Repo/convera/tree/$TAG_NAME\n**Download:** Direct from homebrew repository for faster and more reliable distribution."
 
           jq -n \
             --arg tag "$TAG_NAME" \
@@ -256,12 +256,12 @@ jobs:
           echo "📤 Uploading DMG to homebrew repository release..."
 
           # Check if DMG file exists and get file size
-          if [ ! -f "FoxyChat-${VERSION}-arm64.dmg" ]; then
+          if [ ! -f "Convera-${VERSION}-arm64.dmg" ]; then
             echo "❌ DMG file not found!"
             exit 1
           fi
 
-          FILE_SIZE=$(stat -f%z "FoxyChat-${VERSION}-arm64.dmg")
+          FILE_SIZE=$(stat -f%z "Convera-${VERSION}-arm64.dmg")
           echo "📦 DMG file size: ${FILE_SIZE} bytes"
 
           if [ "$FILE_SIZE" -lt 1000000 ]; then
@@ -273,10 +273,10 @@ jobs:
           UPLOAD_RESPONSE=$(curl -X POST \
             -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @"FoxyChat-${VERSION}-arm64.dmg" \
+            --data-binary @"Convera-${VERSION}-arm64.dmg" \
             -w "%{http_code}" \
             -o upload_response.json \
-            "${UPLOAD_URL}?name=FoxyChat-${VERSION}-arm64.dmg&label=FoxyChat-${VERSION}-arm64.dmg")
+            "${UPLOAD_URL}?name=Convera-${VERSION}-arm64.dmg&label=Convera-${VERSION}-arm64.dmg")
 
           echo "📊 Upload HTTP status: $UPLOAD_RESPONSE"
 
@@ -309,23 +309,23 @@ jobs:
 
           # Create or update formula file (pointing to homebrew repository)
           echo "📝 Creating Homebrew formula..."
-          cat > Formula/foxychat.rb << EOF
-          cask "foxychat" do
+          cat > Formula/convera.rb << EOF
+          cask "convera" do
             version "${VERSION}"
             sha256 "${DMG_SHA}"
             
-            url "https://github.com/CodeFox-Repo/homebrew-codefox/releases/download/${TAG_NAME}/FoxyChat-#{version}-arm64.dmg"
-            name "FoxyChat"
+            url "https://github.com/CodeFox-Repo/homebrew-codefox/releases/download/${TAG_NAME}/Convera-#{version}-arm64.dmg"
+            name "Convera"
             desc "All in one Chat App"
-            homepage "https://github.com/CodeFox-Repo/foxychat"
+            homepage "https://github.com/CodeFox-Repo/convera"
             
-            app "FoxyChat.app"
+            app "Convera.app"
             
             zap trash: [
-              "~/Library/Application Support/FoxyChat",
-              "~/Library/Preferences/com.codefox-foxychat.plist",
-              "~/Library/Saved Application State/com.codefox-foxychat.savedState",
-              "~/Library/Logs/FoxyChat"
+              "~/Library/Application Support/Convera",
+              "~/Library/Preferences/com.codefox-convera.plist",
+              "~/Library/Saved Application State/com.codefox-convera.savedState",
+              "~/Library/Logs/Convera"
             ]
           end
           EOF
@@ -334,16 +334,16 @@ jobs:
           echo "🚀 Committing and pushing changes..."
           git config user.name "Sma1lboy"
           git config user.email "541898146chen@gmail.com"
-          git add Formula/foxychat.rb
+          git add Formula/convera.rb
 
           # Check if there are changes to commit
           if git diff --staged --quiet; then
             echo "📋 No changes to commit - formula is already up to date"
           else
-            git commit -m "Update FoxyChat to version ${VERSION} - ${RELEASE_NAME}
+            git commit -m "Update Convera to version ${VERSION} - ${RELEASE_NAME}
 
             Release: ${TAG_NAME}
-            Source: https://github.com/CodeFox-Repo/foxychat/tree/${TAG_NAME}
+            Source: https://github.com/CodeFox-Repo/convera/tree/${TAG_NAME}
             Homebrew Release: https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${TAG_NAME}
             
             Auto-synced by GitHub Actions"

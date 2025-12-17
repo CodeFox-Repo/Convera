@@ -21,7 +21,7 @@ export function useAppIcon(appName?: string) {
     }
 
     // Skip known electron apps that we don't want to show icons for
-    const ignoreList = ["Electron", "FoxyChat", "foxfoxy"];
+    const ignoreList = ["Electron", "Convera", "convera"];
     if (ignoreList.some((name) => appName.includes(name))) {
       setIsLoading(false);
       return;

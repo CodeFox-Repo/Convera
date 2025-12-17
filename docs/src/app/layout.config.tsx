@@ -11,8 +11,8 @@ export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
       <>
-        <img src="/logo.png" alt="FoxyChat" className="w-8 h-8" />
-        FoxyChat
+        <img src="/logo.png" alt="Convera" className="w-8 h-8" />
+        Convera
       </>
     ),
   },

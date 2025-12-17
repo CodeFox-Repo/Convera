@@ -1,5 +1,5 @@
 /**
- * FoxyChat Agent Tools - Execute Command
+ * Convera Agent Tools - Execute Command
  *
  * Simple command execution tool for AI agents.
  */

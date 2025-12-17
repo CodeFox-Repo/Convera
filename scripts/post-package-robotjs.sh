@@ -7,7 +7,7 @@ echo "🔧 Post-package: Copying robotjs to packaged app..."
 
 # Check if this is macOS packaging
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    RESOURCES_PATH="out/FoxyChat-darwin-arm64/FoxyChat.app/Contents/Resources"
+    RESOURCES_PATH="out/Convera-darwin-arm64/Convera.app/Contents/Resources"
     
     if [ -d "$RESOURCES_PATH" ]; then
         echo "📁 Found Resources directory: $RESOURCES_PATH"

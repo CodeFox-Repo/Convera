@@ -28,7 +28,7 @@ function RedirectAuthPage() {
       const data = await res.json();
       if (data?.token) {
         console.log("data", data);
-        const deeplink = `foxychat://auth/callback?token=${encodeURIComponent(
+        const deeplink = `convera://auth/callback?token=${encodeURIComponent(
           data.token,
         )}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
         window.location.href = deeplink;
@@ -48,13 +48,13 @@ function RedirectAuthPage() {
       <div className="w-full max-w-md space-y-4 text-center">
         <AuthCallback />
         <div className="space-y-2">
-          <h1 className="text-xl font-semibold">Opening FoxyChat…</h1>
+          <h1 className="text-xl font-semibold">Opening Convera…</h1>
           <p className="text-sm opacity-80">
             If the app doesn’t open automatically, click the button below.
           </p>
           <div className="flex justify-center gap-2">
             <a onClick={() => run()} className="rounded bg-orange-500 px-4 py-2 text-black">
-              Open FoxyChat
+              Open Convera
             </a>
             <a href="/download" className="rounded border px-4 py-2">
               Download

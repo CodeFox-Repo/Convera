@@ -337,7 +337,7 @@ export default function ChatContent({
               {/* Header with role and timestamp - inline with avatar */}
               <div className="flex items-center gap-3 -mt-0.5">
                 <span className="text-sm font-semibold text-foreground">
-                  FoxyChat
+                  Convera
                 </span>
                 <span className="text-xs text-muted-foreground/80">Now</span>
               </div>
@@ -395,7 +395,7 @@ export default function ChatContent({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
             <img
               src={avatar}
-              alt="FoxyChat"
+              alt="Convera"
               className="h-10 w-10 object-contain"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
