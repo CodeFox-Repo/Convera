@@ -170,7 +170,10 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
       )}
 
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
-        <DialogContent className="sm:max-w-md bg-card ">
+        <DialogContent
+          className="sm:max-w-md bg-transparent border-0 shadow-none p-0"
+          hideClose
+        >
           <AuthModal />
         </DialogContent>
       </Dialog>

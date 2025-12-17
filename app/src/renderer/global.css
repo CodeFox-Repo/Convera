@@ -365,3 +365,21 @@
   pointer-events: auto;
   -webkit-app-region: no-drag;
 }
+
+/* Radix Dialog - must not be affected by drag regions */
+[data-radix-dialog-overlay],
+[data-radix-dialog-content],
+[role="dialog"],
+[role="alertdialog"] {
+  -webkit-app-region: no-drag !important;
+  app-region: no-drag !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure all dialog children are interactive */
+[data-radix-dialog-content] *,
+[role="dialog"] *,
+[role="alertdialog"] * {
+  -webkit-app-region: no-drag !important;
+  app-region: no-drag !important;
+}
