@@ -136,7 +136,7 @@ function setupWindowEventHandlers(window: BrowserWindow) {
       });
 
     if (inDevelopment) {
-      window.webContents.openDevTools({ mode: "detach" });
+      window.webContents.openDevTools({ mode: "right" });
     }
   });
 
