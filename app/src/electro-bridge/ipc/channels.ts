@@ -96,13 +96,9 @@ export const CHANNELS = {
   },
   AGENT: {
     LIST_UPDATED: "agent:list-updated",
-    TOGGLE_POPOVER: "agent:toggle-popover",
-    HIDE_POPOVER: "agent:hide-popover",
   },
   MODEL: {
     MODEL_SELECTED: "model:selected",
-    TOGGLE_SELECTOR: "model:toggle-selector",
-    HIDE_SELECTOR: "model:hide-selector",
   },
   FILE: {
     OPEN_PATH: "file:open-path",

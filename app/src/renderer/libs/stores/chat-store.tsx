@@ -116,7 +116,6 @@ interface ConversationData {
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
-const mcpLogger = window.logger.getLogger("chat-store-mcp");
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -440,8 +439,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setToolsLoading(true);
     setToolsError(null);
 
-    mcpLogger.info("Fetching available MCP tools");
-
     try {
       // Get all tools from all connected servers (includes builtin tools)
       const toolsResponse = await window.mcpAPI.getAllTools();
@@ -458,37 +455,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         setMcpServers(serversResponse.data);
       }
 
-      mcpLogger.info("MCP tools fetched", {
-        totalServers: toolServers.length,
-        toolServers: toolServers.map((s) => ({
-          name: s.serverName,
-          toolCount: s.tools.length,
-        })),
-      });
-
       // Collect all tools from all servers
       const allTools: ToolDefinition[] = [];
       toolServers.forEach((server) => {
-        mcpLogger.debug("Adding tools from server", {
-          serverName: server.serverName,
-          toolsCount: server.tools.length,
-        });
         allTools.push(...server.tools);
       });
 
       setAvailableTools(allTools);
-      mcpLogger.info("Available tools updated", {
-        totalTools: allTools.length,
-      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      mcpLogger.error("Failed to get available tools", { error: errorMessage });
+      console.error("Failed to get available tools:", errorMessage);
       setToolsError(errorMessage);
     } finally {
       setToolsLoading(false);
     }
-  }, [mcpLogger]);
+  }, []);
 
   const executeTool = useCallback(
     async (
@@ -496,8 +478,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       toolName: string,
       args: Record<string, unknown>,
     ) => {
-      mcpLogger.info("Executing MCP tool", { serverId, toolName, args });
-
       try {
         const result = await window.mcpAPI.callTool(serverId, toolName, args);
 
@@ -505,25 +485,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error(result.error || "Tool execution failed");
         }
 
-        mcpLogger.info("Tool execution successful", {
-          serverId,
-          toolName,
-          resultType: typeof result.data,
-        });
-
         return result.data;
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        mcpLogger.error("Tool execution failed", {
-          serverId,
-          toolName,
-          error: errorMessage,
-        });
+        console.error("Tool execution failed:", serverId, toolName, errorMessage);
         throw error;
       }
     },
-    [mcpLogger],
+    [],
   );
 
   // Load available tools on mount
