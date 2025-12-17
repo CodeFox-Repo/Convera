@@ -20,7 +20,8 @@ let currentActivateShortcut = "";
 
 // ========== UNIFIED WINDOW CONTROL ==========
 
-export function toggleWindow(type: WindowType): void {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function toggleWindow(_type: WindowType): void {
   // In single-window mode, all toggle requests go to main window
   const mainWindow = getMainWindow();
 
@@ -165,7 +166,8 @@ export function resizeWindow(
   mainWindow: BrowserWindow | null,
   width: number,
   height: number,
-  _preserveX: boolean = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _preserveX?: boolean,
 ): void {
   if (mainWindow) {
     const currentBounds = mainWindow.getBounds();
@@ -252,10 +254,8 @@ export function modelSelected(
 }
 
 // Toggle window view mode - simplified for single resizable window
-export function toggleViewMode(expanded: boolean, mainWindow: BrowserWindow) {
-  console.log(
-    `View mode toggle requested: ${expanded ? "expanded" : "compact"}`,
-  );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function toggleViewMode(_expanded: boolean, _mainWindow: BrowserWindow) {
   // In single-window mode with resizable window, view mode toggle is a no-op
   // The window is always resizable and user can adjust size freely
   return true;

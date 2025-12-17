@@ -61,17 +61,6 @@ export default function ModelSelector() {
   };
 
   /**
-   * Get height in pixels for position calculation
-   */
-  const getHeightPx = () => {
-    const modelCount = supportedModelIds.length;
-    if (modelCount <= 2) return 160;
-    if (modelCount <= 4) return 208;
-    if (modelCount <= 6) return 256;
-    return 320;
-  };
-
-  /**
    * Handle model selection
    */
   const handleModelSelect = (model: string) => {
@@ -150,9 +139,6 @@ export default function ModelSelector() {
       <button
         onClick={(e) => {
           e.stopPropagation();
-          const button = e.currentTarget;
-          const rect = button.getBoundingClientRect();
-
           setIsOpen(!isOpen);
         }}
         className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium"

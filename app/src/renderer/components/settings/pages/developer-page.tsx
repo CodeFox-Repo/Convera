@@ -10,7 +10,6 @@ import {
   Layers,
   Monitor,
   MousePointer,
-  PanelBottom,
   Settings,
   Terminal,
 } from "lucide-react";

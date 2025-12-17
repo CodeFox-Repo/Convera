@@ -65,7 +65,8 @@ function configurePlatformAppearance(window: BrowserWindow) {
   }
 }
 
-// Configure window properties
+// Configure window properties (no-op for resizable window)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function configureWindowProperties(_window: BrowserWindow) {
   // Window is now resizable, no need to prevent resize
 }
