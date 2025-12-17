@@ -1,3 +1,4 @@
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatHistory } from "@/renderer/libs/stores/chat-history-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
@@ -18,7 +19,6 @@ import {
   Plus,
   Server,
   Settings,
-  Sparkles,
   Sun,
   Trash2,
 } from "lucide-react";
@@ -227,7 +227,7 @@ export function HomePage() {
                 {activeView === "chat" ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <Sparkles size={20} className="text-orange-500" />
+                      <BaseLogo size={20} />
                       <h1 className="text-lg font-semibold text-foreground">
                         Convera
                       </h1>
@@ -544,8 +544,8 @@ export function HomePage() {
                 ></div>
 
                 <div className="text-center space-y-6 max-w-md relative z-10">
-                  <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center mx-auto">
-                    <Sparkles size={32} className="text-white" />
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
+                    <BaseLogo size={64} />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-foreground mb-2">

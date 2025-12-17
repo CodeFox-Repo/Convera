@@ -1,7 +1,8 @@
 // Command Content Component
 // Displays MCP command results and AI chat responses in a larger content area
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
-import { Bot, Loader2, Sparkles } from "lucide-react";
+import { Bot, Loader2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef } from "react";
 import { Markdown } from "../common/markdown";
 import { TOOL_COMPONENTS } from "./tools";
@@ -306,8 +307,8 @@ const CommandContent: React.FC<CommandContentProps> = ({ isVisible }) => {
         <div className="px-3 border-t border-foreground/10 bg-foreground/10">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2 text-xs text-foreground/50">
-              <Sparkles size={12} />
-              <span>Pro AI</span>
+              <BaseLogo size={12} />
+              <span>Convera</span>
             </div>
             <button className="flex items-center gap-1 text-xs text-foreground/50 hover:text-foreground/70 transition-colors">
               <span>Cancel</span>

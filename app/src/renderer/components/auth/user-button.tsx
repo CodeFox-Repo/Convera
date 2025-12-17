@@ -1,6 +1,8 @@
 import { authClient } from "@/renderer/libs/auth-client";
+import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
+import { FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
 import { AnimatePresence } from "framer-motion";
-import { ChevronUp, LogOut, User } from "lucide-react";
+import { ChevronUp, Key, LogOut, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -15,6 +17,12 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { signOut } = authClient;
+  const { modelConfigs, selectedConfigId } = useModelConfigStore();
+
+  // Determine if using custom model config (not foxychat remote)
+  const hasModelConfigs = modelConfigs.length > 0;
+  const isUsingCustomConfig =
+    selectedConfigId !== FOXYCHAT_CONFIG_ID && hasModelConfigs;
 
   // Get user initials for fallback
   const getUserInitials = (name?: string, email?: string) => {
@@ -54,19 +62,16 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
     }
   }, [session?.user, showAuthModal]);
 
-  // Close modal when custom API is configured
+  // Close modal when model config is saved
   useEffect(() => {
-    const handleCustomApiConfigured = () => {
+    const handleModelConfigSaved = () => {
       setShowAuthModal(false);
     };
 
-    window.addEventListener("custom-api-configured", handleCustomApiConfigured);
+    window.addEventListener("model-config-saved", handleModelConfigSaved);
 
     return () => {
-      window.removeEventListener(
-        "custom-api-configured",
-        handleCustomApiConfigured,
-      );
+      window.removeEventListener("model-config-saved", handleModelConfigSaved);
     };
   }, []);
 
@@ -170,6 +175,24 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
             </div>
           </PopoverContent>
         </Popover>
+      ) : isUsingCustomConfig ? (
+        // Custom model config mode - using custom API endpoint
+        <button
+          onClick={handleClick}
+          className={`${
+            collapsed ? "p-2" : "w-full px-3 py-2.5"
+          } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
+            collapsed ? "justify-center" : "gap-3 text-sm"
+          }`}
+        >
+          <Key size={16} className="flex-shrink-0 text-orange-500" />
+          {!collapsed && (
+            <span className="truncate flex-1 text-left">
+              {modelConfigs.find((c) => c.id === selectedConfigId)?.name ||
+                "Custom Model"}
+            </span>
+          )}
+        </button>
       ) : (
         // Not logged in state
         <button

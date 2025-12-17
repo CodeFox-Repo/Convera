@@ -1,31 +1,69 @@
-import { useModelStore } from "@/renderer/libs/stores/model-store";
+import { authClient } from "@/renderer/libs/auth-client";
+import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import * as Popover from "@radix-ui/react-popover";
-import React, { useEffect, useState } from "react";
+import { Key, Satellite } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 
 export default function ModelSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const {
     selectedModelId,
-    setSelectedModelId,
-    subscribeToModelChanges,
-    supportedModelIds,
-  } = useModelStore();
+    selectedConfigId,
+    setSelectedModel,
+    getAvailableModels,
+    subscribeToModelConfigChanges,
+  } = useModelConfigStore();
+
+  const { data: session } = authClient.useSession();
+  const isUserLoggedIn = !!session?.user;
 
   useEffect(() => {
-    const unsubscribe = subscribeToModelChanges();
+    const unsubscribe = subscribeToModelConfigChanges();
     return unsubscribe;
-  }, [subscribeToModelChanges]);
+  }, [subscribeToModelConfigChanges]);
+
+  // Get all available models grouped by config
+  const availableModels = useMemo(
+    () => getAvailableModels(isUserLoggedIn),
+    [getAvailableModels, isUserLoggedIn],
+  );
+
+  // Group models by configId
+  const groupedModels = useMemo(() => {
+    const groups: Record<
+      string,
+      { configName: string; isRemote: boolean; models: string[] }
+    > = {};
+
+    availableModels.forEach((model) => {
+      if (!groups[model.configId]) {
+        groups[model.configId] = {
+          configName: model.configName,
+          isRemote: model.isRemote,
+          models: [],
+        };
+      }
+      groups[model.configId].models.push(model.modelId);
+    });
+
+    return groups;
+  }, [availableModels]);
 
   const formatModelName = (modelId: string) => {
     return modelId.split("/").pop() || modelId;
   };
 
-  const handleModelSelect = (model: string) => {
-    setSelectedModelId(model);
+  const handleModelSelect = (configId: string, modelId: string) => {
+    setSelectedModel(configId, modelId);
     setIsOpen(false);
   };
 
-  if (selectedModelId.length === 0) {
+  // Find current selected model display name
+  const selectedDisplayName = useMemo(() => {
+    return formatModelName(selectedModelId);
+  }, [selectedModelId]);
+
+  if (availableModels.length === 0) {
     return null;
   }
 
@@ -33,12 +71,12 @@ export default function ModelSelector() {
     <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
       <Popover.Trigger asChild>
         <button className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium">
-          {formatModelName(selectedModelId)}
+          {selectedDisplayName}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          className="w-[280px] bg-popover border border-border rounded-xl shadow-lg z-50"
+          className="w-[320px] bg-popover border border-border rounded-xl shadow-lg z-50"
           side="bottom"
           align="start"
           sideOffset={8}
@@ -63,36 +101,71 @@ export default function ModelSelector() {
             </h3>
           </div>
 
-          {/* Model list */}
-          <div className="max-h-64 overflow-y-auto p-2">
-            <div className="space-y-1">
-              {supportedModelIds.map((model) => (
-                <button
-                  key={model}
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
-                    model === selectedModelId
-                      ? "bg-primary/20 border border-primary/20"
-                      : "hover:bg-muted/50"
-                  }`}
-                  onClick={() => handleModelSelect(model)}
-                >
-                  <span className="truncate text-foreground">{model}</span>
-                  {model === selectedModelId && (
-                    <svg
-                      className="w-4 h-4 text-primary flex-shrink-0 ml-2"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+          {/* Grouped Model list */}
+          <div className="max-h-80 overflow-y-auto p-2">
+            {Object.entries(groupedModels).map(([configId, group]) => (
+              <div key={configId} className="mb-3 last:mb-0">
+                {/* Group Header */}
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                  {group.isRemote ? (
+                    <Satellite className="w-3 h-3" />
+                  ) : (
+                    <Key className="w-3 h-3 text-orange-500" />
                   )}
-                </button>
-              ))}
-            </div>
+                  <span className="font-medium">{group.configName}</span>
+                </div>
+
+                {/* Models in group */}
+                <div className="space-y-0.5">
+                  {group.models.map((modelId) => {
+                    const isSelected =
+                      configId === selectedConfigId &&
+                      modelId === selectedModelId;
+
+                    return (
+                      <button
+                        key={`${configId}-${modelId}`}
+                        className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all ${
+                          isSelected
+                            ? "bg-primary/20 border border-primary/20"
+                            : "hover:bg-muted/50"
+                        }`}
+                        onClick={() => handleModelSelect(configId, modelId)}
+                      >
+                        <span className="truncate text-foreground">
+                          {modelId}
+                        </span>
+                        {isSelected && (
+                          <svg
+                            className="w-4 h-4 text-primary flex-shrink-0 ml-2"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {Object.keys(groupedModels).length === 0 && (
+              <div className="py-8 text-center">
+                <p className="text-muted-foreground text-sm">
+                  No models available
+                </p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  Log in or add a model configuration
+                </p>
+              </div>
+            )}
           </div>
         </Popover.Content>
       </Popover.Portal>

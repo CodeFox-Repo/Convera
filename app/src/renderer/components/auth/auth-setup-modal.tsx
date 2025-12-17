@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { AuthModal } from "./auth-modal";
-import { CustomApiForm } from "./custom-api-form";
+import { ModelConfigForm } from "./model-config-form";
 
 interface AuthSetupModalProps {
   open: boolean;
@@ -70,7 +70,7 @@ export function AuthSetupModal({ open, onClose }: AuthSetupModalProps) {
                 : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
-            Custom API
+            Add Model
           </button>
         </div>
       </div>
@@ -101,7 +101,7 @@ export function AuthSetupModal({ open, onClose }: AuthSetupModalProps) {
                 transition={{ duration: 0.15 }}
                 className="w-full"
               >
-                <CustomApiForm />
+                <ModelConfigForm onSuccess={onClose} />
               </motion.div>
             )}
           </AnimatePresence>

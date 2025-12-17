@@ -1,5 +1,5 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
-import { AppSettings } from "@/shared/types/settings";
+import { AppSettings, FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
 import { Attachment, Message, UIMessage } from "ai";
 import { useChat } from "ai/react";
 import React, {
@@ -18,6 +18,7 @@ import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
 import { useIsLoggedIn, useSetAuthState } from "./auth-store";
 import { useChatHistory } from "./chat-history-store";
+import { useModelConfigStore } from "./model-config-store";
 import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -252,8 +253,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 }));
               }
 
+              // Get model config from store for interceptor
+              const {
+                selectedConfigId: interceptorConfigId,
+                getCurrentConfig: getInterceptorConfig,
+              } = useModelConfigStore.getState();
+
               // Supplement missing configuration with correct logic
-              const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
+              const shouldUseRemoteServer =
+                interceptorConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
 
               if (
                 !Object.prototype.hasOwnProperty.call(body, "useRemoteServer")
@@ -261,19 +269,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 body.useRemoteServer = shouldUseRemoteServer;
               }
 
-              // TODO: DISABLED LOCAL API - Never set custom API settings
-              // Only set customApiSettings if NOT using remote server and we have custom API config
-              // if (!body.customApiSettings && !shouldUseRemoteServer) {
-              //   if (
-              //     currentSettings?.openai?.apiKey &&
-              //     currentSettings?.openai?.endpoint
-              //   ) {
-              //     body.customApiSettings = {
-              //       endpoint: currentSettings.openai.endpoint,
-              //       apiKey: currentSettings.openai.apiKey,
-              //     };
-              //   }
-              // }
+              // Set customApiSettings from model config if NOT using remote server
+              if (!body.customApiSettings && !shouldUseRemoteServer) {
+                const interceptorConfig = getInterceptorConfig();
+                if (interceptorConfig) {
+                  body.customApiSettings = {
+                    endpoint: interceptorConfig.endpoint,
+                    apiKey: interceptorConfig.apiKey,
+                  };
+                }
+              }
               if (!body.agent) {
                 body.agent = selectedAgent || undefined;
               }
@@ -617,34 +622,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }));
           }
 
-          // Check if we have valid custom API settings
-          const hasValidCustomApi =
-            currentSettings?.openai?.apiKey &&
-            currentSettings.openai.apiKey.trim() !== "" &&
-            currentSettings.openai.endpoint &&
-            currentSettings.openai.endpoint.trim() !== "";
+          // Get current model config from store
+          const { selectedConfigId, getCurrentConfig } =
+            useModelConfigStore.getState();
 
-          // Determine which API to use
-          const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
-          const shouldUseCustomApi =
-            !shouldUseRemoteServer && hasValidCustomApi;
+          // Determine which API to use based on selected config
+          const shouldUseRemoteServer =
+            selectedConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
+          const currentConfig = getCurrentConfig();
 
-          const customApiSettings = shouldUseCustomApi
-            ? {
-                endpoint: currentSettings.openai.endpoint,
-                apiKey: currentSettings.openai.apiKey,
-              }
-            : undefined;
+          // Build customApiSettings from the selected model config
+          const customApiSettings =
+            !shouldUseRemoteServer && currentConfig
+              ? {
+                  endpoint: currentConfig.endpoint,
+                  apiKey: currentConfig.apiKey,
+                }
+              : undefined;
 
           // If neither remote nor custom API is available, show error
-          if (!shouldUseRemoteServer && !shouldUseCustomApi) {
-            console.error(
-              "No API configured. Please log in or configure custom API.",
-            );
-            alert(
-              "Please log in or configure a custom API to use the chat. Click the Account button to set up.",
-            );
-            return;
+          const hasValidConfig = shouldUseRemoteServer || currentConfig;
+          if (!hasValidConfig) {
+            // Fallback: check legacy settings
+            const hasLegacyConfig =
+              currentSettings?.openai?.apiKey &&
+              currentSettings.openai.apiKey.trim() !== "" &&
+              currentSettings.openai.endpoint &&
+              currentSettings.openai.endpoint.trim() !== "";
+
+            if (!hasLegacyConfig) {
+              console.error(
+                "No API configured. Please log in or add a model configuration.",
+              );
+              alert(
+                "Please log in or add a model configuration to use the chat. Click the Account button to set up.",
+              );
+              return;
+            }
           }
           const requestBody = {
             agent: selectedAgent || undefined,

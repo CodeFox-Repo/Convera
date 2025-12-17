@@ -1,13 +1,31 @@
 import { Button } from "@/renderer/components/ui/button";
+import { authClient } from "@/renderer/libs/auth-client";
+import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import { Loader2, RotateCcw } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import {
+  Edit2,
+  Key,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Satellite,
+  Trash2,
+} from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ModelConfigForm } from "../../../components/auth/model-config-form";
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
   const shortcutInputRef = useRef<HTMLButtonElement>(null);
   const recordingStateRef = useRef<string>("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Model Config state
+  const [showAddConfigModal, setShowAddConfigModal] = useState(false);
+  const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
+  const { modelConfigs, removeModelConfig, subscribeToModelConfigChanges } =
+    useModelConfigStore();
+  const { data: session } = authClient.useSession();
 
   // Settings Store
   const {
@@ -27,10 +45,16 @@ export function GeneralSettingsPage() {
   useEffect(() => {
     initializeSettings();
     const unsubscribeSettings = subscribeToSettingsChanges();
+    const unsubscribeModelConfigs = subscribeToModelConfigChanges();
     return () => {
       unsubscribeSettings();
+      unsubscribeModelConfigs();
     };
-  }, [initializeSettings, subscribeToSettingsChanges]);
+  }, [
+    initializeSettings,
+    subscribeToSettingsChanges,
+    subscribeToModelConfigChanges,
+  ]);
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
@@ -292,7 +316,132 @@ export function GeneralSettingsPage() {
               ))}
           </div>
         </div>
+
+        {/* Model Configurations Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium text-foreground">
+              Model Configurations
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingConfigId(null);
+                setShowAddConfigModal(true);
+              }}
+              className="flex items-center gap-2 border-border hover:border-border/80"
+            >
+              <Plus className="h-4 w-4" />
+              Add Configuration
+            </Button>
+          </div>
+
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {/* Foxychat Remote (always shown if logged in) */}
+            {session?.user && (
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center">
+                    <Satellite className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-foreground">Foxychat</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Remote server (logged in)
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                  Default
+                </span>
+              </div>
+            )}
+
+            {/* Custom Model Configs */}
+            {modelConfigs.map((config) => (
+              <div
+                key={config.id}
+                className="flex items-center justify-between p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                    <Key className="h-4 w-4 text-orange-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-foreground">
+                      {config.name}
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      {config.models.length} model
+                      {config.models.length !== 1 ? "s" : ""} configured
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditingConfigId(config.id);
+                      setShowAddConfigModal(true);
+                    }}
+                    className="h-8 w-8"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeModelConfig(config.id)}
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {!session?.user && modelConfigs.length === 0 && (
+              <div className="p-8 text-center">
+                <Key className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">
+                  No model configurations yet
+                </p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  Add a configuration to use your own API
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Add/Edit Model Config Modal */}
+      {showAddConfigModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg mx-4">
+            <ModelConfigForm
+              editingConfigId={editingConfigId || undefined}
+              onSuccess={() => {
+                setShowAddConfigModal(false);
+                setEditingConfigId(null);
+              }}
+            />
+            <Button
+              variant="ghost"
+              className="w-full mt-2"
+              onClick={() => {
+                setShowAddConfigModal(false);
+                setEditingConfigId(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
