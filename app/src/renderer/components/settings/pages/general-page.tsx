@@ -1,6 +1,5 @@
 import { Button } from "@/renderer/components/ui/button";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import { AccountSection } from "@/renderer/components/account/account-section";
 import { Loader2, RotateCcw } from "lucide-react";
 import React, { useCallback, useEffect, useRef } from "react";
 
@@ -233,12 +232,9 @@ export function GeneralSettingsPage() {
             General
           </h1>
           <p className="text-muted-foreground">
-            Manage your profile and configure keyboard shortcuts
+            Configure keyboard shortcuts and general preferences
           </p>
         </div>
-
-        {/* Account Section */}
-        <AccountSection />
 
         {/* Keyboard Shortcuts Section */}
         <div className="space-y-4">

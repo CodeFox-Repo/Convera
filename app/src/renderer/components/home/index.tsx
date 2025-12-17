@@ -6,6 +6,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
+  ArrowLeft,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -75,14 +76,18 @@ export function HomePage() {
   const [activeSettingsTab, setActiveSettingsTab] =
     useState<SettingsTab>("general");
 
+  // Helper to navigate to settings - auto-expands sidebar
+  const navigateToSettings = () => {
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+    }
+    setActiveView("settings");
+  };
+
   // Listen for navigate-to-settings from main process (tray menu)
   useEffect(() => {
-    const handleNavigateToSettings = () => {
-      setActiveView("settings");
-    };
-
-    window.electronAPI?.onNavigateToSettings?.(handleNavigateToSettings);
-  }, []);
+    window.electronAPI?.onNavigateToSettings?.(navigateToSettings);
+  }, [sidebarCollapsed]);
 
   // Listen for conversation switching from chat popup window
   useEffect(() => {
@@ -217,40 +222,71 @@ export function HomePage() {
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
               <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={20} className="text-orange-500" />
-                  <h1 className="text-lg font-semibold text-foreground">
-                    Convera
-                  </h1>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleNewChat}
-                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors pointer-events-auto"
-                    aria-label="New chat"
-                    title="New Chat"
-                  >
-                    <Plus size={16} />
-                  </button>
-                  <button
-                    onClick={() => setSidebarCollapsed(true)}
-                    className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
-                    aria-label="Collapse sidebar"
-                    title="Collapse Sidebar"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                </div>
+                {activeView === "chat" ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={20} className="text-orange-500" />
+                      <h1 className="text-lg font-semibold text-foreground">
+                        Convera
+                      </h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleNewChat}
+                        className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors pointer-events-auto"
+                        aria-label="New chat"
+                        title="New Chat"
+                      >
+                        <Plus size={16} />
+                      </button>
+                      <button
+                        onClick={() => setSidebarCollapsed(true)}
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                        aria-label="Collapse sidebar"
+                        title="Collapse Sidebar"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActiveView("chat")}
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                        aria-label="Back to chat"
+                        title="Back to Chat"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                      <h1 className="text-lg font-semibold text-foreground">
+                        Settings
+                      </h1>
+                    </div>
+                    <button
+                      onClick={handleToggleTheme}
+                      className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                      title="Toggle theme"
+                    >
+                      {currentTheme === "dark" ? (
+                        <Sun size={16} />
+                      ) : (
+                        <Moon size={16} />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Chat Sessions */}
+          {/* Sidebar Content - Chat History or Settings Navigation */}
           <div className="flex-1 overflow-y-auto min-h-0 relative z-0">
             {/* Drag whitespace area */}
             <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
-            {!sidebarCollapsed && (
+            {!sidebarCollapsed && activeView === "chat" && (
               <div className="p-2 relative z-10">
                 {historyLoading && chatHistory.length === 0 ? (
                   <div className="flex items-center justify-center p-8">
@@ -279,7 +315,7 @@ export function HomePage() {
                       key={chat.id}
                       onClick={() => handleSelectChat(chat.id)}
                       className={`group relative p-3 mb-1 rounded-lg cursor-pointer transition-all pointer-events-auto ${
-                        currentSessionId === chat.id && activeView === "chat"
+                        currentSessionId === chat.id
                           ? "bg-accent text-accent-foreground"
                           : menuOpenId === chat.id
                             ? "bg-accent/50 text-muted-foreground"
@@ -376,6 +412,26 @@ export function HomePage() {
                 )}
               </div>
             )}
+
+            {/* Settings Navigation */}
+            {!sidebarCollapsed && activeView === "settings" && (
+              <nav className="p-2 space-y-1 relative z-10">
+                {settingsNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSettingsTab(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors pointer-events-auto ${
+                      activeSettingsTab === item.id
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon size={16} className="flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
           </div>
 
           {/* Sidebar Footer - Fixed at bottom */}
@@ -385,21 +441,21 @@ export function HomePage() {
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
               <div className="relative z-10">
-                <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
-                  <Archive size={16} className="flex-shrink-0" />
-                  <span>Archive</span>
-                </button>
-                <button
-                  onClick={() => setActiveView("settings")}
-                  className={`w-full px-3 py-2.5 rounded-lg transition-colors flex items-center gap-3 text-sm pointer-events-auto ${
-                    activeView === "settings"
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <Settings size={16} className="flex-shrink-0" />
-                  <span>Settings</span>
-                </button>
+                {activeView === "chat" && (
+                  <>
+                    <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
+                      <Archive size={16} className="flex-shrink-0" />
+                      <span>Archive</span>
+                    </button>
+                    <button
+                      onClick={navigateToSettings}
+                      className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto"
+                    >
+                      <Settings size={16} className="flex-shrink-0" />
+                      <span>Settings</span>
+                    </button>
+                  </>
+                )}
                 <UserButton collapsed={false} />
               </div>
             </div>
@@ -534,48 +590,9 @@ export function HomePage() {
             </div>
           </>
         ) : (
-          /* Settings View */
-          <div className="flex-1 flex overflow-hidden">
-            {/* Settings Tabs Navigation */}
-            <div className="w-56 border-r border-border/60 p-4 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Settings
-                </h2>
-                <button
-                  onClick={handleToggleTheme}
-                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  title="Toggle theme"
-                >
-                  {currentTheme === "dark" ? (
-                    <Sun size={16} />
-                  ) : (
-                    <Moon size={16} />
-                  )}
-                </button>
-              </div>
-              <nav className="space-y-1">
-                {settingsNavItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSettingsTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                      activeSettingsTab === item.id
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                    }`}
-                  >
-                    <item.icon size={16} className="flex-shrink-0" />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            {/* Settings Content */}
-            <div className="flex-1 overflow-y-auto">
-              {renderSettingsContent()}
-            </div>
+          /* Settings View - Content only, navigation is in sidebar */
+          <div className="flex-1 overflow-y-auto">
+            {renderSettingsContent()}
           </div>
         )}
       </div>
