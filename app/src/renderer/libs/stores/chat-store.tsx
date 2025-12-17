@@ -263,19 +263,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 body.useRemoteServer = shouldUseRemoteServer;
               }
 
-              // TODO: DISABLED LOCAL API - Never set custom API settings
-              // Only set customApiSettings if NOT using remote server and we have custom API config
-              // if (!body.customApiSettings && !shouldUseRemoteServer) {
-              //   if (
-              //     currentSettings?.openai?.apiKey &&
-              //     currentSettings?.openai?.endpoint
-              //   ) {
-              //     body.customApiSettings = {
-              //       endpoint: currentSettings.openai.endpoint,
-              //       apiKey: currentSettings.openai.apiKey,
-              //     };
-              //   }
-              // }
+              // Set customApiSettings if NOT using remote server and we have custom API config
+              if (!body.customApiSettings && !shouldUseRemoteServer) {
+                if (
+                  currentSettings?.openai?.apiKey &&
+                  currentSettings.openai.apiKey.trim() !== "" &&
+                  currentSettings?.openai?.endpoint &&
+                  currentSettings.openai.endpoint.trim() !== ""
+                ) {
+                  body.customApiSettings = {
+                    endpoint: currentSettings.openai.endpoint,
+                    apiKey: currentSettings.openai.apiKey,
+                  };
+                }
+              }
               if (!body.agent) {
                 body.agent = selectedAgent || undefined;
               }

@@ -1,6 +1,7 @@
 import { authClient } from "@/renderer/libs/auth-client";
+import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import { AnimatePresence } from "framer-motion";
-import { ChevronUp, LogOut, User } from "lucide-react";
+import { ChevronUp, Key, LogOut, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -15,6 +16,17 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { signOut } = authClient;
+  const { settings } = useSettingsStore();
+
+  // Determine if custom API is configured
+  const hasValidCustomApi =
+    settings?.openai?.apiKey &&
+    settings.openai.apiKey.trim() !== "" &&
+    settings?.openai?.endpoint &&
+    settings.openai.endpoint.trim() !== "";
+
+  const useRemoteStore = settings?.openai?.useRemoteStore !== false;
+  const isUsingCustomApi = !session?.user && hasValidCustomApi && !useRemoteStore;
 
   // Get user initials for fallback
   const getUserInitials = (name?: string, email?: string) => {
@@ -170,6 +182,21 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
             </div>
           </PopoverContent>
         </Popover>
+      ) : isUsingCustomApi ? (
+        // Custom API mode - not logged in but has custom API configured
+        <button
+          onClick={handleClick}
+          className={`${
+            collapsed ? "p-2" : "w-full px-3 py-2.5"
+          } rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center ${
+            collapsed ? "justify-center" : "gap-3 text-sm"
+          }`}
+        >
+          <Key size={16} className="flex-shrink-0 text-orange-500" />
+          {!collapsed && (
+            <span className="truncate flex-1 text-left">Custom API</span>
+          )}
+        </button>
       ) : (
         // Not logged in state
         <button

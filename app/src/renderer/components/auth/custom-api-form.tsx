@@ -11,8 +11,10 @@ interface ValidationErrors {
   apiKey?: string;
 }
 
+const DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1";
+
 export function CustomApiForm() {
-  const [endpoint, setEndpoint] = useState("");
+  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
   const [apiKey, setApiKey] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isLoading, setIsLoading] = useState(false);
