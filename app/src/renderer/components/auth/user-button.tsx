@@ -1,10 +1,10 @@
 import { authClient } from "@/renderer/libs/auth-client";
+import { AnimatePresence } from "framer-motion";
 import { ChevronUp, LogOut, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Dialog, DialogContent } from "../ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { AuthModal } from "./auth-modal";
+import { AuthSetupModal } from "./auth-setup-modal";
 
 interface CustomUserButtonProps {
   collapsed?: boolean;
@@ -53,6 +53,22 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
       setShowAuthModal(false);
     }
   }, [session?.user, showAuthModal]);
+
+  // Close modal when custom API is configured
+  useEffect(() => {
+    const handleCustomApiConfigured = () => {
+      setShowAuthModal(false);
+    };
+
+    window.addEventListener("custom-api-configured", handleCustomApiConfigured);
+
+    return () => {
+      window.removeEventListener(
+        "custom-api-configured",
+        handleCustomApiConfigured,
+      );
+    };
+  }, []);
 
   if (isPending) {
     return (
@@ -169,14 +185,14 @@ export function UserButton({ collapsed = false }: CustomUserButtonProps) {
         </button>
       )}
 
-      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
-        <DialogContent
-          className="sm:max-w-md bg-transparent border-0 shadow-none p-0"
-          hideClose
-        >
-          <AuthModal />
-        </DialogContent>
-      </Dialog>
+      <AnimatePresence>
+        {showAuthModal && (
+          <AuthSetupModal
+            open={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

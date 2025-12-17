@@ -6,14 +6,14 @@ export function AuthModal() {
   const callbackURL = `https://api.foxychat.net/redirect/auth?next=${next}`;
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="w-full [&>*]:!max-w-none [&>*]:!w-full">
       <AuthCard
         pathname="sign-in"
         callbackURL={callbackURL}
         socialLayout="vertical"
-        className="border-0 shadow-2xl shadow-black/50"
+        className="border-0 shadow-2xl shadow-black/50 !w-full !max-w-none"
         classNames={{
-          base: "bg-card backdrop-blur-sm border-0 shadow-2xl shadow-black/50 relative z-20 overflow-hidden auth-card",
+          base: "bg-card backdrop-blur-sm border-0 shadow-2xl shadow-black/50 relative z-20 overflow-hidden auth-card !w-full !max-w-none",
           header: "pb-4 pt-6 px-8 text-center relative z-30",
           title: "text-2xl font-bold text-primary text-center relative z-30",
           description: "text-foreground/80 mt-1 text-center relative z-30",

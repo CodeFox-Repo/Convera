@@ -109,11 +109,9 @@ export const useSettingsStore = create<SettingsState>()(
         const { settings } = get();
         if (!settings) return;
 
-        // TODO: DISABLED LOCAL API - Only allow useRemoteStore changes, ignore local API fields
-        if (field === "apiKey" || field === "endpoint") {
-          toast.warning(
-            "Local API configuration is disabled. Use remote server only.",
-          );
+        // Validate API key format (no "Bearer" prefix)
+        if (field === "apiKey" && value.trim() && value.startsWith("Bearer ")) {
+          toast.warning('Please enter the API key without "Bearer" prefix');
           return;
         }
 
@@ -121,11 +119,6 @@ export const useSettingsStore = create<SettingsState>()(
           ...settings.openai,
           [field]: value,
         };
-
-        // if (field === "apiKey" && value.trim() && value.startsWith("Bearer ")) {
-        //   toast.warning('Please enter the API key without "Bearer" prefix');
-        //   return;
-        // }
 
         const updated = await updateOpenAISettings(updatedOpenAI);
         set({ settings: updated });

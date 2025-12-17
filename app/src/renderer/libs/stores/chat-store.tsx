@@ -614,30 +614,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }));
           }
 
-          // TODO: DISABLED LOCAL API - Only use remote server now
           // Check if we have valid custom API settings
-          // const hasValidCustomApi =
-          //   currentSettings?.openai?.apiKey &&
-          //   currentSettings.openai.apiKey.trim() !== "" &&
-          //   currentSettings.openai.endpoint &&
-          //   currentSettings.openai.endpoint.trim() !== "";
+          const hasValidCustomApi =
+            currentSettings?.openai?.apiKey &&
+            currentSettings.openai.apiKey.trim() !== "" &&
+            currentSettings.openai.endpoint &&
+            currentSettings.openai.endpoint.trim() !== "";
 
-          // Determine which API to use - FORCE remote server only
-          const shouldUseRemoteServer = isUserLoggedIn;
-          // const shouldUseCustomApi =
-          //   !shouldUseRemoteServer && hasValidCustomApi;
-          const customApiSettings = undefined; // Always undefined - no local API
+          // Determine which API to use
+          const shouldUseRemoteServer = isUserLoggedIn && useRemoteStore;
+          const shouldUseCustomApi =
+            !shouldUseRemoteServer && hasValidCustomApi;
 
-          // If remote server is not available, show error and open settings
-          if (!shouldUseRemoteServer) {
+          const customApiSettings = shouldUseCustomApi
+            ? {
+                endpoint: currentSettings.openai.endpoint,
+                apiKey: currentSettings.openai.apiKey,
+              }
+            : undefined;
+
+          // If neither remote nor custom API is available, show error
+          if (!shouldUseRemoteServer && !shouldUseCustomApi) {
             console.error(
-              "Remote server required. Please log in and enable remote store.",
+              "No API configured. Please log in or configure custom API.",
             );
-            alert("Please log in to use the chat.");
-            // Open settings page to allow user to configure remote store
-            window.electronAPI.toggleWindow("settings").catch((error) => {
-              console.error("Failed to open settings window:", error);
-            });
+            alert(
+              "Please log in or configure a custom API to use the chat. Click the Account button to set up.",
+            );
             return;
           }
           const requestBody = {
