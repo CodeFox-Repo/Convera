@@ -1,8 +1,7 @@
-import { authClient } from "@/renderer/libs/auth-client";
 import { Button } from "@/renderer/components/ui/button";
+import { authClient } from "@/renderer/libs/auth-client";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import { FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
 import {
   Edit2,
   Key,
