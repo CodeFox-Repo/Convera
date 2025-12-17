@@ -256,8 +256,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }
 
               // Get model config from store for interceptor
-              const { selectedConfigId: interceptorConfigId, getCurrentConfig: getInterceptorConfig } =
-                useModelConfigStore.getState();
+              const {
+                selectedConfigId: interceptorConfigId,
+                getCurrentConfig: getInterceptorConfig,
+              } = useModelConfigStore.getState();
 
               // Supplement missing configuration with correct logic
               const shouldUseRemoteServer =

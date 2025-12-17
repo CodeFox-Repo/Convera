@@ -3,7 +3,15 @@ import { Button } from "@/renderer/components/ui/button";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import { FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
-import { Edit2, Key, Loader2, Plus, RotateCcw, Satellite, Trash2 } from "lucide-react";
+import {
+  Edit2,
+  Key,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Satellite,
+  Trash2,
+} from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ModelConfigForm } from "../../../components/auth/model-config-form";
 
@@ -43,7 +51,11 @@ export function GeneralSettingsPage() {
       unsubscribeSettings();
       unsubscribeModelConfigs();
     };
-  }, [initializeSettings, subscribeToSettingsChanges, subscribeToModelConfigChanges]);
+  }, [
+    initializeSettings,
+    subscribeToSettingsChanges,
+    subscribeToModelConfigChanges,
+  ]);
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(

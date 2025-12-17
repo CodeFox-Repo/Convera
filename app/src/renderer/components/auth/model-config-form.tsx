@@ -42,10 +42,10 @@ export function ModelConfigForm({
   );
   const [apiKey, setApiKey] = useState(existingConfig?.apiKey || "");
   const [selectedModels, setSelectedModels] = useState<Set<string>>(
-    new Set(existingConfig?.models || [])
+    new Set(existingConfig?.models || []),
   );
   const [availableModels, setAvailableModels] = useState<string[]>(
-    existingConfig?.models || []
+    existingConfig?.models || [],
   );
   const [modelFilter, setModelFilter] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -170,7 +170,7 @@ export function ModelConfigForm({
 
   // Filter models based on search input
   const filteredModels = availableModels.filter((model) =>
-    model.toLowerCase().includes(modelFilter.toLowerCase())
+    model.toLowerCase().includes(modelFilter.toLowerCase()),
   );
 
   const handleTestConnection = async () => {
@@ -253,7 +253,9 @@ export function ModelConfigForm({
     <div className="space-y-6 p-6 bg-card rounded-md">
       <div className="space-y-2 text-center">
         <h2 className="text-2xl font-bold text-primary">
-          {editingConfigId ? "Edit Model Configuration" : "Add Model Configuration"}
+          {editingConfigId
+            ? "Edit Model Configuration"
+            : "Add Model Configuration"}
         </h2>
         <p className="text-foreground/80 text-sm">
           Configure an OpenAI-compatible API endpoint
@@ -399,7 +401,9 @@ export function ModelConfigForm({
           <div className="max-h-48 overflow-y-auto border border-border/50 rounded-md">
             {availableModels.length === 0 ? (
               <p className="text-muted-foreground text-sm text-center py-4">
-                {isFetchingModels ? "Loading models..." : "Enter endpoint to load models"}
+                {isFetchingModels
+                  ? "Loading models..."
+                  : "Enter endpoint to load models"}
               </p>
             ) : filteredModels.length === 0 ? (
               <p className="text-muted-foreground text-sm text-center py-4">
@@ -425,10 +429,15 @@ export function ModelConfigForm({
                         }`}
                       >
                         {isSelected && (
-                          <Check className="h-4 w-4 text-primary-foreground" strokeWidth={3} />
+                          <Check
+                            className="h-4 w-4 text-primary-foreground"
+                            strokeWidth={3}
+                          />
                         )}
                       </div>
-                      <span className={`truncate ${isSelected ? "text-foreground" : "text-foreground/70"}`}>
+                      <span
+                        className={`truncate ${isSelected ? "text-foreground" : "text-foreground/70"}`}
+                      >
                         {model}
                       </span>
                     </button>

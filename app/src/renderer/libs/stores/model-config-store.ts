@@ -1,7 +1,4 @@
-import {
-  FOXYCHAT_CONFIG_ID,
-  ModelConfig,
-} from "@/shared/types/settings";
+import { FOXYCHAT_CONFIG_ID, ModelConfig } from "@/shared/types/settings";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -95,7 +92,9 @@ export const useModelConfigStore = create<ModelConfigState>()(
         const newSelectedConfigId =
           selectedConfigId === id ? FOXYCHAT_CONFIG_ID : selectedConfigId;
         const newSelectedModelId =
-          selectedConfigId === id ? DEFAULT_FOXYCHAT_MODELS[0] : get().selectedModelId;
+          selectedConfigId === id
+            ? DEFAULT_FOXYCHAT_MODELS[0]
+            : get().selectedModelId;
 
         set({
           modelConfigs: modelConfigs.filter((config) => config.id !== id),
@@ -222,7 +221,10 @@ export const useModelConfigStore = create<ModelConfigState>()(
             "model-configs-updated",
             configUpdatedHandler as EventListener,
           );
-          window.removeEventListener("storage", storageHandler as EventListener);
+          window.removeEventListener(
+            "storage",
+            storageHandler as EventListener,
+          );
         };
       },
     }),
