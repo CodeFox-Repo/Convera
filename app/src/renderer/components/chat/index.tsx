@@ -711,21 +711,23 @@ export default function Chat() {
       </div>
 
       {/* Results section - only show when not in content mode and not loading */}
-      {(results.length > 0 || inputValue.trim()) && !showContent && !isLoading && (
-        <div className="flex-1 ">
-          <CommandResults
-            results={results}
-            query={inputValue}
-            isCommandMode={isCommandMode}
-            selectedIndex={selectedIndex}
-            selectedInputCommand={selectedInputCommand}
-            commandResult={commandResult}
-            onCommandExecute={handleCommandExecute}
-            onAIChatSubmit={handleAIChatSubmit}
-            onSelectedIndexChange={setSelectedIndex}
-          />
-        </div>
-      )}
+      {(results.length > 0 || inputValue.trim()) &&
+        !showContent &&
+        !isLoading && (
+          <div className="flex-1 ">
+            <CommandResults
+              results={results}
+              query={inputValue}
+              isCommandMode={isCommandMode}
+              selectedIndex={selectedIndex}
+              selectedInputCommand={selectedInputCommand}
+              commandResult={commandResult}
+              onCommandExecute={handleCommandExecute}
+              onAIChatSubmit={handleAIChatSubmit}
+              onSelectedIndexChange={setSelectedIndex}
+            />
+          </div>
+        )}
 
       {/* Content overlay - covers everything below input when visible */}
       {showContent && (

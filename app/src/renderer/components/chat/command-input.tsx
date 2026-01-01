@@ -130,7 +130,6 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               spellCheck={false}
             />
           </div>
-
         </div>
       </div>
     );

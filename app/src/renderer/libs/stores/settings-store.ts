@@ -212,7 +212,9 @@ export function useSettingsStore() {
     const activateShortcut = defaultShortcuts.find((s) => s.id === "activate");
     if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
       try {
-        await window.electronAPI.updateGlobalShortcut(activateShortcut.shortcut);
+        await window.electronAPI.updateGlobalShortcut(
+          activateShortcut.shortcut,
+        );
         toast.success("Shortcuts reset to default");
       } catch (error) {
         console.error("Error updating global shortcut after reset:", error);
