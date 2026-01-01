@@ -1,8 +1,8 @@
 /**
- * Agent Store - Dexie 版本
+ * Agent Store - Dexie Version
  *
- * 完全本地存储，不再与云端同步
- * 使用 Dexie liveQuery 实现实时数据更新和多窗口同步
+ * Fully local storage, no cloud sync
+ * Uses Dexie liveQuery for real-time data updates and multi-window sync
  */
 
 import {
@@ -24,8 +24,8 @@ export { DEFAULT_AGENT };
 // ==================== Hooks ====================
 
 /**
- * 主要的 Agent store hook
- * 替代旧的 useAgentStore
+ * Main Agent store hook
+ * Replaces the old useAgentStore
  */
 export function useAgentStore() {
   const agents = useAgents();
@@ -143,8 +143,8 @@ export function useAgentStore() {
 // ==================== Static State Access (for non-React contexts) ====================
 
 /**
- * 用于非 React 上下文中获取状态
- * 兼容旧的 useAgentStore.getState() 调用模式
+ * For accessing state in non-React contexts
+ * Compatible with the old useAgentStore.getState() calling pattern
  */
 useAgentStore.getState = () => {
   const { selectedAgentId } = useSelectionStore.getState();
@@ -166,7 +166,7 @@ useAgentStore.getState = () => {
 // ==================== Standalone Actions ====================
 
 /**
- * 直接创建 Agent（不需要 hook）
+ * Create Agent directly (without hook)
  */
 export async function createAgent(
   agentData: Omit<Agent, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined">
@@ -183,7 +183,7 @@ export async function createAgent(
 }
 
 /**
- * 直接更新 Agent（不需要 hook）
+ * Update Agent directly (without hook)
  */
 export async function updateAgent(
   id: string,
@@ -196,7 +196,7 @@ export async function updateAgent(
 }
 
 /**
- * 直接删除 Agent（不需要 hook）
+ * Delete Agent directly (without hook)
  */
 export async function deleteAgent(id: string): Promise<boolean> {
   if (id === DEFAULT_AGENT.id || id === "") {

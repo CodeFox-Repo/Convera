@@ -1,8 +1,8 @@
 /**
  * Dexie React Hooks
  *
- * 使用 useLiveQuery 实现实时数据查询，自动多窗口同步
- * 替代 Zustand + localStorage 的复杂同步逻辑
+ * Uses useLiveQuery for real-time data queries with automatic multi-window sync.
+ * Replaces the complex Zustand + localStorage sync logic.
  */
 
 import { useLiveQuery } from "dexie-react-hooks";
@@ -20,7 +20,7 @@ import {
 // ==================== Conversation Hooks ====================
 
 /**
- * 获取所有对话（按更新时间倒序）
+ * Get all conversations (sorted by updatedAt descending)
  */
 export function useConversations() {
   return useLiveQuery(() =>
@@ -29,7 +29,7 @@ export function useConversations() {
 }
 
 /**
- * 获取单个对话
+ * Get a single conversation
  */
 export function useConversation(id: string | null) {
   return useLiveQuery(
@@ -39,7 +39,7 @@ export function useConversation(id: string | null) {
 }
 
 /**
- * 获取对话的所有消息（按创建时间排序）
+ * Get all messages for a conversation (sorted by createdAt)
  */
 export function useMessages(conversationId: string | null) {
   return useLiveQuery(
@@ -109,7 +109,7 @@ export async function addMessage(
       createdAt: new Date(),
     });
 
-    // 更新对话的 updatedAt
+    // Update conversation's updatedAt
     await db.conversations.update(conversationId, {
       updatedAt: new Date(),
     });
@@ -123,10 +123,10 @@ export async function updateMessages(
   messages: Array<Omit<Message, "conversationId" | "createdAt"> & { id: string }>
 ): Promise<void> {
   await db.transaction("rw", [db.messages, db.conversations], async () => {
-    // 删除旧消息
+    // Delete old messages
     await db.messages.where("conversationId").equals(conversationId).delete();
 
-    // 添加新消息
+    // Add new messages
     const now = new Date();
     await db.messages.bulkAdd(
       messages.map((msg) => ({
@@ -136,7 +136,7 @@ export async function updateMessages(
       }))
     );
 
-    // 更新对话的 updatedAt
+    // Update conversation's updatedAt
     await db.conversations.update(conversationId, {
       updatedAt: now,
     });
@@ -146,17 +146,17 @@ export async function updateMessages(
 // ==================== Agent Hooks ====================
 
 /**
- * 获取所有 Agent（内置 + 用户创建）
+ * Get all agents (built-in + user-created)
  */
 export function useAgents() {
   return useLiveQuery(async () => {
     const agents = await db.agents.orderBy("updatedAt").reverse().toArray();
-    // 确保默认 Agent 始终存在
+    // Ensure default agent always exists
     const hasDefault = agents.some((a) => a.id === DEFAULT_AGENT.id);
     if (!hasDefault) {
       return [DEFAULT_AGENT, ...agents];
     }
-    // 把默认 Agent 放到最前面
+    // Put default agent first
     return [
       agents.find((a) => a.id === DEFAULT_AGENT.id)!,
       ...agents.filter((a) => a.id !== DEFAULT_AGENT.id),
@@ -165,7 +165,7 @@ export function useAgents() {
 }
 
 /**
- * 获取单个 Agent
+ * Get a single agent
  */
 export function useAgent(id: string | null) {
   return useLiveQuery(
@@ -203,7 +203,7 @@ export async function updateAgent(
   updates: Partial<Omit<Agent, "id" | "createdAt" | "isBuiltIn">>
 ): Promise<void> {
   if (id === DEFAULT_AGENT.id || id === "") {
-    // 不能更新内置 Agent
+    // Cannot update built-in agent
     return;
   }
   await db.agents.update(id, {
@@ -214,7 +214,7 @@ export async function updateAgent(
 
 export async function deleteAgent(id: string): Promise<void> {
   if (id === DEFAULT_AGENT.id || id === "") {
-    // 不能删除内置 Agent
+    // Cannot delete built-in agent
     return;
   }
   await db.agents.delete(id);
@@ -223,14 +223,14 @@ export async function deleteAgent(id: string): Promise<void> {
 // ==================== Model Config Hooks ====================
 
 /**
- * 获取所有模型配置
+ * Get all model configurations
  */
 export function useModelConfigs() {
   return useLiveQuery(() => db.modelConfigs.toArray());
 }
 
 /**
- * 获取单个模型配置
+ * Get a single model configuration
  */
 export function useModelConfig(id: string | null) {
   return useLiveQuery(
@@ -268,7 +268,7 @@ export async function deleteModelConfig(id: string): Promise<void> {
 // ==================== Settings Hooks ====================
 
 /**
- * 获取单个设置
+ * Get a single setting
  */
 export function useSetting<T>(key: string, defaultValue: T): T {
   const setting = useLiveQuery(() => db.settings.get(key), [key]);
@@ -276,7 +276,7 @@ export function useSetting<T>(key: string, defaultValue: T): T {
 }
 
 /**
- * 获取所有设置
+ * Get all settings
  */
 export function useSettings() {
   return useLiveQuery(() => db.settings.toArray());
@@ -313,7 +313,7 @@ export function useAvailableModels(isUserLoggedIn: boolean): GroupedModel[] {
 
   const models: GroupedModel[] = [];
 
-  // Foxychat 远程模型（需登录）
+  // Foxychat remote models (requires login)
   if (isUserLoggedIn) {
     DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
       models.push({
@@ -325,7 +325,7 @@ export function useAvailableModels(isUserLoggedIn: boolean): GroupedModel[] {
     });
   }
 
-  // 用户自定义模型
+  // User custom models
   configs.forEach((config) => {
     config.models.forEach((modelId) => {
       models.push({
@@ -340,10 +340,10 @@ export function useAvailableModels(isUserLoggedIn: boolean): GroupedModel[] {
   return models;
 }
 
-// ==================== 数据库初始化 ====================
+// ==================== Database Initialization ====================
 
 /**
- * 初始化数据库，确保默认 Agent 存在
+ * Initialize database, ensuring default agent exists
  */
 export async function initializeDatabase(): Promise<void> {
   const defaultAgent = await db.agents.get(DEFAULT_AGENT.id);
@@ -352,5 +352,5 @@ export async function initializeDatabase(): Promise<void> {
   }
 }
 
-// 自动初始化
+// Auto-initialize
 initializeDatabase().catch(console.error);

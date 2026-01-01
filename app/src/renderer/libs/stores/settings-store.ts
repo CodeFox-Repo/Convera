@@ -1,13 +1,13 @@
 /**
- * Settings Store - Dexie 版本
+ * Settings Store - Dexie Version
  *
- * 使用 Dexie 存储设置数据
- * 使用 Zustand 管理 UI 状态（主题、快捷键录制等）
+ * Uses Dexie for storing settings data
+ * Uses Zustand for UI state management (theme, shortcut recording, etc.)
  *
- * 保留的功能：
- * - 主题切换（需要 IPC 通知主进程）
- * - 快捷键管理（需要 IPC 通知主进程）
- * - 设置持久化
+ * Retained features:
+ * - Theme switching (requires IPC to notify main process)
+ * - Shortcut management (requires IPC to notify main process)
+ * - Settings persistence
  */
 
 import { toast } from "sonner";
@@ -70,18 +70,18 @@ async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
 // ==================== Hooks ====================
 
 /**
- * 主要的 Settings store hook
- * 替代旧的 useSettingsStore
+ * Main Settings store hook
+ * Replaces the old useSettingsStore
  */
 export function useSettingsStore() {
-  // 从 Dexie 获取设置
+  // Get settings from Dexie
   const openaiSettings = useSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI, DEFAULT_OPENAI_SETTINGS);
   const shortcuts = useSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS, []);
 
-  // UI 状态
+  // UI state
   const uiState = useSettingsUIState();
 
-  // 构建完整的 settings 对象
+  // Build complete settings object
   const settings: AppSettings = {
     openai: openaiSettings,
     shortcuts: shortcuts.length > 0 ? shortcuts : [],
@@ -101,14 +101,14 @@ export function useSettingsStore() {
 
     // Actions
     initializeSettings: async () => {
-      // 加载默认快捷键如果没有
+      // Load default shortcuts if none exist
       const existingShortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
       if (!existingShortcuts || existingShortcuts.length === 0) {
         const defaultShortcuts = await getDefaultShortcuts();
         await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
       }
 
-      // 获取当前主题
+      // Get current theme
       try {
         const themeResult = await getCurrentTheme();
         uiState.setTheme(themeResult.system as "light" | "dark" | "system");
@@ -244,7 +244,7 @@ export function useSettingsStore() {
 // ==================== Standalone Actions ====================
 
 /**
- * 更新 OpenAI 设置（不需要 hook）
+ * Update OpenAI settings (without hook)
  */
 export async function updateOpenAISettings(
   updates: Partial<OpenAISettings>
@@ -261,7 +261,7 @@ export async function updateOpenAISettings(
 }
 
 /**
- * 更新快捷键（不需要 hook）
+ * Update shortcut (without hook)
  */
 export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSettings> {
   const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [];
@@ -292,7 +292,7 @@ export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSet
 }
 
 /**
- * 获取设置（不需要 hook）
+ * Get settings (without hook)
  */
 export async function getSettings(): Promise<AppSettings> {
   const openai = await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS;
@@ -311,7 +311,7 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 /**
- * 初始化全局快捷键
+ * Initialize global shortcut
  */
 export async function initGlobalShortcut(): Promise<void> {
   const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
@@ -323,7 +323,7 @@ export async function initGlobalShortcut(): Promise<void> {
 }
 
 /**
- * 重置快捷键
+ * Reset shortcuts to default
  */
 export async function resetShortcutsToDefault(): Promise<AppSettings> {
   const defaultShortcuts = await getDefaultShortcuts();

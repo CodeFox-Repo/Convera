@@ -1,20 +1,20 @@
 /**
  * Dexie Database Definition
  *
- * 本地优先存储架构：
- * - conversations + messages: 聊天记录 (纯本地)
- * - agents: 用户创建的 Agent (纯本地)
- * - modelConfigs: 自定义模型配置 (纯本地)
- * - settings: 应用设置 (纯本地)
+ * Local-first storage architecture:
+ * - conversations + messages: Chat history (local only)
+ * - agents: User-created agents (local only)
+ * - modelConfigs: Custom model configurations (local only)
+ * - settings: App settings (local only)
  *
- * 云端仅保留：
- * - /api/chat/completion: AI 推理
- * - /api/marketplace/*: Agent/MCP 模板下载 (未来)
+ * Cloud API (retained):
+ * - /api/chat/completion: AI inference
+ * - /api/marketplace/*: Agent/MCP template downloads (future)
  */
 
 import Dexie, { type EntityTable } from "dexie";
 
-// ==================== 数据模型 ====================
+// ==================== Data Models ====================
 
 export interface Conversation {
   id: string;
@@ -103,7 +103,7 @@ export class ConveraDB extends Dexie {
 // Singleton instance
 export const db = new ConveraDB();
 
-// ==================== 默认数据 ====================
+// ==================== Default Data ====================
 
 export const DEFAULT_AGENT: Agent = {
   id: "default",
@@ -118,7 +118,7 @@ export const DEFAULT_AGENT: Agent = {
   updatedAt: new Date(),
 };
 
-// Foxychat 远程模型 (登录后可用)
+// Foxychat remote models (requires login)
 export const DEFAULT_FOXYCHAT_MODELS = [
   "google/gemini-2.5-flash",
   "openai/gpt-4o-mini",

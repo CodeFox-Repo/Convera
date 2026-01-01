@@ -1,8 +1,8 @@
 /**
- * Model Config Store - Dexie 版本
+ * Model Config Store - Dexie Version
  *
- * 完全本地存储
- * 使用 Dexie liveQuery 实现实时数据更新和多窗口同步
+ * Fully local storage
+ * Uses Dexie liveQuery for real-time data updates and multi-window sync
  */
 
 import {
@@ -33,8 +33,8 @@ interface GroupedModel {
 // ==================== Hooks ====================
 
 /**
- * 主要的 Model Config store hook
- * 替代旧的 useModelConfigStore
+ * Main Model Config store hook
+ * Replaces the old useModelConfigStore
  */
 export function useModelConfigStore() {
   const modelConfigs = useModelConfigs();
@@ -87,7 +87,7 @@ export function useModelConfigStore() {
     getAvailableModels: (isUserLoggedIn: boolean): GroupedModel[] => {
       const models: GroupedModel[] = [];
 
-      // Foxychat 远程模型（需登录）
+      // Foxychat remote models (requires login)
       if (isUserLoggedIn) {
         DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
           models.push({
@@ -99,7 +99,7 @@ export function useModelConfigStore() {
         });
       }
 
-      // 用户自定义模型
+      // User custom models
       (modelConfigs || []).forEach((config) => {
         config.models.forEach((modelId) => {
           models.push({
@@ -136,15 +136,15 @@ export function useModelConfigStore() {
 }
 
 /**
- * Hook 版本的 getAvailableModels
+ * Hook version of getAvailableModels
  */
 export { useAvailableModels };
 
 // ==================== Static State Access (for non-React contexts) ====================
 
 /**
- * 用于非 React 上下文中获取状态
- * 兼容旧的 useModelConfigStore.getState() 调用模式
+ * For accessing state in non-React contexts
+ * Compatible with the old useModelConfigStore.getState() calling pattern
  */
 useModelConfigStore.getState = () => {
   const { selectedConfigId, selectedModelId } = useSelectionStore.getState();
@@ -170,14 +170,14 @@ useModelConfigStore.getState = () => {
 // ==================== Standalone Actions ====================
 
 /**
- * 创建模型配置（不需要 hook）
+ * Create model config (without hook)
  */
 export async function createModelConfig(config: Omit<ModelConfig, "id">): Promise<string> {
   return await createConfigDB(config);
 }
 
 /**
- * 更新模型配置（不需要 hook）
+ * Update model config (without hook)
  */
 export async function updateModelConfig(
   id: string,
@@ -187,14 +187,14 @@ export async function updateModelConfig(
 }
 
 /**
- * 删除模型配置（不需要 hook）
+ * Delete model config (without hook)
  */
 export async function deleteModelConfig(id: string): Promise<void> {
   await deleteConfigDB(id);
 }
 
 /**
- * 从 API 端点获取可用模型
+ * Fetch available models from API endpoint
  */
 export async function fetchModelsFromEndpoint(
   endpoint: string,

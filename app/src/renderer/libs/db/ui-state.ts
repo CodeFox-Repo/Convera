@@ -1,15 +1,15 @@
 /**
  * UI State Store (Zustand)
  *
- * 仅用于纯 UI 状态管理，不涉及数据持久化
- * 数据存储使用 Dexie hooks
+ * Only for pure UI state management, no data persistence
+ * Data storage uses Dexie hooks
  *
- * 包含：
- * - 当前选中的对话 ID
- * - 当前选中的 Agent ID
- * - 当前选中的模型配置
- * - UI 加载状态
- * - 临时 UI 状态（如弹窗、录音等）
+ * Contains:
+ * - Current selected conversation ID
+ * - Current selected Agent ID
+ * - Current selected model config
+ * - UI loading state
+ * - Temporary UI state (popups, recording, etc.)
  */
 
 import { create } from "zustand";
@@ -21,7 +21,7 @@ export { FOXYCHAT_CONFIG_ID, DEFAULT_FOXYCHAT_MODELS };
 // ==================== Selection State ====================
 
 interface SelectionState {
-  // 当前选中项
+  // Currently selected items
   currentConversationId: string | null;
   selectedAgentId: string | null;
   selectedConfigId: string;
@@ -68,7 +68,7 @@ export const useChatUIState = create<ChatUIState>((set, get) => ({
     const newMode = get().viewMode === "compact" ? "expanded" : "compact";
     set({ viewMode: newMode });
 
-    // 通知 Electron 主进程
+    // Notify Electron main process
     if (typeof window !== "undefined" && window.electronAPI) {
       window.electronAPI.toggleViewMode?.(newMode === "expanded");
     }

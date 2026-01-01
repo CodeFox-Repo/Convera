@@ -1,8 +1,8 @@
 /**
- * Chat History Store - Dexie 版本
+ * Chat History Store - Dexie Version
  *
- * 完全本地存储，不再与云端同步
- * 使用 Dexie liveQuery 实现实时数据更新和多窗口同步
+ * Fully local storage, no cloud sync
+ * Uses Dexie liveQuery for real-time data updates and multi-window sync
  */
 
 import { Message } from "ai";
@@ -40,15 +40,15 @@ export interface ConversationData {
 // ==================== Hooks ====================
 
 /**
- * 主要的聊天历史 hook
- * 替代旧的 useChatHistoryStore
+ * Main chat history hook
+ * Replaces the old useChatHistoryStore
  */
 export function useChatHistoryStore() {
   const conversations = useConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
   const messages = useMessages(currentConversationId);
 
-  // 转换为旧格式的 ConversationData（带 messages）
+  // Convert to old format ConversationData (with messages)
   const conversationsWithMessages: ConversationData[] = (conversations || []).map(
     (conv) => ({
       id: conv.id,
@@ -57,7 +57,7 @@ export function useChatHistoryStore() {
       modelId: conv.modelId,
       systemPrompt: conv.systemPrompt,
       metadata: conv.metadata as ConversationData["metadata"],
-      messages: [], // Messages 单独查询
+      messages: [], // Messages are queried separately
       createdAt: conv.createdAt.toISOString(),
       updatedAt: conv.updatedAt.toISOString(),
     })
@@ -117,7 +117,7 @@ export function useChatHistoryStore() {
       }
     },
 
-    // 保存消息到当前对话
+    // Save messages to current conversation
     saveMessages: async (msgs: Message[]) => {
       if (!currentConversationId) return;
 
@@ -137,7 +137,7 @@ export function useChatHistoryStore() {
       );
     },
 
-    // 添加单条消息
+    // Add single message
     addMessage: async (message: Omit<Message, "id">) => {
       if (!currentConversationId) return;
 
@@ -157,14 +157,14 @@ export function useChatHistoryStore() {
 
 /**
  * Legacy hook for backward compatibility
- * 用于 ChatProvider 中
+ * Used in ChatProvider
  */
 export function useChatHistory(setMessages: (messages: Message[]) => void) {
   const conversations = useConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
   const messages = useMessages(currentConversationId);
 
-  // 当消息变化时更新 AI SDK 的 messages
+  // Update AI SDK messages when messages change
   useEffect(() => {
     if (messages && messages.length > 0) {
       // Filter out "tool" role as AI SDK doesn't support it directly
@@ -182,7 +182,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
     }
   }, [messages, setMessages]);
 
-  // 转换格式
+  // Convert format
   const chatHistory: ConversationData[] = (conversations || []).map((conv) => ({
     id: conv.id,
     title: conv.title,
