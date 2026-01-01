@@ -19,6 +19,8 @@ import { useAgentStore } from "./agent-store";
 import { useIsLoggedIn, useSetAuthState } from "./auth-store";
 import { useChatHistory } from "./chat-history-store";
 import { useModelConfigStore } from "./model-config-store";
+import { db, createConversation, updateMessages } from "../db";
+import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
 
 export type ChatViewMode = "compact" | "expanded";
@@ -107,20 +109,13 @@ interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
 }
 
-// Conversation data interface for history selection
-interface ConversationData {
-  id: string;
-  title: string | null;
-  messages: Message[];
-}
-
 const ChatContext = createContext<ChatContextType | null>(null);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const { previousApp, openedApps, previousAppContent } = usePreviousApp();
+  const { previousApp, openedApps } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -129,9 +124,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const isUserLoggedIn = useIsLoggedIn();
   const setAuthState = useSetAuthState();
   const [useRemoteStore, setUseRemoteStore] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(null);
+
+  // Use shared Zustand store for conversation ID to sync with sidebar selection
+  const {
+    currentConversationId,
+    setCurrentConversation: setCurrentConversationId,
+  } = useSelectionStore();
 
   // Debug: Log conversation ID changes
   useEffect(() => {
@@ -271,7 +269,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
               // Set customApiSettings from model config if NOT using remote server
               if (!body.customApiSettings && !shouldUseRemoteServer) {
-                const interceptorConfig = getInterceptorConfig();
+                const interceptorConfig = await getInterceptorConfig();
                 if (interceptorConfig) {
                   body.customApiSettings = {
                     endpoint: interceptorConfig.endpoint,
@@ -325,12 +323,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       return result.data;
     },
     onFinish: async () => {
-      // Temporarily disabled auto-refresh to debug message sending
       console.log("✅ Frontend: Message completed successfully");
-      console.log(
-        "🔗 Frontend: Current conversation ID:",
-        currentConversationId,
-      );
+      // Messages will be saved via the saveMessagesRef callback
     },
   });
 
@@ -349,52 +343,90 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // Integrate the useChatHistory hook
   useChatHistory(chatAPI.setMessages);
 
-  // Handle conversation selection from history
+  // Track previous loading state to detect when message completes
+  const prevLoadingRef = useRef(false);
+  const currentConversationIdRef = useRef(currentConversationId);
+  const selectedAgentIdRef = useRef(selectedAgent?.id);
+
+  // Keep refs in sync
   useEffect(() => {
-    const handleConversationSelected = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.conversation) {
-        const conversation = customEvent.detail
-          .conversation as ConversationData;
-        setCurrentConversationId(conversation.id);
-        console.log(
-          "📝 Frontend: Set conversation ID from history selection:",
-          conversation.id,
-        );
-      }
-    };
+    currentConversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
 
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "selectedConversation" && event.newValue) {
+  useEffect(() => {
+    selectedAgentIdRef.current = selectedAgent?.id;
+  }, [selectedAgent?.id]);
+
+  // Save messages when loading completes (message finished)
+  useEffect(() => {
+    const wasLoading = prevLoadingRef.current;
+    const isLoading = chatAPI.isLoading;
+    prevLoadingRef.current = isLoading;
+
+    // Only save when transitioning from loading to not loading
+    if (wasLoading && !isLoading && chatAPI.messages.length > 0) {
+      const saveMessages = async () => {
         try {
-          const data = JSON.parse(event.newValue);
-          if (data.conversation && data.conversation.id) {
-            setCurrentConversationId(data.conversation.id);
-            console.log(
-              "📝 Frontend: Set conversation ID from storage event:",
-              data.conversation.id,
+          let convId = currentConversationIdRef.current;
+          const messages = chatAPI.messages;
+
+          // Check if conversation exists in database
+          const existingConv = convId
+            ? await db.conversations.get(convId)
+            : null;
+
+          // Create new conversation if none exists or if current ID is not in database
+          if (!existingConv) {
+            const firstUserMessage = messages.find(
+              (m: Message) => m.role === "user",
             );
+            const title =
+              typeof firstUserMessage?.content === "string"
+                ? firstUserMessage.content.slice(0, 50)
+                : "New Conversation";
+
+            convId = await createConversation({
+              title,
+              agentId: selectedAgentIdRef.current ?? null,
+              modelId: null,
+            });
+            setCurrentConversationId(convId);
+            currentConversationIdRef.current = convId;
+            console.log("📝 Created new conversation:", convId);
           }
+
+          // Save all messages to the conversation (convId is guaranteed to be set now)
+          await updateMessages(
+            convId!,
+            messages.map((m: Message) => ({
+              id: m.id,
+              role: m.role as "user" | "assistant" | "system" | "tool",
+              content:
+                typeof m.content === "string"
+                  ? m.content
+                  : JSON.stringify(m.content),
+              toolInvocations: m.toolInvocations,
+              experimental_attachments: m.experimental_attachments?.map(
+                (a: Attachment) => ({
+                  url: a.url,
+                  name: a.name ?? "",
+                  contentType: a.contentType ?? "",
+                }),
+              ),
+            })),
+          );
+          console.log("💾 Saved messages to conversation:", convId);
         } catch (error) {
-          console.warn("Error parsing conversation from localStorage:", error);
+          console.error("Failed to save conversation:", error);
         }
-      }
-    };
+      };
 
-    window.addEventListener(
-      "conversation-selected",
-      handleConversationSelected,
-    );
-    window.addEventListener("storage", handleStorageChange);
+      saveMessages();
+    }
+  }, [chatAPI.isLoading, chatAPI.messages, setCurrentConversationId]);
 
-    return () => {
-      window.removeEventListener(
-        "conversation-selected",
-        handleConversationSelected,
-      );
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
+  // Note: Conversation selection from sidebar is now handled automatically
+  // through the shared useSelectionStore (Zustand) - no event listeners needed
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "compact" ? "expanded" : "compact"));
@@ -627,9 +659,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             useModelConfigStore.getState();
 
           // Determine which API to use based on selected config
-          const shouldUseRemoteServer =
+          let shouldUseRemoteServer =
             selectedConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
-          const currentConfig = getCurrentConfig();
+          let currentConfig = await getCurrentConfig();
+
+          // If using FOXYCHAT_CONFIG_ID but not logged in, try to find a custom config
+          if (selectedConfigId === FOXYCHAT_CONFIG_ID && !isUserLoggedIn) {
+            const allConfigs = await db.modelConfigs.toArray();
+            if (allConfigs.length > 0) {
+              // Auto-select the first available custom config
+              currentConfig = allConfigs[0];
+              shouldUseRemoteServer = false;
+            }
+          }
 
           // Build customApiSettings from the selected model config
           const customApiSettings =
@@ -673,7 +715,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               app: {
                 activeApp: previousApp,
                 openedApps: openedApps,
-                activeAppContent: previousAppContent,
               },
             },
           };

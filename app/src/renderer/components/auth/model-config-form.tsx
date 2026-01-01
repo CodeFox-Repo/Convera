@@ -234,6 +234,7 @@ export function ModelConfigForm({
           endpoint,
           apiKey,
           models,
+          isDefault: false,
         });
         toast.success("Configuration added successfully!");
       }

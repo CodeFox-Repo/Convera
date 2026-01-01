@@ -68,7 +68,6 @@ export const CHANNELS = {
   },
   APP: {
     APP_CHANGED: "app:changed",
-    CONTENT_UPDATED: "app:content-updated",
     GET_PREVIOUS: "app:get-previous",
     GET_PREVIOUS_ID: "app:get-previous-id",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",

@@ -45,11 +45,18 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       rejectSelectedContent,
       resetChatWindow,
       handleVoiceInput,
-      openSettings,
-      openHistoryWindow,
       attachments,
       addAttachments,
+      speechState,
     } = useChatContext();
+
+    // Window controls - dispatch events for the main process to handle
+    const openSettings = () => {
+      window.dispatchEvent(new CustomEvent("open-settings-window"));
+    };
+    const openHistoryWindow = () => {
+      window.dispatchEvent(new CustomEvent("open-history-window"));
+    };
 
     const { selectedModelId, setSelectedModelId } = useModelStore();
     const { formatAppName } = usePreviousApp();
@@ -251,6 +258,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               hasContent={!!editorContent.trim() || attachments.length > 0}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
+              isRecording={speechState?.isRecording}
             />
           </div>
         </div>

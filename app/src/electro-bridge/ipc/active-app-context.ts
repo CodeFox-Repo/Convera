@@ -1,5 +1,5 @@
-import { ChildProcess, execFile, spawn, exec } from "child_process";
-import { app, BrowserWindow } from "electron";
+import { execFile, exec } from "child_process";
+import { BrowserWindow } from "electron";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -16,125 +16,6 @@ import {
 let previousAppName = "";
 let previousAppId = 0;
 
-let swiftProcess: ChildProcess | null = null;
-const contentUpdateCallbacks: ((content: string) => void)[] = [];
-
-// Set to store apps that have been granted access
-const accessGrantedApps = new Set<string>();
-
-export function grantAccess(): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    // If app hasn't been granted access yet, run openAccess script first
-    if (!accessGrantedApps.has(previousAppName)) {
-      const projectRoot = app.isPackaged
-        ? process.resourcesPath
-        : app.getAppPath();
-      const openAccessPath = path.join(
-        projectRoot,
-        "scripts",
-        "openAccess.swift",
-      );
-      execFile("swift", [openAccessPath, previousAppName], (err) => {
-        if (err) {
-          console.error("Failed to grant access:", err);
-          return reject(err);
-        }
-        accessGrantedApps.add(previousAppName);
-        resolve(previousAppName);
-      });
-    } else {
-      resolve(previousAppName);
-    }
-  });
-}
-
-export function startAppContentMonitoring(appName: string): void {
-  if (swiftProcess) {
-    swiftProcess.kill();
-    swiftProcess = null;
-  }
-
-  const projectRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
-  const swiftScriptPath = path.join(projectRoot, "scripts", "Context.swift");
-  swiftProcess = spawn("swift", [swiftScriptPath, appName], {
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-
-  let buffer = "";
-
-  swiftProcess.stdout?.on("data", (data: Buffer) => {
-    buffer += data.toString();
-
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (line.trim()) {
-        try {
-          const update = JSON.parse(line);
-          if (update.type === "context_update") {
-            contentUpdateCallbacks.forEach((callback) =>
-              callback(update.content),
-            );
-            BrowserWindow.getAllWindows().forEach((win) => {
-              if (!win.isDestroyed()) {
-                win.webContents.send(CHANNELS.APP.CONTENT_UPDATED, update);
-              }
-            });
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    }
-  });
-
-  // swiftProcess.stderr?.on("data", (data: Buffer) => {
-  //   console.error("Swift error:", data.toString());
-  // });
-
-  swiftProcess.on("exit", (code) => {
-    console.log(`Swift process exit, code: ${code}`);
-    if (buffer.trim()) {
-      try {
-        const update = JSON.parse(buffer);
-        if (update.type === "context_update") {
-          contentUpdateCallbacks.forEach((callback) =>
-            callback(update.content),
-          );
-          BrowserWindow.getAllWindows().forEach((win) => {
-            if (!win.isDestroyed()) {
-              win.webContents.send(CHANNELS.APP.CONTENT_UPDATED, update);
-            }
-          });
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-    swiftProcess = null;
-  });
-}
-
-export function stopAppContentMonitoring(): void {
-  if (swiftProcess) {
-    swiftProcess.kill();
-    swiftProcess = null;
-  }
-}
-
-export function onContentUpdate(
-  callback: (content: string) => void,
-): () => void {
-  contentUpdateCallbacks.push(callback);
-  return () => {
-    const index = contentUpdateCallbacks.indexOf(callback);
-    if (index > -1) {
-      contentUpdateCallbacks.splice(index, 1);
-    }
-  };
-}
-
 export function setPreviousApp(appName: string, appId?: number): void {
   if (
     appName !== previousAppName ||
@@ -143,16 +24,6 @@ export function setPreviousApp(appName: string, appId?: number): void {
     previousAppName = appName;
     if (appId !== undefined) {
       previousAppId = appId;
-    }
-
-    if (appName) {
-      grantAccess()
-        .then(() => {
-          startAppContentMonitoring(appName);
-        })
-        .catch((err) => {
-          console.error("failed to grant access:", err);
-        });
     }
 
     BrowserWindow.getAllWindows().forEach((win) => {

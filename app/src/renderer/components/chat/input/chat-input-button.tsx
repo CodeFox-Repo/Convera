@@ -1,6 +1,5 @@
 import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
-import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import {
   Bot,
   History,
@@ -13,6 +12,7 @@ import {
   Square,
 } from "lucide-react";
 import React, { useEffect } from "react";
+import ModelSelector from "../popover/model-selector-popover";
 
 interface ChatInputButtonsProps {
   onReset?: () => void;
@@ -25,6 +25,7 @@ interface ChatInputButtonsProps {
   hasContent: boolean;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
+  isRecording?: boolean;
 }
 
 interface ActionButtonConfig {
@@ -52,15 +53,13 @@ interface ActionButtonConfig {
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
-  const { onOpenSettings, triggerHistoryWindow } = props;
+  const { onOpenSettings, triggerHistoryWindow, onVoiceInput, isRecording } =
+    props;
 
   const { previousApp, formatAppName } = usePreviousApp();
   const hookData = { previousApp, formatAppName };
   const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
     useAgentStore();
-
-  // Get speech state from chat context
-  const { speechState, handleVoiceInput } = useChatContext();
 
   useEffect(() => {
     const unsubscribe = subscribeToAgentChanges();
@@ -125,6 +124,11 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       ),
       show: true,
     },
+    {
+      id: "model-selector",
+      render: () => <ModelSelector />,
+      show: true,
+    },
   ];
 
   const defaultButtonClassName =
@@ -132,7 +136,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
 
   // Determine mic button state and styling
   const getMicButtonProps = () => {
-    if (speechState.isRecording) {
+    if (isRecording) {
       return {
         Icon: MicOff,
         className:
@@ -198,7 +202,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
       <div className="flex shrink-0 items-center mr-2">
         {/* Enhanced Mic Button with Speech State */}
         <button
-          onClick={handleVoiceInput}
+          onClick={onVoiceInput}
           className={micButtonProps.className}
           title={micButtonProps.title}
         >
