@@ -126,7 +126,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [useRemoteStore, setUseRemoteStore] = useState(false);
 
   // Use shared Zustand store for conversation ID to sync with sidebar selection
-  const { currentConversationId, setCurrentConversation: setCurrentConversationId } = useSelectionStore();
+  const {
+    currentConversationId,
+    setCurrentConversation: setCurrentConversationId,
+  } = useSelectionStore();
 
   // Debug: Log conversation ID changes
   useEffect(() => {
