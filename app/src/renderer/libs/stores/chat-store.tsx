@@ -12,7 +12,6 @@ import React, {
 } from "react";
 import { authClient } from "../auth-client";
 import { getApiBaseUrl } from "../env";
-import { usePreviousApp } from "../hooks/use-previous-app";
 import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
 import { updateOpenAISettings } from "../utils/settings";
 import { useAgentStore } from "./agent-store";
@@ -115,7 +114,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const { previousApp, openedApps } = usePreviousApp();
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -156,17 +154,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // Initialize speech-to-text hook
   const speechToText = useSpeechToText();
 
-  // Initialize settings on mount
+  // Initialize settings on mount (only once)
   useEffect(() => {
     initializeSettings();
-  }, [initializeSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Update useRemoteStore when settings change
+  // Update useRemoteStore when settings change - use specific value to avoid infinite loops
+  const settingsUseRemoteStore = settings?.openai?.useRemoteStore;
   useEffect(() => {
-    if (settings) {
-      setUseRemoteStore(settings.openai?.useRemoteStore || false);
+    if (settingsUseRemoteStore !== undefined) {
+      setUseRemoteStore(settingsUseRemoteStore);
     }
-  }, [settings]);
+  }, [settingsUseRemoteStore]);
 
   // Use reactive session hook for real-time authentication state
   const { data: session, refetch: refetchSession } = authClient.useSession();
@@ -711,12 +711,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             customApiSettings,
             // Re-enable MCP servers
             mcpServers,
-            environment: {
-              app: {
-                activeApp: previousApp,
-                openedApps: openedApps,
-              },
-            },
           };
           console.log("🔧 Frontend: Sending request with body:", requestBody);
 
@@ -746,8 +740,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedAgent,
       isUserLoggedIn,
       useRemoteStore,
-      previousApp,
-      openedApps,
       session,
     ],
   );

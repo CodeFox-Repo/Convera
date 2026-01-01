@@ -7,7 +7,6 @@ import React, { useEffect, useState } from "react";
 
 interface ContextButtonsProps {
   selectedContent: SelectedContent | null;
-  formatAppName: (name: string) => string;
   onRejectSelectedContent: () => void;
   onAddFile?: () => void;
 }
@@ -73,7 +72,6 @@ const RemainingFilesBadge = ({ count }: { count: number }) => {
 
 export function ContextButtons({
   selectedContent,
-  formatAppName,
   onRejectSelectedContent,
   onAddFile,
 }: ContextButtonsProps) {
@@ -99,9 +97,7 @@ export function ContextButtons({
             title="Add context"
           >
             <Plus size={14} className="flex-shrink-0" />
-            {!hasContexts && (
-              <span className="ml-1 mt-1">{formatAppName("Add context")}</span>
-            )}
+            {!hasContexts && <span className="ml-1 mt-1">Add context</span>}
           </button>
 
           {selectedContent && (
@@ -114,7 +110,7 @@ export function ContextButtons({
                 {selectedContent.text
                   ? selectedContent.text.slice(0, 30) +
                     (selectedContent.text.length > 30 ? "..." : "")
-                  : formatAppName("selected")}
+                  : "Selected"}
               </span>
               <button
                 onClick={onRejectSelectedContent}

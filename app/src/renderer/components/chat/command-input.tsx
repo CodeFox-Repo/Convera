@@ -1,8 +1,6 @@
 // Command Input Component
 // A clean, minimal input field inspired by Raycast's design philosophy
 // Supports both AI chat mode and command mode with "/" prefix
-import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
-import { useAppIcon } from "@/renderer/libs/hooks/use-app-icon";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import React, { forwardRef } from "react";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
@@ -40,9 +38,6 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
     },
     ref,
   ) => {
-    const { previousApp, formatAppName } = usePreviousApp();
-    const { iconData: appIcon, isLoading: iconLoading } =
-      useAppIcon(previousApp);
     const { selectedContent, setSelectedContent } = useChatContext();
 
     return (
@@ -76,7 +71,6 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               <div
                 className={cn(
                   "ml-4 z-10 flex items-center justify-center",
-                  previousApp ? "top-7" : "top-7",
                   isCommandMode && !selectedCommand && "-mr-4",
                 )}
               >
@@ -137,36 +131,6 @@ const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
             />
           </div>
 
-          {/* Active app badge - positioned inside input border at bottom left */}
-
-          <div className="pl-2">
-            {previousApp && (
-              <div className="inline-flex items-center gap-2 rounded text-sm font-medium text-foreground/60">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  {iconLoading ? (
-                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
-                  ) : appIcon ? (
-                    <img
-                      src={appIcon}
-                      alt={`${previousApp} icon`}
-                      className="w-5 h-5 rounded-sm object-cover"
-                      style={{
-                        imageRendering: "auto",
-                        filter: "contrast(1.05)",
-                      }}
-                    />
-                  ) : (
-                    <div className="w-5 h-5 rounded-sm bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                      <span className="text-[11px] font-semibold text-gray-600">
-                        {previousApp.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <span>{formatAppName(previousApp)}</span>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );

@@ -41,7 +41,7 @@ export function GeneralSettingsPage() {
     subscribeToSettingsChanges,
   } = useSettingsStore();
 
-  // Initialize stores on component mount
+  // Initialize stores on component mount (only once)
   useEffect(() => {
     initializeSettings();
     const unsubscribeSettings = subscribeToSettingsChanges();
@@ -50,11 +50,8 @@ export function GeneralSettingsPage() {
       unsubscribeSettings();
       unsubscribeModelConfigs();
     };
-  }, [
-    initializeSettings,
-    subscribeToSettingsChanges,
-    subscribeToModelConfigChanges,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(

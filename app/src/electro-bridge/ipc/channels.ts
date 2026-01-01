@@ -10,12 +10,9 @@ export interface IPCServer {
   initGlobalShortcut(shortcut: string): boolean;
 
   // App functionality
-  getPreviousApp(): string;
-  getPreviousAppID(): number;
   getClipboardText(): string;
   setInputContent(content: { text?: string }): void;
   pasteModifiedContent(content: string): void;
-  getOpenedApps(): Promise<string[]>;
 
   // Platform detection
   getPlatform(): string;
@@ -114,12 +111,9 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   initGlobalShortcut: CHANNELS.SHORTCUTS.INIT,
 
   // App functionality
-  getPreviousApp: CHANNELS.APP.GET_PREVIOUS,
-  getPreviousAppID: CHANNELS.APP.GET_PREVIOUS_ID,
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
   pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
-  getOpenedApps: CHANNELS.APP.GET_OPENED,
 
   // Platform detection
   getPlatform: CHANNELS.PLATFORM.GET,

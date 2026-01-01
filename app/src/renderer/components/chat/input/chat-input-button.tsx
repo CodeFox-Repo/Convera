@@ -1,4 +1,3 @@
-import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import {
   Bot,
@@ -6,7 +5,6 @@ import {
   LucideIcon,
   Mic,
   MicOff,
-  Monitor,
   Send,
   Settings,
   Square,
@@ -35,29 +33,14 @@ interface ActionButtonConfig {
   title?: string;
   onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
-  render?: (
-    props: ChatInputButtonsProps,
-    hookData: {
-      previousApp: ReturnType<typeof usePreviousApp>["previousApp"];
-      formatAppName: ReturnType<typeof usePreviousApp>["formatAppName"];
-    },
-  ) => React.ReactNode;
-  show:
-    | boolean
-    | ((
-        props: ChatInputButtonsProps,
-        hookData: {
-          previousApp: ReturnType<typeof usePreviousApp>["previousApp"];
-        },
-      ) => boolean);
+  render?: (props: ChatInputButtonsProps) => React.ReactNode;
+  show: boolean | ((props: ChatInputButtonsProps) => boolean);
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
   const { onOpenSettings, triggerHistoryWindow, onVoiceInput, isRecording } =
     props;
 
-  const { previousApp, formatAppName } = usePreviousApp();
-  const hookData = { previousApp, formatAppName };
   const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
     useAgentStore();
 
@@ -162,7 +145,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         {leftActionButtons.map((config) => {
           const isVisible =
             typeof config.show === "function"
-              ? config.show(props, hookData)
+              ? config.show(props)
               : config.show;
 
           if (!isVisible) {
@@ -172,7 +155,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           if (config.render) {
             return (
               <React.Fragment key={config.id}>
-                {config.render(props, hookData)}
+                {config.render(props)}
               </React.Fragment>
             );
           }
@@ -188,14 +171,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             </button>
           );
         })}
-
-        {/* previous app - only show when there's a valid previous app */}
-        {previousApp && formatAppName(previousApp) && (
-          <div className="no-drag-region bg-primary/20 text-black/40 dark:text-white flex items-center rounded px-2.5 py-1 text-sm font-medium">
-            <Monitor size={14} className="mr-1.5" />
-            {formatAppName(previousApp)}
-          </div>
-        )}
       </div>
 
       {/* Right side - Mic and Send buttons */}

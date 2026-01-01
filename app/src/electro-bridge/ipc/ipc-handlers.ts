@@ -6,7 +6,6 @@ import robot from "@/shared/robot";
 import { ThemeMode } from "@/shared/types/electron";
 import os from "os";
 import path from "path";
-import { activatePreviousApp } from "./active-app-context";
 import { CHANNELS } from "./channels";
 
 // Simple in-memory storage for current shortcut
@@ -282,17 +281,11 @@ export function simulateClipboardPaste(): void {
   }
 }
 
-// Handler for pasting modified content
+// Handler for pasting modified content (deprecated - no longer activates previous app)
 export function pasteModifiedContent(content: string): void {
   try {
-    console.log("Pasting modified content to previous app");
     clipboard.writeText(content);
-    activatePreviousApp();
-
-    // Wait a moment for the app to come to foreground, then paste
-    setTimeout(() => {
-      simulateClipboardPaste();
-    }, 500);
+    // Just copy to clipboard, user can paste manually
   } catch (error) {
     console.error("Error in pasteModifiedContent:", error);
   }

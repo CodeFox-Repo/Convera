@@ -2,13 +2,7 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode } from "@/shared/types/electron";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
-import {
-  getOpenedApps,
-  getAppIcon,
-  getPlatform,
-  getPreviousApp,
-  getPreviousAppID,
-} from "./active-app-context";
+import { getAppIcon, getPlatform } from "./active-app-context";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { setupEnvIPC } from "./env-context";
 import {
@@ -149,11 +143,6 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     }
     return initGlobalShortcut(shortcut, registerGlobalShortcuts);
   });
-
-  // App functionality
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS, getPreviousApp);
-  ipcMain.handle(CHANNELS.APP.GET_PREVIOUS_ID, getPreviousAppID);
-  ipcMain.handle(CHANNELS.APP.GET_OPENED, getOpenedApps);
 
   ipcMain.handle(CHANNELS.CLIPBOARD.GET_TEXT, () => {
     return getClipboardText();
