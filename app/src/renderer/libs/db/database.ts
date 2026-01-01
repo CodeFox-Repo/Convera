@@ -26,6 +26,7 @@ export interface Conversation {
     tags?: string[];
     archived?: boolean;
     starred?: boolean;
+    messageCount?: number;
   } | null;
   createdAt: Date;
   updatedAt: Date;

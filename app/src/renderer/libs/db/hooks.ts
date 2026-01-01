@@ -125,19 +125,29 @@ export async function updateMessages(
     // Delete old messages
     await db.messages.where("conversationId").equals(conversationId).delete();
 
-    // Add new messages
-    const now = new Date();
-    await db.messages.bulkAdd(
-      messages.map((msg) => ({
+    // Add new messages with incremental timestamps to preserve order
+    // Use bulkPut instead of bulkAdd to handle existing messages gracefully
+    const baseTime = Date.now();
+    await db.messages.bulkPut(
+      messages.map((msg, index) => ({
         ...msg,
         conversationId,
-        createdAt: now,
+        // Use index to ensure proper ordering
+        createdAt: new Date(baseTime + index),
       })),
     );
 
-    // Update conversation's updatedAt
+    // Get existing conversation to preserve metadata
+    const conv = await db.conversations.get(conversationId);
+    const existingMetadata = conv?.metadata || {};
+
+    // Update conversation's updatedAt and message count
     await db.conversations.update(conversationId, {
-      updatedAt: now,
+      updatedAt: new Date(),
+      metadata: {
+        ...existingMetadata,
+        messageCount: messages.length,
+      },
     });
   });
 }

@@ -31,6 +31,7 @@ export interface ConversationData {
     tags?: string[];
     archived?: boolean;
     starred?: boolean;
+    messageCount?: number;
   } | null;
   messages: Message[];
   createdAt: string;

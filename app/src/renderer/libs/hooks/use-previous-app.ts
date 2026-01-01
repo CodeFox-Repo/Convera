@@ -3,17 +3,8 @@ import { useEffect, useState } from "react";
 /**
  * Hook to track the previously active application
  */
-export interface PreviousAppContent {
-  appName: string;
-  content: string;
-  timestamp: number;
-  type: string;
-  notification: string;
-  currentURL?: string;
-}
 export function usePreviousApp() {
   const [previousApp, setPreviousApp] = useState<string>("");
-  const [previousAppContent, setPreviousAppContent] = useState<string>();
   // Initialize from localStorage to avoid empty array causing Finder fallback
   const [openedApps, setOpenedApps] = useState<string[]>(() => {
     const cached = localStorage.getItem("cachedOpenedApps");
@@ -62,18 +53,6 @@ export function usePreviousApp() {
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = window.activeAppAPI.onContentUpdate((newContent) => {
-      const res = newContent as unknown as PreviousAppContent;
-      if (res.appName === previousApp) {
-        setPreviousAppContent(
-          res.content + (res.currentURL ?? "[currentURL]" + res.currentURL),
-        );
-      }
-    });
-    return unsubscribe;
-  }, [previousApp]);
-
   // Fetch previous app on component mount and setup event listener for app changes
   useEffect(() => {
     // Initial fetch - immediately preload app data
@@ -115,7 +94,6 @@ export function usePreviousApp() {
     previousApp,
     formatAppName,
     fetchPreviousApp,
-    previousAppContent,
     openedApps,
   };
 }

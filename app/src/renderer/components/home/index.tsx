@@ -344,7 +344,7 @@ export function HomePage() {
                               {formatTimestamp(chat.createdAt || "")}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {chat.messages.length} msgs
+                              {chat.metadata?.messageCount ?? 0} msgs
                             </span>
                           </div>
                         </div>
