@@ -59,3 +59,31 @@ Convera integrates with MCP servers to provide extensible AI capabilities. The M
 - Follow existing code patterns and conventions
 - MCP servers should be developed in Remote-MCP-Servers repository
 - Main Convera app development happens in this repository
+
+## Solution Selection Principles
+
+**IMPORTANT: Prefer existing solutions over custom implementations.**
+
+When facing architectural decisions or significant feature implementations:
+
+1. **Research first, implement second**
+   - Before proposing a custom implementation, search for established libraries/solutions
+   - Present existing options to the user with pros/cons
+   - Let the user decide between existing solutions vs custom implementation
+
+2. **Examples of preferred existing solutions**
+   - Local storage: Dexie.js, PouchDB, sql.js (not custom IndexedDB wrappers)
+   - State management: Zustand, Jotai, TanStack Query (not custom stores)
+   - Form handling: React Hook Form, Formik (not custom form state)
+   - Data fetching: TanStack Query, SWR (not custom fetch wrappers)
+
+3. **When to consider custom implementation**
+   - No existing solution fits the specific requirements
+   - Existing solutions add unacceptable overhead
+   - User explicitly requests custom implementation
+   - The scope is small and well-contained
+
+4. **For large architectural changes**
+   - Always present 2-3 solution options with trade-offs
+   - Include package size, maintenance burden, community support
+   - Wait for user approval before proceeding

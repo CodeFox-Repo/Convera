@@ -32,12 +32,9 @@ exposeLoggerContext();
 // Expose Environment API to renderer process (separate from electronAPI)
 exposeEnvContext();
 
-// Expose Active App API to renderer process
-contextBridge.exposeInMainWorld("activeAppAPI", {
-  getPreviousApp: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS),
-  getPreviousAppID: () => ipcRenderer.invoke(CHANNELS.APP.GET_PREVIOUS_ID),
+// Expose Platform API to renderer process
+contextBridge.exposeInMainWorld("platformAPI", {
   getPlatform: () => ipcRenderer.invoke(CHANNELS.PLATFORM.GET),
-  getOpenedApps: () => ipcRenderer.invoke(CHANNELS.APP.GET_OPENED),
 });
 
 // Listen for the custom event to relay agent list updates via IPC

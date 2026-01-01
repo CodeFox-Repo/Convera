@@ -1,5 +1,4 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
-import { usePreviousApp } from "@/renderer/libs/hooks/use-previous-app";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
 import { File } from "lucide-react";
@@ -59,7 +58,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     };
 
     const { selectedModelId, setSelectedModelId } = useModelStore();
-    const { formatAppName } = usePreviousApp();
 
     // Watch for speech input changes and update editor directly
     useEffect(() => {
@@ -219,7 +217,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           >
             <ContextButtons
               selectedContent={selectedContent || null}
-              formatAppName={formatAppName}
               onRejectSelectedContent={rejectSelectedContent}
               onAddFile={handleFileUpload}
             />

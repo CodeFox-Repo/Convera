@@ -10,6 +10,7 @@
  * - Settings persistence
  */
 
+import { useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { useSetting, setSetting, getSetting } from "../db";
 import { useSettingsUIState } from "../db/ui-state";
@@ -32,6 +33,10 @@ const SETTINGS_KEYS = {
 } as const;
 
 // ==================== Default Values ====================
+
+// Initialization flag to prevent multiple initializations and infinite loops
+let isInitialized = false;
+let initializationPromise: Promise<void> | null = null;
 
 const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
   endpoint: "",
@@ -85,45 +90,57 @@ export function useSettingsStore() {
   // UI state
   const uiState = useSettingsUIState();
 
-  // Build complete settings object
-  const settings: AppSettings = {
-    openai: openaiSettings,
-    shortcuts: shortcuts.length > 0 ? shortcuts : [],
-    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
-  };
+  // Memoize the settings object to prevent infinite re-renders
+  const settings: AppSettings = useMemo(
+    () => ({
+      openai: openaiSettings,
+      shortcuts: shortcuts.length > 0 ? shortcuts : [],
+      mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+    }),
+    [openaiSettings, shortcuts],
+  );
 
-  return {
-    // State
-    settings,
-    settingsLoading: false,
-    settingsInitialized: true,
-    currentTheme: uiState.currentTheme,
-    activeShortcut: uiState.activeShortcut,
-    recordingShortcut: uiState.recordingShortcut,
-    devModeEnabled: uiState.devModeEnabled,
-    experimentalFeatures: uiState.experimentalFeatures,
+  // Memoize callbacks to prevent unnecessary re-renders
+  const initializeSettings = useCallback(async () => {
+    // Prevent multiple initializations to avoid infinite loops
+    if (isInitialized) {
+      return;
+    }
 
-    // Actions
-    initializeSettings: async () => {
-      // Load default shortcuts if none exist
-      const existingShortcuts = await getSetting<ShortcutSettings[]>(
-        SETTINGS_KEYS.SHORTCUTS,
-      );
-      if (!existingShortcuts || existingShortcuts.length === 0) {
-        const defaultShortcuts = await getDefaultShortcuts();
-        await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
-      }
+    if (initializationPromise) {
+      return initializationPromise;
+    }
 
-      // Get current theme
+    initializationPromise = (async () => {
       try {
-        const themeResult = await getCurrentTheme();
-        uiState.setTheme(themeResult.system as "light" | "dark" | "system");
-      } catch (error) {
-        console.error("Failed to get current theme:", error);
-      }
-    },
+        // Load default shortcuts if none exist
+        const existingShortcuts = await getSetting<ShortcutSettings[]>(
+          SETTINGS_KEYS.SHORTCUTS,
+        );
+        if (!existingShortcuts || existingShortcuts.length === 0) {
+          const defaultShortcuts = await getDefaultShortcuts();
+          await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
+        }
 
-    handleOpenAIChange: async (field: string, value: string) => {
+        // Get current theme
+        try {
+          const themeResult = await getCurrentTheme();
+          uiState.setTheme(themeResult.system as "light" | "dark" | "system");
+        } catch (error) {
+          console.error("Failed to get current theme:", error);
+        }
+
+        isInitialized = true;
+      } finally {
+        initializationPromise = null;
+      }
+    })();
+
+    return initializationPromise;
+  }, [uiState]);
+
+  const handleOpenAIChange = useCallback(
+    async (field: string, value: string) => {
       if (field === "apiKey" && value.trim() && value.startsWith("Bearer ")) {
         toast.warning('Please enter the API key without "Bearer" prefix');
         return;
@@ -149,8 +166,11 @@ export function useSettingsStore() {
         toast.success("Settings saved");
       }
     },
+    [openaiSettings],
+  );
 
-    handleAddSupportedModel: async (model: string) => {
+  const handleAddSupportedModel = useCallback(
+    async (model: string) => {
       if (!model.trim() || openaiSettings.supportedModels.includes(model)) {
         if (openaiSettings.supportedModels.includes(model)) {
           toast.error("Model already in the list");
@@ -166,8 +186,11 @@ export function useSettingsStore() {
       await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
       toast.success("Model added to supported list");
     },
+    [openaiSettings],
+  );
 
-    handleRemoveSupportedModel: async (model: string) => {
+  const handleRemoveSupportedModel = useCallback(
+    async (model: string) => {
       const updatedOpenAI = {
         ...openaiSettings,
         supportedModels: openaiSettings.supportedModels.filter(
@@ -178,47 +201,44 @@ export function useSettingsStore() {
       await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
       toast.success("Model removed from supported list");
     },
+    [openaiSettings],
+  );
 
-    handleResetShortcuts: async () => {
-      const defaultShortcuts = await getDefaultShortcuts();
-      await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
+  const handleResetShortcuts = useCallback(async () => {
+    const defaultShortcuts = await getDefaultShortcuts();
+    await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
 
-      // Update the main process with the new activate shortcut
-      const activateShortcut = defaultShortcuts.find(
-        (s) => s.id === "activate",
-      );
-      if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
-        try {
-          await window.electronAPI.updateGlobalShortcut(
-            activateShortcut.shortcut,
-          );
-          toast.success("Shortcuts reset to default");
-        } catch (error) {
-          console.error("Error updating global shortcut after reset:", error);
-          toast.warning("Shortcuts reset, but global shortcut update failed");
-        }
-      } else {
-        toast.success("Shortcuts reset to default");
-      }
-    },
-
-    handleToggleTheme: async () => {
+    // Update the main process with the new activate shortcut
+    const activateShortcut = defaultShortcuts.find((s) => s.id === "activate");
+    if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
       try {
-        await toggleTheme();
-        const { system } = await getCurrentTheme();
-        uiState.setTheme(system as "light" | "dark" | "system");
-        toast.success(`Theme switched to ${system} mode`);
+        await window.electronAPI.updateGlobalShortcut(
+          activateShortcut.shortcut,
+        );
+        toast.success("Shortcuts reset to default");
       } catch (error) {
-        console.error("Error toggling theme:", error);
-        toast.error("Failed to toggle theme");
+        console.error("Error updating global shortcut after reset:", error);
+        toast.warning("Shortcuts reset, but global shortcut update failed");
       }
-    },
+    } else {
+      toast.success("Shortcuts reset to default");
+    }
+  }, []);
 
-    // Shortcut recording actions
-    setActiveShortcut: uiState.setActiveShortcut,
-    setRecordingShortcut: uiState.setRecordingShortcut,
+  const handleToggleTheme = useCallback(async () => {
+    try {
+      await toggleTheme();
+      const { system } = await getCurrentTheme();
+      uiState.setTheme(system as "light" | "dark" | "system");
+      toast.success(`Theme switched to ${system} mode`);
+    } catch (error) {
+      console.error("Error toggling theme:", error);
+      toast.error("Failed to toggle theme");
+    }
+  }, [uiState]);
 
-    saveRecordedShortcut: async (shortcut: string) => {
+  const saveRecordedShortcut = useCallback(
+    async (shortcut: string) => {
       const { activeShortcut } = uiState;
       if (!activeShortcut || !shortcut) return;
 
@@ -242,15 +262,43 @@ export function useSettingsStore() {
       uiState.setActiveShortcut(null);
       toast.success("Shortcut updated");
     },
+    [uiState],
+  );
+
+  const subscribeToSettingsChanges = useCallback(() => {
+    // No-op, Dexie liveQuery handles reactivity
+    return () => {};
+  }, []);
+
+  return {
+    // State
+    settings,
+    settingsLoading: false,
+    settingsInitialized: true,
+    currentTheme: uiState.currentTheme,
+    activeShortcut: uiState.activeShortcut,
+    recordingShortcut: uiState.recordingShortcut,
+    devModeEnabled: uiState.devModeEnabled,
+    experimentalFeatures: uiState.experimentalFeatures,
+
+    // Actions
+    initializeSettings,
+    handleOpenAIChange,
+    handleAddSupportedModel,
+    handleRemoveSupportedModel,
+    handleResetShortcuts,
+    handleToggleTheme,
+
+    // Shortcut recording actions
+    setActiveShortcut: uiState.setActiveShortcut,
+    setRecordingShortcut: uiState.setRecordingShortcut,
+    saveRecordedShortcut,
 
     // UI state actions
     setDevModeEnabled: uiState.setDevMode,
     setExperimentalFeature: uiState.setExperimentalFeature,
 
-    subscribeToSettingsChanges: () => {
-      // No-op, Dexie liveQuery handles reactivity
-      return () => {};
-    },
+    subscribeToSettingsChanges,
   };
 }
 

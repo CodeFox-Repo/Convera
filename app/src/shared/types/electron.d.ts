@@ -94,11 +94,8 @@ export interface IElectronAPI {
   onNavigateToSettings: (callback: () => void) => () => void;
 }
 
-export interface IActiveAppAPI {
-  getPreviousApp: () => Promise<string>;
-  getPreviousAppID: () => Promise<number>;
+export interface IPlatformAPI {
   getPlatform: () => Promise<string>;
-  getOpenedApps: () => Promise<string[]>;
 }
 
 // Define the Environment API interface
@@ -110,7 +107,7 @@ export interface IEnvAPI {
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
-    activeAppAPI: IActiveAppAPI;
+    platformAPI: IPlatformAPI;
     mcpAPI: IMcpAPI;
     envApi: IEnvAPI;
     logger: WindowLogger;

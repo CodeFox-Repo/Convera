@@ -7,12 +7,7 @@ import {
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
-import { exec } from "child_process";
 
-import {
-  setPreviousApp,
-  preloadAllAppData,
-} from "@/electro-bridge/ipc/active-app-context";
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
 import {
@@ -26,80 +21,8 @@ import {
   preCreateMainWindow,
 } from "./windows/main-window";
 
-const { activeWindowSync } =
-  process.platform === "win32"
-    ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require("get-windows")
-    : { activeWindowSync: null };
-
-let trackingAppFocus = false;
-
 // Initialize logger for main process
 const logger = getLogger("main-process");
-
-// Start background app tracking on macOS and Windows
-function startAppFocusTracking() {
-  // Only run on supported platforms and only start once
-  if (
-    (process.platform !== "darwin" && process.platform !== "win32") ||
-    trackingAppFocus
-  ) {
-    return;
-  }
-
-  trackingAppFocus = true;
-
-  // Use a timer to periodically check the focused app in the background
-  setInterval(() => {
-    // Don't run the check if our app is in focus to avoid unnecessary processing
-    const ourAppIsFocused = BrowserWindow.getAllWindows().some((win) =>
-      win.isFocused(),
-    );
-    if (ourAppIsFocused) {
-      return;
-    }
-
-    if (process.platform === "darwin") {
-      // macOS implementation
-      const script =
-        'tell application "System Events" to get name of first application process whose frontmost is true';
-      exec(`osascript -e '${script}'`, (error, stdout) => {
-        if (!error && stdout) {
-          const appName = stdout.trim();
-
-          // Ignore self-referential applications
-          const ignoreList = ["Electron", "Convera", "convera"];
-          if (appName && !ignoreList.some((name) => appName.includes(name))) {
-            setPreviousApp(appName);
-          }
-        }
-      });
-    } else if (process.platform === "win32") {
-      // Windows implementation using get-windows package
-      try {
-        const activeWindow = activeWindowSync();
-        if (activeWindow && activeWindow.owner) {
-          const appName = activeWindow.owner.name;
-          const appId = activeWindow.owner.processId;
-          // console.log(`Detected active application: ${appName}`);
-
-          // Ignore self-referential applications
-          const ignoreList = ["electron", "Convera", "convera"];
-          if (
-            appName &&
-            !ignoreList.some((name) =>
-              appName.toLowerCase().includes(name.toLowerCase()),
-            )
-          ) {
-            setPreviousApp(appName, appId);
-          }
-        }
-      } catch (error) {
-        console.error("Error using get-windows:", error);
-      }
-    }
-  }, 500);
-}
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
@@ -168,20 +91,7 @@ app.whenReady().then(async () => {
         logger.error("MCP Hub initialization failed:", error);
       });
 
-    // Start app data preloading immediately (in background)
-    console.log("Starting app data preloading immediately...");
-    preloadAllAppData()
-      .then(() => {
-        console.log("App data preloading completed successfully");
-        logger.info("App data preloading completed");
-      })
-      .catch((error) => {
-        console.error("App data preloading failed:", error);
-        logger.error("App data preloading failed:", error);
-      });
-
     // Start background processes that don't block UI
-    startAppFocusTracking();
     registerGlobalShortcuts();
     setupScreenResizeHandlers();
 
