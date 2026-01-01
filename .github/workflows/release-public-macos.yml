@@ -109,7 +109,7 @@ jobs:
 
       # Clean and rebuild robotjs for release environment
       - name: Clean and rebuild robotjs for release
-        working-directory: app
+        working-directory: packages/app
         run: |
           export CI=false
           rm -rf node_modules/@hurdlegroup/robotjs/build
@@ -117,7 +117,7 @@ jobs:
 
       # Build the app
       - name: Build and package app
-        working-directory: app
+        working-directory: packages/app
         run: pnpm run make:robotjs
 
       # Find and verify the DMG file
@@ -127,12 +127,12 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
           echo "🔍 Looking for DMG file..."
-          DMG_PATH=$(find app/out/make -name "*.dmg" | head -1)
+          DMG_PATH=$(find packages/app/out/make -name "*.dmg" | head -1)
 
           if [ -z "$DMG_PATH" ]; then
             echo "❌ No DMG file found"
             echo "Available files:"
-            find app/out -name "*" -type f
+            find packages/app/out -name "*" -type f
             exit 1
           fi
 

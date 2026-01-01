@@ -1,5 +1,5 @@
-# Get the new version from app/package.json
-APP_VERSION=$(node -p "require('./app/package.json').version")
+# Get the new version from packages/app/package.json
+APP_VERSION=$(node -p "require('./packages/app/package.json').version")
 echo "📦 App version: $APP_VERSION"
 
 # Update root package.json version to match app version

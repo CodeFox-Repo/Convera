@@ -50,7 +50,7 @@ jobs:
 
       # Clean and rebuild robotjs for release environment
       - name: Clean and rebuild robotjs for release
-        working-directory: app
+        working-directory: packages/app
         run: |
           # Set environment for native compilation
           export CI=false
@@ -63,12 +63,12 @@ jobs:
 
       # Run tests
       - name: Run tests
-        working-directory: app
+        working-directory: packages/app
         run: pnpm test
 
       # Make app distributable (this will also package)
       - name: Make app distributable with robotjs
-        working-directory: app
+        working-directory: packages/app
         run: pnpm run make:robotjs
 
       # Get version from tag
@@ -82,8 +82,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/out/make/**/*.dmg
-            app/out/make/**/*.zip
+            packages/app/out/make/**/*.dmg
+            packages/app/out/make/**/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
