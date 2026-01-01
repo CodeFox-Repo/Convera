@@ -24,7 +24,7 @@ import {
  */
 export function useConversations() {
   return useLiveQuery(() =>
-    db.conversations.orderBy("updatedAt").reverse().toArray()
+    db.conversations.orderBy("updatedAt").reverse().toArray(),
   );
 }
 
@@ -32,10 +32,7 @@ export function useConversations() {
  * Get a single conversation
  */
 export function useConversation(id: string | null) {
-  return useLiveQuery(
-    () => (id ? db.conversations.get(id) : undefined),
-    [id]
-  );
+  return useLiveQuery(() => (id ? db.conversations.get(id) : undefined), [id]);
 }
 
 /**
@@ -50,14 +47,14 @@ export function useMessages(conversationId: string | null) {
             .equals(conversationId)
             .sortBy("createdAt")
         : [],
-    [conversationId]
+    [conversationId],
   );
 }
 
 // ==================== Conversation Actions ====================
 
 export async function createConversation(
-  data: Partial<Omit<Conversation, "id" | "createdAt" | "updatedAt">>
+  data: Partial<Omit<Conversation, "id" | "createdAt" | "updatedAt">>,
 ): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date();
@@ -78,7 +75,7 @@ export async function createConversation(
 
 export async function updateConversation(
   id: string,
-  updates: Partial<Omit<Conversation, "id" | "createdAt">>
+  updates: Partial<Omit<Conversation, "id" | "createdAt">>,
 ): Promise<void> {
   await db.conversations.update(id, {
     ...updates,
@@ -97,7 +94,7 @@ export async function deleteConversation(id: string): Promise<void> {
 
 export async function addMessage(
   conversationId: string,
-  message: Omit<Message, "id" | "conversationId" | "createdAt">
+  message: Omit<Message, "id" | "conversationId" | "createdAt">,
 ): Promise<string> {
   const id = crypto.randomUUID();
 
@@ -120,7 +117,9 @@ export async function addMessage(
 
 export async function updateMessages(
   conversationId: string,
-  messages: Array<Omit<Message, "conversationId" | "createdAt"> & { id: string }>
+  messages: Array<
+    Omit<Message, "conversationId" | "createdAt"> & { id: string }
+  >,
 ): Promise<void> {
   await db.transaction("rw", [db.messages, db.conversations], async () => {
     // Delete old messages
@@ -133,7 +132,7 @@ export async function updateMessages(
         ...msg,
         conversationId,
         createdAt: now,
-      }))
+      })),
     );
 
     // Update conversation's updatedAt
@@ -168,20 +167,20 @@ export function useAgents() {
  * Get a single agent
  */
 export function useAgent(id: string | null) {
-  return useLiveQuery(
-    () => {
-      if (!id) return undefined;
-      if (id === DEFAULT_AGENT.id || id === "") return DEFAULT_AGENT;
-      return db.agents.get(id);
-    },
-    [id]
-  );
+  return useLiveQuery(() => {
+    if (!id) return undefined;
+    if (id === DEFAULT_AGENT.id || id === "") return DEFAULT_AGENT;
+    return db.agents.get(id);
+  }, [id]);
 }
 
 // ==================== Agent Actions ====================
 
 export async function createAgent(
-  data: Omit<Agent, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined">
+  data: Omit<
+    Agent,
+    "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined"
+  >,
 ): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date();
@@ -200,7 +199,7 @@ export async function createAgent(
 
 export async function updateAgent(
   id: string,
-  updates: Partial<Omit<Agent, "id" | "createdAt" | "isBuiltIn">>
+  updates: Partial<Omit<Agent, "id" | "createdAt" | "isBuiltIn">>,
 ): Promise<void> {
   if (id === DEFAULT_AGENT.id || id === "") {
     // Cannot update built-in agent
@@ -234,15 +233,16 @@ export function useModelConfigs() {
  */
 export function useModelConfig(id: string | null) {
   return useLiveQuery(
-    () => (id && id !== FOXYCHAT_CONFIG_ID ? db.modelConfigs.get(id) : undefined),
-    [id]
+    () =>
+      id && id !== FOXYCHAT_CONFIG_ID ? db.modelConfigs.get(id) : undefined,
+    [id],
   );
 }
 
 // ==================== Model Config Actions ====================
 
 export async function createModelConfig(
-  data: Omit<ModelConfig, "id">
+  data: Omit<ModelConfig, "id">,
 ): Promise<string> {
   const id = `config-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -256,7 +256,7 @@ export async function createModelConfig(
 
 export async function updateModelConfig(
   id: string,
-  updates: Partial<Omit<ModelConfig, "id">>
+  updates: Partial<Omit<ModelConfig, "id">>,
 ): Promise<void> {
   await db.modelConfigs.update(id, updates);
 }

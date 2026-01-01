@@ -38,7 +38,8 @@ interface GroupedModel {
  */
 export function useModelConfigStore() {
   const modelConfigs = useModelConfigs();
-  const { selectedConfigId, selectedModelId, setSelectedModel } = useSelectionStore();
+  const { selectedConfigId, selectedModelId, setSelectedModel } =
+    useSelectionStore();
   const currentConfig = useModelConfig(selectedConfigId);
 
   return {
@@ -53,7 +54,10 @@ export function useModelConfigStore() {
       return id;
     },
 
-    updateModelConfig: async (id: string, updates: Partial<Omit<ModelConfig, "id">>) => {
+    updateModelConfig: async (
+      id: string,
+      updates: Partial<Omit<ModelConfig, "id">>,
+    ) => {
       await updateConfigDB(id, updates);
     },
 
@@ -73,13 +77,13 @@ export function useModelConfigStore() {
       window.dispatchEvent(
         new CustomEvent("model-config-selected", {
           detail: { configId, modelId },
-        })
+        }),
       );
 
       window.dispatchEvent(
         new CustomEvent("model-selected", {
           detail: { modelId },
-        })
+        }),
       );
     },
 
@@ -172,7 +176,9 @@ useModelConfigStore.getState = () => {
 /**
  * Create model config (without hook)
  */
-export async function createModelConfig(config: Omit<ModelConfig, "id">): Promise<string> {
+export async function createModelConfig(
+  config: Omit<ModelConfig, "id">,
+): Promise<string> {
   return await createConfigDB(config);
 }
 
@@ -181,7 +187,7 @@ export async function createModelConfig(config: Omit<ModelConfig, "id">): Promis
  */
 export async function updateModelConfig(
   id: string,
-  updates: Partial<Omit<ModelConfig, "id">>
+  updates: Partial<Omit<ModelConfig, "id">>,
 ): Promise<void> {
   await updateConfigDB(id, updates);
 }
@@ -198,7 +204,7 @@ export async function deleteModelConfig(id: string): Promise<void> {
  */
 export async function fetchModelsFromEndpoint(
   endpoint: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<string[]> {
   // Normalize endpoint and build models URL
   const normalizedEndpoint = endpoint.replace(/\/+$/, "");

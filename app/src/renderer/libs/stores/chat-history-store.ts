@@ -49,19 +49,19 @@ export function useChatHistoryStore() {
   const messages = useMessages(currentConversationId);
 
   // Convert to old format ConversationData (with messages)
-  const conversationsWithMessages: ConversationData[] = (conversations || []).map(
-    (conv) => ({
-      id: conv.id,
-      title: conv.title,
-      agentId: conv.agentId,
-      modelId: conv.modelId,
-      systemPrompt: conv.systemPrompt,
-      metadata: conv.metadata as ConversationData["metadata"],
-      messages: [], // Messages are queried separately
-      createdAt: conv.createdAt.toISOString(),
-      updatedAt: conv.updatedAt.toISOString(),
-    })
-  );
+  const conversationsWithMessages: ConversationData[] = (
+    conversations || []
+  ).map((conv) => ({
+    id: conv.id,
+    title: conv.title,
+    agentId: conv.agentId,
+    modelId: conv.modelId,
+    systemPrompt: conv.systemPrompt,
+    metadata: conv.metadata as ConversationData["metadata"],
+    messages: [], // Messages are queried separately
+    createdAt: conv.createdAt.toISOString(),
+    updatedAt: conv.updatedAt.toISOString(),
+  }));
 
   return {
     // State
@@ -105,7 +105,7 @@ export function useChatHistoryStore() {
 
     updateConversation: async (
       id: string,
-      updates: Partial<Omit<Conversation, "id" | "createdAt">>
+      updates: Partial<Omit<Conversation, "id" | "createdAt">>,
     ) => {
       await updateConversation(id, updates);
     },
@@ -126,14 +126,17 @@ export function useChatHistoryStore() {
         msgs.map((m) => ({
           id: m.id,
           role: m.role as "user" | "assistant" | "system" | "tool",
-          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+          content:
+            typeof m.content === "string"
+              ? m.content
+              : JSON.stringify(m.content),
           toolInvocations: m.toolInvocations,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
             name: a.name ?? "",
             contentType: a.contentType ?? "",
           })),
-        }))
+        })),
       );
     },
 
@@ -143,13 +146,18 @@ export function useChatHistoryStore() {
 
       await addMessage(currentConversationId, {
         role: message.role as "user" | "assistant" | "system" | "tool",
-        content: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+        content:
+          typeof message.content === "string"
+            ? message.content
+            : JSON.stringify(message.content),
         toolInvocations: message.toolInvocations,
-        experimental_attachments: message.experimental_attachments?.map((a) => ({
-          url: a.url,
-          name: a.name ?? "",
-          contentType: a.contentType ?? "",
-        })),
+        experimental_attachments: message.experimental_attachments?.map(
+          (a) => ({
+            url: a.url,
+            name: a.name ?? "",
+            contentType: a.contentType ?? "",
+          }),
+        ),
       });
     },
   };
@@ -175,7 +183,8 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
           role: m.role as "user" | "assistant" | "system" | "data",
           content: m.content,
           toolInvocations: m.toolInvocations as Message["toolInvocations"],
-          experimental_attachments: m.experimental_attachments as Message["experimental_attachments"],
+          experimental_attachments:
+            m.experimental_attachments as Message["experimental_attachments"],
           createdAt: m.createdAt,
         }));
       setMessages(aiMessages);
@@ -199,7 +208,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
     async (conversationId: string) => {
       setCurrentConversation(conversationId);
     },
-    [setCurrentConversation]
+    [setCurrentConversation],
   );
 
   const deleteChat = useCallback(
@@ -209,7 +218,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
         setCurrentConversation(null);
       }
     },
-    [currentConversationId, setCurrentConversation]
+    [currentConversationId, setCurrentConversation],
   );
 
   const createNewConversation = useCallback(
@@ -259,7 +268,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
         updatedAt: new Date().toISOString(),
       } as ConversationData;
     },
-    [setCurrentConversation]
+    [setCurrentConversation],
   );
 
   return {

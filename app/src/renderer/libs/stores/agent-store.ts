@@ -29,13 +29,18 @@ export { DEFAULT_AGENT };
  */
 export function useAgentStore() {
   const agents = useAgents();
-  const { selectedAgentId, setSelectedAgent: setSelectedAgentId } = useSelectionStore();
+  const { selectedAgentId, setSelectedAgent: setSelectedAgentId } =
+    useSelectionStore();
   const selectedAgent = useAgent(selectedAgentId);
 
   return {
     // State
     availableAgents: agents || [DEFAULT_AGENT],
-    selectedAgent: selectedAgent || (selectedAgentId === "" || selectedAgentId === null ? DEFAULT_AGENT : null),
+    selectedAgent:
+      selectedAgent ||
+      (selectedAgentId === "" || selectedAgentId === null
+        ? DEFAULT_AGENT
+        : null),
     agentChanged: false,
     prevAgentId: null,
 
@@ -47,7 +52,7 @@ export function useAgentStore() {
       window.dispatchEvent(
         new CustomEvent("agent-selected", {
           detail: { agent },
-        })
+        }),
       );
     },
 
@@ -86,7 +91,12 @@ export function useAgentStore() {
       });
     },
 
-    createAgent: async (agentData: Omit<Agent, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined">) => {
+    createAgent: async (
+      agentData: Omit<
+        Agent,
+        "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined"
+      >,
+    ) => {
       const id = await createAgentDB(agentData);
       const newAgent: Agent = {
         ...agentData,
@@ -116,13 +126,13 @@ export function useAgentStore() {
 
     triggerAgentSelect: async (
       e: React.MouseEvent<HTMLButtonElement>,
-      agent: Agent | null | undefined
+      agent: Agent | null | undefined,
     ) => {
       e.stopPropagation();
       window.dispatchEvent(
         new CustomEvent("toggle-agent-popover", {
           detail: { selectedAgent: agent ?? null },
-        })
+        }),
       );
     },
 
@@ -155,10 +165,14 @@ useAgentStore.getState = () => {
     availableAgents: [] as Agent[],
     // Async version to get actual data
     getSelectedAgent: async (): Promise<Agent | null> => {
-      if (!selectedAgentId || selectedAgentId === "" || selectedAgentId === DEFAULT_AGENT.id) {
+      if (
+        !selectedAgentId ||
+        selectedAgentId === "" ||
+        selectedAgentId === DEFAULT_AGENT.id
+      ) {
         return DEFAULT_AGENT;
       }
-      return await db.agents.get(selectedAgentId) || null;
+      return (await db.agents.get(selectedAgentId)) || null;
     },
   };
 };
@@ -169,7 +183,10 @@ useAgentStore.getState = () => {
  * Create Agent directly (without hook)
  */
 export async function createAgent(
-  agentData: Omit<Agent, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined">
+  agentData: Omit<
+    Agent,
+    "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "predefined"
+  >,
 ): Promise<Agent> {
   const id = await createAgentDB(agentData);
   return {
@@ -187,7 +204,7 @@ export async function createAgent(
  */
 export async function updateAgent(
   id: string,
-  updates: Partial<Omit<Agent, "id" | "createdAt" | "isBuiltIn">>
+  updates: Partial<Omit<Agent, "id" | "createdAt" | "isBuiltIn">>,
 ): Promise<void> {
   if (id === DEFAULT_AGENT.id || id === "") {
     return;

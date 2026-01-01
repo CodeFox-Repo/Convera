@@ -11,17 +11,17 @@
  */
 
 import { toast } from "sonner";
-import {
-  useSetting,
-  setSetting,
-  getSetting,
-} from "../db";
+import { useSetting, setSetting, getSetting } from "../db";
 import { useSettingsUIState } from "../db/ui-state";
 import {
   getCurrentTheme,
   toggleTheme,
 } from "@/renderer/libs/helper/theme_helpers";
-import { AppSettings, ShortcutSettings, OpenAISettings } from "@/shared/types/settings";
+import {
+  AppSettings,
+  ShortcutSettings,
+  OpenAISettings,
+} from "@/shared/types/settings";
 
 // ==================== Settings Keys ====================
 
@@ -49,7 +49,8 @@ const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
 };
 
 async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
-  const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac");
+  const isMac =
+    typeof window !== "undefined" && navigator.userAgent.includes("Mac");
 
   return [
     {
@@ -75,7 +76,10 @@ async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
  */
 export function useSettingsStore() {
   // Get settings from Dexie
-  const openaiSettings = useSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI, DEFAULT_OPENAI_SETTINGS);
+  const openaiSettings = useSetting<OpenAISettings>(
+    SETTINGS_KEYS.OPENAI,
+    DEFAULT_OPENAI_SETTINGS,
+  );
   const shortcuts = useSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS, []);
 
   // UI state
@@ -102,7 +106,9 @@ export function useSettingsStore() {
     // Actions
     initializeSettings: async () => {
       // Load default shortcuts if none exist
-      const existingShortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
+      const existingShortcuts = await getSetting<ShortcutSettings[]>(
+        SETTINGS_KEYS.SHORTCUTS,
+      );
       if (!existingShortcuts || existingShortcuts.length === 0) {
         const defaultShortcuts = await getDefaultShortcuts();
         await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
@@ -134,7 +140,7 @@ export function useSettingsStore() {
         window.dispatchEvent(
           new CustomEvent("model-selected", {
             detail: { modelId: value },
-          })
+          }),
         );
         toast.success("Model updated");
       } else if (field === "useRemoteStore") {
@@ -164,7 +170,9 @@ export function useSettingsStore() {
     handleRemoveSupportedModel: async (model: string) => {
       const updatedOpenAI = {
         ...openaiSettings,
-        supportedModels: openaiSettings.supportedModels.filter((m) => m !== model),
+        supportedModels: openaiSettings.supportedModels.filter(
+          (m) => m !== model,
+        ),
       };
 
       await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
@@ -176,10 +184,14 @@ export function useSettingsStore() {
       await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
 
       // Update the main process with the new activate shortcut
-      const activateShortcut = defaultShortcuts.find((s) => s.id === "activate");
+      const activateShortcut = defaultShortcuts.find(
+        (s) => s.id === "activate",
+      );
       if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
         try {
-          await window.electronAPI.updateGlobalShortcut(activateShortcut.shortcut);
+          await window.electronAPI.updateGlobalShortcut(
+            activateShortcut.shortcut,
+          );
           toast.success("Shortcuts reset to default");
         } catch (error) {
           console.error("Error updating global shortcut after reset:", error);
@@ -210,9 +222,10 @@ export function useSettingsStore() {
       const { activeShortcut } = uiState;
       if (!activeShortcut || !shortcut) return;
 
-      const currentShortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [];
+      const currentShortcuts =
+        (await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS)) || [];
       const updatedShortcuts = currentShortcuts.map((s) =>
-        s.id === activeShortcut ? { ...s, shortcut } : s
+        s.id === activeShortcut ? { ...s, shortcut } : s,
       );
 
       await setSetting(SETTINGS_KEYS.SHORTCUTS, updatedShortcuts);
@@ -247,15 +260,18 @@ export function useSettingsStore() {
  * Update OpenAI settings (without hook)
  */
 export async function updateOpenAISettings(
-  updates: Partial<OpenAISettings>
+  updates: Partial<OpenAISettings>,
 ): Promise<AppSettings> {
-  const current = await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS;
+  const current =
+    (await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI)) ||
+    DEFAULT_OPENAI_SETTINGS;
   const updated = { ...current, ...updates };
   await setSetting(SETTINGS_KEYS.OPENAI, updated);
 
   return {
     openai: updated,
-    shortcuts: await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [],
+    shortcuts:
+      (await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS)) || [],
     mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
   };
 }
@@ -263,8 +279,11 @@ export async function updateOpenAISettings(
 /**
  * Update shortcut (without hook)
  */
-export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSettings> {
-  const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [];
+export async function updateShortcut(
+  shortcut: ShortcutSettings,
+): Promise<AppSettings> {
+  const shortcuts =
+    (await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS)) || [];
   const existingIndex = shortcuts.findIndex((s) => s.id === shortcut.id);
 
   if (existingIndex >= 0) {
@@ -285,7 +304,9 @@ export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSet
   }
 
   return {
-    openai: await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS,
+    openai:
+      (await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI)) ||
+      DEFAULT_OPENAI_SETTINGS,
     shortcuts,
     mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
   };
@@ -295,7 +316,9 @@ export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSet
  * Get settings (without hook)
  */
 export async function getSettings(): Promise<AppSettings> {
-  const openai = await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS;
+  const openai =
+    (await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI)) ||
+    DEFAULT_OPENAI_SETTINGS;
   let shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
 
   if (!shortcuts || shortcuts.length === 0) {
@@ -314,7 +337,9 @@ export async function getSettings(): Promise<AppSettings> {
  * Initialize global shortcut
  */
 export async function initGlobalShortcut(): Promise<void> {
-  const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
+  const shortcuts = await getSetting<ShortcutSettings[]>(
+    SETTINGS_KEYS.SHORTCUTS,
+  );
   const activateShortcut = shortcuts?.find((s) => s.id === "activate");
 
   if (activateShortcut && window.electronAPI) {
@@ -330,7 +355,9 @@ export async function resetShortcutsToDefault(): Promise<AppSettings> {
   await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
 
   return {
-    openai: await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS,
+    openai:
+      (await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI)) ||
+      DEFAULT_OPENAI_SETTINGS,
     shortcuts: defaultShortcuts,
     mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
   };
