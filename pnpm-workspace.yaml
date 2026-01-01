@@ -1,9 +1,5 @@
 packages:
-  - "app"
-  - "website"
-  - "market"
-  - "docs"
-  - "mcps/**"
+  - "packages/*"
   - "!**/node_modules"
   - "!**/dist"
   - "!**/build"

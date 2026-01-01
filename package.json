@@ -4,13 +4,13 @@
   "version": "0.0.21",
   "description": "Convera Workspace",
   "scripts": {
-    "start": "cd app && pnpm start",
-    "make": "cd app && pnpm make",
+    "start": "pnpm --filter app start",
+    "make": "pnpm --filter app make",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
     "format:write": "pnpm -r format:write",
-    "test": "pnpm --filter ./app test",
-    "test:all": "pnpm --filter ./app test:all",
+    "test": "pnpm --filter app test",
+    "test:all": "pnpm --filter app test:all",
     "prepare": "husky",
     "changes": "changeset",
     "changeset": "changeset",
@@ -19,7 +19,7 @@
     "changeset:help": "./scripts/changeset-guide.sh",
     "release": "./scripts/release.sh",
     "release:dry": "pnpm changeset status --verbose",
-    "version:sync": "node -e \"const pkg = require('./package.json'); const appPkg = require('./app/package.json'); pkg.version = appPkg.version; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\\n');\""
+    "version:sync": "node -e \"const pkg = require('./package.json'); const appPkg = require('./packages/app/package.json'); pkg.version = appPkg.version; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\\n');\""
   },
   "engines": {
     "node": ">=18.0.0",
