@@ -271,7 +271,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
               // Set customApiSettings from model config if NOT using remote server
               if (!body.customApiSettings && !shouldUseRemoteServer) {
-                const interceptorConfig = getInterceptorConfig();
+                const interceptorConfig = await getInterceptorConfig();
                 if (interceptorConfig) {
                   body.customApiSettings = {
                     endpoint: interceptorConfig.endpoint,
@@ -629,7 +629,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           // Determine which API to use based on selected config
           const shouldUseRemoteServer =
             selectedConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
-          const currentConfig = getCurrentConfig();
+          const currentConfig = await getCurrentConfig();
 
           // Build customApiSettings from the selected model config
           const customApiSettings =

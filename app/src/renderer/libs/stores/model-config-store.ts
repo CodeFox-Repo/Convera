@@ -1,16 +1,27 @@
-import { FOXYCHAT_CONFIG_ID, ModelConfig } from "@/shared/types/settings";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+/**
+ * Model Config Store - Dexie 版本
+ *
+ * 完全本地存储
+ * 使用 Dexie liveQuery 实现实时数据更新和多窗口同步
+ */
 
-// Default models available via Foxychat remote server
-const DEFAULT_FOXYCHAT_MODELS = [
-  "google/gemini-2.5-flash",
-  "openai/gpt-4o-mini",
-  "openai/gpt-4o",
-  "qwen/qwq-32b",
-  "anthropic/claude-3.7-sonnet",
-  "openai/o3-mini",
-];
+import {
+  useModelConfigs,
+  useModelConfig,
+  useAvailableModels,
+  createModelConfig as createConfigDB,
+  updateModelConfig as updateConfigDB,
+  deleteModelConfig as deleteConfigDB,
+  db,
+  type ModelConfig,
+  FOXYCHAT_CONFIG_ID,
+  DEFAULT_FOXYCHAT_MODELS,
+} from "../db";
+import { useSelectionStore } from "../db/ui-state";
+
+// Re-export for backward compatibility
+export type { ModelConfig };
+export { FOXYCHAT_CONFIG_ID };
 
 interface GroupedModel {
   configId: string;
@@ -19,235 +30,178 @@ interface GroupedModel {
   isRemote: boolean;
 }
 
-interface ModelConfigState {
-  // State
-  modelConfigs: ModelConfig[];
-  selectedConfigId: string;
-  selectedModelId: string;
-
-  // Actions
-  addModelConfig: (config: Omit<ModelConfig, "id">) => string;
-  updateModelConfig: (
-    id: string,
-    updates: Partial<Omit<ModelConfig, "id">>,
-  ) => void;
-  removeModelConfig: (id: string) => void;
-  setSelectedModel: (configId: string, modelId: string) => void;
-
-  // Helpers
-  getAvailableModels: (isUserLoggedIn: boolean) => GroupedModel[];
-  getConfigById: (id: string) => ModelConfig | undefined;
-  getCurrentConfig: () => ModelConfig | undefined;
-
-  // Cross-window sync
-  subscribeToModelConfigChanges: () => () => void;
-}
-
-const generateConfigId = () =>
-  `config-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-export const useModelConfigStore = create<ModelConfigState>()(
-  persist(
-    (set, get) => ({
-      modelConfigs: [],
-      selectedConfigId: FOXYCHAT_CONFIG_ID, // Default to remote
-      selectedModelId: DEFAULT_FOXYCHAT_MODELS[0],
-
-      addModelConfig: (config) => {
-        const id = generateConfigId();
-        const newConfig: ModelConfig = { ...config, id };
-
-        set((state) => ({
-          modelConfigs: [...state.modelConfigs, newConfig],
-        }));
-
-        // Dispatch event for cross-window sync
-        localStorage.setItem(
-          "foxchat_model_configs",
-          JSON.stringify([...get().modelConfigs]),
-        );
-        window.dispatchEvent(new CustomEvent("model-configs-updated"));
-
-        return id;
-      },
-
-      updateModelConfig: (id, updates) => {
-        set((state) => ({
-          modelConfigs: state.modelConfigs.map((config) =>
-            config.id === id ? { ...config, ...updates } : config,
-          ),
-        }));
-
-        localStorage.setItem(
-          "foxchat_model_configs",
-          JSON.stringify(get().modelConfigs),
-        );
-        window.dispatchEvent(new CustomEvent("model-configs-updated"));
-      },
-
-      removeModelConfig: (id) => {
-        const { selectedConfigId, modelConfigs } = get();
-
-        // If removing the selected config, switch to foxychat remote
-        const newSelectedConfigId =
-          selectedConfigId === id ? FOXYCHAT_CONFIG_ID : selectedConfigId;
-        const newSelectedModelId =
-          selectedConfigId === id
-            ? DEFAULT_FOXYCHAT_MODELS[0]
-            : get().selectedModelId;
-
-        set({
-          modelConfigs: modelConfigs.filter((config) => config.id !== id),
-          selectedConfigId: newSelectedConfigId,
-          selectedModelId: newSelectedModelId,
-        });
-
-        localStorage.setItem(
-          "foxchat_model_configs",
-          JSON.stringify(get().modelConfigs),
-        );
-        window.dispatchEvent(new CustomEvent("model-configs-updated"));
-      },
-
-      setSelectedModel: (configId, modelId) => {
-        set({ selectedConfigId: configId, selectedModelId: modelId });
-
-        localStorage.setItem("foxchat_selected_config", configId);
-        localStorage.setItem("foxchat_selected_model", modelId);
-
-        // Also update legacy selectedModelId for backward compatibility
-        localStorage.setItem("selectedModelId", modelId);
-
-        window.dispatchEvent(
-          new CustomEvent("model-config-selected", {
-            detail: { configId, modelId },
-          }),
-        );
-
-        // Also dispatch legacy event
-        window.dispatchEvent(
-          new CustomEvent("model-selected", {
-            detail: { modelId },
-          }),
-        );
-      },
-
-      getAvailableModels: (isUserLoggedIn) => {
-        const { modelConfigs } = get();
-        const models: GroupedModel[] = [];
-
-        // Add Foxychat remote models if user is logged in
-        if (isUserLoggedIn) {
-          DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
-            models.push({
-              configId: FOXYCHAT_CONFIG_ID,
-              configName: "Foxychat",
-              modelId,
-              isRemote: true,
-            });
-          });
-        }
-
-        // Add custom config models
-        modelConfigs.forEach((config) => {
-          config.models.forEach((modelId) => {
-            models.push({
-              configId: config.id,
-              configName: config.name,
-              modelId,
-              isRemote: false,
-            });
-          });
-        });
-
-        return models;
-      },
-
-      getConfigById: (id) => {
-        if (id === FOXYCHAT_CONFIG_ID) {
-          return undefined; // Foxychat remote doesn't have a ModelConfig object
-        }
-        return get().modelConfigs.find((config) => config.id === id);
-      },
-
-      getCurrentConfig: () => {
-        const { selectedConfigId, modelConfigs } = get();
-        if (selectedConfigId === FOXYCHAT_CONFIG_ID) {
-          return undefined;
-        }
-        return modelConfigs.find((config) => config.id === selectedConfigId);
-      },
-
-      subscribeToModelConfigChanges: () => {
-        const configUpdatedHandler = () => {
-          const savedConfigs = localStorage.getItem("foxchat_model_configs");
-          if (savedConfigs) {
-            try {
-              const configs = JSON.parse(savedConfigs);
-              set({ modelConfigs: configs });
-            } catch (error) {
-              console.error("Error parsing model configs from storage:", error);
-            }
-          }
-        };
-
-        const storageHandler = (event: StorageEvent) => {
-          if (event.key === "foxchat_model_configs" && event.newValue) {
-            try {
-              const configs = JSON.parse(event.newValue);
-              set({ modelConfigs: configs });
-            } catch (error) {
-              console.error("Error parsing model configs from storage:", error);
-            }
-          }
-
-          if (event.key === "foxchat_selected_config" && event.newValue) {
-            set({ selectedConfigId: event.newValue });
-          }
-
-          if (event.key === "foxchat_selected_model" && event.newValue) {
-            set({ selectedModelId: event.newValue });
-          }
-        };
-
-        window.addEventListener(
-          "model-configs-updated",
-          configUpdatedHandler as EventListener,
-        );
-        window.addEventListener("storage", storageHandler as EventListener);
-
-        return () => {
-          window.removeEventListener(
-            "model-configs-updated",
-            configUpdatedHandler as EventListener,
-          );
-          window.removeEventListener(
-            "storage",
-            storageHandler as EventListener,
-          );
-        };
-      },
-    }),
-    {
-      name: "model-config-storage",
-      partialize: (state) => ({
-        modelConfigs: state.modelConfigs,
-        selectedConfigId: state.selectedConfigId,
-        selectedModelId: state.selectedModelId,
-      }),
-    },
-  ),
-);
+// ==================== Hooks ====================
 
 /**
- * Fetch available models from an OpenAI-compatible API endpoint
+ * 主要的 Model Config store hook
+ * 替代旧的 useModelConfigStore
+ */
+export function useModelConfigStore() {
+  const modelConfigs = useModelConfigs();
+  const { selectedConfigId, selectedModelId, setSelectedModel } = useSelectionStore();
+  const currentConfig = useModelConfig(selectedConfigId);
+
+  return {
+    // State
+    modelConfigs: modelConfigs || [],
+    selectedConfigId,
+    selectedModelId,
+
+    // Actions
+    addModelConfig: async (config: Omit<ModelConfig, "id">) => {
+      const id = await createConfigDB(config);
+      return id;
+    },
+
+    updateModelConfig: async (id: string, updates: Partial<Omit<ModelConfig, "id">>) => {
+      await updateConfigDB(id, updates);
+    },
+
+    removeModelConfig: async (id: string) => {
+      await deleteConfigDB(id);
+
+      // If removing the selected config, switch to foxychat remote
+      if (selectedConfigId === id) {
+        setSelectedModel(FOXYCHAT_CONFIG_ID, DEFAULT_FOXYCHAT_MODELS[0]);
+      }
+    },
+
+    setSelectedModel: (configId: string, modelId: string) => {
+      setSelectedModel(configId, modelId);
+
+      // Dispatch events for other components
+      window.dispatchEvent(
+        new CustomEvent("model-config-selected", {
+          detail: { configId, modelId },
+        })
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("model-selected", {
+          detail: { modelId },
+        })
+      );
+    },
+
+    // Helpers
+    getAvailableModels: (isUserLoggedIn: boolean): GroupedModel[] => {
+      const models: GroupedModel[] = [];
+
+      // Foxychat 远程模型（需登录）
+      if (isUserLoggedIn) {
+        DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
+          models.push({
+            configId: FOXYCHAT_CONFIG_ID,
+            configName: "Foxychat",
+            modelId,
+            isRemote: true,
+          });
+        });
+      }
+
+      // 用户自定义模型
+      (modelConfigs || []).forEach((config) => {
+        config.models.forEach((modelId) => {
+          models.push({
+            configId: config.id,
+            configName: config.name,
+            modelId,
+            isRemote: false,
+          });
+        });
+      });
+
+      return models;
+    },
+
+    getConfigById: (id: string): ModelConfig | undefined => {
+      if (id === FOXYCHAT_CONFIG_ID) {
+        return undefined;
+      }
+      return (modelConfigs || []).find((config) => config.id === id);
+    },
+
+    getCurrentConfig: (): ModelConfig | undefined => {
+      if (selectedConfigId === FOXYCHAT_CONFIG_ID) {
+        return undefined;
+      }
+      return currentConfig;
+    },
+
+    subscribeToModelConfigChanges: () => {
+      // No-op, Dexie liveQuery handles reactivity
+      return () => {};
+    },
+  };
+}
+
+/**
+ * Hook 版本的 getAvailableModels
+ */
+export { useAvailableModels };
+
+// ==================== Static State Access (for non-React contexts) ====================
+
+/**
+ * 用于非 React 上下文中获取状态
+ * 兼容旧的 useModelConfigStore.getState() 调用模式
+ */
+useModelConfigStore.getState = () => {
+  const { selectedConfigId, selectedModelId } = useSelectionStore.getState();
+
+  return {
+    selectedConfigId,
+    selectedModelId,
+    getCurrentConfig: async (): Promise<ModelConfig | undefined> => {
+      if (selectedConfigId === FOXYCHAT_CONFIG_ID) {
+        return undefined;
+      }
+      return await db.modelConfigs.get(selectedConfigId);
+    },
+    getConfigById: async (id: string): Promise<ModelConfig | undefined> => {
+      if (id === FOXYCHAT_CONFIG_ID) {
+        return undefined;
+      }
+      return await db.modelConfigs.get(id);
+    },
+  };
+};
+
+// ==================== Standalone Actions ====================
+
+/**
+ * 创建模型配置（不需要 hook）
+ */
+export async function createModelConfig(config: Omit<ModelConfig, "id">): Promise<string> {
+  return await createConfigDB(config);
+}
+
+/**
+ * 更新模型配置（不需要 hook）
+ */
+export async function updateModelConfig(
+  id: string,
+  updates: Partial<Omit<ModelConfig, "id">>
+): Promise<void> {
+  await updateConfigDB(id, updates);
+}
+
+/**
+ * 删除模型配置（不需要 hook）
+ */
+export async function deleteModelConfig(id: string): Promise<void> {
+  await deleteConfigDB(id);
+}
+
+/**
+ * 从 API 端点获取可用模型
  */
 export async function fetchModelsFromEndpoint(
   endpoint: string,
-  apiKey: string,
+  apiKey: string
 ): Promise<string[]> {
   // Normalize endpoint and build models URL
-  const normalizedEndpoint = endpoint.replace(/\/+$/, ""); // Remove trailing slashes
+  const normalizedEndpoint = endpoint.replace(/\/+$/, "");
   const modelsUrl = normalizedEndpoint.endsWith("/v1")
     ? `${normalizedEndpoint}/models`
     : `${normalizedEndpoint}/v1/models`;
@@ -256,7 +210,6 @@ export async function fetchModelsFromEndpoint(
     "Content-Type": "application/json",
   };
 
-  // Only add Authorization header if apiKey is provided
   if (apiKey.trim()) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
@@ -272,7 +225,6 @@ export async function fetchModelsFromEndpoint(
 
   const data = await response.json();
 
-  // OpenAI-compatible API returns { data: [{ id: "model-id", ... }] }
   if (data.data && Array.isArray(data.data)) {
     return data.data.map((model: { id: string }) => model.id);
   }

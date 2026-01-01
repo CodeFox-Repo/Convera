@@ -1,348 +1,337 @@
+/**
+ * Settings Store - Dexie 版本
+ *
+ * 使用 Dexie 存储设置数据
+ * 使用 Zustand 管理 UI 状态（主题、快捷键录制等）
+ *
+ * 保留的功能：
+ * - 主题切换（需要 IPC 通知主进程）
+ * - 快捷键管理（需要 IPC 通知主进程）
+ * - 设置持久化
+ */
+
+import { toast } from "sonner";
+import {
+  useSetting,
+  setSetting,
+  getSetting,
+} from "../db";
+import { useSettingsUIState } from "../db/ui-state";
 import {
   getCurrentTheme,
   toggleTheme,
 } from "@/renderer/libs/helper/theme_helpers";
-import {
-  getSettings,
-  resetShortcutsToDefault,
-  updateOpenAISettings,
-  updateShortcut,
-} from "@/renderer/libs/utils/settings";
-import { AppSettings } from "@/shared/types/settings";
-import { toast } from "sonner";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { AppSettings, ShortcutSettings, OpenAISettings } from "@/shared/types/settings";
 
-interface SettingsState {
-  // Settings data
-  settings: AppSettings | null;
-  settingsLoading: boolean;
-  settingsInitialized: boolean;
-  currentTheme: string;
+// ==================== Settings Keys ====================
 
-  // Shortcut recording state
-  activeShortcut: string | null;
-  recordingShortcut: string;
+const SETTINGS_KEYS = {
+  OPENAI: "openai",
+  SHORTCUTS: "shortcuts",
+  MCP: "mcp",
+} as const;
 
-  // UI state
-  devModeEnabled: boolean;
+// ==================== Default Values ====================
 
-  // Experimental features
-  experimentalFeatures: {
-    enableMainWindow: boolean;
-  };
+const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
+  endpoint: "",
+  apiKey: "",
+  modelId: "google/gemini-2.5-flash",
+  supportedModels: [
+    "google/gemini-2.5-flash",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4o",
+    "qwen/qwq-32b",
+    "anthropic/claude-3.7-sonnet",
+    "openai/o3-mini",
+  ],
+  useRemoteStore: true,
+};
 
-  // Actions
-  initializeSettings: () => Promise<void>;
-  handleOpenAIChange: (field: string, value: string) => Promise<void>;
-  handleAddSupportedModel: (model: string) => Promise<void>;
-  handleRemoveSupportedModel: (model: string) => Promise<void>;
-  handleResetShortcuts: () => Promise<void>;
-  handleToggleTheme: () => Promise<void>;
+async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
+  const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac");
 
-  // Shortcut recording
-  setActiveShortcut: (shortcut: string | null) => void;
-  setRecordingShortcut: (shortcut: string) => void;
-  saveRecordedShortcut: (shortcut: string) => Promise<void>;
-
-  // UI state
-  setDevModeEnabled: (enabled: boolean) => void;
-
-  // Experimental features
-  setExperimentalFeature: (feature: string, enabled: boolean) => void;
-
-  // Event subscriptions
-  subscribeToSettingsChanges: () => () => void;
+  return [
+    {
+      id: "activate",
+      name: "Activate App",
+      shortcut: isMac ? "Alt+Space" : "Control+Shift+Space",
+      enabled: true,
+    },
+    {
+      id: "open_settings",
+      name: "Open Settings",
+      shortcut: isMac ? "Command+," : "Control+E",
+      enabled: true,
+    },
+  ];
 }
 
-export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      settings: null,
-      settingsLoading: false,
-      settingsInitialized: false,
-      currentTheme: "light",
-      activeShortcut: null,
-      recordingShortcut: "",
-      devModeEnabled: false,
-      experimentalFeatures: {
-        enableMainWindow: false,
-      },
+// ==================== Hooks ====================
 
-      // Initialize settings
-      initializeSettings: async () => {
-        const { settingsInitialized, settingsLoading } = get();
+/**
+ * 主要的 Settings store hook
+ * 替代旧的 useSettingsStore
+ */
+export function useSettingsStore() {
+  // 从 Dexie 获取设置
+  const openaiSettings = useSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI, DEFAULT_OPENAI_SETTINGS);
+  const shortcuts = useSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS, []);
 
-        // Prevent multiple initializations
-        if (settingsInitialized || settingsLoading) {
-          return;
-        }
+  // UI 状态
+  const uiState = useSettingsUIState();
 
-        set({ settingsLoading: true });
-        try {
-          const [initialSettings, themeResult] = await Promise.all([
-            getSettings(),
-            getCurrentTheme(),
-          ]);
+  // 构建完整的 settings 对象
+  const settings: AppSettings = {
+    openai: openaiSettings,
+    shortcuts: shortcuts.length > 0 ? shortcuts : [],
+    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+  };
 
-          set({
-            settings: initialSettings,
-            currentTheme: themeResult.system,
-            settingsInitialized: true,
-          });
+  return {
+    // State
+    settings,
+    settingsLoading: false,
+    settingsInitialized: true,
+    currentTheme: uiState.currentTheme,
+    activeShortcut: uiState.activeShortcut,
+    recordingShortcut: uiState.recordingShortcut,
+    devModeEnabled: uiState.devModeEnabled,
+    experimentalFeatures: uiState.experimentalFeatures,
 
-          // Sync to localStorage for cross-window communication
-          localStorage.setItem(
-            "foxchat_settings",
-            JSON.stringify(initialSettings),
-          );
-        } catch (error) {
-          console.error("Failed to load settings:", error);
-        } finally {
-          set({ settingsLoading: false });
-        }
-      },
+    // Actions
+    initializeSettings: async () => {
+      // 加载默认快捷键如果没有
+      const existingShortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
+      if (!existingShortcuts || existingShortcuts.length === 0) {
+        const defaultShortcuts = await getDefaultShortcuts();
+        await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
+      }
 
-      // Handle OpenAI settings changes
-      handleOpenAIChange: async (field: string, value: string) => {
-        const { settings } = get();
-        if (!settings) return;
-
-        // Validate API key format (no "Bearer" prefix)
-        if (field === "apiKey" && value.trim() && value.startsWith("Bearer ")) {
-          toast.warning('Please enter the API key without "Bearer" prefix');
-          return;
-        }
-
-        const updatedOpenAI = {
-          ...settings.openai,
-          [field]: value,
-        };
-
-        const updated = await updateOpenAISettings(updatedOpenAI);
-        set({ settings: updated });
-
-        // Always sync to localStorage for cross-window communication
-        localStorage.setItem("foxchat_settings", JSON.stringify(updated));
-
-        if (field === "modelId") {
-          window.dispatchEvent(
-            new CustomEvent("model-selected", {
-              detail: { modelId: value },
-            }),
-          );
-          localStorage.setItem("selectedModelId", value);
-          toast.success("Model updated");
-        } else if (field === "useRemoteStore") {
-          toast.success("Remote store setting updated");
-        } else {
-          toast.success("Settings saved");
-        }
-
-        window.dispatchEvent(
-          new CustomEvent("settings-updated", {
-            detail: { field, value },
-          }),
-        );
-      },
-
-      // Add supported model
-      handleAddSupportedModel: async (model: string) => {
-        const { settings } = get();
-        if (
-          !settings ||
-          !model.trim() ||
-          settings.openai.supportedModels.includes(model)
-        ) {
-          if (settings?.openai.supportedModels.includes(model)) {
-            toast.error("Model already in the list");
-          }
-          return;
-        }
-
-        const updatedOpenAI = {
-          ...settings.openai,
-          supportedModels: [...settings.openai.supportedModels, model],
-        };
-
-        const updated = await updateOpenAISettings(updatedOpenAI);
-        set({ settings: updated });
-        toast.success("Model added to supported list");
-      },
-
-      // Remove supported model
-      handleRemoveSupportedModel: async (model: string) => {
-        const { settings } = get();
-        if (!settings?.openai?.supportedModels) return;
-
-        const updatedOpenAI = {
-          ...settings.openai,
-          supportedModels: settings.openai.supportedModels.filter(
-            (m) => m !== model,
-          ),
-        };
-
-        const updated = await updateOpenAISettings(updatedOpenAI);
-        set({ settings: updated });
-        toast.success("Model removed from supported list");
-      },
-
-      // Reset shortcuts to default
-      handleResetShortcuts: async () => {
-        const updated = await resetShortcutsToDefault();
-        if (!updated || !updated.shortcuts) {
-          toast.error("Failed to reset shortcuts");
-          return;
-        }
-
-        set({ settings: updated });
-
-        // Update the main process with the new activate shortcut
-        const activateShortcut = updated.shortcuts.find(
-          (s: { id: string; enabled: boolean; shortcut: string }) =>
-            s.id === "activate",
-        );
-        if (activateShortcut && activateShortcut.enabled) {
-          window.electronAPI
-            .updateGlobalShortcut(activateShortcut.shortcut)
-            .catch((error: Error) => {
-              console.error(
-                "Error updating global shortcut after reset:",
-                error,
-              );
-              toast.warning(
-                "Shortcuts reset to default, but global shortcut update failed",
-              );
-            });
-        } else {
-          toast.success("Shortcuts reset to default");
-        }
-      },
-
-      // Toggle theme
-      handleToggleTheme: async () => {
-        try {
-          await toggleTheme();
-          const { system } = await getCurrentTheme();
-          set({ currentTheme: system });
-          toast.success(`Theme switched to ${system} mode`);
-        } catch (error) {
-          console.error("Error toggling theme:", error);
-          toast.error("Failed to toggle theme");
-        }
-      },
-
-      // Shortcut recording actions
-      setActiveShortcut: (shortcut: string | null) => {
-        set({
-          activeShortcut: shortcut,
-          recordingShortcut: shortcut ? "Press keys..." : "",
-        });
-      },
-
-      setRecordingShortcut: (shortcut: string) => {
-        set({ recordingShortcut: shortcut });
-      },
-
-      saveRecordedShortcut: async (shortcut: string) => {
-        const { activeShortcut, settings } = get();
-        if (!activeShortcut || !shortcut || !settings) return;
-
-        const shortcutConfig = settings.shortcuts.find(
-          (s) => s.id === activeShortcut,
-        );
-        if (shortcutConfig) {
-          const updated = await updateShortcut({
-            ...shortcutConfig,
-            shortcut: shortcut,
-          });
-          set({ settings: updated });
-          toast.success("Shortcut updated");
-        }
-
-        set({
-          activeShortcut: null,
-          recordingShortcut: "",
-        });
-      },
-
-      // UI state actions
-      setDevModeEnabled: (enabled: boolean) => {
-        set({ devModeEnabled: enabled });
-      },
-
-      // Experimental features actions
-      setExperimentalFeature: (feature: string, enabled: boolean) => {
-        set((state) => ({
-          experimentalFeatures: {
-            ...state.experimentalFeatures,
-            [feature]: enabled,
-          },
-        }));
-      },
-
-      // Subscribe to settings changes
-      subscribeToSettingsChanges: () => {
-        const handleModelSelected = async (event: Event) => {
-          const customEvent = event as CustomEvent;
-          if (customEvent.detail && customEvent.detail.modelId) {
-            const { settings } = get();
-            if (settings) {
-              const newModelId = customEvent.detail.modelId;
-              const updatedOpenAI = {
-                ...settings.openai,
-                modelId: newModelId,
-              };
-              const updated = await updateOpenAISettings(updatedOpenAI);
-              set({ settings: updated });
-            }
-          }
-        };
-
-        const handleStorageChange = async (event: StorageEvent) => {
-          const { settings } = get();
-
-          // Handle model selection changes
-          if (event.key === "selectedModelId" && event.newValue && settings) {
-            const updatedOpenAI = {
-              ...settings.openai,
-              modelId: event.newValue,
-            };
-            const updated = await updateOpenAISettings(updatedOpenAI);
-            set({ settings: updated });
-          }
-
-          // Handle full settings sync across windows
-          if (event.key === "foxchat_settings" && event.newValue) {
-            try {
-              const updatedSettings = JSON.parse(event.newValue);
-              set({ settings: updatedSettings });
-            } catch (error) {
-              console.error(
-                "Failed to parse settings from localStorage:",
-                error,
-              );
-            }
-          }
-        };
-
-        window.addEventListener("model-selected", handleModelSelected);
-        window.addEventListener("storage", handleStorageChange);
-
-        return () => {
-          window.removeEventListener("model-selected", handleModelSelected);
-          window.removeEventListener("storage", handleStorageChange);
-        };
-      },
-    }),
-    {
-      name: "settings-storage",
-      partialize: (state) => ({
-        currentTheme: state.currentTheme,
-        devModeEnabled: state.devModeEnabled,
-        experimentalFeatures: state.experimentalFeatures,
-      }),
+      // 获取当前主题
+      try {
+        const themeResult = await getCurrentTheme();
+        uiState.setTheme(themeResult.system as "light" | "dark" | "system");
+      } catch (error) {
+        console.error("Failed to get current theme:", error);
+      }
     },
-  ),
-);
+
+    handleOpenAIChange: async (field: string, value: string) => {
+      if (field === "apiKey" && value.trim() && value.startsWith("Bearer ")) {
+        toast.warning('Please enter the API key without "Bearer" prefix');
+        return;
+      }
+
+      const updatedOpenAI = {
+        ...openaiSettings,
+        [field]: value,
+      };
+
+      await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
+
+      if (field === "modelId") {
+        window.dispatchEvent(
+          new CustomEvent("model-selected", {
+            detail: { modelId: value },
+          })
+        );
+        toast.success("Model updated");
+      } else if (field === "useRemoteStore") {
+        toast.success("Remote store setting updated");
+      } else {
+        toast.success("Settings saved");
+      }
+    },
+
+    handleAddSupportedModel: async (model: string) => {
+      if (!model.trim() || openaiSettings.supportedModels.includes(model)) {
+        if (openaiSettings.supportedModels.includes(model)) {
+          toast.error("Model already in the list");
+        }
+        return;
+      }
+
+      const updatedOpenAI = {
+        ...openaiSettings,
+        supportedModels: [...openaiSettings.supportedModels, model],
+      };
+
+      await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
+      toast.success("Model added to supported list");
+    },
+
+    handleRemoveSupportedModel: async (model: string) => {
+      const updatedOpenAI = {
+        ...openaiSettings,
+        supportedModels: openaiSettings.supportedModels.filter((m) => m !== model),
+      };
+
+      await setSetting(SETTINGS_KEYS.OPENAI, updatedOpenAI);
+      toast.success("Model removed from supported list");
+    },
+
+    handleResetShortcuts: async () => {
+      const defaultShortcuts = await getDefaultShortcuts();
+      await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
+
+      // Update the main process with the new activate shortcut
+      const activateShortcut = defaultShortcuts.find((s) => s.id === "activate");
+      if (activateShortcut && activateShortcut.enabled && window.electronAPI) {
+        try {
+          await window.electronAPI.updateGlobalShortcut(activateShortcut.shortcut);
+          toast.success("Shortcuts reset to default");
+        } catch (error) {
+          console.error("Error updating global shortcut after reset:", error);
+          toast.warning("Shortcuts reset, but global shortcut update failed");
+        }
+      } else {
+        toast.success("Shortcuts reset to default");
+      }
+    },
+
+    handleToggleTheme: async () => {
+      try {
+        await toggleTheme();
+        const { system } = await getCurrentTheme();
+        uiState.setTheme(system as "light" | "dark" | "system");
+        toast.success(`Theme switched to ${system} mode`);
+      } catch (error) {
+        console.error("Error toggling theme:", error);
+        toast.error("Failed to toggle theme");
+      }
+    },
+
+    // Shortcut recording actions
+    setActiveShortcut: uiState.setActiveShortcut,
+    setRecordingShortcut: uiState.setRecordingShortcut,
+
+    saveRecordedShortcut: async (shortcut: string) => {
+      const { activeShortcut } = uiState;
+      if (!activeShortcut || !shortcut) return;
+
+      const currentShortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [];
+      const updatedShortcuts = currentShortcuts.map((s) =>
+        s.id === activeShortcut ? { ...s, shortcut } : s
+      );
+
+      await setSetting(SETTINGS_KEYS.SHORTCUTS, updatedShortcuts);
+
+      // Update global shortcut if it's the activate shortcut
+      if (activeShortcut === "activate" && window.electronAPI) {
+        try {
+          await window.electronAPI.updateGlobalShortcut(shortcut);
+        } catch (error) {
+          console.error("Error updating global shortcut:", error);
+        }
+      }
+
+      uiState.setActiveShortcut(null);
+      toast.success("Shortcut updated");
+    },
+
+    // UI state actions
+    setDevModeEnabled: uiState.setDevMode,
+    setExperimentalFeature: uiState.setExperimentalFeature,
+
+    subscribeToSettingsChanges: () => {
+      // No-op, Dexie liveQuery handles reactivity
+      return () => {};
+    },
+  };
+}
+
+// ==================== Standalone Actions ====================
+
+/**
+ * 更新 OpenAI 设置（不需要 hook）
+ */
+export async function updateOpenAISettings(
+  updates: Partial<OpenAISettings>
+): Promise<AppSettings> {
+  const current = await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS;
+  const updated = { ...current, ...updates };
+  await setSetting(SETTINGS_KEYS.OPENAI, updated);
+
+  return {
+    openai: updated,
+    shortcuts: await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [],
+    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+  };
+}
+
+/**
+ * 更新快捷键（不需要 hook）
+ */
+export async function updateShortcut(shortcut: ShortcutSettings): Promise<AppSettings> {
+  const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS) || [];
+  const existingIndex = shortcuts.findIndex((s) => s.id === shortcut.id);
+
+  if (existingIndex >= 0) {
+    shortcuts[existingIndex] = shortcut;
+  } else {
+    shortcuts.push(shortcut);
+  }
+
+  await setSetting(SETTINGS_KEYS.SHORTCUTS, shortcuts);
+
+  // Update global shortcut if it's the activate shortcut
+  if (shortcut.id === "activate" && window.electronAPI) {
+    try {
+      await window.electronAPI.updateGlobalShortcut(shortcut.shortcut);
+    } catch (error) {
+      console.error("Error updating global shortcut:", error);
+    }
+  }
+
+  return {
+    openai: await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS,
+    shortcuts,
+    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+  };
+}
+
+/**
+ * 获取设置（不需要 hook）
+ */
+export async function getSettings(): Promise<AppSettings> {
+  const openai = await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS;
+  let shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
+
+  if (!shortcuts || shortcuts.length === 0) {
+    shortcuts = await getDefaultShortcuts();
+    await setSetting(SETTINGS_KEYS.SHORTCUTS, shortcuts);
+  }
+
+  return {
+    openai,
+    shortcuts,
+    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+  };
+}
+
+/**
+ * 初始化全局快捷键
+ */
+export async function initGlobalShortcut(): Promise<void> {
+  const shortcuts = await getSetting<ShortcutSettings[]>(SETTINGS_KEYS.SHORTCUTS);
+  const activateShortcut = shortcuts?.find((s) => s.id === "activate");
+
+  if (activateShortcut && window.electronAPI) {
+    window.electronAPI.initGlobalShortcut(activateShortcut.shortcut);
+  }
+}
+
+/**
+ * 重置快捷键
+ */
+export async function resetShortcutsToDefault(): Promise<AppSettings> {
+  const defaultShortcuts = await getDefaultShortcuts();
+  await setSetting(SETTINGS_KEYS.SHORTCUTS, defaultShortcuts);
+
+  return {
+    openai: await getSetting<OpenAISettings>(SETTINGS_KEYS.OPENAI) || DEFAULT_OPENAI_SETTINGS,
+    shortcuts: defaultShortcuts,
+    mcp: { tools: {}, server: { serverUrl: "", requestTimeout: 30000 } },
+  };
+}
