@@ -17,7 +17,7 @@ function Root() {
   }, []);
 
   return (
-    <div className="app-container relative h-screen w-full overflow-hidden">
+    <div className="app-container relative h-screen w-full overflow-hidden bg-transparent">
       <DragLayer height={6} />
       <BaseLayout>
         <Outlet />

@@ -14,7 +14,6 @@ import { ChatInputButtons } from "./chat-input-button";
 import { ContextButtons } from "./context-button";
 
 interface ChatInputProps {
-  hasMessages?: boolean;
   placeholder?: string;
 }
 
@@ -26,7 +25,7 @@ export interface ChatInputRef {
 }
 
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  ({ hasMessages = false, placeholder = "Message Convera..." }, ref) => {
+  ({ placeholder = "Message Convera..." }, ref) => {
     const editorRef = useRef<TiptapEditorRef>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [editorContent, setEditorContent] = useState("");
@@ -207,12 +206,10 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       >
         <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
           <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-2xl border-1 transition-all duration-200 ${
-              hasMessages ? "bg-background/80" : "bg-background/30"
-            } ${
+            className={`flex-1 flex h-full overflow-auto flex-col rounded-2xl border transition-all duration-200 bg-background ${
               isDragging
                 ? "border-primary/70 border-2 shadow-lg ring-2 ring-primary/20"
-                : "border-gray-500/45"
+                : "border-border"
             }`}
           >
             <ContextButtons
