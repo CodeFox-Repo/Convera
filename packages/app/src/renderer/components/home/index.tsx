@@ -202,13 +202,13 @@ export function HomePage() {
   };
 
   return (
-    <div className="h-screen w-full flex bg-background relative">
+    <div className="h-screen w-full flex bg-transparent relative">
       {/* Drag regions for all edges */}
       <EnhancedDragRegion top={24} bottom={24} left={24} right={24} />
 
       {/* Sidebar */}
       <motion.div
-        className={`bg-card flex flex-col border-r border-border/60 ${
+        className={`bg-background/50 backdrop-blur-md flex flex-col ${
           sidebarCollapsed ? "w-0" : "w-80"
         }`}
         initial={false}
@@ -235,7 +235,7 @@ export function HomePage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleNewChat}
-                        className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors pointer-events-auto"
+                        className="p-2 rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors pointer-events-auto"
                         aria-label="New chat"
                         title="New Chat"
                       >
@@ -243,7 +243,7 @@ export function HomePage() {
                       </button>
                       <button
                         onClick={() => setSidebarCollapsed(true)}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
                         aria-label="Collapse sidebar"
                         title="Collapse Sidebar"
                       >
@@ -256,7 +256,7 @@ export function HomePage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setActiveView("chat")}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
                         aria-label="Back to chat"
                         title="Back to Chat"
                       >
@@ -268,7 +268,7 @@ export function HomePage() {
                     </div>
                     <button
                       onClick={handleToggleTheme}
-                      className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors pointer-events-auto"
+                      className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
                       title="Toggle theme"
                     >
                       {currentTheme === "dark" ? (
@@ -488,7 +488,7 @@ export function HomePage() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-background relative">
+      <div className="flex-1 flex flex-col bg-background border-l border-border relative">
         {activeView === "chat" ? (
           <>
             {/* Messages Area */}
@@ -585,7 +585,6 @@ export function HomePage() {
               <div className="max-w-4xl mx-auto relative z-10">
                 <ChatInput
                   ref={chatInputRef}
-                  hasMessages={messages.length > 0}
                   placeholder="Message Convera..."
                 />
               </div>
