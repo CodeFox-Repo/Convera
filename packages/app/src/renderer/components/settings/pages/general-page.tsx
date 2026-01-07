@@ -50,7 +50,11 @@ export function GeneralSettingsPage() {
       unsubscribeSettings();
       unsubscribeModelConfigs();
     };
-  }, [initializeSettings, subscribeToSettingsChanges, subscribeToModelConfigChanges]);
+  }, [
+    initializeSettings,
+    subscribeToSettingsChanges,
+    subscribeToModelConfigChanges,
+  ]);
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
