@@ -3,6 +3,7 @@ import pluginJs from "@eslint/js";
 import eslintPluginPrettierRecommended from "eslint-config-prettier";
 import pluginReact from "eslint-plugin-react";
 import reactCompiler from "eslint-plugin-react-compiler";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,9 +20,12 @@ export default [
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     plugins: {
       "react-compiler": reactCompiler,
+      "react-hooks": reactHooks,
     },
     rules: {
       "react-compiler/react-compiler": "error",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       "typescript-eslint/no-explicit-any": "off",
       "react/react-in-jsx-scope": "off",
     },

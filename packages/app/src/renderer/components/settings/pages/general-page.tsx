@@ -50,8 +50,7 @@ export function GeneralSettingsPage() {
       unsubscribeSettings();
       unsubscribeModelConfigs();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initializeSettings, subscribeToSettingsChanges, subscribeToModelConfigChanges]);
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
