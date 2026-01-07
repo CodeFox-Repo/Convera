@@ -11,7 +11,8 @@ export function ConversationList() {
 
   // Separate starred conversations from the rest
   const { starredConversations, groupedConversations } = useMemo(() => {
-    if (!conversations) return { starredConversations: [], groupedConversations: new Map() };
+    if (!conversations)
+      return { starredConversations: [], groupedConversations: new Map() };
 
     const starred = conversations.filter((c) => c.metadata?.starred);
     const nonStarred = conversations.filter((c) => !c.metadata?.starred);
@@ -24,9 +25,7 @@ export function ConversationList() {
 
   if (!conversations) {
     return (
-      <div className="px-3 py-2 text-sm text-muted-foreground">
-        Loading...
-      </div>
+      <div className="px-3 py-2 text-sm text-muted-foreground">Loading...</div>
     );
   }
 

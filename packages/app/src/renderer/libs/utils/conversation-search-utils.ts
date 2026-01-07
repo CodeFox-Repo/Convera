@@ -200,7 +200,10 @@ function extractMatchContext(
   const index = lowerText.indexOf(lowerQuery);
 
   if (index === -1) {
-    return text.slice(0, contextLength * 2) + (text.length > contextLength * 2 ? "..." : "");
+    return (
+      text.slice(0, contextLength * 2) +
+      (text.length > contextLength * 2 ? "..." : "")
+    );
   }
 
   const start = Math.max(0, index - contextLength);

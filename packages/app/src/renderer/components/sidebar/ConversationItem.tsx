@@ -7,7 +7,10 @@ import {
   ContextMenuTrigger,
 } from "@/renderer/components/ui/context-menu";
 import type { Conversation } from "@/renderer/libs/db/database";
-import { updateConversation, deleteConversation } from "@/renderer/libs/db/hooks";
+import {
+  updateConversation,
+  deleteConversation,
+} from "@/renderer/libs/db/hooks";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import {
   Archive,
@@ -129,7 +132,9 @@ export function ConversationItem({
               className="flex-1 min-w-0 bg-transparent border-b border-foreground/30 outline-none text-foreground text-sm"
             />
           ) : (
-            <span className="flex-1 min-w-0 truncate text-sm">{displayTitle}</span>
+            <span className="flex-1 min-w-0 truncate text-sm">
+              {displayTitle}
+            </span>
           )}
           <span className="flex-shrink-0 text-xs opacity-50">
             {formatRelativeTime(conversation.updatedAt)}

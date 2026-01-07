@@ -7,7 +7,11 @@ interface HighlightedTextProps {
   className?: string;
 }
 
-export function HighlightedText({ text, query, className }: HighlightedTextProps) {
+export function HighlightedText({
+  text,
+  query,
+  className,
+}: HighlightedTextProps) {
   const segments = useMemo(
     () => highlightSearchTerm(text, query),
     [text, query],

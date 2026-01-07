@@ -6,7 +6,10 @@ import {
   DialogTitle,
 } from "@/renderer/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { useSelectionStore, useSearchUIState } from "@/renderer/libs/db/ui-state";
+import {
+  useSelectionStore,
+  useSearchUIState,
+} from "@/renderer/libs/db/ui-state";
 import { useConversationSearch } from "@/renderer/libs/hooks/use-conversation-search";
 import { Loader2, MessageSquare, Search } from "lucide-react";
 import { HighlightedText } from "./HighlightedText";
@@ -15,7 +18,9 @@ interface GlobalSearchDialogProps {
   onConversationSelect?: (conversationId: string) => void;
 }
 
-export function GlobalSearchDialog({ onConversationSelect }: GlobalSearchDialogProps) {
+export function GlobalSearchDialog({
+  onConversationSelect,
+}: GlobalSearchDialogProps) {
   const { isSearchOpen, closeSearch } = useSearchUIState();
   const { setCurrentConversation } = useSelectionStore();
   const { query, setQuery, results, isSearching, clearSearch } =
@@ -62,7 +67,9 @@ export function GlobalSearchDialog({ onConversationSelect }: GlobalSearchDialogP
       >
         <VisuallyHidden>
           <DialogTitle>Search Conversations</DialogTitle>
-          <DialogDescription>Search through your conversations and messages</DialogDescription>
+          <DialogDescription>
+            Search through your conversations and messages
+          </DialogDescription>
         </VisuallyHidden>
 
         {/* Search Input */}
@@ -95,7 +102,10 @@ export function GlobalSearchDialog({ onConversationSelect }: GlobalSearchDialogP
                   onClick={() => handleSelect(result.conversationId)}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent/50 transition-colors"
                 >
-                  <MessageSquare size={14} className="text-muted-foreground flex-shrink-0" />
+                  <MessageSquare
+                    size={14}
+                    className="text-muted-foreground flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     {result.type === "message" && result.conversationTitle && (
                       <span className="text-xs text-muted-foreground block truncate mb-0.5">

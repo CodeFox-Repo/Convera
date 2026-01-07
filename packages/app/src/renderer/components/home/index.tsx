@@ -214,9 +214,7 @@ export function HomePage() {
           {/* Sidebar Content */}
           <div className="flex-1 overflow-y-auto min-h-0 px-2">
             {/* Conversation List (chat view) */}
-            {!sidebarCollapsed && activeView === "chat" && (
-              <ConversationList />
-            )}
+            {!sidebarCollapsed && activeView === "chat" && <ConversationList />}
 
             {/* Settings Navigation */}
             {!sidebarCollapsed && activeView === "settings" && (
