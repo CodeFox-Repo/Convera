@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ModifiedContentBlock from "../selected/modified-content-block";
+import { TOOL_COMPONENTS } from "../tools";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
@@ -210,6 +211,20 @@ export default function ChatContent({
 
     const toolInvocation = part.toolInvocation;
     const toolName = toolInvocation.toolName || "Tool";
+
+    // Check if there's a custom renderer for this tool
+    const CustomRenderer =
+      TOOL_COMPONENTS[toolName as keyof typeof TOOL_COMPONENTS];
+    if (CustomRenderer) {
+      return (
+        <CustomRenderer
+          key={`tool-${toolInvocation.toolCallId || index}`}
+          toolInvocation={toolInvocation}
+        />
+      );
+    }
+
+    // Fallback to generic ToolCall component
     const args = toolInvocation.args || {};
     let result = "Pending result...";
 

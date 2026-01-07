@@ -21,6 +21,7 @@ import { useModelConfigStore } from "./model-config-store";
 import { db, createConversation, updateMessages } from "../db";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
+import { useUserInputStore } from "./user-input-store";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -309,6 +310,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     onToolCall: async ({ toolCall }) => {
+      // Special handling for ask_user_input - client-side blocking tool
+      if (toolCall.toolName === "ask_user_input") {
+        const args = toolCall.args as { question: string; options: string[] };
+
+        // Register this as a pending input and return a Promise that won't
+        // resolve until the user interacts with the UI
+        const userResponse = await useUserInputStore
+          .getState()
+          .registerPendingInput(
+            toolCall.toolCallId,
+            args.question,
+            args.options,
+          );
+
+        // Return the user's response as the tool result
+        return {
+          success: true,
+          userSelection: userResponse,
+          message: `User selected: ${userResponse}`,
+        };
+      }
+
       // Use simplified MCP tool call that finds first server with the tool
       const result = await window.mcpAPI.mcpToolCall(
         toolCall.toolName,
@@ -792,6 +815,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
+    // Clear any pending user inputs
+    useUserInputStore.getState().clearAllPending();
     chatAPI.setMessages([]);
     setSelectedContent(null);
     clearAttachments();
