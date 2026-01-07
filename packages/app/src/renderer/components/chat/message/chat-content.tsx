@@ -1,46 +1,13 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
+import { Markdown } from "@/renderer/components/common/markdown";
+import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import React, { memo, useCallback, useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-// Import highlight.js styles
-import "highlight.js/styles/github-dark.css";
-// Import KaTeX styles
-import { SelectedContent } from "@/renderer/libs/stores/chat-store";
-import "katex/dist/katex.min.css";
+import React, { useCallback, useEffect, useState } from "react";
 import ModifiedContentBlock from "../selected/modified-content-block";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
-
-/**
- * Advanced markdown renderer component with syntax highlighting, math, and more
- */
-const Markdown = memo(({ children }: { children: string }) => {
-  return (
-    <div className="markdown no-drag-region max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
-        rehypePlugins={[
-          rehypeHighlight,
-          rehypeKatex,
-          [rehypeRaw, { passThrough: ["element"] }],
-        ]}
-        urlTransform={(value: string) => value}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
-  );
-});
-
-Markdown.displayName = "Markdown";
 
 /**
  * Type definitions for tool invocations
@@ -182,7 +149,7 @@ export default function ChatContent({
 
   // Renders text content using Markdown
   const renderMessageContent = useCallback(
-    (content: string, messageId: string) => {
+    (content: string, messageId: string, isStreaming?: boolean) => {
       if (!content) return null;
 
       // Define regex patterns for special content blocks (excluding copied content)
@@ -207,7 +174,9 @@ export default function ChatContent({
       // Add main content if it exists
       if (cleanContent) {
         contentSections.push(
-          <Markdown key="main-content">{cleanContent}</Markdown>,
+          <Markdown key="main-content" isStreaming={isStreaming}>
+            {cleanContent}
+          </Markdown>,
         );
       }
 
@@ -229,7 +198,7 @@ export default function ChatContent({
       return contentSections.length > 0 ? (
         <>{contentSections}</>
       ) : (
-        <Markdown>{content}</Markdown>
+        <Markdown isStreaming={isStreaming}>{content}</Markdown>
       );
     },
     [modifiedResponses, handleAcceptModification],
@@ -275,9 +244,9 @@ export default function ChatContent({
 
   // Renders tool calls and text content in order
   const renderToolCalls = useCallback(
-    (message: UIMessage) => {
+    (message: UIMessage, isStreaming?: boolean) => {
       if (!message.parts)
-        return renderMessageContent(message.content, message.id);
+        return renderMessageContent(message.content, message.id, isStreaming);
 
       const contentElements: React.ReactNode[] = [];
 
@@ -287,7 +256,7 @@ export default function ChatContent({
           // Add text content
           contentElements.push(
             <div key={`text-${index}`} className="my-2">
-              {renderMessageContent(part.text, message.id)}
+              {renderMessageContent(part.text, message.id, isStreaming)}
             </div>,
           );
         } else if (
@@ -412,9 +381,12 @@ export default function ChatContent({
       }
 
       // Prepare the correct content based on message type
+      // For assistant messages, check if this is the last message and is currently streaming
+      const isMessageStreaming =
+        isLoading && isLastMessage && message.role === "assistant";
       let content: React.ReactNode;
       if (message.role === "assistant") {
-        content = renderToolCalls(message);
+        content = renderToolCalls(message, isMessageStreaming);
       } else {
         content = contentToRender
           ? renderMessageContent(contentToRender, message.id)
@@ -455,6 +427,7 @@ export default function ChatContent({
     handleRegenerateWithLoading,
     renderToolCalls,
     renderMessageContent,
+    isLoading,
   ]);
 
   return (
