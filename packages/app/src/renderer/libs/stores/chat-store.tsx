@@ -158,8 +158,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // Initialize settings on mount (only once)
   useEffect(() => {
     initializeSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initializeSettings]);
 
   // Update useRemoteStore when settings change - use specific value to avoid infinite loops
   const settingsUseRemoteStore = settings?.openai?.useRemoteStore;

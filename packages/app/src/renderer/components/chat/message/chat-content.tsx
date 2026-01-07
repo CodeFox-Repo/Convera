@@ -335,11 +335,11 @@ export default function ChatContent({
       ? messages[messages.length - 1 - lastUserMessageIndex]
       : null;
 
-  const updateScrollToBottom = () => {
+  const updateScrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  };
+  }, [messagesEndRef]);
 
   useEffect(() => {
     // Update the previous message count
@@ -347,31 +347,10 @@ export default function ChatContent({
 
     // When new messages come in, scroll to the bottom
     updateScrollToBottom();
-  }, [messages.length]);
-
-  if (messages.length === 0) {
-    return (
-      <div className="drag-region flex h-full w-full items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
-        >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center">
-            <BaseLogo size={64} />
-          </div>
-          <h3 className="mb-2 text-xl font-semibold">Welcome to Convera</h3>
-          <p className="text-zinc-500 dark:text-zinc-400">
-            Ask me anything about coding, tech, or problems you&apos;re facing
-            with your projects.
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
+  }, [messages.length, updateScrollToBottom]);
 
   // Function to render messages with our new ChatMessage component
+  // Note: This hook must be called before any conditional returns
   const renderMessages = useCallback(() => {
     return messages.map((message, index) => {
       const isLastMessage = index === messages.length - 1;
@@ -444,6 +423,28 @@ export default function ChatContent({
     renderMessageContent,
     isLoading,
   ]);
+
+  if (messages.length === 0) {
+    return (
+      <div className="drag-region flex h-full w-full items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="no-drag-region flex max-w-md flex-col items-center p-6 text-center"
+        >
+          <div className="mb-4 flex h-16 w-16 items-center justify-center">
+            <BaseLogo size={64} />
+          </div>
+          <h3 className="mb-2 text-xl font-semibold">Welcome to Convera</h3>
+          <p className="text-zinc-500 dark:text-zinc-400">
+            Ask me anything about coding, tech, or problems you&apos;re facing
+            with your projects.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="drag-region h-full flex-1 overflow-y-auto">
