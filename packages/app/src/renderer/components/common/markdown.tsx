@@ -1,35 +1,30 @@
 import React, { memo } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-// Import highlight.js styles
-import "highlight.js/styles/github-dark.css";
-// Import KaTeX styles
+import { Streamdown } from "streamdown";
+// Import KaTeX styles (used by streamdown for math)
 import "katex/dist/katex.min.css";
 
 /**
  * Shared markdown renderer component with syntax highlighting, math, and more
+ * Using Streamdown for better AI streaming support
  */
-export const Markdown = memo(({ children }: { children: string }) => {
-  return (
-    <div className="markdown no-drag-region max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
-        rehypePlugins={[
-          rehypeHighlight,
-          rehypeKatex,
-          [rehypeRaw, { passThrough: ["element"] }],
-        ]}
-        urlTransform={(value: string) => value}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
-  );
-});
+export const Markdown = memo(
+  ({ children, isStreaming }: { children: string; isStreaming?: boolean }) => {
+    return (
+      <div className="markdown no-drag-region max-w-none">
+        <Streamdown
+          mode={isStreaming ? "streaming" : "static"}
+          shikiTheme={["github-dark", "github-light"]}
+          controls={{
+            code: true,
+            table: true,
+            mermaid: true,
+          }}
+        >
+          {children}
+        </Streamdown>
+      </div>
+    );
+  },
+);
 
 Markdown.displayName = "Markdown";
