@@ -64,14 +64,10 @@ export const CHANNELS = {
     INIT: "shortcuts:init",
   },
   APP: {
-    APP_CHANGED: "app:changed",
-    GET_PREVIOUS: "app:get-previous",
-    GET_PREVIOUS_ID: "app:get-previous-id",
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
     SET_INPUT_CONTENT: "app:set-input-content",
     PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
-    GET_OPENED: "app:get-opened",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -95,10 +91,6 @@ export const CHANNELS = {
   },
   PROCESS_ICON: {
     GET: "process-icon:get",
-  },
-  // Legacy channels for backwards compatibility during transition
-  SETTINGS: {
-    TOGGLE: "settings:toggle",
   },
 } as const;
 

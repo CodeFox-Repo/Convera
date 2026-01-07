@@ -78,17 +78,7 @@ export function AppSettingsPage() {
       // Fetch installed MCP servers to check which apps are installed
       try {
         const installedResponse = await window.mcpAPI.getServers();
-        window.logger
-          .getLogger("test")
-          .info(JSON.stringify(installedResponse.data));
         if (installedResponse.success && installedResponse.data) {
-          // Debug: Log each server's isApp status
-          installedResponse.data.forEach((server) => {
-            console.log(
-              `Server "${server.name}": isApp=${server.isApp} (type: ${typeof server.isApp})`,
-            );
-          });
-
           // Filter servers that are marked as apps
           const installedAppIds = new Set(
             installedResponse.data

@@ -38,9 +38,8 @@ async function isMacOS(): Promise<boolean> {
 }
 
 const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
-  // TODO: DISABLED LOCAL API - Empty local settings, force remote
-  endpoint: "", // No default endpoint - local API disabled
-  apiKey: "", // No default API key - local API disabled
+  endpoint: "",
+  apiKey: "",
   modelId: "google/gemini-2.5-flash",
   supportedModels: [
     "google/gemini-2.5-flash",
