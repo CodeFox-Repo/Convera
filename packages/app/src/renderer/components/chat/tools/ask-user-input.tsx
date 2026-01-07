@@ -13,7 +13,10 @@ export interface AskUserInputRendererProps {
  */
 export const AskUserInputRenderer = memo(
   ({ toolInvocation }: AskUserInputRendererProps) => {
-    const args = toolInvocation.args as { question?: string; options?: string[] };
+    const args = toolInvocation.args as {
+      question?: string;
+      options?: string[];
+    };
     const question = args?.question || "Waiting for your input...";
 
     // Check if completed (has result)
