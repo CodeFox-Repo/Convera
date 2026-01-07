@@ -140,3 +140,23 @@ export const useLoadingState = create<LoadingState>((set) => ({
   setInitializing: (loading) => set({ isInitializing: loading }),
   setSaving: (saving) => set({ isSaving: saving }),
 }));
+
+// ==================== Search UI State ====================
+
+interface SearchUIState {
+  isSearchOpen: boolean;
+  searchQuery: string;
+
+  openSearch: () => void;
+  closeSearch: () => void;
+  setSearchQuery: (query: string) => void;
+}
+
+export const useSearchUIState = create<SearchUIState>((set) => ({
+  isSearchOpen: false,
+  searchQuery: "",
+
+  openSearch: () => set({ isSearchOpen: true, searchQuery: "" }),
+  closeSearch: () => set({ isSearchOpen: false, searchQuery: "" }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
+}));

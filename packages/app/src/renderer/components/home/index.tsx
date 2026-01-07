@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Moon,
   Plus,
+  Search,
   Server,
   Settings,
   Sun,
@@ -33,6 +34,12 @@ import { GeneralSettingsPage } from "@/renderer/components/settings/pages/genera
 import { McpSettingsPage } from "@/renderer/components/settings/pages/mcp-page";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 
+// Import conversation list and search components
+import { ConversationList } from "@/renderer/components/sidebar/ConversationList";
+import { GlobalSearchDialog } from "@/renderer/components/search/GlobalSearchDialog";
+import { useSearchUIState } from "@/renderer/libs/db/ui-state";
+import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
+
 type ViewType = "chat" | "settings";
 type SettingsTab = "general" | "app" | "agents" | "mcp" | "developer";
 
@@ -51,11 +58,19 @@ export function HomePage() {
 
   const { agentChanged, handleAgentChange } = useAgentStore();
   const { currentTheme, handleToggleTheme } = useSettingsStore();
+  const { openSearch } = useSearchUIState();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<ViewType>("chat");
   const [activeSettingsTab, setActiveSettingsTab] =
     useState<SettingsTab>("general");
+
+  // Global search keyboard shortcut (Cmd+K / Ctrl+K)
+  useKeyboardShortcut({
+    key: "k",
+    metaKey: true,
+    callback: openSearch,
+  });
 
   // Helper to navigate to settings - auto-expands sidebar
   const navigateToSettings = () => {
@@ -122,71 +137,87 @@ export function HomePage() {
         style={{ overflow: "hidden" }}
       >
         <SidebarDragRegion className="flex-1 flex flex-col h-full">
-          {/* Sidebar Header - aligned with Mac traffic lights (top: 12px, traffic lights end ~72px from left) */}
+          {/* Sidebar Header */}
           {!sidebarCollapsed && (
-            <div className="pt-3 pl-[72px] pr-2 pb-3">
-              <div className="flex items-center justify-between">
+            <div className="px-3 pb-3">
+              {/* Top row: traffic lights area + action buttons */}
+              <div className="flex items-center justify-end h-10">
+                {activeView === "chat" ? (
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={openSearch}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                      aria-label="Search conversations"
+                      title="Search (⌘K)"
+                    >
+                      <Search size={14} />
+                    </button>
+                    <button
+                      onClick={handleNewChat}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                      aria-label="New chat"
+                      title="New Chat"
+                    >
+                      <Plus size={14} />
+                    </button>
+                    <button
+                      onClick={() => setSidebarCollapsed(true)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                      aria-label="Collapse sidebar"
+                      title="Collapse Sidebar"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleToggleTheme}
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                    title="Toggle theme"
+                  >
+                    {currentTheme === "dark" ? (
+                      <Sun size={14} />
+                    ) : (
+                      <Moon size={14} />
+                    )}
+                  </button>
+                )}
+              </div>
+              {/* Bottom row: Logo + title or back button */}
+              <div className="flex items-center gap-2">
                 {activeView === "chat" ? (
                   <>
-                    <div className="flex items-center gap-2">
-                      <BaseLogo size={20} />
-                      <h1 className="text-lg font-semibold text-foreground">
-                        Convera
-                      </h1>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={handleNewChat}
-                        className="p-2 rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors pointer-events-auto"
-                        aria-label="New chat"
-                        title="New Chat"
-                      >
-                        <Plus size={16} />
-                      </button>
-                      <button
-                        onClick={() => setSidebarCollapsed(true)}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                        aria-label="Collapse sidebar"
-                        title="Collapse Sidebar"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                    </div>
+                    <BaseLogo size={20} className="flex-shrink-0" />
+                    <h1 className="text-lg font-semibold text-foreground">
+                      Convera
+                    </h1>
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setActiveView("chat")}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                        aria-label="Back to chat"
-                        title="Back to Chat"
-                      >
-                        <ArrowLeft size={16} />
-                      </button>
-                      <h1 className="text-lg font-semibold text-foreground">
-                        Settings
-                      </h1>
-                    </div>
                     <button
-                      onClick={handleToggleTheme}
-                      className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                      title="Toggle theme"
+                      onClick={() => setActiveView("chat")}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                      aria-label="Back to chat"
+                      title="Back to Chat"
                     >
-                      {currentTheme === "dark" ? (
-                        <Sun size={16} />
-                      ) : (
-                        <Moon size={16} />
-                      )}
+                      <ArrowLeft size={16} />
                     </button>
+                    <h1 className="text-lg font-semibold text-foreground">
+                      Settings
+                    </h1>
                   </>
                 )}
               </div>
             </div>
           )}
 
-          {/* Sidebar Content - Settings Navigation */}
+          {/* Sidebar Content */}
           <div className="flex-1 overflow-y-auto min-h-0 px-2">
+            {/* Conversation List (chat view) */}
+            {!sidebarCollapsed && activeView === "chat" && (
+              <ConversationList />
+            )}
+
             {/* Settings Navigation */}
             {!sidebarCollapsed && activeView === "settings" && (
               <nav className="space-y-1">
@@ -367,6 +398,13 @@ export function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Global Search Dialog */}
+      <GlobalSearchDialog
+        onConversationSelect={() => {
+          setActiveView("chat");
+        }}
+      />
     </div>
   );
 }
