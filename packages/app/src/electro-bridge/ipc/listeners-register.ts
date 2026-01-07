@@ -30,10 +30,6 @@ import { setupMCPIPC } from "./mcp-context";
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
   onFocusChatInput: (callback: () => void) => () => void;
-  onAppChanged: (
-    callback: (appName: string, appId?: number) => void,
-  ) => () => void;
-  onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputContent: (
     callback: (content: { text?: string }) => void,
@@ -58,23 +54,6 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
     ipcRenderer.on(CHANNELS.APP.FOCUS_CHAT_INPUT, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.APP.FOCUS_CHAT_INPUT, handler);
-    };
-  };
-
-  api.onAppChanged = (callback: (appName: string, appId?: number) => void) => {
-    const handler = (_: any, appName: string, appId?: number) =>
-      callback(appName, appId);
-    ipcRenderer.on(CHANNELS.APP.APP_CHANGED, handler);
-    return () => {
-      ipcRenderer.removeListener(CHANNELS.APP.APP_CHANGED, handler);
-    };
-  };
-
-  api.onToggleSettings = (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on(CHANNELS.SETTINGS.TOGGLE, handler);
-    return () => {
-      ipcRenderer.removeListener(CHANNELS.SETTINGS.TOGGLE, handler);
     };
   };
 

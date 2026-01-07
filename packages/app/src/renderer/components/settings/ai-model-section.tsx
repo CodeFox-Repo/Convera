@@ -46,7 +46,6 @@ export function AIModelSection({
     setSupportedModelIds,
     setSelectedModelId,
     subscribeToModelChanges,
-    selectedModelId,
   } = useModelStore();
   useEffect(() => {
     const unsubscribe = subscribeToModelChanges();
@@ -116,14 +115,10 @@ export function AIModelSection({
    * and trigger events to notify other components
    */
   const handleRemoveModel = (model: string) => {
-    console.log("aaa a a a Removing model:", model);
     const newModels = supportedModelIds.filter((m) => m !== model);
     setSupportedModelIds(newModels);
-    console.log("New models after removal:", newModels);
-    console.log("Current model in settings:", selectedModelId);
     if (model === settings.openai.modelId) {
       const newSelectedModel = newModels.length > 0 ? newModels[0] : "";
-      console.log("new selected model:", newSelectedModel);
       setSelectedModelId(newSelectedModel);
     }
   };
@@ -142,34 +137,6 @@ export function AIModelSection({
       </div>
 
       <div className="space-y-6">
-        {/* TODO: DISABLED LOCAL API - API Endpoint and Key fields are hidden */}
-        {/* <div className="space-y-2">
-          <Label htmlFor="endpoint" className="text-foreground">
-            API Endpoint
-          </Label>
-          <Input
-            id="endpoint"
-            value={settings.openai.endpoint}
-            onChange={(e) => onOpenAIChange("endpoint", e.target.value)}
-            placeholder="https://api.openai.com/v1"
-            className="border-input bg-background text-foreground"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="apiKey" className="text-foreground">
-            API Key
-          </Label>
-          <Input
-            id="apiKey"
-            type="password"
-            value={settings.openai.apiKey}
-            onChange={(e) => onOpenAIChange("apiKey", e.target.value)}
-            placeholder="sk-..."
-            className="border-input bg-background text-foreground"
-          />
-        </div> */}
-
         <div className="space-y-2">
           <Label htmlFor="modelId" className="text-foreground">
             Model ID

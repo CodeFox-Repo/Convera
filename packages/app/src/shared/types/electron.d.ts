@@ -82,10 +82,6 @@ export interface IElectronAPI {
 
   // Event listeners (Main -> Renderer)
   onFocusChatInput: (callback: () => void) => () => void;
-  onAppChanged: (
-    callback: (appName: string, appId?: number) => void,
-  ) => () => void;
-  onToggleSettings: (callback: () => void) => () => void;
   onAgentListUpdated: (callback: () => void) => () => void;
   onSetInputContent: (
     callback: (content: { text?: string }) => void,

@@ -286,7 +286,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               }
 
               body.mcpServers = mcpServers;
-              window.logger.getLogger("asd").info("mcpServers", mcpServers);
 
               options.body = JSON.stringify(body);
             }
