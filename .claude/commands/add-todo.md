@@ -47,19 +47,45 @@ gh project item-list 1 --owner CodeFox-Repo --format json | jq -r '.items[] | "\
 gh project item-create 1 --owner CodeFox-Repo --title "<task title>" --format json
 ```
 
-6. Set the initial status to "Todo":
+6. Add bilingual description (Chinese + English):
+   - Get the DI_ prefixed ID from the created item:
+   ```bash
+   # Get the draft issue content ID
+   gh project item-list 1 --owner CodeFox-Repo --format json | jq -r '.items[] | select(.title == "<task title>") | .content.id'
+   ```
+   - Update the item with both title and body (both are required):
+   ```bash
+   gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <DI_xxx> --title "<task title>" --body "$(cat <<'EOF'
+   ## <中文标题> | <English Title>
+
+   ### 痛点 / Pain Points
+   - <中文痛点描述>
+   - <English pain point description>
+
+   ### MVP
+   - <中文 MVP 描述>
+   - <English MVP description>
+
+   ### 验收标准 / Acceptance Criteria
+   - <中文验收标准>
+   - <English acceptance criteria>
+   EOF
+   )"
+   ```
+
+7. Set the initial status to "Todo":
 
 ```bash
-# Get the item ID from the previous command output
+# Use the PVTI_ prefixed item ID (from step 5 output) for status updates
 # Get the Status field ID
 STATUS_FIELD_ID=$(gh project field-list 1 --owner CodeFox-Repo --format json | jq -r '.fields[] | select(.name == "Status") | .id')
 TODO_OPTION_ID=$(gh project field-list 1 --owner CodeFox-Repo --format json | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "Todo") | .id')
 
-# Update the item's status
-gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <item-id> --field-id $STATUS_FIELD_ID --single-select-option-id $TODO_OPTION_ID
+# Update the item's status using PVTI_ id
+gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <PVTI_xxx> --field-id $STATUS_FIELD_ID --single-select-option-id $TODO_OPTION_ID
 ```
 
-7. Optionally set priority if mentioned in the task:
+8. Optionally set priority if mentioned in the task:
    - If task contains "urgent", "asap", "critical" -> High priority
    - If task contains "when possible", "low priority" -> Low priority
    - Otherwise -> Medium priority
@@ -67,10 +93,10 @@ gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <item-id> --field-id
 ```bash
 PRIORITY_FIELD_ID=$(gh project field-list 1 --owner CodeFox-Repo --format json | jq -r '.fields[] | select(.name == "Priority") | .id')
 # Get appropriate option ID based on priority level
-gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <item-id> --field-id $PRIORITY_FIELD_ID --single-select-option-id <priority-option-id>
+gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <PVTI_xxx> --field-id $PRIORITY_FIELD_ID --single-select-option-id <priority-option-id>
 ```
 
-8. Report the result:
+9. Report the result:
    - Show the created/updated item details
    - Provide the project URL for reference: https://github.com/orgs/CodeFox-Repo/projects/1
 
@@ -82,3 +108,8 @@ gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <item-id> --field-id
 - Always check for duplicates before creating new items
 - Parse the clipboard content intelligently to extract a clean title
 - If the clipboard contains multiple lines, use the first line as title and rest as description context
+- **Important ID types**:
+  - `PVTI_xxx` - Project item ID, used for setting status/priority fields
+  - `DI_xxx` - Draft issue content ID, used for editing title/body
+- **Bilingual descriptions**: Always add descriptions in both Chinese and English format
+- When editing draft issues, both `--title` and `--body` must be provided together

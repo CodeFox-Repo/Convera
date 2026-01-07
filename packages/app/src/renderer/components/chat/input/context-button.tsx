@@ -97,7 +97,7 @@ export function ContextButtons({
             title="Add context"
           >
             <Plus size={14} className="flex-shrink-0" />
-            {!hasContexts && <span className="ml-1 mt-1">Add context</span>}
+            {!hasContexts && <span className="ml-1">Add context</span>}
           </button>
 
           {selectedContent && (

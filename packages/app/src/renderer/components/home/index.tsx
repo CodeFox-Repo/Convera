@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { UserButton } from "../auth/user-button";
-import ChatInput, { ChatInputRef } from "../chat/input/chat-input";
+import ChatInputContainer from "../chat/input/chat-input-container";
+import type { ChatInputRef } from "../chat/input/chat-input-container";
 import ChatContent from "../chat/message/chat-content";
 import {
   EnhancedDragRegion,
@@ -353,7 +354,7 @@ export function HomePage() {
             {/* Input Area */}
             <div className="p-6 relative pointer-events-auto">
               <div className="max-w-4xl mx-auto relative z-10">
-                <ChatInput
+                <ChatInputContainer
                   ref={chatInputRef}
                   placeholder="Message Convera..."
                 />

@@ -74,7 +74,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
             selectedAgent &&
             selectedAgent.id !== "DefaultAssistant" &&
             selectedAgent.name !== "Default Assistant"
-              ? "bg-primary/20 text-primary hover:bg-primary/30 rounded px-2 py-0.5 text-xs font-medium"
+              ? "bg-primary/20 text-primary hover:bg-primary/30 rounded-xs px-2 py-0.5 text-xs font-medium"
               : "text-foreground/70 hover:text-foreground"
           }`}
           onClick={(e) => {
@@ -139,7 +139,7 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const micButtonProps = getMicButtonProps();
 
   return (
-    <div className="ml-2 drag-region flex min-h-[30px] items-center justify-between">
+    <div className="ml-2 mb-2 drag-region flex min-h-[30px] items-center justify-between">
       {/* Left icons and elements */}
       <div className="flex flex-1 items-center space-x-2">
         {leftActionButtons.map((config) => {

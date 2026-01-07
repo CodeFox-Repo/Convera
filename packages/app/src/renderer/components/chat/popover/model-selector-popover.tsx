@@ -70,7 +70,7 @@ export default function ModelSelector() {
   return (
     <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
       <Popover.Trigger asChild>
-        <button className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium">
+        <button className="no-drag-region bg-primary/20 text-primary hover:bg-primary/30 flex items-center gap-1 rounded-xs px-2 py-0.5 text-xs font-medium">
           {selectedDisplayName}
         </button>
       </Popover.Trigger>
