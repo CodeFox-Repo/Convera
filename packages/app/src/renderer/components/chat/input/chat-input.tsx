@@ -204,7 +204,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="h-full w-full flex-1 flex flex-col p-1 min-h-0">
+        <div className="h-full w-full flex-1 flex flex-col min-h-0">
           <div
             className={`flex-1 flex h-full overflow-auto flex-col rounded-2xl border transition-all duration-200 bg-background ${
               isDragging

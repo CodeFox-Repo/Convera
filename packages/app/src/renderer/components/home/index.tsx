@@ -352,7 +352,7 @@ export function HomePage() {
             </AnimatePresence>
 
             {/* Input Area */}
-            <div className="p-6 relative pointer-events-auto">
+            <div className="px-6 pb-6 relative pointer-events-auto">
               <div className="max-w-4xl mx-auto relative z-10">
                 <ChatInputContainer
                   ref={chatInputRef}
