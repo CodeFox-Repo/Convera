@@ -79,7 +79,6 @@ export function AppSettingsPage() {
       try {
         const installedResponse = await window.mcpAPI.getServers();
         if (installedResponse.success && installedResponse.data) {
-
           // Filter servers that are marked as apps
           const installedAppIds = new Set(
             installedResponse.data
