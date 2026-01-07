@@ -29,6 +29,41 @@ export function useConversations() {
 }
 
 /**
+ * Get active (non-archived) conversations
+ */
+export function useActiveConversations() {
+  return useLiveQuery(() =>
+    db.conversations
+      .orderBy("updatedAt")
+      .reverse()
+      .filter((c) => !c.metadata?.archived)
+      .toArray(),
+  );
+}
+
+/**
+ * Get archived conversations
+ */
+export function useArchivedConversations() {
+  return useLiveQuery(() =>
+    db.conversations
+      .orderBy("updatedAt")
+      .reverse()
+      .filter((c) => c.metadata?.archived === true)
+      .toArray(),
+  );
+}
+
+/**
+ * Get recent messages for search (across all conversations)
+ */
+export async function getRecentMessagesForSearch(
+  limit: number = 1000,
+): Promise<Message[]> {
+  return db.messages.orderBy("createdAt").reverse().limit(limit).toArray();
+}
+
+/**
  * Get a single conversation
  */
 export function useConversation(id: string | null) {
