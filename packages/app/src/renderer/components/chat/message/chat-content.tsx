@@ -335,19 +335,28 @@ export default function ChatContent({
       ? messages[messages.length - 1 - lastUserMessageIndex]
       : null;
 
-  const updateScrollToBottom = useCallback(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messagesEndRef]);
+  const updateScrollToBottom = useCallback(
+    (instant: boolean = false) => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: instant ? "instant" : "smooth",
+        });
+      }
+    },
+    [messagesEndRef],
+  );
 
   useEffect(() => {
+    // First load (messages loaded from 0) should use instant scroll
+    // New messages arriving should use smooth scroll
+    const isFirstLoad = previousMessageCount === 0 && messages.length > 0;
+
     // Update the previous message count
     setPreviousMessageCount(messages.length);
 
     // When new messages come in, scroll to the bottom
-    updateScrollToBottom();
-  }, [messages.length, updateScrollToBottom]);
+    updateScrollToBottom(isFirstLoad);
+  }, [messages.length, updateScrollToBottom, previousMessageCount]);
 
   // Function to render messages with our new ChatMessage component
   // Note: This hook must be called before any conditional returns
