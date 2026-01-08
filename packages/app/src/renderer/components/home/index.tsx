@@ -154,7 +154,7 @@ export function HomePage() {
 
       {/* Sidebar */}
       <motion.div
-        className={`bg-background/50 backdrop-blur-md flex flex-col ${
+        className={`bg-background/85 backdrop-blur-md flex flex-col ${
           sidebarCollapsed ? "w-0" : "w-80"
         }`}
         initial={false}
@@ -315,7 +315,7 @@ export function HomePage() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-background border-l border-border relative">
+      <div className="flex-1 flex flex-col bg-background border-l border-border/30 relative">
         {activeView === "chat" ? (
           <>
             {/* Messages Area */}
