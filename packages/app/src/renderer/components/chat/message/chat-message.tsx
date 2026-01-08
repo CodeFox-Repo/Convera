@@ -3,7 +3,15 @@ import { authClient } from "@/renderer/libs/auth-client";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import { Attachment, UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Edit, File, GitBranch, RefreshCw, User } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Edit,
+  File,
+  GitBranch,
+  RefreshCw,
+  User,
+} from "lucide-react";
 import React, { memo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
 import SelectedContentBlock from "../selected/selected-content-block";

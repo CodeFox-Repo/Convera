@@ -38,7 +38,10 @@ import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 // Import conversation list and search components
 import { ConversationList } from "@/renderer/components/sidebar/ConversationList";
 import { GlobalSearchDialog } from "@/renderer/components/search/GlobalSearchDialog";
-import { useSearchUIState, useSelectionStore } from "@/renderer/libs/db/ui-state";
+import {
+  useSearchUIState,
+  useSelectionStore,
+} from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
 import { branchFromMessage } from "@/renderer/libs/db/hooks";
 

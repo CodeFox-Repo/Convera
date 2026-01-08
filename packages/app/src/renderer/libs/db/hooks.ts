@@ -432,9 +432,7 @@ export async function branchFromMessage(
 
   // Create new conversation with branch metadata
   const newConvId = await createConversation({
-    title: sourceConv.title
-      ? `${sourceConv.title} (branch)`
-      : "New Branch",
+    title: sourceConv.title ? `${sourceConv.title} (branch)` : "New Branch",
     agentId: sourceConv.agentId,
     modelId: sourceConv.modelId,
     systemPrompt: sourceConv.systemPrompt,
