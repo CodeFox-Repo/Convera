@@ -32,6 +32,7 @@ interface ChatContentProps {
   isLoading: boolean;
   onEditMessage: (message: UIMessage, newContent: string) => void;
   onRegenerateMessage: () => void;
+  onBranchFromMessage: (messageIndex: number) => void;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
   onIgnoreAgentChange?: () => void;
@@ -46,6 +47,7 @@ export default function ChatContent({
   isLoading,
   onEditMessage,
   onRegenerateMessage,
+  onBranchFromMessage,
 }: ChatContentProps) {
   const [previousMessageCount, setPreviousMessageCount] = useState(0);
   const [hasReceivedFirstToken, setHasReceivedFirstToken] = useState(false);
@@ -400,6 +402,7 @@ export default function ChatContent({
         <ChatMessage
           key={message.id}
           message={message}
+          messageIndex={index}
           isLastMessage={isLastMessage}
           isLastUserMessage={isLastUserMessage}
           isEditing={isEditing}
@@ -412,6 +415,7 @@ export default function ChatContent({
           onEditContentChange={setEditedContent}
           onCopy={() => handleCopyContent(message.content || "", message.id)}
           onRegenerate={handleRegenerateWithLoading}
+          onBranch={onBranchFromMessage}
           renderContent={content}
         />
       );
@@ -428,6 +432,7 @@ export default function ChatContent({
     handleEditCancel,
     handleCopyContent,
     handleRegenerateWithLoading,
+    onBranchFromMessage,
     renderToolCalls,
     renderMessageContent,
     isLoading,
