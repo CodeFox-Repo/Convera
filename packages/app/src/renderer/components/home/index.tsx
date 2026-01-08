@@ -38,8 +38,9 @@ import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 // Import conversation list and search components
 import { ConversationList } from "@/renderer/components/sidebar/ConversationList";
 import { GlobalSearchDialog } from "@/renderer/components/search/GlobalSearchDialog";
-import { useSearchUIState } from "@/renderer/libs/db/ui-state";
+import { useSearchUIState, useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
+import { branchFromMessage } from "@/renderer/libs/db/hooks";
 
 type ViewType = "chat" | "settings";
 type SettingsTab = "general" | "app" | "agents" | "mcp" | "developer";
@@ -60,6 +61,7 @@ export function HomePage() {
   const { agentChanged, handleAgentChange } = useAgentStore();
   const { currentTheme, handleToggleTheme } = useSettingsStore();
   const { openSearch } = useSearchUIState();
+  const { currentConversationId, setCurrentConversation } = useSelectionStore();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<ViewType>("chat");
@@ -89,6 +91,26 @@ export function HomePage() {
   const handleNewChat = () => {
     resetChat();
     setActiveView("chat");
+  };
+
+  // Handle branching from a specific message
+  const handleBranchFromMessage = async (messageIndex: number) => {
+    if (!currentConversationId) {
+      console.error("Cannot branch: no current conversation");
+      return;
+    }
+
+    try {
+      const newConversationId = await branchFromMessage(
+        currentConversationId,
+        messageIndex,
+      );
+      // Switch to the new branched conversation
+      setCurrentConversation(newConversationId);
+      console.log("Created branch conversation:", newConversationId);
+    } catch (error) {
+      console.error("Failed to create branch:", error);
+    }
   };
 
   // Settings navigation items
@@ -314,6 +336,7 @@ export function HomePage() {
                     isLoading={isLoading}
                     onEditMessage={editMessage}
                     onRegenerateMessage={regenerateMessage}
+                    onBranchFromMessage={handleBranchFromMessage}
                     agentChanged={agentChanged}
                     onRegenerateWithNewAgent={() => handleAgentChange(true)}
                     onIgnoreAgentChange={() => handleAgentChange(false)}

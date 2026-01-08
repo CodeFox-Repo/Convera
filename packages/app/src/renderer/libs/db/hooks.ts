@@ -397,5 +397,88 @@ export async function initializeDatabase(): Promise<void> {
   }
 }
 
+// ==================== Branching Actions ====================
+
+/**
+ * Create a new conversation branch from a specific message
+ * Copies all messages up to and including the specified message index
+ * to a new conversation
+ *
+ * @param conversationId - Source conversation ID
+ * @param upToMessageIndex - Copy messages up to and including this index (0-based)
+ * @returns New conversation ID
+ */
+export async function branchFromMessage(
+  conversationId: string,
+  upToMessageIndex: number,
+): Promise<string> {
+  // Get source conversation and its messages
+  const sourceConv = await db.conversations.get(conversationId);
+  if (!sourceConv) {
+    throw new Error("Source conversation not found");
+  }
+
+  const sourceMessages = await db.messages
+    .where("conversationId")
+    .equals(conversationId)
+    .sortBy("createdAt");
+
+  if (upToMessageIndex < 0 || upToMessageIndex >= sourceMessages.length) {
+    throw new Error("Invalid message index for branching");
+  }
+
+  // Get messages to copy (up to and including the specified index)
+  const messagesToCopy = sourceMessages.slice(0, upToMessageIndex + 1);
+
+  // Create new conversation with branch metadata
+  const newConvId = await createConversation({
+    title: sourceConv.title
+      ? `${sourceConv.title} (branch)`
+      : "New Branch",
+    agentId: sourceConv.agentId,
+    modelId: sourceConv.modelId,
+    systemPrompt: sourceConv.systemPrompt,
+    metadata: {
+      ...sourceConv.metadata,
+      branchedFrom: {
+        conversationId,
+        messageIndex: upToMessageIndex,
+        createdAt: new Date().toISOString(),
+      },
+    },
+  });
+
+  // Copy messages to new conversation
+  if (messagesToCopy.length > 0) {
+    const baseTime = Date.now();
+    await db.messages.bulkAdd(
+      messagesToCopy.map((msg, index) => ({
+        id: crypto.randomUUID(),
+        conversationId: newConvId,
+        role: msg.role,
+        content: msg.content,
+        toolInvocations: msg.toolInvocations,
+        experimental_attachments: msg.experimental_attachments,
+        createdAt: new Date(baseTime + index),
+      })),
+    );
+
+    // Update message count
+    await db.conversations.update(newConvId, {
+      metadata: {
+        ...sourceConv.metadata,
+        messageCount: messagesToCopy.length,
+        branchedFrom: {
+          conversationId,
+          messageIndex: upToMessageIndex,
+          createdAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  return newConvId;
+}
+
 // Auto-initialize
 initializeDatabase().catch(console.error);
