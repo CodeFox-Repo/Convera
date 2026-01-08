@@ -28,17 +28,20 @@ gh project item-list 1 --owner CodeFox-Repo --format json | jq -r '.items[] | "\
 ```
 
 3. Search for matching items:
+
    - Look for items with titles containing the search keywords
    - Check item descriptions for semantic matches
    - Consider partial matches and similar intent
    - Rank matches by relevance
 
 4. If no matches found:
+
    - Inform the user that no matching items were found
    - Suggest creating a new todo item instead
    - Ask the user if they want to list all items to manually select one
 
 5. If multiple matches found:
+
    - Present all matching items to the user with their current status
    - Ask the user using AskUserQuestion tool to select which item to update
 
@@ -50,12 +53,14 @@ gh project field-list 1 --owner CodeFox-Repo --format json | jq -r '.fields[] | 
 ```
 
 Available statuses (typical):
+
 - **Todo** - Not started
 - **In Progress** - Currently being worked on
 - **Done** - Completed
 - **Backlog** - Planned for future
 
 7. Determine the new status:
+
    - If context contains "done", "completed", "finished", "fixed" -> Done
    - If context contains "started", "working on", "in progress" -> In Progress
    - If context contains "backlog", "later", "future" -> Backlog
@@ -63,6 +68,7 @@ Available statuses (typical):
    - If unclear, ask the user to select the new status
 
 8. Ask the user for confirmation:
+
    - Show the item to be updated
    - Show the current status
    - Show the proposed new status
@@ -87,18 +93,21 @@ gh project item-edit --project-id PVT_kwDODCfkrM4BMEO5 --id <PVTI_xxx> --field-i
 ## Examples
 
 ### Example 1: Mark task as done
+
 ```
 Input: "model selector done"
 Action: Search for items containing "model selector", update status to "Done"
 ```
 
 ### Example 2: Start working on a task
+
 ```
 Input: "started dark mode feature"
 Action: Search for "dark mode" items, update status to "In Progress"
 ```
 
 ### Example 3: Ambiguous input
+
 ```
 Input: "chat feature"
 Action: Find matching items, ask user which one and what status to set
@@ -119,4 +128,3 @@ Action: Find matching items, ask user which one and what status to set
   - 进行中/正在做 -> In Progress
   - 待办/未开始 -> Todo
   - 待定/以后 -> Backlog
-
