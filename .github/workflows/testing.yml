@@ -22,7 +22,7 @@ jobs:
 
       - name: Install Linux dependencies
         run: |
-          # Install dependencies for robotjs compilation
+          # Native build deps for robotjs, which packages/hands depends on
           sudo apt-get update
           sudo apt-get install -y build-essential libxtst-dev libpng++-dev libxinerama-dev
 

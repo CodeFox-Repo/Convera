@@ -8,6 +8,7 @@ import {
 import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
 
+import { setupAgentIPC } from "@/electro-bridge/ipc/agent-context";
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
 import {
@@ -81,6 +82,10 @@ app.whenReady().then(async () => {
 
     // Initialize synchronous components first
     initializeLogger();
+
+    // The local agent loop. Registered here rather than in listeners-register, which is
+    // shared with the preload bundle and must not pull in the Agent SDK.
+    setupAgentIPC();
 
     // Initialize MCP Hub asynchronously but don't block startup
     initializeMCPHub()

@@ -111,6 +111,27 @@ interface ChatMessage extends Omit<Message, "id"> {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
+const CREDENTIAL_KEYS = ["apiKey", "api_key", "customApiSettings", "secret"];
+
+/**
+ * Trust boundary: nothing leaving this app for a remote server may carry the user's own
+ * credentials. Their endpoint and key stay on this device.
+ *
+ * This fails closed on purpose. If a future change reintroduces a credential into the
+ * request body, the request dies here with a loud error instead of quietly uploading it.
+ */
+function assertNoCredentials(body: unknown): void {
+  if (typeof body !== "string") return;
+  const offender = CREDENTIAL_KEYS.find((key) =>
+    new RegExp(`"${key}"\\s*:`).test(body),
+  );
+  if (offender) {
+    throw new Error(
+      `Refusing to send request: body contains "${offender}". User credentials must never leave this device.`,
+    );
+  }
+}
+
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -226,7 +247,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const body = JSON.parse(options.body) as {
             mcpServers?: Array<{ name: string; tools: ToolDefinition[] }>;
             useRemoteServer?: boolean;
-            customApiSettings?: { endpoint: string; apiKey: string };
             agent?: unknown;
             modelId?: string;
             messages?: unknown[];
@@ -251,32 +271,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 }));
               }
 
-              // Get model config from store for interceptor
-              const {
-                selectedConfigId: interceptorConfigId,
-                getCurrentConfig: getInterceptorConfig,
-              } = useModelConfigStore.getState();
-
-              // Supplement missing configuration with correct logic
-              const shouldUseRemoteServer =
-                interceptorConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
+              const { selectedConfigId: interceptorConfigId } =
+                useModelConfigStore.getState();
 
               if (
                 !Object.prototype.hasOwnProperty.call(body, "useRemoteServer")
               ) {
-                body.useRemoteServer = shouldUseRemoteServer;
+                body.useRemoteServer =
+                  interceptorConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
               }
 
-              // Set customApiSettings from model config if NOT using remote server
-              if (!body.customApiSettings && !shouldUseRemoteServer) {
-                const interceptorConfig = await getInterceptorConfig();
-                if (interceptorConfig) {
-                  body.customApiSettings = {
-                    endpoint: interceptorConfig.endpoint,
-                    apiKey: interceptorConfig.apiKey,
-                  };
-                }
-              }
               if (!body.agent) {
                 body.agent = selectedAgent || undefined;
               }
@@ -294,6 +298,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           console.warn("Failed to parse/update request body:", error);
         }
       }
+
+      assertNoCredentials(options.body);
 
       return fetch(url, {
         ...options,
@@ -676,60 +682,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
 
           // Get current model config from store
-          const { selectedConfigId, getCurrentConfig } =
-            useModelConfigStore.getState();
+          const { selectedConfigId } = useModelConfigStore.getState();
 
           // Determine which API to use based on selected config
-          let shouldUseRemoteServer =
+          const shouldUseRemoteServer =
             selectedConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
-          let currentConfig = await getCurrentConfig();
 
-          // If using FOXYCHAT_CONFIG_ID but not logged in, try to find a custom config
-          if (selectedConfigId === FOXYCHAT_CONFIG_ID && !isUserLoggedIn) {
-            const allConfigs = await db.modelConfigs.toArray();
-            if (allConfigs.length > 0) {
-              // Auto-select the first available custom config
-              currentConfig = allConfigs[0];
-              shouldUseRemoteServer = false;
-            }
+          // A user-supplied endpoint and apiKey are never sent anywhere. They stay on this
+          // machine, and inference for them runs locally.
+          //
+          // ponytail: until the local agent core lands, the only path that still reaches a
+          // model is the hosted one, which authenticates with the session cookie and needs
+          // no key from us. A BYO-key config can no longer be served here — say so plainly
+          // rather than silently falling back to uploading the key.
+          if (!shouldUseRemoteServer) {
+            console.error(
+              "Local inference is not wired up yet, so a custom model configuration cannot be used.",
+            );
+            alert(
+              "Custom API keys now stay on this device and are never uploaded. Local inference is not wired up yet — sign in to use the hosted models in the meantime.",
+            );
+            return;
           }
 
-          // Build customApiSettings from the selected model config
-          const customApiSettings =
-            !shouldUseRemoteServer && currentConfig
-              ? {
-                  endpoint: currentConfig.endpoint,
-                  apiKey: currentConfig.apiKey,
-                }
-              : undefined;
-
-          // If neither remote nor custom API is available, show error
-          const hasValidConfig = shouldUseRemoteServer || currentConfig;
-          if (!hasValidConfig) {
-            // Fallback: check legacy settings
-            const hasLegacyConfig =
-              currentSettings?.openai?.apiKey &&
-              currentSettings.openai.apiKey.trim() !== "" &&
-              currentSettings.openai.endpoint &&
-              currentSettings.openai.endpoint.trim() !== "";
-
-            if (!hasLegacyConfig) {
-              console.error(
-                "No API configured. Please log in or add a model configuration.",
-              );
-              alert(
-                "Please log in or add a model configuration to use the chat. Click the Account button to set up.",
-              );
-              return;
-            }
-          }
           const requestBody = {
             agent: selectedAgent || undefined,
-            // modelId: // Let backend use default model
-            //   currentModelIdRef.current || currentSettings?.openai?.modelId,
             conversationId: conversationIdToUse || undefined,
             useRemoteServer: shouldUseRemoteServer,
-            customApiSettings,
             // Re-enable MCP servers
             mcpServers,
           };

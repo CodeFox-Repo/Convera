@@ -212,7 +212,6 @@ Servers are configured in the app settings with support for:
 - **@modelcontextprotocol/sdk**: MCP implementation
 - **ai**: AI SDK for chat functionality
 - **zod**: Schema validation
-- **robotjs**: System automation
 
 ## Cross-Window State Synchronization
 

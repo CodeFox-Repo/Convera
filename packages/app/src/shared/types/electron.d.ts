@@ -109,3 +109,10 @@ declare global {
     logger: WindowLogger;
   }
 }
+
+// The local agent loop, exposed by preload. See electro-bridge/ipc/agent-preload.ts.
+declare global {
+  interface Window {
+    agentAPI: import("@/electro-bridge/ipc/agent-preload").AgentAPI;
+  }
+}

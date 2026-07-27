@@ -8,104 +8,88 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './__root'
+import { Route as AgentRouteImport } from './agent'
+import { Route as IndexRouteImport } from './index'
+import { Route as AuthPathnameRouteImport } from './auth/$pathname'
 
-import { Route as rootRoute } from './__root'
-import { Route as IndexImport } from './index'
-import { Route as AuthPathnameImport } from './auth/$pathname'
-
-// Create/Update Routes
-
-const IndexRoute = IndexImport.update({
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AuthPathnameRoute = AuthPathnameImport.update({
+const AuthPathnameRoute = AuthPathnameRouteImport.update({
   id: '/auth/$pathname',
   path: '/auth/$pathname',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/auth/$pathname': typeof AuthPathnameRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/auth/$pathname': typeof AuthPathnameRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/auth/$pathname': typeof AuthPathnameRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths: '/' | '/agent' | '/auth/$pathname'
+  fileRoutesByTo: FileRoutesByTo
+  to: '/' | '/agent' | '/auth/$pathname'
+  id: '__root__' | '/' | '/agent' | '/auth/$pathname'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AgentRoute: typeof AgentRoute
+  AuthPathnameRoute: typeof AuthPathnameRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth/$pathname': {
       id: '/auth/$pathname'
       path: '/auth/$pathname'
       fullPath: '/auth/$pathname'
-      preLoaderRoute: typeof AuthPathnameImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof AuthPathnameRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
-}
-
-// Create and export the route tree
-
-export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
-}
-
-export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
-}
-
-export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
-}
-
-export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/$pathname'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/$pathname'
-  id: '__root__' | '/' | '/auth/$pathname'
-  fileRoutesById: FileRoutesById
-}
-
-export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AuthPathnameRoute: typeof AuthPathnameRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentRoute: AgentRoute,
   AuthPathnameRoute: AuthPathnameRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/",
-        "/auth/$pathname"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    },
-    "/auth/$pathname": {
-      "filePath": "auth/$pathname.tsx"
-    }
-  }
-}
-ROUTE_MANIFEST_END */

@@ -17,10 +17,7 @@ const config: ForgeConfig = {
     icon: "./public/images/icon",
     // Include images directory in the packaged app
     extraResource: ["./public/images"],
-    // Force unpack robotjs using different syntax
-    asar: {
-      unpack: "**/@hurdlegroup/**",
-    },
+    asar: true,
     ...(shouldSign && {
       osxSign: {
         identity: process.env.APPLE_IDENTITY,

@@ -71,21 +71,32 @@ function configureWindowProperties(_window: BrowserWindow) {
   // Window is now resizable, no need to prevent resize
 }
 
+/**
+ * Which page to open on launch. The agent chat page runs on the local agent core while
+ * the old chat still talks to the remote API, and they are meant to be comparable side by
+ * side until one wins — so which one boots is a launch-time choice, not a code edit.
+ *
+ *   FOXY_PAGE=/agent pnpm start
+ */
+function startPage(): string {
+  return process.env.FOXY_PAGE ?? "/";
+}
+
 // Load window content
 function loadWindowContent(window: BrowserWindow) {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    console.log(
-      "Loading main URL in main window:",
-      MAIN_WINDOW_VITE_DEV_SERVER_URL,
-    );
-    window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    const url = new URL(startPage(), MAIN_WINDOW_VITE_DEV_SERVER_URL).toString();
+    console.log("Loading main URL in main window:", url);
+    window.loadURL(url);
   } else {
     const mainPath = path.join(
       __dirname,
       `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
     );
-    console.log("Loading main path in main window:", mainPath);
-    window.loadFile(mainPath);
+    console.log("Loading main path in main window:", mainPath, startPage());
+    // A packaged build serves one index.html, so the page is a hash route rather than a
+    // path — loadFile would look for a file that does not exist.
+    window.loadFile(mainPath, startPage() === "/" ? undefined : { hash: startPage() });
   }
 }
 
@@ -117,17 +128,16 @@ function setupWindowEventHandlers(window: BrowserWindow) {
   });
 
   window.webContents.on("did-finish-load", () => {
+    // This runs after every load and used to hardcode "/", which silently overrode
+    // whatever page was actually requested. It has to agree with loadWindowContent.
+    const page = JSON.stringify(startPage());
     window.webContents
       .executeJavaScript(
         `
-      console.log("Redirecting to main page...");
-      
       if (window.router) {
-        console.log("Using router API");
-        window.router.navigate({ to: "/" });
+        window.router.navigate({ to: ${page} });
       } else {
-        console.log("Using location.hash");
-        window.location.hash = "/";
+        window.location.hash = ${page};
       }
     `,
       )

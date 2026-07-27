@@ -25,16 +25,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      # Install macOS dependencies for robotjs
-      - name: Install macOS dependencies
-        run: |
-          # Ensure Xcode command line tools are available
-          xcode-select --install 2>/dev/null || true
-          # Install Python for node-gyp (robotjs compilation)
-          brew install python@3.11
-          # Install additional build tools
-          npm install -g node-gyp
-
       # Cache dependencies
       - name: Cache pnpm store
         uses: actions/cache@v4
@@ -48,28 +38,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Clean and rebuild robotjs for release environment
-      - name: Clean and rebuild robotjs for release
-        working-directory: packages/app
-        run: |
-          # Set environment for native compilation
-          export CI=false
-
-          # Clean any existing builds
-          rm -rf node_modules/@hurdlegroup/robotjs/build
-
-          # Force rebuild robotjs with proper electron ABI
-          pnpm run rebuild:robotjs
-
       # Run tests
       - name: Run tests
         working-directory: packages/app
         run: pnpm test
 
       # Make app distributable (this will also package)
-      - name: Make app distributable with robotjs
+      - name: Make app distributable
         working-directory: packages/app
-        run: pnpm run make:robotjs
+        run: pnpm run make
 
       # Get version from tag
       - name: Get version from tag

@@ -1,0 +1,43 @@
+{
+  "name": "@convera/hands",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Give any MCP-capable agent a Mac: screen capture and synthetic input over stdio.",
+  "license": "MIT",
+  "main": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "default": "./dist/lib.js"
+    },
+    "./server": "./dist/index.js"
+  },
+  "bin": {
+    "foxy-hands": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "doctor": "node dist/doctor.js",
+    "smoke": "node dist/smoke.js",
+    "compile": "bun build src/index.ts --compile --outfile dist/foxy-hands",
+    "test": "vitest run",
+    "lint": "eslint src",
+    "format": "prettier --check src",
+    "format:write": "prettier --write src"
+  },
+  "dependencies": {
+    "@hurdlegroup/robotjs": "^0.12.3",
+    "@modelcontextprotocol/sdk": "1.12.3",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { createAgentAPI } from "./electro-bridge/ipc/agent-preload";
 import { CHANNELS } from "./electro-bridge/ipc/channels";
 import { exposeEnvContext } from "./electro-bridge/ipc/env-context";
 import { createElectronAPI } from "./electro-bridge/ipc/listeners-register";
@@ -22,6 +23,9 @@ const extendedAPI = {
 };
 
 contextBridge.exposeInMainWorld("electronAPI", extendedAPI);
+
+// Expose the local agent loop to the renderer process
+contextBridge.exposeInMainWorld("agentAPI", createAgentAPI(ipcRenderer));
 
 // Expose MCP API to renderer process
 exposeMCPContext();
