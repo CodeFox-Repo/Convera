@@ -90,7 +90,10 @@ export const useAgentChat = create<AgentChatState>((set, get) => ({
     set((s) => ({
       turnId,
       running: true,
-      entries: [...s.entries, { kind: "text", id: nextId(), role: "user", text: prompt }],
+      entries: [
+        ...s.entries,
+        { kind: "text", id: nextId(), role: "user", text: prompt },
+      ],
     }));
 
     const result = await window.agentAPI.send(turnId, prompt);
@@ -103,7 +106,12 @@ export const useAgentChat = create<AgentChatState>((set, get) => ({
         ? s.entries
         : [
             ...s.entries,
-            { kind: "notice", id: nextId(), tone: "error", text: result.error ?? "the turn failed" },
+            {
+              kind: "notice",
+              id: nextId(),
+              tone: "error",
+              text: result.error ?? "the turn failed",
+            },
           ],
     }));
   },
@@ -125,7 +133,11 @@ export const useAgentChat = create<AgentChatState>((set, get) => ({
           : e,
       ),
     }));
-    await window.agentAPI.respondToApproval(approval.turnId, approval.approvalId, granted);
+    await window.agentAPI.respondToApproval(
+      approval.turnId,
+      approval.approvalId,
+      granted,
+    );
   },
 
   clear: () => set({ entries: [], approval: null, model: null }),
@@ -141,7 +153,10 @@ export const useAgentChat = create<AgentChatState>((set, get) => ({
 
       if (sdk.type === "error" && sdk.error) {
         set((s) => ({
-          entries: [...s.entries, { kind: "notice", id: nextId(), tone: "error", text: sdk.error! }],
+          entries: [
+            ...s.entries,
+            { kind: "notice", id: nextId(), tone: "error", text: sdk.error! },
+          ],
         }));
         return;
       }
@@ -151,7 +166,12 @@ export const useAgentChat = create<AgentChatState>((set, get) => ({
         const added: AgentEntry[] = [];
         for (const block of blocks) {
           if (block.type === "text" && block.text?.trim()) {
-            added.push({ kind: "text", id: nextId(), role: "assistant", text: block.text });
+            added.push({
+              kind: "text",
+              id: nextId(),
+              role: "assistant",
+              text: block.text,
+            });
           } else if (block.type === "tool_use" && block.name) {
             added.push({
               kind: "tool",

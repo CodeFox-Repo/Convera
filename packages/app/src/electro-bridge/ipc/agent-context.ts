@@ -1,4 +1,8 @@
-import { run, type AgentCoreOptions, type ApprovalRequest } from "@convera/agent-core";
+import {
+  run,
+  type AgentCoreOptions,
+  type ApprovalRequest,
+} from "@convera/agent-core";
 import { BrowserWindow, ipcMain } from "electron";
 import { AGENT_CHANNELS } from "./agent-channels";
 
@@ -26,9 +30,13 @@ function send(window: BrowserWindow, channel: string, payload: unknown): void {
 export function setupAgentIPC(): void {
   ipcMain.handle(
     AGENT_CHANNELS.SEND,
-    async (event, request: { turnId: string; prompt: string; options?: AgentCoreOptions }) => {
+    async (
+      event,
+      request: { turnId: string; prompt: string; options?: AgentCoreOptions },
+    ) => {
       const window = BrowserWindow.fromWebContents(event.sender);
-      if (!window) return { success: false, error: "no window for this request" };
+      if (!window)
+        return { success: false, error: "no window for this request" };
 
       const abort = new AbortController();
       const session: Session = { abort, pending: new Map() };
@@ -57,7 +65,10 @@ export function setupAgentIPC(): void {
         });
 
         for await (const message of stream) {
-          send(window, AGENT_CHANNELS.MESSAGE, { turnId: request.turnId, message });
+          send(window, AGENT_CHANNELS.MESSAGE, {
+            turnId: request.turnId,
+            message,
+          });
         }
         return { success: true };
       } catch (error) {
@@ -82,9 +93,15 @@ export function setupAgentIPC(): void {
 
   ipcMain.handle(
     AGENT_CHANNELS.APPROVAL_RESPONSE,
-    (_event, response: { turnId: string; approvalId: string; granted: boolean }) => {
-      const resolve = sessions.get(response.turnId)?.pending.get(response.approvalId);
-      if (!resolve) return { success: false, error: "no such pending approval" };
+    (
+      _event,
+      response: { turnId: string; approvalId: string; granted: boolean },
+    ) => {
+      const resolve = sessions
+        .get(response.turnId)
+        ?.pending.get(response.approvalId);
+      if (!resolve)
+        return { success: false, error: "no such pending approval" };
       sessions.get(response.turnId)?.pending.delete(response.approvalId);
       resolve(response.granted);
       return { success: true };

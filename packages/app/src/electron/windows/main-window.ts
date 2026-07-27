@@ -85,7 +85,10 @@ function startPage(): string {
 // Load window content
 function loadWindowContent(window: BrowserWindow) {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    const url = new URL(startPage(), MAIN_WINDOW_VITE_DEV_SERVER_URL).toString();
+    const url = new URL(
+      startPage(),
+      MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    ).toString();
     console.log("Loading main URL in main window:", url);
     window.loadURL(url);
   } else {
@@ -96,7 +99,10 @@ function loadWindowContent(window: BrowserWindow) {
     console.log("Loading main path in main window:", mainPath, startPage());
     // A packaged build serves one index.html, so the page is a hash route rather than a
     // path — loadFile would look for a file that does not exist.
-    window.loadFile(mainPath, startPage() === "/" ? undefined : { hash: startPage() });
+    window.loadFile(
+      mainPath,
+      startPage() === "/" ? undefined : { hash: startPage() },
+    );
   }
 }
 

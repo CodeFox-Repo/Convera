@@ -43,10 +43,12 @@ beforeEach(() => {
           }),
       ),
       stop: vi.fn(async () => ({ success: true })),
-      respondToApproval: vi.fn(async (_turnId: string, approvalId: string, granted: boolean) => {
-        answered.push({ approvalId, granted });
-        return { success: true };
-      }),
+      respondToApproval: vi.fn(
+        async (_turnId: string, approvalId: string, granted: boolean) => {
+          answered.push({ approvalId, granted });
+          return { success: true };
+        },
+      ),
       onMessage: (cb: MessageCb) => {
         emitMessage = cb;
         return () => undefined;
@@ -70,7 +72,11 @@ describe("agent chat transcript", () => {
     const state = useAgentChat.getState();
     expect(state.running).toBe(true);
     expect(state.entries).toHaveLength(1);
-    expect(state.entries[0]).toMatchObject({ kind: "text", role: "user", text: "open safari" });
+    expect(state.entries[0]).toMatchObject({
+      kind: "text",
+      role: "user",
+      text: "open safari",
+    });
   });
 
   it("turns assistant text and tool calls into transcript entries", () => {
@@ -81,7 +87,11 @@ describe("agent chat transcript", () => {
       message: {
         content: [
           { type: "text", text: "Taking a look." },
-          { type: "tool_use", name: "mcp__desktop__computer", input: { action: "screenshot" } },
+          {
+            type: "tool_use",
+            name: "mcp__desktop__computer",
+            input: { action: "screenshot" },
+          },
         ],
       },
     });
@@ -89,12 +99,18 @@ describe("agent chat transcript", () => {
     const { entries, model } = useAgentChat.getState();
     expect(model).toBe("claude-opus-5");
     expect(entries.map((e) => e.kind)).toEqual(["text", "tool"]);
-    expect(entries[1]).toMatchObject({ name: "mcp__desktop__computer", outcome: "allowed" });
+    expect(entries[1]).toMatchObject({
+      name: "mcp__desktop__computer",
+      outcome: "allowed",
+    });
   });
 
   it("drops empty assistant text rather than rendering blank bubbles", () => {
     useAgentChat.getState().subscribe();
-    emit({ type: "assistant", message: { content: [{ type: "text", text: "   " }] } });
+    emit({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "   " }] },
+    });
     expect(useAgentChat.getState().entries).toHaveLength(0);
   });
 
@@ -110,7 +126,10 @@ describe("agent chat transcript", () => {
 
     const pending = useAgentChat.getState();
     expect(pending.approval?.summary).toContain("left click");
-    expect(pending.entries.at(-1)).toMatchObject({ kind: "tool", outcome: "pending" });
+    expect(pending.entries.at(-1)).toMatchObject({
+      kind: "tool",
+      outcome: "pending",
+    });
 
     await useAgentChat.getState().answerApproval(false);
 
@@ -134,7 +153,14 @@ describe("agent chat transcript", () => {
 
   it("keeps the per-turn cost visible", () => {
     useAgentChat.getState().subscribe();
-    emit({ type: "result", subtype: "success", num_turns: 3, total_cost_usd: 0.0671 });
-    expect((useAgentChat.getState().entries.at(-1) as { text: string }).text).toContain("$0.0671");
+    emit({
+      type: "result",
+      subtype: "success",
+      num_turns: 3,
+      total_cost_usd: 0.0671,
+    });
+    expect(
+      (useAgentChat.getState().entries.at(-1) as { text: string }).text,
+    ).toContain("$0.0671");
   });
 });

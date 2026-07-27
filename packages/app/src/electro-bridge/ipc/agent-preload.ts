@@ -20,9 +20,13 @@ export interface AgentAPI {
     approvalId: string,
     granted: boolean,
   ): Promise<{ success: boolean }>;
-  onMessage(cb: (payload: { turnId: string; message: unknown }) => void): () => void;
+  onMessage(
+    cb: (payload: { turnId: string; message: unknown }) => void,
+  ): () => void;
   onApprovalRequest(
-    cb: (payload: ApprovalRequest & { turnId: string; approvalId: string }) => void,
+    cb: (
+      payload: ApprovalRequest & { turnId: string; approvalId: string },
+    ) => void,
   ): () => void;
 }
 
@@ -40,7 +44,11 @@ export function createAgentAPI(ipcRenderer: IpcRenderer): AgentAPI {
       ipcRenderer.invoke(AGENT_CHANNELS.SEND, { turnId, prompt, options }),
     stop: (turnId) => ipcRenderer.invoke(AGENT_CHANNELS.STOP, turnId),
     respondToApproval: (turnId, approvalId, granted) =>
-      ipcRenderer.invoke(AGENT_CHANNELS.APPROVAL_RESPONSE, { turnId, approvalId, granted }),
+      ipcRenderer.invoke(AGENT_CHANNELS.APPROVAL_RESPONSE, {
+        turnId,
+        approvalId,
+        granted,
+      }),
     onMessage: (cb) => subscribe(AGENT_CHANNELS.MESSAGE, cb),
     onApprovalRequest: (cb) => subscribe(AGENT_CHANNELS.APPROVAL_REQUEST, cb),
   };

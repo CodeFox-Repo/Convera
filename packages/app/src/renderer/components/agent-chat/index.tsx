@@ -1,5 +1,8 @@
 import { Button } from "@/renderer/components/ui/button";
-import { useAgentChat, type AgentEntry } from "@/renderer/libs/stores/agent-chat-store";
+import {
+  useAgentChat,
+  type AgentEntry,
+} from "@/renderer/libs/stores/agent-chat-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -11,8 +14,17 @@ import React, { useEffect, useRef, useState } from "react";
  * rather than replacing it in place, so both can be run side by side until this one wins.
  */
 export function AgentChatPage() {
-  const { entries, running, approval, model, start, stop, answerApproval, clear, subscribe } =
-    useAgentChat();
+  const {
+    entries,
+    running,
+    approval,
+    model,
+    start,
+    stop,
+    answerApproval,
+    clear,
+    subscribe,
+  } = useAgentChat();
   const [draft, setDraft] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -35,7 +47,10 @@ export function AgentChatPage() {
         {model && <span className="font-mono">{model}</span>}
         <span className="ml-auto" />
         {entries.length > 0 && (
-          <button className="underline-offset-2 hover:underline" onClick={clear}>
+          <button
+            className="underline-offset-2 hover:underline"
+            onClick={clear}
+          >
             clear
           </button>
         )}
@@ -44,7 +59,8 @@ export function AgentChatPage() {
       <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
         {entries.length === 0 && (
           <p className="pt-8 text-center text-sm opacity-50">
-            Ask it to do something on this Mac. It will ask before it touches anything.
+            Ask it to do something on this Mac. It will ask before it touches
+            anything.
           </p>
         )}
         {entries.map((entry) => (
@@ -118,13 +134,20 @@ function Entry({ entry }: { entry: AgentEntry }) {
           )}
         />
         <span>{label}</span>
-        {entry.outcome === "denied" && <span className="opacity-60">declined</span>}
+        {entry.outcome === "denied" && (
+          <span className="opacity-60">declined</span>
+        )}
       </div>
     );
   }
 
   return (
-    <p className={cn("text-xs", entry.tone === "error" ? "text-red-400" : "opacity-50")}>
+    <p
+      className={cn(
+        "text-xs",
+        entry.tone === "error" ? "text-red-400" : "opacity-50",
+      )}
+    >
       {entry.text}
     </p>
   );
