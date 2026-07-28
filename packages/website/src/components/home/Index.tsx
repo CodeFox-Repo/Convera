@@ -88,7 +88,7 @@ const Index = () => {
             </div>
             <figcaption className="text-ink-faint mt-4 font-mono text-xs leading-relaxed">
               <span className="text-ink-2">open → search → branch</span> · the real renderer on
-              seeded local data, one take, no cuts
+              seeded local data, one take, 2.5× speed
             </figcaption>
           </figure>
 
