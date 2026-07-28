@@ -64,6 +64,12 @@
 }
 
 @layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
   body {
     @apply overflow-hidden;
     transition: all 0.3s ease-in-out;

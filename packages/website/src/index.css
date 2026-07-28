@@ -8,38 +8,38 @@
  */
 @layer base {
   :root {
-    /* surfaces */
-    --paper: oklch(17.5% 0.003 100);
-    --paper-2: oklch(20% 0.004 95);
-    --paper-3: oklch(18.6% 0.004 95);
-    --well: oklch(14% 0.003 95);
+    /* surfaces — warm paper, light-only */
+    --paper: oklch(97.9% 0.005 95);
+    --paper-2: oklch(94.3% 0.009 92);
+    --paper-3: oklch(96.3% 0.007 95);
+    --well: oklch(100% 0 0);
 
     /* text */
-    --ink: oklch(92.5% 0.011 95);
-    --ink-2: oklch(85.7% 0.014 95);
-    --ink-3: oklch(80% 0.017 90);
-    --ink-muted: oklch(69.5% 0.015 90);
-    --ink-faint: oklch(60.5% 0.014 90);
-    --ink-dim: oklch(49.5% 0.014 90);
-    --ink-ghost: oklch(41% 0.013 85);
+    --ink: oklch(17.5% 0.003 100);
+    --ink-2: oklch(28% 0.006 95);
+    --ink-3: oklch(37% 0.009 92);
+    --ink-muted: oklch(48% 0.011 90);
+    --ink-faint: oklch(58% 0.012 90);
+    --ink-dim: oklch(67% 0.013 90);
+    --ink-ghost: oklch(78% 0.013 88);
 
     /* hairlines */
-    --rule: oklch(25.7% 0.01 85);
-    --rule-2: oklch(29% 0.011 85);
+    --rule: oklch(89% 0.012 92);
+    --rule-2: oklch(85% 0.014 90);
 
-    /* the one brand hue */
-    --terracotta: oklch(65% 0.107 41);
-    --terracotta-2: oklch(70.5% 0.095 41);
-    --terracotta-soft: oklch(83.5% 0.045 45);
-    --terracotta-ink: oklch(14% 0.02 45);
-    --terracotta-wash: oklch(65% 0.107 41 / 0.12);
-    --terracotta-line: oklch(65% 0.107 41 / 0.45);
+    /* the one brand hue — darker on paper for contrast */
+    --terracotta: oklch(52% 0.123 38);
+    --terracotta-2: oklch(65% 0.107 41);
+    --terracotta-soft: oklch(46% 0.115 38);
+    --terracotta-ink: oklch(97.9% 0.005 95);
+    --terracotta-wash: oklch(52% 0.123 38 / 0.08);
+    --terracotta-line: oklch(52% 0.123 38 / 0.4);
 
     /* semantic — state only, never decoration */
-    --ok: oklch(78.5% 0.1 136);
-    --warn: oklch(75.5% 0.104 79);
-    --error: oklch(66% 0.104 25);
-    --focus: oklch(70.5% 0.095 41);
+    --ok: oklch(52% 0.12 140);
+    --warn: oklch(58% 0.1 80);
+    --error: oklch(50% 0.13 30);
+    --focus: oklch(65% 0.107 41);
 
     /* shadcn mapping */
     --background: var(--paper);
@@ -106,15 +106,15 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* grain — what keeps the dark from reading flat */
+  /* grain — what keeps the flat fields from reading sterile */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: 9999;
     pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: overlay;
+    opacity: 0.03;
+    mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
@@ -275,8 +275,8 @@
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(oklch(100% 0 0 / 0.015) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(100% 0 0 / 0.015) 1px, transparent 1px);
+      linear-gradient(oklch(0% 0 0 / 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0% 0 0 / 0.025) 1px, transparent 1px);
     background-size: 64px 64px;
     mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 30%, transparent 80%);
   }

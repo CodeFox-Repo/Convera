@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import HacksCarousel from "./HacksCarousel";
 
 /* stagger helper: sets the entrance delay slot for a .rise child */
 const slot = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -24,12 +25,17 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* ── hero ─────────────────────────────────────────────── */}
+      {/* ── hero — centered title over generated bg, then the film ── */}
       <section className="relative overflow-hidden pt-36 pb-20 md:pt-44" data-rise>
+        <img
+          src="/images/hero-bg.jpg"
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full [mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)] object-cover"
+        />
         <div className="bg-grid" aria-hidden />
-        <div className="bloom" aria-hidden />
 
-        <div className="relative mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+        <div className="relative mx-auto w-full max-w-[1180px] px-[var(--page-gutter)] text-center">
           <p
             className="rise text-ink-faint font-mono text-[11px] tracking-[0.14em] uppercase"
             style={slot(0)}
@@ -38,22 +44,24 @@ const Index = () => {
           </p>
 
           <h1
-            className="rise mt-6 max-w-[18ch] text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.035em]"
+            className="rise mx-auto mt-6 max-w-[16ch] text-[clamp(2.75rem,7vw,5.5rem)] leading-[1.0] font-bold tracking-[-0.04em]"
             style={slot(1)}
           >
-            An agent workspace that lives on <span className="text-terracotta">your machine.</span>
+            An agent workspace on <span className="text-terracotta">your machine.</span>
           </h1>
 
           <p
-            className="rise text-ink-muted mt-6 max-w-[52ch] text-[1.0625rem] leading-relaxed"
+            className="rise text-ink-muted mx-auto mt-6 max-w-[56ch] text-[1.0625rem] leading-relaxed"
             style={slot(2)}
           >
-            Convera is a desktop app for working with AI agents. Every conversation, agent and model
-            config sits in a database on your disk — search it, branch it, wire it into any MCP
-            server. Your keys never leave the machine.
+            Every conversation, agent and model config sits in a database on your disk — search it,
+            branch it, wire it into any MCP server. Your keys never leave the machine.
           </p>
 
-          <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(3)}>
+          <div
+            className="rise mt-8 flex flex-wrap items-center justify-center gap-4"
+            style={slot(3)}
+          >
             <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
               <Link to="/download">Download for macOS</Link>
             </Button>
@@ -67,26 +75,26 @@ const Index = () => {
             </a>
           </div>
 
-          <pre className="chat-plate rise mt-16" style={slot(4)}>
-            <span className="role">you</span>
-            {"      "}
-            <span className="you">compare stripe and paddle for a two-person team</span>
-            {"\n"}
-            <span className="tool">● web_fetch</span>
-            <span className="off"> stripe.com/pricing · paddle.com/pricing</span>
-            {"\n"}
-            <span className="role">convera</span>
-            {"  "}
-            <span className="agent">Paddle is merchant-of-record — tax handled, higher</span>
-            {"\n"}
-            {"         "}
-            <span className="agent">fees. Stripe is cheaper once you file yourself.</span>
-            {"\n"}
-            <span className="dim">▸ saved to local db · branch to explore either path</span>
-          </pre>
+          <figure className="rise mt-16" style={slot(4)}>
+            <div className="border-rule bg-well overflow-hidden rounded-[13px] border">
+              <video
+                src="/demos/app-tour.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full"
+                aria-label="Screen recording of Convera: opening a conversation, global search, branching"
+              />
+            </div>
+            <figcaption className="text-ink-faint mt-4 font-mono text-xs leading-relaxed">
+              <span className="text-ink-2">open → search → branch</span> · the real renderer on
+              seeded local data, one take, 2.5× speed
+            </figcaption>
+          </figure>
 
           <p
-            className="rise text-ink-faint mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[13px]"
+            className="rise text-ink-faint mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 font-mono text-[13px]"
             style={slot(5)}
           >
             one workspace =
@@ -223,39 +231,25 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 4.0 watch — the real app, recorded ───────────────── */}
+      {/* ── 4.0 hacks — use-case carousel ────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
           <p className="stage-label rise" style={slot(0)}>
-            4.0 · watch
+            4.0 · hacks
           </p>
           <h2
             className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
             style={slot(1)}
           >
-            The actual app, recorded.
+            Little hacks, big afternoons.
           </h2>
           <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-            Open a conversation, search everything you've ever said, branch a thread from the middle
-            — one take, no cuts.
+            Six things people wire Convera into in the first week — each one is a conversation plus
+            a tool, not a feature request.
           </p>
-          <figure className="rise mt-10" style={slot(3)}>
-            <div className="border-rule bg-well overflow-hidden rounded-[13px] border">
-              <video
-                src="/demos/app-tour.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full"
-                aria-label="Screen recording of Convera: opening a conversation, global search, branching"
-              />
-            </div>
-            <figcaption className="text-ink-faint mt-3 font-mono text-xs leading-relaxed">
-              <span className="text-ink-2">search → branch</span> · the real renderer on seeded
-              local data — the conversation is an example, the features are not
-            </figcaption>
-          </figure>
+          <div className="rise mt-10" style={slot(3)}>
+            <HacksCarousel />
+          </div>
         </div>
       </section>
 
