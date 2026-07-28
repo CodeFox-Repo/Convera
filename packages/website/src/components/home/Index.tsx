@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
-import DemoVideoSection from "./DemoVideoSection";
 
 /* stagger helper: sets the entrance delay slot for a .rise child */
 const slot = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -35,33 +34,29 @@ const Index = () => {
             className="rise text-ink-faint font-mono text-[11px] tracking-[0.14em] uppercase"
             style={slot(0)}
           >
-            chat window → browser copilot → <span className="text-terracotta">desktop agent</span>
+            chat in a browser tab → <span className="text-terracotta">agents on your desktop</span>
           </p>
 
           <h1
-            className="rise mt-6 max-w-[16ch] text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.035em]"
+            className="rise mt-6 max-w-[18ch] text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.035em]"
             style={slot(1)}
           >
-            Your desktop is the <span className="text-terracotta">context window.</span>
+            An agent workspace that lives on <span className="text-terracotta">your machine.</span>
           </h1>
 
           <p
             className="rise text-ink-muted mt-6 max-w-[52ch] text-[1.0625rem] leading-relaxed"
             style={slot(2)}
           >
-            Convera is an AI assistant that runs beside your apps — it sees the window you're in,
-            listens when you talk, and acts through MCP tools. One hotkey, any app, no
-            tab-switching.
+            Convera is a desktop app for working with AI agents. Every conversation, agent and model
+            config sits in a database on your disk — search it, branch it, wire it into any MCP
+            server. Your keys never leave the machine.
           </p>
 
           <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(3)}>
             <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
               <Link to="/download">Download for macOS</Link>
             </Button>
-            <span className="border-rule bg-paper-2 text-ink-3 flex items-center gap-3 rounded-lg border px-4 py-2.5 font-mono text-[13px]">
-              <kbd className="text-terracotta-soft">⌥ Space</kbd>
-              <span className="border-rule text-ink-faint border-l pl-3">summon anywhere</span>
-            </span>
             <a
               href="https://docs.foxychat.net/docs"
               target="_blank"
@@ -72,24 +67,35 @@ const Index = () => {
             </a>
           </div>
 
-          <figure
-            className="rise border-rule bg-well mt-16 overflow-hidden rounded-[13px] border"
-            style={slot(4)}
-          >
-            <img src="/images/demo.jpg" alt="Convera running on the desktop" className="w-full" />
-          </figure>
+          <pre className="chat-plate rise mt-16" style={slot(4)}>
+            <span className="role">you</span>
+            {"      "}
+            <span className="you">compare stripe and paddle for a two-person team</span>
+            {"\n"}
+            <span className="tool">● web_fetch</span>
+            <span className="off"> stripe.com/pricing · paddle.com/pricing</span>
+            {"\n"}
+            <span className="role">convera</span>
+            {"  "}
+            <span className="agent">Paddle is merchant-of-record — tax handled, higher</span>
+            {"\n"}
+            {"         "}
+            <span className="agent">fees. Stripe is cheaper once you file yourself.</span>
+            {"\n"}
+            <span className="dim">▸ saved to local db · branch to explore either path</span>
+          </pre>
 
           <p
             className="rise text-ink-faint mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[13px]"
             style={slot(5)}
           >
-            one call =
+            one workspace =
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
-              frontmost app
+              local database
             </span>
             <span className="text-ink-ghost">+</span>
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
-              your words
+              your agents
             </span>
             <span className="text-ink-ghost">+</span>
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
@@ -99,84 +105,79 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 1.0 see ──────────────────────────────────────────── */}
+      {/* ── 1.0 keep ─────────────────────────────────────────── */}
       <section className="stage mt-16 py-16 md:py-20" data-rise>
         <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
           <div>
             <p className="stage-label rise" style={slot(0)}>
-              1.0 · see
+              1.0 · keep
             </p>
             <h2
-              className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
               style={slot(1)}
             >
-              It already knows what you're looking at.
+              Everything you say stays in a database you own.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-              Summon Convera and the frontmost window is the prompt's first line — the file, the
-              thread, the selection. You ask about "this"; it knows what "this" is. No pasting, no
-              re-explaining your screen to a chatbot.
+              Conversations, messages, agents and model configs live in a local database — not on a
+              sync server you have to trust. Global search covers all of it, instantly, offline. And
+              a fail-closed guard throws before any request containing an API key can leave the
+              machine.
             </p>
             <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
-              Context is captured at call time, not recorded in the background.
+              Delete the app and the folder — the record is gone. That's the whole cloud story.
             </p>
           </div>
           <pre className="chat-plate rise self-center" style={slot(2)}>
-            <span className="dim">▸ frontmost: Figma — checkout-v2.fig</span>
+            <span className="role">⌘K</span>
+            {"  "}
+            <span className="you">"pricing deck"</span>
             {"\n"}
-            <span className="role">you</span>
-            {"     "}
-            <span className="you">what changed here since yesterday?</span>
+            <span className="tool">● search</span>
+            <span className="off"> local index · 0 network calls</span>
             {"\n"}
-            <span className="tool">● figma.get_comments</span>
-            <span className="off"> 126ms</span>
+            <span className="agent">18 hits in 6 conversations</span>
             {"\n"}
-            <span className="role">convera</span>{" "}
-            <span className="agent">3 threads resolved. 1 open blocker</span>
+            <span className="dim">▸ newest: "q3 launch plan" — 2 days ago</span>
             {"\n"}
-            {"        "}
-            <span className="agent">from Ana on the payment frame.</span>
+            <span className="tool">✓ credential guard</span>
+            <span className="off"> keys never leave this machine</span>
           </pre>
         </div>
       </section>
 
-      {/* ── 2.0 speak ────────────────────────────────────────── */}
+      {/* ── 2.0 branch ───────────────────────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
           <pre className="chat-plate order-last self-center md:order-first" style={slot(2)}>
-            <span className="role">◉ listening</span>
-            <span className="off"> 0:04</span>
+            <span className="role">you</span>
+            {"      "}
+            <span className="you">redo this, but for enterprise buyers</span>
             {"\n"}
-            <span className="you">"file every screenshot in downloads</span>
+            <span className="tool">● branch</span>
+            <span className="off"> from message #14</span>
             {"\n"}
-            <span className="you"> into folders by month"</span>
+            <span className="agent">"landing copy (branch)" — 14 messages carried over</span>
             {"\n"}
-            <span className="tool">● fs.scan</span>
-            <span className="off"> ~/Downloads · 312 matches</span>
-            {"\n"}
-            <span className="tool">● fs.move</span>
-            <span className="off"> 2025-11 … 2026-07</span>
-            {"\n"}
-            <span className="tool">✓ 312 files filed.</span>
-            <span className="dim"> nothing deleted.</span>
+            <span className="dim">▸ original thread untouched</span>
           </pre>
           <div>
             <p className="stage-label rise" style={slot(0)}>
-              2.0 · speak
+              2.0 · branch
             </p>
             <h2
               className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
               style={slot(1)}
             >
-              Say it. Typing was the workaround.
+              Fork the conversation, not your patience.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-              Voice input is not a dictation box — it's the same agent with the same context and the
-              same tools. Describe the outcome in one sentence; Convera does the clicking, moving
-              and renaming that sentence implies.
+              Pick any reply and branch a new conversation from it. The context up to that point
+              carries over; the original stays exactly as it was. Try two framings, two audiences,
+              two models — and keep both threads.
             </p>
             <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
-              Every action is a named tool call — read the log, not the marketing.
+              One thread is a coin flip. A branch is a comparison.
             </p>
           </div>
         </div>
@@ -196,50 +197,65 @@ const Index = () => {
               Every capability is a plug-in, not a promise.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-              Convera speaks Model Context Protocol. iMessage, Gmail, your browser, your own stdio
-              server — install them from the app market or point Convera at any MCP endpoint. What
-              the assistant can do is a list you control, not a roadmap you wait for.
+              Convera speaks Model Context Protocol — point it at any stdio or HTTP server and its
+              tools show up in chat. Build your own agents and choose per agent which tools they're
+              allowed to touch. What the assistant can do is a list you control, not a roadmap you
+              wait for.
             </p>
             <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
               An open protocol means the tools outlive this app — and yours plug in too.
             </p>
           </div>
           <pre className="chat-plate rise self-center" style={slot(2)}>
-            <span className="role">$</span> <span className="agent">convera mcp list</span>
+            <span className="role">$</span> <span className="agent">~/.convera/mcp.json</span>
             {"\n"}
             <span className="tool">✓ imessage</span>
-            <span className="off"> send · read · contacts</span>
+            <span className="off"> stdio</span>
             {"\n"}
             <span className="tool">✓ gmail</span>
-            <span className="off"> oauth · labels · attachments</span>
+            <span className="off"> http</span>
             {"\n"}
-            <span className="tool">✓ browser</span>
-            <span className="off"> open · read · fill</span>
+            <span className="tool">✓ your-server</span>
+            <span className="off"> any mcp server plugs in</span>
             {"\n"}
-            <span className="dim">○ notion</span>
-            <span className="off"> available in market</span>
+            <span className="dim">agent "research" → tools: web_fetch · gmail</span>
           </pre>
         </div>
       </section>
 
-      {/* ── 4.0 watch ────────────────────────────────────────── */}
+      {/* ── 4.0 next — honest roadmap, not vaporware ─────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
           <p className="stage-label rise" style={slot(0)}>
-            4.0 · watch
+            4.0 · next
           </p>
           <h2
             className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
             style={slot(1)}
           >
-            Real runs, recorded.
+            What's landing next.
           </h2>
-          <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-            No mockups — screen recordings of Convera doing the work, tool calls and all.
-          </p>
-          <div className="rise mt-10" style={slot(3)}>
-            <DemoVideoSection />
+          <div className="mt-10 grid gap-12 md:grid-cols-2 md:gap-16">
+            <div className="rise border-rule-2 border-l-2 pl-6" style={slot(2)}>
+              <h3 className="text-terracotta-soft font-mono text-[13px]">local agent runtime</h3>
+              <p className="text-ink-muted mt-3 max-w-[46ch] text-[0.9375rem] leading-relaxed">
+                The agent loop moves onto your machine, running against your own credentials instead
+                of proxying through our server. In the tree today, behind a flag — not in a release
+                yet.
+              </p>
+            </div>
+            <div className="rise border-rule-2 border-l-2 pl-6" style={slot(3)}>
+              <h3 className="text-terracotta-soft font-mono text-[13px]">hands, with approval</h3>
+              <p className="text-ink-muted mt-3 max-w-[46ch] text-[0.9375rem] leading-relaxed">
+                Screen control where every click waits for your yes: a deny-list for terminals and
+                password managers, a kill switch on disk, screenshots treated as untrusted input.
+                Built, being hardened.
+              </p>
+            </div>
           </div>
+          <p className="rise text-ink-faint mt-10 font-mono text-[13px]" style={slot(4)}>
+            We'd rather tell you what's a branch than sell you what's a wish.
+          </p>
         </div>
       </section>
 
@@ -251,12 +267,11 @@ const Index = () => {
               className="rise text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
               style={slot(0)}
             >
-              Put it next to your work.
+              Put your record where you can keep it.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(1)}>
-              Download the beta, press the hotkey inside whatever you're doing, and ask. If the
-              first minute doesn't save you a minute, tell us in Discord — that's a bug worth
-              filing.
+              Download the beta and start a conversation you'll still own next year. If something
+              feels wrong in the first minute, tell us in Discord — that's a bug worth filing.
             </p>
             <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(2)}>
               <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
@@ -278,7 +293,7 @@ const Index = () => {
               </Link>
             </div>
             <p className="rise text-ink-faint mt-8 font-mono text-xs" style={slot(3)}>
-              macOS · beta · free tier included
+              macOS · beta
             </p>
           </div>
         </div>
