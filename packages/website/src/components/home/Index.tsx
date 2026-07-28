@@ -31,7 +31,7 @@ const Index = () => {
           src="/images/hero-bg.jpg"
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full [mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)] object-cover"
+          className="absolute inset-0 h-full w-full [mask-image:linear-gradient(to_bottom,#000_82%,transparent_100%)] object-cover"
         />
         <div className="bg-grid" aria-hidden />
 
