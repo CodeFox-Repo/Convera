@@ -1,7 +1,6 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { Download, ExternalLink, FileText, Menu, X } from "lucide-react";
+import { ExternalLink, Menu, X } from "lucide-react";
 import React, { useState } from "react";
 import LogoBrand from "./LogoBrand";
 import { UserButton } from "./UserButton";
@@ -9,140 +8,84 @@ import { UserButton } from "./UserButton";
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const linkClass =
+    "flex items-center gap-1.5 font-mono text-[13px] text-ink-muted transition-colors hover:text-ink";
 
   return (
-    <header className="fixed top-4 left-1/2 z-50 w-full -translate-x-1/2">
-      <div className="container mx-auto max-w-7xl rounded-full border border-orange-900/40 bg-zinc-950/80 backdrop-blur-md shadow-lg shadow-orange-900/20 transition-all duration-500 hover:bg-zinc-900/85 hover:shadow-xl hover:shadow-orange-900/30">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-x-12">
-            {/* Logo Section */}
-            <div className="flex items-center">
-              <LogoBrand
-                showStatus={true}
-                showVersion={true}
-                showCursor={true}
-                size="md"
-                linkable={true}
-              />
-            </div>
+    <header className="border-rule bg-paper/85 fixed top-0 left-0 z-50 w-full border-b backdrop-blur-md">
+      <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+        <div className="flex h-14 items-center justify-between">
+          <div className="flex items-center gap-10">
+            <LogoBrand size="md" linkable={true} />
 
-            {/* Desktop Navigation */}
-            <nav className="hidden items-center space-x-6 md:flex">
+            <nav className="hidden items-center gap-6 md:flex">
               <a
                 href="https://docs.foxychat.net/docs"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-amber-300"
+                className={linkClass}
               >
-                <span className="flex items-center space-x-1 text-base font-medium">
-                  <FileText className="h-4 w-4" />
-                  <span>Documentation</span>
-                  <ExternalLink className="h-3 w-3 opacity-60" />
-                </span>
-                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-amber-400 to-yellow-400 transition-all duration-300 group-hover:w-full"></div>
+                docs
+                <ExternalLink className="h-3 w-3 opacity-60" />
               </a>
-
-              <Link
-                to="/pricing"
-                className="group relative text-orange-100 transition-all duration-300 hover:scale-105 hover:text-red-300"
-              >
-                <span className="flex items-center space-x-1 text-base font-medium">
-                  <span>Pricing</span>
-                </span>
-                <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-red-400 to-pink-400 transition-all duration-300 group-hover:w-full"></div>
+              <Link to="/pricing" className={linkClass}>
+                pricing
+              </Link>
+              <Link to="/download" className={linkClass}>
+                download
               </Link>
             </nav>
           </div>
 
-          {/* CTA Buttons */}
-          <div className="hidden items-center justify-end space-x-4 md:flex">
-            <Badge
-              variant="outline"
-              className="border-orange-400/50 bg-gradient-to-r from-orange-950/80 to-red-950/80 px-3 py-1 font-medium text-orange-300 shadow-[0_0_10px_rgba(251,146,60,0.3)]"
-            >
-              Beta
-            </Badge>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-orange-800/40 bg-black/20 text-orange-400/80 transition-all duration-300 hover:border-orange-500/80 hover:bg-gradient-to-r hover:from-orange-900/80 hover:to-red-900/80 hover:text-orange-100 hover:shadow-lg hover:shadow-orange-900/40"
-              asChild
-            >
-              <Link to="/download">
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Link>
+          <div className="hidden items-center gap-4 md:flex">
+            <span className="border-terracotta-line bg-terracotta-wash text-terracotta-soft rounded-[7px] border px-2 py-0.5 font-mono text-[11px] tracking-[0.1em] uppercase">
+              beta
+            </span>
+            <Button size="sm" className="rounded-lg font-medium" asChild>
+              <Link to="/download">Download</Link>
             </Button>
             <UserButton />
           </div>
 
-          {/* Mobile Menu Button */}
           <button
-            onClick={toggleMenu}
-            className="rounded-lg p-2 text-orange-200 transition-all duration-300 hover:scale-105 hover:bg-orange-900/60 hover:text-orange-100 md:hidden"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="text-ink-muted hover:text-ink p-2 transition-colors md:hidden"
             aria-label="Toggle menu"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="border-t border-orange-900/40 bg-zinc-950/80 backdrop-blur-md transition-all duration-300 md:hidden">
-            <nav className="flex flex-col space-y-1 p-4">
-              <a
-                href="https://docs.foxychat.net/docs"
-                target="_blank"
-                rel="noopener noreferrer"
+          <nav className="border-rule flex flex-col gap-1 border-t py-4 md:hidden">
+            <a
+              href="https://docs.foxychat.net/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setIsMenuOpen(false)}
+              className="text-ink-2 hover:bg-paper-2 rounded-lg px-3 py-2.5 font-mono text-[13px] transition-colors"
+            >
+              docs ↗
+            </a>
+            <Link
+              to="/pricing"
+              onClick={() => setIsMenuOpen(false)}
+              className="text-ink-2 hover:bg-paper-2 rounded-lg px-3 py-2.5 font-mono text-[13px] transition-colors"
+            >
+              pricing
+            </Link>
+            <div className="border-rule mt-3 flex items-center gap-3 border-t px-3 pt-4">
+              <Button
+                size="sm"
+                className="rounded-lg font-medium"
+                asChild
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-amber-900/40 hover:text-amber-300"
               >
-                <FileText className="h-4 w-4" />
-                <span className="font-medium">Documentation</span>
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </a>
-
-              <Link
-                to="/pricing"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center space-x-2 rounded-lg px-4 py-3 text-orange-100 transition-all duration-300 hover:scale-[1.02] hover:bg-red-900/40 hover:text-red-300"
-              >
-                <span className="font-medium">Pricing</span>
-              </Link>
-
-              <div className="mt-4 border-t border-orange-800/40 pt-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <Badge
-                    variant="outline"
-                    className="border-orange-400/50 bg-gradient-to-r from-orange-950/80 to-red-950/80 px-3 py-1 font-medium text-orange-300 shadow-[0_0_10px_rgba(251,146,60,0.3)]"
-                  >
-                    Beta
-                  </Badge>
-                </div>
-
-                <div className="space-y-2">
-                  <Button
-                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg shadow-orange-900/40 hover:from-orange-700 hover:to-red-700 hover:shadow-xl hover:shadow-orange-900/50"
-                    asChild
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Link to="/download">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Convera
-                    </Link>
-                  </Button>
-
-                  <div className="flex justify-center">
-                    <UserButton />
-                  </div>
-                </div>
-              </div>
-            </nav>
-          </div>
+                <Link to="/download">Download</Link>
+              </Button>
+              <UserButton />
+            </div>
+          </nav>
         )}
       </div>
     </header>
