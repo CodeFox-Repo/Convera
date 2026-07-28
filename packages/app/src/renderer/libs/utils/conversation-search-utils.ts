@@ -63,6 +63,25 @@ export function loadConversationFuzzyInstance() {
 // Singleton instance
 const fuzzyInstance = loadConversationFuzzyInstance();
 
+/**
+ * Strip markdown syntax so search snippets read as plain text
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+    .replace(/(\*|_)(?=\S)([^*_]*\S)\1/g, "$2")
+    .replace(/^>\s?/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export interface SearchResult {
   type: "conversation" | "message";
   conversationId: string;
@@ -111,7 +130,8 @@ export async function searchConversationsAndMessages(
     }
 
     // Search message content
-    const messageContents = messages.map((m) => m.content.slice(0, 500));
+    const plainContents = messages.map((m) => stripMarkdown(m.content));
+    const messageContents = plainContents.map((c) => c.slice(0, 500));
     const messageResult = fuzzy.search(messageContents, normalizedQuery);
 
     if (messageResult && messageResult[1]?.idx && messageResult[2]) {
@@ -123,7 +143,10 @@ export async function searchConversationsAndMessages(
         if (msg) {
           const conv = conversations.find((c) => c.id === msg.conversationId);
           // Extract context around the match
-          const matchedText = extractMatchContext(msg.content, normalizedQuery);
+          const matchedText = extractMatchContext(
+            plainContents[msgIndex],
+            normalizedQuery,
+          );
           results.push({
             type: "message",
             conversationId: msg.conversationId,
@@ -170,14 +193,15 @@ function fallbackSearch(
 
   // Search messages
   for (const msg of messages.slice(0, 500)) {
-    if (msg.content.toLowerCase().includes(normalizedQuery)) {
+    const plain = stripMarkdown(msg.content);
+    if (plain.toLowerCase().includes(normalizedQuery)) {
       const conv = conversations.find((c) => c.id === msg.conversationId);
       results.push({
         type: "message",
         conversationId: msg.conversationId,
         conversationTitle: conv?.title || null,
         messageId: msg.id,
-        matchedText: extractMatchContext(msg.content, normalizedQuery),
+        matchedText: extractMatchContext(plain, normalizedQuery),
         updatedAt: msg.createdAt,
       });
       if (results.filter((r) => r.type === "message").length >= 10) break;
