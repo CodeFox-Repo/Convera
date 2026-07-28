@@ -151,7 +151,7 @@ const Pricing: React.FC = () => {
                 }`}
               >
                 <h1
-                  className={`text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl md:text-5xl ${
+                  className={`text-ink text-3xl leading-tight font-bold tracking-tight sm:text-4xl md:text-5xl ${
                     isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
                   }`}
                 >

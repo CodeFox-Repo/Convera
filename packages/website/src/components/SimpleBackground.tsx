@@ -7,13 +7,9 @@ interface SimpleBackgroundProps {
 const SimpleBackground: React.FC<SimpleBackgroundProps> = ({ className = "" }) => {
   return (
     <>
-      {/* Pure black background */}
-      <div
-        className={`absolute inset-0 bg-black ${className}`}
-      ></div>
-
-      {/* Subtle warm overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-orange-950/15 via-transparent to-amber-950/15"></div>
+      <div className={`bg-paper absolute inset-0 ${className}`}></div>
+      <div className="bg-grid absolute inset-0"></div>
+      <div className="from-terracotta-wash absolute inset-0 bg-gradient-to-br via-transparent to-transparent"></div>
     </>
   );
 };

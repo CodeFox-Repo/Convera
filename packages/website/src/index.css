@@ -76,6 +76,14 @@
     --sidebar-border: var(--rule);
     --sidebar-ring: var(--focus);
 
+    /* legacy aliases still referenced by untouched pages */
+    --orange-primary: var(--terracotta);
+    --orange-secondary: var(--terracotta-2);
+    --orange-light: var(--terracotta-soft);
+    --bg-card: var(--well);
+    --bg-orange-subtle: var(--terracotta-wash);
+    --text-orange: var(--terracotta);
+
     --font-sans: "Space Grotesk", ui-sans-serif, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
