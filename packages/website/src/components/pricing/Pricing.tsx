@@ -130,42 +130,9 @@ const Pricing: React.FC = () => {
   return (
     <div className="bg-background relative min-h-screen overflow-hidden">
       {/* Global background spanning entire page */}
-      <div className="pointer-events-none absolute inset-0">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-black to-zinc-950" />
-        {/* Aurora beams */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -top-40 left-1/2 h-[28rem] w-[110rem] -translate-x-1/2 -rotate-12 opacity-70 mix-blend-screen blur-[140px]"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(251,146,60,0.5), rgba(249,115,22,0.35), rgba(245,158,11,0.5))",
-            }}
-          />
-          <div
-            className="absolute top-20 right-[-25%] h-72 w-[90rem] rotate-6 opacity-60 mix-blend-screen blur-[130px]"
-            style={{
-              background: "linear-gradient(90deg, rgba(245,158,11,0.45), rgba(251,146,60,0.35))",
-            }}
-          />
-          <div
-            className="absolute bottom-[-4rem] left-[-20%] h-80 w-[90rem] -rotate-6 opacity-50 mix-blend-screen blur-[130px]"
-            style={{
-              background: "linear-gradient(90deg, rgba(249,115,22,0.5), rgba(251,146,60,0.3))",
-            }}
-          />
-        </div>
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(251,146,60,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(251,146,60,0.06) 1px, transparent 1px)",
-            backgroundSize: "36px 36px",
-            WebkitMaskImage: "radial-gradient(ellipse at center, black 60%, transparent 100%)",
-            maskImage: "radial-gradient(ellipse at center, black 60%, transparent 100%)",
-          }}
-        />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="bg-grid" aria-hidden />
+        <div className="bloom" aria-hidden />
       </div>
 
       {/* Foreground content */}

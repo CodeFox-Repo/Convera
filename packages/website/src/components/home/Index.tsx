@@ -1,263 +1,288 @@
-import HeroBackground from "@/components/home/HeroBackground";
-import SimpleBackground from "@/components/SimpleBackground";
-import HeroImage from "@/components/home/HeroImage";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { DollarSign, Download, Clock, Mic, Zap, Store, Brain, Settings, Palette } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { siDiscord } from "simple-icons";
-import CommunityCard from "./CommunityCard";
+import { useEffect } from "react";
 import DemoVideoSection from "./DemoVideoSection";
-import FeatureCard from "./FeatureCard";
+
+/* stagger helper: sets the entrance delay slot for a .rise child */
+const slot = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 const Index = () => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isVisible, setIsVisible] = useState({
-    hero: false,
-    apps: false,
-    demo: false,
-    features: false,
-    coreFeatures: false,
-    agent: false,
-  });
-
-  // Intersection Observer for scroll animations
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const target = entry.target.getAttribute("data-section");
-            if (target) {
-              setIsVisible((prev) => ({ ...prev, [target]: true }));
-            }
+            entry.target.classList.add("is-in");
+            io.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.1 },
+      { threshold: 0.15 },
     );
-
-    const sections = document.querySelectorAll("[data-section]");
-    sections.forEach((section) => observer.observe(section));
-
-    return () => observer.disconnect();
+    document.querySelectorAll("[data-rise]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
   }, []);
 
-  // Smooth infinite scroll effect
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    let animationId: number;
-    const scrollSpeed = 0.5;
-
-    const smoothScroll = () => {
-      if (!isHovered && container) {
-        container.scrollLeft += scrollSpeed;
-        const maxScroll = container.scrollWidth / 2;
-        if (container.scrollLeft >= maxScroll) {
-          container.scrollLeft = 0;
-        }
-      }
-      animationId = requestAnimationFrame(smoothScroll);
-    };
-
-    animationId = requestAnimationFrame(smoothScroll);
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [isHovered]);
-
   return (
-    <div className="bg-background flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col">
+      {/* ── hero ─────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden pt-36 pb-20 md:pt-44" data-rise>
+        <div className="bg-grid" aria-hidden />
+        <div className="bloom" aria-hidden />
 
-      {/* Hero Section */}
-      <section
-        className="relative w-full overflow-hidden py-20 pt-28 md:py-28 md:pt-36"
-        data-section="hero"
-      >
-        <HeroBackground />
-
-        <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8">
-          <div className="mb-20 flex items-center justify-center">
-            {/* Centered Content with stagger animation */}
-            <div
-              className={`max-w-7xl space-y-8 text-center transition-all duration-1000 lg:space-y-10 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-            >
-              <h1
-                className={`gradient-orange-text text-4xl leading-tight font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
-              >
-                Your AI Desktop
-                <br />
-                <span className="gradient-orange-text">
-                  Assistant
-                </span>
-              </h1>
-              <p
-                className={`mx-auto text-lg leading-relaxed font-medium text-secondary md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-              >
-                AI assistant you can access anywhere, integrate with your workflows.
-              </p>
-              <div
-                className={`flex flex-col gap-4 pt-4 transition-all delay-600 duration-1000 sm:flex-row sm:justify-center sm:gap-6 ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-              >
-                <Button
-                  size="lg"
-                  className="transform border border-orange bg-card px-10 py-4 text-lg font-semibold text-orange-primary shadow-xl shadow-black/30 transition-all duration-300 hover:scale-105 hover:border-orange hover:bg-orange-subtle hover:text-orange-primary hover:shadow-2xl hover:shadow-black/50"
-                  asChild
-                >
-                  <Link to="/download">
-                    Download Latest Version
-                    <Download className="ml-3 h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="min-h-128 w-full transform transition-transform duration-500 hover:scale-105 lg:min-h-144 xl:min-h-160">
-            <HeroImage />
-          </div>
-        </div>
-      </section>
-
-      {/* Start demo section */}
-      {/* Benefits Section */}
-      <section
-        id="demo"
-        data-section="demo"
-        className="relative w-full overflow-hidden py-20 md:py-28"
-      >
-        <SimpleBackground />
-        <div className="relative z-10 container mx-auto max-w-7xl px-4 md:px-6">
-          <div className="mb-16 text-center">
-            <h2 className="mb-6 gradient-orange-text text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Convera Always Ready
-              <br />
-              <span className="gradient-orange-text">
-                Collaborate On you Computer
-              </span>
-            </h2>
-            <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-secondary md:text-xl">
-              Convera simplifies your daily computer interactions with AI.
-            </p>
-          </div>
-
-          {/* Grid Layout: 1 row-span-2, 2 normal, 1 col-span-2 */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:grid-rows-2 auto-rows-fr">
-            {/* Left card spanning 2 rows */}
-            <div className="md:row-span-2 h-full">
-              <FeatureCard
-                title="Smart App Detection"
-                description="Convera knows exactly what you are currently doing when you call it. It intelligently detects your active applications and provides context-aware assistance, making your interactions more efficient and productive."
-                icon={<Brain className="h-7 w-7" />}
-                badge="Core"
-                gradient="from-orange-600/30 to-red-500/20"
-                className="h-full w-full"
-              />
-            </div>
-            
-            {/* Top right card - normal */}
-            <div className="h-full">
-              <FeatureCard
-                title="Voice Input"
-                description="AI can listen to your words, and listen to your app."
-                icon={<Mic className="h-6 w-6" />}
-                badge="Voice AI"
-                gradient="from-orange-500/25 to-amber-500/15"
-                className="h-full w-full"
-              />
-            </div>
-            
-            {/* Top far right card - normal */}
-            <div className="h-full">
-              <FeatureCard
-                title="Time Saving"
-                description="Search for discussions, create folders, add tags, export data, and much more."
-                icon={<Clock className="h-6 w-6" />}
-                badge="Efficient"
-                gradient="from-orange-400/20 to-yellow-500/10"
-                className="h-full w-full"
-              />
-            </div>
-            
-            {/* Bottom card spanning 2 columns */}
-            <div className="md:col-span-2 h-full">
-              <FeatureCard
-                title="Quick Tools & App Market"
-                description="Quick access to your favorite tools and apps. Find and install apps from the Convera App Market."
-                icon={<Store className="h-6 w-6" />}
-                badge="Featured"
-                gradient="from-orange-700/20 to-amber-600/10"
-                className="h-full w-full"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Does a Lot More Than chat Section */}
-      <section className="relative w-full overflow-hidden py-16 md:py-24" data-section="features">
-        <SimpleBackground />
-
-        <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
-          <div
-            className={`mb-16 text-center transition-all duration-1000 ${isVisible.features ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
+        <div className="relative mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+          <p
+            className="rise text-ink-faint font-mono text-[11px] tracking-[0.14em] uppercase"
+            style={slot(0)}
           >
-            <h2 className="mb-6 gradient-orange-text text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Does a Lot More Than Chat
-            </h2>
+            chat window → browser copilot → <span className="text-terracotta">desktop agent</span>
+          </p>
 
-            {/* Demo Videos Section with zoom-in animation */}
-            <DemoVideoSection isVisible={isVisible.demo} />
+          <h1
+            className="rise mt-6 max-w-[16ch] text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.035em]"
+            style={slot(1)}
+          >
+            Your desktop is the <span className="text-terracotta">context window.</span>
+          </h1>
+
+          <p
+            className="rise text-ink-muted mt-6 max-w-[52ch] text-[1.0625rem] leading-relaxed"
+            style={slot(2)}
+          >
+            Convera is an AI assistant that runs beside your apps — it sees the window you're in,
+            listens when you talk, and acts through MCP tools. One hotkey, any app, no
+            tab-switching.
+          </p>
+
+          <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(3)}>
+            <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
+              <Link to="/download">Download for macOS</Link>
+            </Button>
+            <span className="border-rule bg-paper-2 text-ink-3 flex items-center gap-3 rounded-lg border px-4 py-2.5 font-mono text-[13px]">
+              <kbd className="text-terracotta-soft">⌥ Space</kbd>
+              <span className="border-rule text-ink-faint border-l pl-3">summon anywhere</span>
+            </span>
+            <a
+              href="https://docs.foxychat.net/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ink-muted hover:text-ink font-mono text-[13px] underline underline-offset-4 transition-colors"
+            >
+              read the docs →
+            </a>
           </div>
+
+          <figure
+            className="rise border-rule bg-well mt-16 overflow-hidden rounded-[13px] border"
+            style={slot(4)}
+          >
+            <img src="/images/demo.jpg" alt="Convera running on the desktop" className="w-full" />
+          </figure>
+
+          <p
+            className="rise text-ink-faint mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[13px]"
+            style={slot(5)}
+          >
+            one call =
+            <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
+              frontmost app
+            </span>
+            <span className="text-ink-ghost">+</span>
+            <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
+              your words
+            </span>
+            <span className="text-ink-ghost">+</span>
+            <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
+              mcp tools
+            </span>
+          </p>
         </div>
       </section>
 
-      {/* Join Convera Community Section */}
-      <section className="relative w-full overflow-hidden py-20 md:py-28">
-        <SimpleBackground />
-
-        <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6">
-          <div className="mb-16 text-center">
-            <h2 className="mb-6 gradient-orange-text text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Join Convera Community
+      {/* ── 1.0 see ──────────────────────────────────────────── */}
+      <section className="stage mt-16 py-16 md:py-20" data-rise>
+        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="stage-label rise" style={slot(0)}>
+              1.0 · see
+            </p>
+            <h2
+              className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              style={slot(1)}
+            >
+              It already knows what you're looking at.
             </h2>
-            <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-secondary md:text-xl">
-              Get started with Convera today and become part of our growing community
+            <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+              Summon Convera and the frontmost window is the prompt's first line — the file, the
+              thread, the selection. You ask about "this"; it knows what "this" is. No pasting, no
+              re-explaining your screen to a chatbot.
+            </p>
+            <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
+              Context is captured at call time, not recorded in the background.
             </p>
           </div>
+          <pre className="chat-plate rise self-center" style={slot(2)}>
+            <span className="dim">▸ frontmost: Figma — checkout-v2.fig</span>
+            {"\n"}
+            <span className="role">you</span>
+            {"     "}
+            <span className="you">what changed here since yesterday?</span>
+            {"\n"}
+            <span className="tool">● figma.get_comments</span>
+            <span className="off"> 126ms</span>
+            {"\n"}
+            <span className="role">convera</span>{" "}
+            <span className="agent">3 threads resolved. 1 open blocker</span>
+            {"\n"}
+            {"        "}
+            <span className="agent">from Ana on the payment frame.</span>
+          </pre>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <CommunityCard
-              icon={Download}
-              title="Download Now"
-              description="Get the latest version of Convera and start enhancing your productivity today."
-              buttonText="Download Free"
-              href="/download"
-            />
-            <CommunityCard
-              svgIcon={siDiscord.svg}
-              title="Join Our Discord"
-              description="Connect with other users, get support, and share your experiences with the community."
-              buttonText="Join Discord"
-              href="https://discord.gg/convera"
-              isExternal={true}
-            />
-            <CommunityCard
-              icon={DollarSign}
-              title="View Pricing"
-              description="Explore our pricing plans and find the perfect option for your needs."
-              buttonText="See Pricing"
-              href="/pricing"
-            />
+      {/* ── 2.0 speak ────────────────────────────────────────── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
+          <pre className="chat-plate order-last self-center md:order-first" style={slot(2)}>
+            <span className="role">◉ listening</span>
+            <span className="off"> 0:04</span>
+            {"\n"}
+            <span className="you">"file every screenshot in downloads</span>
+            {"\n"}
+            <span className="you"> into folders by month"</span>
+            {"\n"}
+            <span className="tool">● fs.scan</span>
+            <span className="off"> ~/Downloads · 312 matches</span>
+            {"\n"}
+            <span className="tool">● fs.move</span>
+            <span className="off"> 2025-11 … 2026-07</span>
+            {"\n"}
+            <span className="tool">✓ 312 files filed.</span>
+            <span className="dim"> nothing deleted.</span>
+          </pre>
+          <div>
+            <p className="stage-label rise" style={slot(0)}>
+              2.0 · speak
+            </p>
+            <h2
+              className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              style={slot(1)}
+            >
+              Say it. Typing was the workaround.
+            </h2>
+            <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+              Voice input is not a dictation box — it's the same agent with the same context and the
+              same tools. Describe the outcome in one sentence; Convera does the clicking, moving
+              and renaming that sentence implies.
+            </p>
+            <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
+              Every action is a named tool call — read the log, not the marketing.
+            </p>
           </div>
         </div>
       </section>
 
+      {/* ── 3.0 extend ───────────────────────────────────────── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="stage-label rise" style={slot(0)}>
+              3.0 · extend
+            </p>
+            <h2
+              className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              style={slot(1)}
+            >
+              Every capability is a plug-in, not a promise.
+            </h2>
+            <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+              Convera speaks Model Context Protocol. iMessage, Gmail, your browser, your own stdio
+              server — install them from the app market or point Convera at any MCP endpoint. What
+              the assistant can do is a list you control, not a roadmap you wait for.
+            </p>
+            <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
+              An open protocol means the tools outlive this app — and yours plug in too.
+            </p>
+          </div>
+          <pre className="chat-plate rise self-center" style={slot(2)}>
+            <span className="role">$</span> <span className="agent">convera mcp list</span>
+            {"\n"}
+            <span className="tool">✓ imessage</span>
+            <span className="off"> send · read · contacts</span>
+            {"\n"}
+            <span className="tool">✓ gmail</span>
+            <span className="off"> oauth · labels · attachments</span>
+            {"\n"}
+            <span className="tool">✓ browser</span>
+            <span className="off"> open · read · fill</span>
+            {"\n"}
+            <span className="dim">○ notion</span>
+            <span className="off"> available in market</span>
+          </pre>
+        </div>
+      </section>
+
+      {/* ── 4.0 watch ────────────────────────────────────────── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+          <p className="stage-label rise" style={slot(0)}>
+            4.0 · watch
+          </p>
+          <h2
+            className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+            style={slot(1)}
+          >
+            Real runs, recorded.
+          </h2>
+          <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+            No mockups — screen recordings of Convera doing the work, tool calls and all.
+          </p>
+          <div className="rise mt-10" style={slot(3)}>
+            <DemoVideoSection />
+          </div>
+        </div>
+      </section>
+
+      {/* ── install / CTA — same language, no big empty card ─── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+          <div className="max-w-[720px]">
+            <h2
+              className="rise text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              style={slot(0)}
+            >
+              Put it next to your work.
+            </h2>
+            <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(1)}>
+              Download the beta, press the hotkey inside whatever you're doing, and ask. If the
+              first minute doesn't save you a minute, tell us in Discord — that's a bug worth
+              filing.
+            </p>
+            <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(2)}>
+              <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
+                <Link to="/download">Download for macOS</Link>
+              </Button>
+              <a
+                href="https://discord.gg/convera"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-ink-muted hover:text-ink font-mono text-[13px] underline underline-offset-4 transition-colors"
+              >
+                join the discord
+              </a>
+              <Link
+                to="/pricing"
+                className="text-ink-muted hover:text-ink font-mono text-[13px] underline underline-offset-4 transition-colors"
+              >
+                pricing
+              </Link>
+            </div>
+            <p className="rise text-ink-faint mt-8 font-mono text-xs" style={slot(3)}>
+              macOS · beta · free tier included
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

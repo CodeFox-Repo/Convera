@@ -1,91 +1,63 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import Video from "./Video";
 
-interface DemoVideoSectionProps {
-  isVisible: boolean;
-}
+const categories = {
+  "software-engineer": {
+    label: "software engineer",
+    videos: [
+      {
+        url: "/demos/create-website-demo.mp4",
+        title: "idea → running website",
+        description: "one conversation, scaffold to deploy",
+      },
+    ],
+  },
+  general: {
+    label: "general",
+    videos: [
+      {
+        url: "/demos/excel-demo.mp4",
+        title: "documents → answers",
+        description: "process and analyze files in natural language",
+      },
+    ],
+  },
+} as const;
 
-const DemoVideoSection = ({ isVisible }: DemoVideoSectionProps) => {
-  const [activeCategory, setActiveCategory] = useState("software-engineer");
+type CategoryKey = keyof typeof categories;
 
-  const demoVideoCategories = {
-    "software-engineer": {
-      label: "Software Engineer",
-      videos: [
-        {
-          url: "/demos/create-website-demo.mp4",
-          title: "From Idea to Website in Minutes",
-          description:
-            "Watch how Convera transforms your vision into a fully functional website with just a conversation",
-          gradientColors: "bg-linear-to-r from-orange-50 to-orange-100",
-        },
-      ],
-    },
-    general: {
-      label: "General",
-      videos: [
-        {
-          url: "/demos/excel-demo.mp4",
-          title: "Document Processing & Analysis",
-          description: "Process and analyze documents, emails, and data with natural language",
-          gradientColors: "bg-linear-to-r from-indigo-50 to-indigo-100",
-        },
-      ],
-    },
-  };
+const DemoVideoSection = () => {
+  const [active, setActive] = useState<CategoryKey>("software-engineer");
 
   return (
-    <div
-      className={`space-y-12 transition-all delay-400 duration-1000 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
-    >
-      <div className="mb-8 text-center">
-        <h3 className="mb-4 text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">See Convera in Action</h3>
-        <p className="text-orange-200/90 text-lg">
-          Watch how Convera transforms your daily workflows
-        </p>
+    <div>
+      <div className="mb-8 flex flex-wrap gap-2" role="tablist">
+        {(Object.keys(categories) as CategoryKey[]).map((key) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={active === key}
+            onClick={() => setActive(key)}
+            className={`rounded-[9px] border px-4 py-1.5 font-mono text-[13px] transition-colors ${
+              active === key
+                ? "border-terracotta-line bg-terracotta-wash text-terracotta-soft"
+                : "border-rule text-ink-muted hover:border-rule-2 hover:text-ink-2"
+            }`}
+          >
+            {categories[key].label}
+          </button>
+        ))}
       </div>
 
-      <div className="mx-auto max-w-6xl">
-        {/* Category Buttons */}
-        <div className="mb-8 flex flex-wrap justify-center gap-3">
-          {Object.entries(demoVideoCategories).map(([key, category]) => (
-            <Button
-              key={key}
-              variant={activeCategory === key ? "secondary" : "outline"}
-              onClick={() => setActiveCategory(key)}
-              className={`text-sm transition-all duration-200 ${
-                activeCategory === key
-                  ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500/70 shadow-lg shadow-orange-500/20"
-                  : "border-orange-700/40 bg-black/20 text-orange-200 hover:bg-gradient-to-r hover:from-orange-600/20 hover:to-amber-600/20 hover:border-orange-500/60 hover:text-orange-100"
-              }`}
-            >
-              {category.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Demo Videos Grid */}
-        <div
-          className={`grid gap-8 ${
-            demoVideoCategories[activeCategory as keyof typeof demoVideoCategories].videos
-              .length === 1
-              ? "mx-auto max-w-2xl grid-cols-1"
-              : "grid-cols-1 lg:grid-cols-2"
-          }`}
-        >
-          {demoVideoCategories[activeCategory as keyof typeof demoVideoCategories].videos.map(
-            (video, index) => (
-              <Video
-                key={index}
-                url={video.url}
-                title={video.title}
-                description={video.description}
-                gradientColors={video.gradientColors}
-              />
-            ),
-          )}
-        </div>
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8">
+        {categories[active].videos.map((video) => (
+          <Video
+            key={video.url}
+            url={video.url}
+            title={video.title}
+            description={video.description}
+          />
+        ))}
       </div>
     </div>
   );

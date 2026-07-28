@@ -1,85 +1,39 @@
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-
 const Footer = () => {
-  const { toast } = useToast();
-
-  const showComingSoonToast = (linkName: string) => {
-    toast({
-      title: "🚀 Coming Soon!",
-      description: `${linkName} is currently under development and will be available soon. Stay tuned for updates!`,
-      duration: 3000,
-    });
-  };
-
-  const footerSections = [
-    {
-      title: "Support",
-      links: [
-        { name: "Documentation", href: "https://docs.foxychat.net/docs", external: true },
-        { name: "Community Forum", comingSoon: true },
-        { name: "Bug Reports", comingSoon: true },
-        { name: "Feature Requests", comingSoon: true },
-      ]
-    },
-    {
-      title: "Resources",
-      links: [
-        { name: "Getting Started", comingSoon: true },
-        { name: "API Reference", comingSoon: true },
-        { name: "MCP Guide", comingSoon: true },
-        { name: "Examples", comingSoon: true },
-      ]
-    },
-    {
-      title: "Company",
-      links: [
-        { name: "About Us", comingSoon: true },
-        { name: "Privacy Policy", comingSoon: true },
-        { name: "Terms of Service", comingSoon: true },
-        { name: "Contact", comingSoon: true },
-      ]
-    }
-  ];
-
-  const handleLinkClick = (link: { name: string; href?: string; external?: boolean; comingSoon?: boolean }) => {
-    if (link.comingSoon) {
-      showComingSoonToast(link.name);
-    } else if (link.external && link.href) {
-      window.open(link.href, '_blank');
-    } else if (link.href) {
-      window.location.href = link.href;
-    } else {
-      showComingSoonToast(link.name);
-    }
-  };
+  const link = "text-ink-3 underline underline-offset-4 transition-colors hover:text-ink";
 
   return (
-    <footer className="border-t border-orange-800/30 py-12 bg-black/95 w-full">
-      <div className="container mx-auto max-w-6xl px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 justify-items-start md:justify-items-center">
-          {footerSections.map((section) => (
-            <div key={section.title} className="w-full md:text-center">
-              <h3 className="font-semibold mb-4 text-orange-200">{section.title}</h3>
-              <ul className="space-y-2 text-sm text-orange-300/70">
-                {section.links.map((link) => (
-                  <li key={link.name}>
-                    <button
-                      onClick={() => handleLinkClick(link)}
-                      className="hover:text-orange-400 transition-colors text-left md:text-center hover:scale-105 transform duration-200 block w-full md:w-auto"
-                    >
-                      {link.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <Separator className="mb-6 bg-orange-800/30" />
-        <div className="text-center text-sm text-orange-300/60">
-          <p>&copy; 2025 Convera. All rights reserved. Built with ❤️ for productivity enthusiasts.</p>
-        </div>
+    <footer className="border-rule mt-16 w-full border-t py-10">
+      <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+        <p className="text-ink-faint max-w-[72ch] font-mono text-xs leading-loose">
+          <span className="text-ink-3">[convera]</span> — an AI assistant that lives on your
+          desktop, not in a tab. Built with Electron, React and the Model Context Protocol.{" "}
+          <a
+            href="https://docs.foxychat.net/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={link}
+          >
+            docs
+          </a>{" "}
+          ·{" "}
+          <a
+            href="https://discord.gg/convera"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={link}
+          >
+            discord
+          </a>{" "}
+          ·{" "}
+          <a href="/pricing" className={link}>
+            pricing
+          </a>{" "}
+          ·{" "}
+          <a href="/download" className={link}>
+            download
+          </a>
+          . Set in Space Grotesk and JetBrains Mono. © 2026 Convera.
+        </p>
       </div>
     </footer>
   );

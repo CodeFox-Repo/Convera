@@ -20,18 +20,20 @@ export default defineConfig(() => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // several packages ship nested react copies; two React instances break RouterProvider
+    dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
-    include: ['react', 'react-dom'],
-    exclude: ['@tanstack/react-router-devtools'],
+    include: ["react", "react-dom"],
+    exclude: ["@tanstack/react-router-devtools"],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'router': ['@tanstack/react-router', '@tanstack/router-core'],
-          'query': ['@tanstack/react-query', '@tanstack/query-core'],
+          "react-vendor": ["react", "react-dom"],
+          router: ["@tanstack/react-router", "@tanstack/router-core"],
+          query: ["@tanstack/react-query", "@tanstack/query-core"],
         },
       },
     },

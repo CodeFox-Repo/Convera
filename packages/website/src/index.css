@@ -1,145 +1,90 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
 
+/*
+ * Convera brand tokens — shared family language with kobe / codefox / coforce
+ * (see ~/i/kobe/packages/kobe-landing/tokens.css, the upstream source).
+ * Warm graphite neutrals (hue 85–100) + one terracotta accent (hue 41).
+ * Dark-only. Depth comes from surface lightness + hairlines, never shadows.
+ */
 @layer base {
   :root {
-    /* Orange/Black Theme Colors */
-    --background: rgb(0 0 0);
-    --foreground: rgb(255 255 255);
-    --card: rgb(10 10 10);
-    --card-foreground: rgb(255 255 255);
-    --popover: rgb(15 15 15);
-    --popover-foreground: rgb(255 255 255);
-    --primary: rgb(251 146 60);
-    --primary-foreground: rgb(0 0 0);
-    --secondary: rgb(30 30 30);
-    --secondary-foreground: rgb(255 255 255);
-    --muted: rgb(25 25 25);
-    --muted-foreground: rgb(156 163 175);
-    --accent: rgb(251 146 60);
-    --accent-foreground: rgb(0 0 0);
-    --destructive: rgb(239 68 68);
-    --destructive-foreground: rgb(255 255 255);
-    --border: rgb(64 64 64);
-    --input: rgb(40 40 40);
-    --ring: rgb(251 146 60);
-    --chart-1: rgb(251 146 60);
-    --chart-2: rgb(245 158 11);
-    --chart-3: rgb(249 115 22);
-    --chart-4: rgb(234 88 12);
-    --chart-5: rgb(194 65 12);
-    --sidebar: rgb(15 15 15);
-    --sidebar-foreground: rgb(255 255 255);
-    --sidebar-primary: rgb(251 146 60);
-    --sidebar-primary-foreground: rgb(0 0 0);
-    --sidebar-accent: rgb(30 30 30);
-    --sidebar-accent-foreground: rgb(255 255 255);
-    --sidebar-border: rgb(64 64 64);
-    --sidebar-ring: rgb(251 146 60);
+    /* surfaces */
+    --paper: oklch(17.5% 0.003 100);
+    --paper-2: oklch(20% 0.004 95);
+    --paper-3: oklch(18.6% 0.004 95);
+    --well: oklch(14% 0.003 95);
 
-    /* Custom Orange Theme Variables */
-    --orange-primary: rgb(251 146 60);
-    --orange-secondary: rgb(245 158 11);
-    --orange-dark: rgb(194 65 12);
-    --orange-light: rgb(254 215 170);
-    --orange-muted: rgb(120 53 15);
+    /* text */
+    --ink: oklch(92.5% 0.011 95);
+    --ink-2: oklch(85.7% 0.014 95);
+    --ink-3: oklch(80% 0.017 90);
+    --ink-muted: oklch(69.5% 0.015 90);
+    --ink-faint: oklch(60.5% 0.014 90);
+    --ink-dim: oklch(49.5% 0.014 90);
+    --ink-ghost: oklch(41% 0.013 85);
 
-    /* Text Colors */
-    --text-primary: rgb(255 255 255);
-    --text-secondary: rgb(209 213 219);
-    --text-muted: rgb(156 163 175);
-    --text-orange: rgb(251 146 60);
-    --text-orange-light: rgb(254 215 170);
+    /* hairlines */
+    --rule: oklch(25.7% 0.01 85);
+    --rule-2: oklch(29% 0.011 85);
 
-    /* Background Colors */
-    --bg-primary: rgb(0 0 0);
-    --bg-secondary: rgb(15 15 15);
-    --bg-card: rgb(20 20 20);
-    --bg-hover: rgb(30 30 30);
-    --bg-orange-subtle: rgba(251 146 60 / 0.1);
-    --bg-orange-muted: rgba(251 146 60 / 0.2);
+    /* the one brand hue */
+    --terracotta: oklch(65% 0.107 41);
+    --terracotta-2: oklch(70.5% 0.095 41);
+    --terracotta-soft: oklch(83.5% 0.045 45);
+    --terracotta-ink: oklch(14% 0.02 45);
+    --terracotta-wash: oklch(65% 0.107 41 / 0.12);
+    --terracotta-line: oklch(65% 0.107 41 / 0.45);
 
-    --font-sans: Inter, sans-serif;
-    --font-serif: Merriweather, serif;
-    --font-mono: JetBrains Mono, monospace;
+    /* semantic — state only, never decoration */
+    --ok: oklch(78.5% 0.1 136);
+    --warn: oklch(75.5% 0.104 79);
+    --error: oklch(66% 0.104 25);
+    --focus: oklch(70.5% 0.095 41);
 
-    --radius: 0.5rem;
+    /* shadcn mapping */
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --card: var(--paper-2);
+    --card-foreground: var(--ink);
+    --popover: var(--paper-2);
+    --popover-foreground: var(--ink);
+    --primary: var(--terracotta);
+    --primary-foreground: var(--terracotta-ink);
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink-2);
+    --muted: var(--paper-3);
+    --muted-foreground: var(--ink-muted);
+    /* accent is a hover surface, not the brand hue */
+    --accent: var(--paper-2);
+    --accent-foreground: var(--ink);
+    --destructive: var(--error);
+    --destructive-foreground: var(--ink);
+    --border: var(--rule);
+    --input: var(--rule);
+    --ring: var(--focus);
+    --chart-1: var(--terracotta);
+    --chart-2: var(--terracotta-2);
+    --chart-3: var(--terracotta-soft);
+    --chart-4: var(--warn);
+    --chart-5: var(--ok);
+    --sidebar: var(--paper-2);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--terracotta);
+    --sidebar-primary-foreground: var(--terracotta-ink);
+    --sidebar-accent: var(--paper-3);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--rule);
+    --sidebar-ring: var(--focus);
 
-    --shadow-2xs: 0px 4px 8px -1px rgb(0 0 0 / 0.05);
-    --shadow-xs: 0px 4px 8px -1px rgb(0 0 0 / 0.05);
-    --shadow-sm: 0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 1px 2px -2px rgb(0 0 0 / 0.1);
-    --shadow: 0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 1px 2px -2px rgb(0 0 0 / 0.1);
-    --shadow-md: 0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 4px 6px -2px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 8px 10px -2px rgb(0 0 0 / 0.1);
-    --shadow-2xl: 0px 4px 8px -1px rgb(0 0 0 / 0.25);
-  }
+    --font-sans: "Space Grotesk", ui-sans-serif, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  .dark {
-    /* Dark mode uses the same orange/black theme */
-    --background: rgb(0 0 0);
-    --foreground: rgb(255 255 255);
-    --card: rgb(10 10 10);
-    --card-foreground: rgb(255 255 255);
-    --popover: rgb(15 15 15);
-    --popover-foreground: rgb(255 255 255);
-    --primary: rgb(251 146 60);
-    --primary-foreground: rgb(0 0 0);
-    --secondary: rgb(30 30 30);
-    --secondary-foreground: rgb(255 255 255);
-    --muted: rgb(25 25 25);
-    --muted-foreground: rgb(156 163 175);
-    --accent: rgb(251 146 60);
-    --accent-foreground: rgb(0 0 0);
-    --destructive: rgb(239 68 68);
-    --destructive-foreground: rgb(255 255 255);
-    --border: rgb(64 64 64);
-    --input: rgb(40 40 40);
-    --ring: rgb(251 146 60);
-    --chart-1: rgb(251 146 60);
-    --chart-2: rgb(245 158 11);
-    --chart-3: rgb(249 115 22);
-    --chart-4: rgb(234 88 12);
-    --chart-5: rgb(194 65 12);
-    --sidebar: rgb(15 15 15);
-    --sidebar-foreground: rgb(255 255 255);
-    --sidebar-primary: rgb(251 146 60);
-    --sidebar-primary-foreground: rgb(0 0 0);
-    --sidebar-accent: rgb(30 30 30);
-    --sidebar-accent-foreground: rgb(255 255 255);
-    --sidebar-border: rgb(64 64 64);
-    --sidebar-ring: rgb(251 146 60);
+    --radius: 0.625rem;
 
-    /* Custom Orange Theme Variables - same as light mode */
-    --orange-primary: rgb(251 146 60);
-    --orange-secondary: rgb(245 158 11);
-    --orange-dark: rgb(194 65 12);
-    --orange-light: rgb(254 215 170);
-    --orange-muted: rgb(120 53 15);
-
-    /* Text Colors */
-    --text-primary: rgb(255 255 255);
-    --text-secondary: rgb(209 213 219);
-    --text-muted: rgb(156 163 175);
-    --text-orange: rgb(251 146 60);
-    --text-orange-light: rgb(254 215 170);
-
-    /* Background Colors */
-    --bg-primary: rgb(0 0 0);
-    --bg-secondary: rgb(15 15 15);
-    --bg-card: rgb(20 20 20);
-    --bg-hover: rgb(30 30 30);
-    --bg-orange-subtle: rgba(251 146 60 / 0.1);
-    --bg-orange-muted: rgba(251 146 60 / 0.2);
-
-    --shadow-2xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
-    --shadow-xs: 0 1px 3px 0px rgb(0 0 0 / 0.12);
-    --shadow-sm: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
-    --shadow: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
-    --shadow-md: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 2px 4px -1px rgb(0 0 0 / 0.2);
-    --shadow-lg: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 4px 6px -1px rgb(0 0 0 / 0.2);
-    --shadow-xl: 0 1px 3px 0px rgb(0 0 0 / 0.2), 0 8px 10px -1px rgb(0 0 0 / 0.2);
-    --shadow-2xl: 0 1px 3px 0px rgb(0 0 0 / 0.3);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-short: 180ms;
+    --page-max: 1180px;
+    --page-gutter: clamp(20px, 4vw, 40px);
   }
 
   * {
@@ -155,15 +100,34 @@
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--paper);
+    color: var(--ink-2);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Apply Orbitron font to all h1 headings for consistent sci-fi styling */
-  h1 {
-    font-family: "Orbitron", monospace !important;
+  /* grain — what keeps the dark from reading flat */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 }
 
@@ -201,23 +165,205 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* brand tokens as utilities */
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-well: var(--well);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-ghost: var(--ink-ghost);
+  --color-rule: var(--rule);
+  --color-rule-2: var(--rule-2);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-2: var(--terracotta-2);
+  --color-terracotta-soft: var(--terracotta-soft);
+  --color-terracotta-ink: var(--terracotta-ink);
+  --color-terracotta-wash: var(--terracotta-wash);
+  --color-terracotta-line: var(--terracotta-line);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+
+  /*
+   * Re-aim Tailwind's stock ramps (orange, amber, red, zinc, gray) at the
+   * brand so the many hardcoded palette classes across pricing, download,
+   * auth and dashboard land on-palette without touching every file.
+   */
+  --color-orange-50: #faf0eb;
+  --color-orange-100: #f4e0d5;
+  --color-orange-200: #e8c3b0;
+  --color-orange-300: #dca58b;
+  --color-orange-400: #cc785c;
+  --color-orange-500: #c06a4d;
+  --color-orange-600: #9a4526;
+  --color-orange-700: #7c371e;
+  --color-orange-800: #5e2a17;
+  --color-orange-900: #401c0f;
+  --color-orange-950: #2a1209;
+  --color-amber-50: #faf3e2;
+  --color-amber-100: #f7ebc9;
+  --color-amber-200: #f0dc9e;
+  --color-amber-300: #e8c96b;
+  --color-amber-400: #d3a85f;
+  --color-amber-500: #c29648;
+  --color-amber-600: #a67c35;
+  --color-amber-700: #856127;
+  --color-amber-800: #64481c;
+  --color-amber-900: #443111;
+  --color-amber-950: #2e2109;
+  --color-red-50: #faeeea;
+  --color-red-100: #f4dcd4;
+  --color-red-200: #e9b8a9;
+  --color-red-300: #e09a8b;
+  --color-red-400: #d47563;
+  --color-red-500: #c05b48;
+  --color-red-600: #b4402c;
+  --color-red-700: #93331f;
+  --color-red-800: #6f2617;
+  --color-red-900: #4a190f;
+  --color-red-950: #310f09;
+  --color-zinc-50: #faf9f5;
+  --color-zinc-100: #f0ede4;
+  --color-zinc-200: #dedacd;
+  --color-zinc-300: #c2bdb2;
+  --color-zinc-400: #a9a39a;
+  --color-zinc-500: #85817a;
+  --color-zinc-600: #6b655c;
+  --color-zinc-700: #3a3835;
+  --color-zinc-800: #2b2a27;
+  --color-zinc-900: #1a1917;
+  --color-zinc-950: #141413;
+  --color-gray-50: #faf9f5;
+  --color-gray-100: #f0ede4;
+  --color-gray-200: #dedacd;
+  --color-gray-300: #c2bdb2;
+  --color-gray-400: #a9a39a;
+  --color-gray-500: #85817a;
+  --color-gray-600: #6b655c;
+  --color-gray-700: #3a3835;
+  --color-gray-800: #2b2a27;
+  --color-gray-900: #1a1917;
+  --color-gray-950: #141413;
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --shadow-2xs: var(--shadow-2xs);
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow: var(--shadow);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
+  /* no elevation in this family — hairlines and surface steps carry depth */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+}
+
+@layer components {
+  /* graph-paper grid, only exists near the top of the hero */
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(oklch(100% 0 0 / 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(100% 0 0 / 0.015) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 30%, transparent 80%);
+  }
+
+  /* one off-center light source behind the hero headline */
+  .bloom {
+    position: absolute;
+    inset-inline-start: -30%;
+    inset-block-start: -55%;
+    width: 90%;
+    aspect-ratio: 1;
+    pointer-events: none;
+    background: radial-gradient(circle closest-side, var(--terracotta-wash), transparent 70%);
+    animation: bloom-breathe 11s var(--ease-out) infinite alternate;
+  }
+
+  /*
+   * Conversation plate — this site's take on the family's terminal block.
+   * No window chrome, no card: a 2px left rule and typed lines.
+   */
+  .chat-plate {
+    border-left: 2px solid var(--rule-2);
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 2;
+    white-space: pre-wrap;
+    color: var(--ink-3);
+    overflow-x: auto;
+  }
+
+  .chat-plate .you {
+    color: var(--terracotta-soft);
+  }
+
+  .chat-plate .agent {
+    color: var(--ink-2);
+  }
+
+  .chat-plate .role {
+    color: var(--terracotta);
+  }
+
+  .chat-plate .tool {
+    color: var(--ok);
+  }
+
+  .chat-plate .dim {
+    color: var(--ink-faint);
+  }
+
+  .chat-plate .off {
+    color: var(--ink-dim);
+  }
+
+  /* stage sections divide by a 3px rule — the only rule thicker than 1px */
+  .stage {
+    border-top: 3px solid var(--rule);
+  }
+
+  .stage-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--terracotta);
+  }
+
+  .caret {
+    color: var(--terracotta);
+    animation: caret-blink 1.05s steps(2) infinite;
+  }
+
+  /* entrance system: parent gets .is-in (IntersectionObserver), children .rise */
+  .rise {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 620ms var(--ease-out),
+      transform 620ms var(--ease-out);
+    transition-delay: calc(var(--i, 0) * 90ms);
+  }
+
+  .is-in .rise {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @layer utilities {
@@ -230,54 +376,53 @@
     display: none;
   }
 
-  /* Custom Orange Theme Utilities */
+  /* legacy utility names kept so untouched pages restyle in place */
   .text-orange-primary {
-    color: var(--text-orange);
+    color: var(--terracotta);
   }
 
   .text-orange-light {
-    color: var(--text-orange-light);
+    color: var(--terracotta-soft);
   }
 
   .text-primary {
-    color: var(--text-primary);
+    color: var(--ink);
   }
 
   .text-secondary {
-    color: var(--text-secondary);
+    color: var(--ink-2);
   }
 
   .text-muted {
-    color: var(--text-muted);
+    color: var(--ink-muted);
   }
 
   .bg-orange-subtle {
-    background-color: var(--bg-orange-subtle);
+    background-color: var(--terracotta-wash);
   }
 
   .bg-orange-muted {
-    background-color: var(--bg-orange-muted);
+    background-color: var(--terracotta-wash);
   }
 
   .bg-card {
-    background-color: var(--bg-card);
+    background-color: var(--paper-2);
   }
 
   .bg-hover {
-    background-color: var(--bg-hover);
+    background-color: var(--paper-3);
   }
 
   .border-orange {
-    border-color: var(--orange-primary);
+    border-color: var(--terracotta-line);
   }
 
-  /* Gradient utilities */
   .gradient-orange-text {
     background: linear-gradient(
       to right,
-      var(--text-orange-light),
-      var(--text-orange),
-      var(--orange-secondary)
+      var(--terracotta-soft),
+      var(--terracotta),
+      var(--terracotta-2)
     );
     -webkit-background-clip: text;
     background-clip: text;
@@ -285,65 +430,36 @@
   }
 
   .gradient-orange-bg {
-    background: linear-gradient(to right, var(--orange-muted), var(--orange-primary));
+    background: linear-gradient(to right, var(--terracotta), var(--terracotta-2));
   }
 
-  /* Geek-style animations */
   .terminal-cursor {
-    animation: terminal-blink 1s infinite;
+    animation: caret-blink 1.05s steps(2) infinite;
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes bloom-breathe {
+  to {
+    transform: scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 
-  .geek-glow {
-    animation: geek-glow 2s ease-in-out infinite;
-  }
-
-  .logo-glow {
-    animation: logo-pulse 3s ease-in-out infinite;
-  }
-
-  /* Additional keyframes for geek effects */
-  @keyframes terminal-blink {
-    0%,
-    50% {
-      opacity: 1;
-    }
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes geek-glow {
-    0%,
-    100% {
-      text-shadow:
-        0 0 5px currentColor,
-        0 0 10px currentColor,
-        0 0 15px currentColor;
-      transform: scale(1);
-    }
-    50% {
-      text-shadow:
-        0 0 10px currentColor,
-        0 0 20px currentColor,
-        0 0 30px currentColor;
-      transform: scale(1.05);
-    }
-  }
-
-  @keyframes logo-pulse {
-    0%,
-    100% {
-      box-shadow:
-        0 0 5px rgba(34, 197, 94, 0.3),
-        0 0 10px rgba(34, 197, 94, 0.2),
-        0 0 15px rgba(34, 197, 94, 0.1);
-    }
-    50% {
-      box-shadow:
-        0 0 10px rgba(34, 197, 94, 0.5),
-        0 0 20px rgba(34, 197, 94, 0.3),
-        0 0 30px rgba(34, 197, 94, 0.2);
-    }
+  .rise {
+    opacity: 1;
+    transform: none;
   }
 }
