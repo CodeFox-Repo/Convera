@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import HacksCarousel from "./HacksCarousel";
 
 /* stagger helper: sets the entrance delay slot for a .rise child */
 const slot = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -230,11 +231,33 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 4.0 next — honest roadmap, not vaporware ─────────── */}
+      {/* ── 4.0 hacks — use-case carousel ────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
           <p className="stage-label rise" style={slot(0)}>
-            4.0 · next
+            4.0 · hacks
+          </p>
+          <h2
+            className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+            style={slot(1)}
+          >
+            Little hacks, big afternoons.
+          </h2>
+          <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+            Six things people wire Convera into in the first week — each one is a conversation plus
+            a tool, not a feature request.
+          </p>
+          <div className="rise mt-10" style={slot(3)}>
+            <HacksCarousel />
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5.0 next — honest roadmap, not vaporware ─────────── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
+          <p className="stage-label rise" style={slot(0)}>
+            5.0 · next
           </p>
           <h2
             className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
