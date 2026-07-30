@@ -1,7 +1,7 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { Markdown } from "@/renderer/components/common/markdown";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
-import { UIMessage } from "ai";
+import type { UIMessage } from "@/renderer/types/chat";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,7 +16,7 @@ import ToolCall from "./tool-call";
 interface ToolInvocation {
   toolCallId: string;
   toolName: string;
-  state: string;
+  state: "partial-call" | "call" | "result";
   args?: Record<string, unknown>;
   result?: string | { message?: string; [key: string]: unknown };
 }
@@ -244,9 +244,7 @@ export default function ChatContent({
     }
 
     const isCompleted =
-      toolInvocation.state === "complete" ||
-      toolInvocation.state === "result" ||
-      !!toolInvocation.result;
+      toolInvocation.state === "result" || !!toolInvocation.result;
 
     return (
       <ToolCall

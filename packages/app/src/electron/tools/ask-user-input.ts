@@ -19,7 +19,7 @@ import { z } from "zod";
 export const askUserInput = tool({
   description:
     "Ask the user to select from predefined options or provide custom input. Use this when you need user clarification or a choice before proceeding.",
-  parameters: z.object({
+  inputSchema: z.object({
     question: z.string().describe("The question to ask the user"),
     options: z
       .array(z.string())

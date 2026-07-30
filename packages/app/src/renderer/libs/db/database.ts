@@ -25,6 +25,11 @@ export interface Conversation {
     archived?: boolean;
     starred?: boolean;
     messageCount?: number;
+    branchedFrom?: {
+      conversationId: string;
+      messageIndex: number;
+      createdAt: string;
+    };
   } | null;
   createdAt: Date;
   updatedAt: Date;

@@ -26,10 +26,13 @@ export const AskUserInputRenderer = memo(
     // If completed, show the question and user's answer
     if (isCompleted) {
       const result = toolInvocation.result;
-      const userSelection =
-        typeof result === "object" && result?.userSelection
-          ? result.userSelection
-          : String(result);
+      const resultObject =
+        result && typeof result === "object"
+          ? (result as Record<string, unknown>)
+          : undefined;
+      const userSelection = resultObject?.userSelection
+        ? String(resultObject.userSelection)
+        : String(result);
 
       return (
         <div className="text-sm space-y-1">

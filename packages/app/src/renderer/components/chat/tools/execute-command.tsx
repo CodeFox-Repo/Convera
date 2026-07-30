@@ -25,7 +25,7 @@ export const ExecuteCommandRenderer = memo(
       const toolResult = toolInvocation.result;
 
       if (toolResult && typeof toolResult === "object") {
-        const resultObj = toolResult;
+        const resultObj = toolResult as Record<string, unknown>;
 
         // Build result output similar to terminal output
         const parts: string[] = [];

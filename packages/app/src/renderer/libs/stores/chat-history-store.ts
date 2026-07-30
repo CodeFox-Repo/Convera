@@ -5,7 +5,7 @@
  * Uses Dexie liveQuery for real-time data updates and multi-window sync
  */
 
-import { Message } from "ai";
+import type { Message } from "@/renderer/types/chat";
 import { useCallback, useEffect } from "react";
 import {
   useConversations,

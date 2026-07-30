@@ -2,6 +2,7 @@ import { app, BrowserWindow, globalShortcut } from "electron";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
+import { LocalAiRuntime } from "@/electron/ai";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -19,6 +20,7 @@ import {
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
+const localAIRuntime = new LocalAiRuntime();
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
@@ -106,6 +108,7 @@ app.whenReady().then(async () => {
     const listenerOptions: ListenerOptions = {
       mainWindow: () => getMainWindow(),
       registerGlobalShortcuts,
+      localAIRuntime,
     };
 
     logger.debug("Registering IPC listeners");
@@ -138,6 +141,9 @@ app.on("will-quit", () => {
     hub.cleanup();
     console.log("MCP Hub cleaned up");
   }
+  void localAIRuntime.dispose().catch((error) => {
+    logger.error("Local AI runtime cleanup failed:", error);
+  });
 });
 
 app.on("window-all-closed", () => {

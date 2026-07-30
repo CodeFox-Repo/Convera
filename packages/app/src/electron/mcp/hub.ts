@@ -542,8 +542,8 @@ export class MCPHub extends EventEmitter {
     return Object.entries(BUILTIN_TOOLS_REGISTRY).map(([name, tool]) => ({
       name,
       description: tool.description || "",
-      inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
-      parameters: this.zodSchemaToJsonSchema(tool.parameters),
+      inputSchema: this.zodSchemaToJsonSchema(tool.inputSchema),
+      parameters: this.zodSchemaToJsonSchema(tool.inputSchema),
     }));
   }
 
