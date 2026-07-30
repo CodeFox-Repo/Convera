@@ -95,6 +95,7 @@ out/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+.automation/
 
 # PNPM specific
 .pnpm-store/
