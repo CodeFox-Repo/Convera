@@ -1,6 +1,6 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
 import { AppSettings } from "@/shared/types/settings";
-import { Attachment, Message, UIMessage } from "ai";
+import type { Attachment, Message, UIMessage } from "@/renderer/types/chat";
 import React, {
   createContext,
   useCallback,

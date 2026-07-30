@@ -1,19 +1,13 @@
 import type {
-  UIMessage as AISDKUIMessage,
-  ToolInvocation as AISDKToolInvocation,
-} from "ai";
+  MessagePart,
+  ToolInvocation,
+  UIMessage,
+} from "@/renderer/types/chat";
 
 /**
  * Re-export AI SDK types for consistency
  */
-export type UIMessage = AISDKUIMessage;
-export type ToolInvocation = AISDKToolInvocation;
-
-/**
- * Extract the parts type from UIMessage
- * The AI SDK UIMessage can have parts array with different content types
- */
-export type MessagePart = NonNullable<UIMessage["parts"]>[number];
+export type { MessagePart, ToolInvocation, UIMessage };
 
 /**
  * Type guards for different part types
