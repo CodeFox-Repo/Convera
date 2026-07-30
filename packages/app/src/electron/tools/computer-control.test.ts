@@ -42,7 +42,9 @@ function testRig(
     wait: vi.fn(async () => undefined),
   };
   const computer = createComputerControl(dependencies);
-  const execute = (input: Record<string, unknown>) =>
+  const execute = (
+    input: Parameters<NonNullable<typeof computer.execute>>[0],
+  ) =>
     computer.execute!(input, {
       toolCallId: "computer-control-test",
       messages: [],

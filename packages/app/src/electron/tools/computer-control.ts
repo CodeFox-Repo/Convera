@@ -265,7 +265,8 @@ function assertPermission(
 async function defaultDependencies(): Promise<ComputerControlDependencies> {
   return {
     getRobot: async () =>
-      (await import("@/shared/robot")).default as ComputerRobot,
+      (await import("../../shared/robot.js"))
+        .default as unknown as ComputerRobot,
     bitmapToPng: async (bitmap) => {
       if (
         bitmap.bitsPerPixel !== 32 ||

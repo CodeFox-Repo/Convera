@@ -19,7 +19,10 @@ export interface AskUserInputRendererProps {
 export const AskUserInputRenderer = memo(
   ({ toolPart }: AskUserInputRendererProps) => {
     const args = normalizeToolInput(toolPart.input);
-    const question = args?.question || "Waiting for your input...";
+    const question =
+      typeof args?.question === "string"
+        ? args.question
+        : "Waiting for your input...";
     const isCompleted = isToolComplete(toolPart);
 
     // If completed, show the question and user's answer
