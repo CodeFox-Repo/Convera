@@ -183,7 +183,8 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
 
   if (
     request.expectedRevision !== undefined &&
-    (!Number.isInteger(request.expectedRevision) ||
+    (typeof request.expectedRevision !== "number" ||
+      !Number.isInteger(request.expectedRevision) ||
       request.expectedRevision < 0)
   ) {
     return false;
@@ -311,11 +312,13 @@ function validateMemorySettingsUpdate(
       update.schedule === "batch" ||
       update.schedule === "idle") &&
     (update.batchSize === undefined ||
-      (Number.isInteger(update.batchSize) &&
+      (typeof update.batchSize === "number" &&
+        Number.isInteger(update.batchSize) &&
         update.batchSize >= 2 &&
         update.batchSize <= 100)) &&
     (update.idleDelayMs === undefined ||
-      (Number.isInteger(update.idleDelayMs) &&
+      (typeof update.idleDelayMs === "number" &&
+        Number.isInteger(update.idleDelayMs) &&
         update.idleDelayMs >= 1_000 &&
         update.idleDelayMs <= 3_600_000))
   );
@@ -778,25 +781,22 @@ export function setupLocalAIIPC(
     },
   );
 
-  mainIPC.handle(
-    LOCAL_AI_CHANNELS.GET_MEMORY_SETTINGS,
-    async (event) => {
-      if (!ensureSender(event)) {
-        return failure(
-          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
-        );
-      }
-      if (!options.runtime) return failure(runtimeUnavailable());
-      try {
-        return {
-          success: true,
-          data: await options.runtime.getMemorySettings(),
-        };
-      } catch (error) {
-        return failure(error);
-      }
-    },
-  );
+  mainIPC.handle(LOCAL_AI_CHANNELS.GET_MEMORY_SETTINGS, async (event) => {
+    if (!ensureSender(event)) {
+      return failure(
+        createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+      );
+    }
+    if (!options.runtime) return failure(runtimeUnavailable());
+    try {
+      return {
+        success: true,
+        data: await options.runtime.getMemorySettings(),
+      };
+    } catch (error) {
+      return failure(error);
+    }
+  });
 
   mainIPC.handle(
     LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS,
@@ -835,10 +835,7 @@ export function setupLocalAIIPC(
         );
       }
       if (!options.runtime) return failure(runtimeUnavailable());
-      if (
-        conversationId !== undefined &&
-        !isValidIdentifier(conversationId)
-      ) {
+      if (conversationId !== undefined && !isValidIdentifier(conversationId)) {
         return failure(
           createError("Invalid conversation id", "LOCAL_AI_INVALID_REQUEST"),
         );
@@ -904,10 +901,7 @@ export function createLocalAIAPI(
     updateMemorySettings: (update) =>
       rendererIPC.invoke(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS, update),
     getMemoryStatus: (conversationId) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.GET_MEMORY_STATUS,
-        conversationId,
-      ),
+      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_MEMORY_STATUS, conversationId),
     onEvent: (requestId, callback) => {
       const handler = (_event: unknown, event: LocalAIStreamEvent) => {
         if (event.requestId === requestId) callback(event);

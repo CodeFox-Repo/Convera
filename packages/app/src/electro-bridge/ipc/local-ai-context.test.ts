@@ -105,25 +105,25 @@ function createRuntime(
       providers: [],
     })),
     getMemorySettings: vi.fn(() => ({
-      provider: "off",
+      provider: "off" as const,
       baseURL: "http://127.0.0.1:8283",
       apiKeyConfigured: false,
-      subconsciousProvider: "off",
-      schedule: "every-turn",
+      subconsciousProvider: "off" as const,
+      schedule: "every-turn" as const,
       batchSize: 5,
       idleDelayMs: 30_000,
     })),
     updateMemorySettings: vi.fn(() => ({
-      provider: "off",
+      provider: "off" as const,
       baseURL: "http://127.0.0.1:8283",
       apiKeyConfigured: false,
-      subconsciousProvider: "off",
-      schedule: "every-turn",
+      subconsciousProvider: "off" as const,
+      schedule: "every-turn" as const,
       batchSize: 5,
       idleDelayMs: 30_000,
     })),
     getMemoryStatus: vi.fn(() => ({
-      health: "disabled",
+      health: "disabled" as const,
       pendingJobs: 0,
       failedJobs: 0,
     })),
@@ -540,6 +540,98 @@ describe("local AI IPC", () => {
       success: true,
       accepted: true,
     });
+  });
+
+  it("validates and forwards conversation lifecycle requests", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+
+    const branch = handlers.get(LOCAL_AI_CHANNELS.BRANCH_CONVERSATION);
+    const remove = handlers.get(LOCAL_AI_CHANNELS.DELETE_CONVERSATION);
+    const reset = handlers.get(
+      LOCAL_AI_CHANNELS.RESET_CONVERSATION_PROVIDER_SESSION,
+    );
+    const branchRequest = {
+      sourceConversationId: "conversation-1",
+      targetConversationId: "conversation-2",
+      throughMessageId: "message-2",
+      bootstrapMessages: [{ role: "user", content: "hello" }],
+    };
+
+    await expect(
+      branch?.(createEvent(sender), branchRequest),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { conversationId: "conversation-2", revision: 0 },
+    });
+    expect(runtime.branchConversation).toHaveBeenCalledWith(branchRequest);
+
+    await expect(
+      remove?.(createEvent(sender), {
+        conversationId: "conversation-1",
+        forgetConversationMemory: false,
+      }),
+    ).resolves.toEqual({
+      success: true,
+      data: { deleted: true },
+    });
+
+    await expect(
+      reset?.(createEvent(sender), {
+        conversationId: "conversation-1",
+        providerId: "codex-cli",
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { conversationId: "conversation-1" },
+    });
+  });
+
+  it("validates memory settings before they reach privileged storage", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+    const validUpdate = {
+      provider: "letta",
+      baseURL: "http://127.0.0.1:8283",
+      apiKey: "secret",
+      subconsciousProvider: "follow-active",
+      schedule: "batch",
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    };
+
+    await expect(
+      update?.(createEvent(sender), validUpdate),
+    ).resolves.toMatchObject({ success: true });
+    expect(runtime.updateMemorySettings).toHaveBeenCalledWith(validUpdate);
+
+    await expect(
+      update?.(createEvent(sender), {
+        apiKey: 42,
+        unknownSetting: true,
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(runtime.updateMemorySettings).toHaveBeenCalledOnce();
   });
 
   it("serializes Error fields without crossing the process boundary", () => {
