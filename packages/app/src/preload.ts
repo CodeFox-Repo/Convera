@@ -3,6 +3,7 @@ import { CHANNELS } from "./electro-bridge/ipc/channels";
 import { exposeEnvContext } from "./electro-bridge/ipc/env-context";
 import { createElectronAPI } from "./electro-bridge/ipc/listeners-register";
 import { exposeLoggerContext } from "./electro-bridge/ipc/logger-context";
+import { exposeLocalAIContext } from "./electro-bridge/ipc/local-ai-context";
 import { exposeMCPContext } from "./electro-bridge/ipc/mcp-context";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
@@ -31,6 +32,9 @@ exposeLoggerContext();
 
 // Expose Environment API to renderer process (separate from electronAPI)
 exposeEnvContext();
+
+// Expose local AI API to renderer process
+exposeLocalAIContext();
 
 // Expose Platform API to renderer process
 contextBridge.exposeInMainWorld("platformAPI", {

@@ -1,6 +1,7 @@
 // src/types/electron.d.ts
 
 import { WindowSizeConfig } from "@/electron/windows/window-size";
+import type { ILocalAIAPI } from "./local-ai";
 import type { IMcpAPI } from "./mcp";
 
 // Enum for window types
@@ -107,5 +108,6 @@ declare global {
     mcpAPI: IMcpAPI;
     envApi: IEnvAPI;
     logger: WindowLogger;
+    localAI: ILocalAIAPI;
   }
 }
