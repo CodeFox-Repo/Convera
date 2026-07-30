@@ -11,6 +11,7 @@ import {
   resolveLocalModelId,
   type LocalAiProviderAdapter,
 } from "../provider-adapter";
+import { toMcpToolResult } from "../tool-result";
 import type { LocalAiProviderStatus } from "../types";
 
 export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
@@ -52,17 +53,7 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         async (input) => {
           try {
             const output = await definition.execute(input);
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text:
-                    typeof output === "string"
-                      ? output
-                      : JSON.stringify(output),
-                },
-              ],
-            };
+            return toMcpToolResult(output);
           } catch (error) {
             return {
               content: [
