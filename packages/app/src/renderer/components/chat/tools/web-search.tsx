@@ -1,29 +1,30 @@
 import { Loader2 } from "lucide-react";
 import React, { memo } from "react";
 import { Markdown } from "../../common/markdown";
-import { ToolInvocation } from "../types";
+import {
+  getToolOutput,
+  isToolComplete,
+  normalizeToolInput,
+  type ToolMessagePart,
+} from "./tool-part";
 
 export interface WebSearchRendererProps {
-  toolInvocation: ToolInvocation;
+  toolPart: ToolMessagePart;
 }
 
 /**
  * Special component for web_fetch tool calls
  */
 export const WebSearchRenderer = memo(
-  ({ toolInvocation }: WebSearchRendererProps) => {
-    let isCompleted = false;
+  ({ toolPart }: WebSearchRendererProps) => {
+    const isCompleted = isToolComplete(toolPart);
     let result = "";
 
-    // Extract search query from args
-    const searchQuery = String(
-      toolInvocation.args?.query || toolInvocation.args?.url || "",
-    );
+    const args = normalizeToolInput(toolPart.input);
+    const searchQuery = String(args.query || args.url || "");
 
-    // Check if the tool invocation has a result (AI SDK structure)
-    if (toolInvocation.state === "result" && "result" in toolInvocation) {
-      isCompleted = true;
-      const toolResult = toolInvocation.result;
+    if (isCompleted) {
+      const toolResult = getToolOutput(toolPart);
 
       if (typeof toolResult === "string") {
         result = toolResult;

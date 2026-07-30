@@ -1,28 +1,29 @@
 import { Loader2 } from "lucide-react";
 import React, { memo } from "react";
-import { ToolInvocation } from "../types";
 import { CodeBlock } from "../../common/code-block";
+import {
+  getToolOutput,
+  isToolComplete,
+  normalizeToolInput,
+  type ToolMessagePart,
+} from "./tool-part";
 
 export interface ExecuteCommandRendererProps {
-  toolInvocation: ToolInvocation;
+  toolPart: ToolMessagePart;
 }
 
 /**
  * Special component for execute-command tool calls
  */
 export const ExecuteCommandRenderer = memo(
-  ({ toolInvocation }: ExecuteCommandRendererProps) => {
-    let isCompleted = false;
+  ({ toolPart }: ExecuteCommandRendererProps) => {
+    const isCompleted = isToolComplete(toolPart);
     let result = "";
-    let command = "";
+    const args = normalizeToolInput(toolPart.input);
+    const command = String(args.command || "");
 
-    // Extract command from args
-    command = String(toolInvocation.args?.command || "");
-
-    // Check if the tool invocation has a result (AI SDK structure)
-    if (toolInvocation.state === "result" && "result" in toolInvocation) {
-      isCompleted = true;
-      const toolResult = toolInvocation.result;
+    if (isCompleted) {
+      const toolResult = getToolOutput(toolPart);
 
       if (toolResult && typeof toolResult === "object") {
         const resultObj = toolResult as Record<string, unknown>;
