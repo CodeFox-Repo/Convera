@@ -202,7 +202,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? m.content
                   : JSON.stringify(m.content),
               parts: m.parts,
-              toolInvocations: m.toolInvocations,
               experimental_attachments: m.experimental_attachments?.map(
                 (a: Attachment) => ({
                   url: a.url,

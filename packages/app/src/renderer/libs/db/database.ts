@@ -41,7 +41,6 @@ export interface Message {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   parts?: unknown[];
-  toolInvocations?: unknown[];
   experimental_attachments?: Array<{
     url: string;
     name: string;

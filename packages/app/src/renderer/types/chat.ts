@@ -6,25 +6,7 @@ export interface Attachment {
   contentType?: string;
 }
 
-export interface ToolInvocation {
-  toolCallId: string;
-  toolName: string;
-  args?: Record<string, unknown>;
-  state: "partial-call" | "call" | "result";
-  result?: unknown;
-}
-
-export type LegacyMessagePart =
-  | {
-      type: "text";
-      text: string;
-    }
-  | {
-      type: "tool-invocation";
-      toolInvocation: ToolInvocation;
-    };
-
-export type MessagePart = AISDKUIMessage["parts"][number] | LegacyMessagePart;
+export type MessagePart = AISDKUIMessage["parts"][number];
 
 /**
  * Renderer and Dexie use the stable, content-based message shape that Convera
@@ -37,7 +19,6 @@ export interface UIMessage {
   content: string;
   createdAt?: Date;
   parts?: MessagePart[];
-  toolInvocations?: ToolInvocation[];
   experimental_attachments?: Attachment[];
 }
 

@@ -132,7 +132,6 @@ export function useChatHistoryStore() {
               ? m.content
               : JSON.stringify(m.content),
           parts: m.parts,
-          toolInvocations: m.toolInvocations,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
             name: a.name ?? "",
@@ -153,7 +152,6 @@ export function useChatHistoryStore() {
             ? message.content
             : JSON.stringify(message.content),
         parts: message.parts,
-        toolInvocations: message.toolInvocations,
         experimental_attachments: message.experimental_attachments?.map(
           (a) => ({
             url: a.url,
@@ -190,7 +188,6 @@ export function useChatHistory(
           role: m.role as "user" | "assistant" | "system" | "data",
           content: m.content,
           parts: m.parts as Message["parts"],
-          toolInvocations: m.toolInvocations as Message["toolInvocations"],
           experimental_attachments:
             m.experimental_attachments as Message["experimental_attachments"],
           createdAt: m.createdAt,

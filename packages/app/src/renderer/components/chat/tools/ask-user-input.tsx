@@ -1,9 +1,14 @@
 import { Loader2 } from "lucide-react";
 import React, { memo } from "react";
-import { ToolInvocation } from "../types";
+import {
+  getToolOutput,
+  isToolComplete,
+  normalizeToolInput,
+  type ToolMessagePart,
+} from "./tool-part";
 
 export interface AskUserInputRendererProps {
-  toolInvocation: ToolInvocation;
+  toolPart: ToolMessagePart;
 }
 
 /**
@@ -12,20 +17,14 @@ export interface AskUserInputRendererProps {
  * The actual input UI is handled by AskUserInputOverlay in the input area.
  */
 export const AskUserInputRenderer = memo(
-  ({ toolInvocation }: AskUserInputRendererProps) => {
-    const args = toolInvocation.args as {
-      question?: string;
-      options?: string[];
-    };
+  ({ toolPart }: AskUserInputRendererProps) => {
+    const args = normalizeToolInput(toolPart.input);
     const question = args?.question || "Waiting for your input...";
-
-    // Check if completed (has result)
-    const isCompleted =
-      toolInvocation.state === "result" && "result" in toolInvocation;
+    const isCompleted = isToolComplete(toolPart);
 
     // If completed, show the question and user's answer
     if (isCompleted) {
-      const result = toolInvocation.result;
+      const result = getToolOutput(toolPart);
       const resultObject =
         result && typeof result === "object"
           ? (result as Record<string, unknown>)

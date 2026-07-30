@@ -458,7 +458,6 @@ export async function branchFromMessage(
         role: msg.role,
         content: msg.content,
         parts: msg.parts,
-        toolInvocations: msg.toolInvocations,
         experimental_attachments: msg.experimental_attachments,
         createdAt: new Date(baseTime + index),
       })),
