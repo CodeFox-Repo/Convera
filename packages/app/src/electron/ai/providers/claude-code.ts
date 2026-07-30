@@ -1,5 +1,4 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
-import type { LanguageModel } from "ai";
 import {
   createClaudeCode,
   createSdkMcpServer,
@@ -10,6 +9,7 @@ import { probeCliProvider } from "../cli-probe";
 import {
   resolveLocalModelId,
   type LocalAiProviderAdapter,
+  type LocalAiProviderRun,
 } from "../provider-adapter";
 import { toMcpToolResult } from "../tool-result";
 import type { LocalAiProviderStatus } from "../types";
@@ -40,11 +40,11 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
     return probeCliProvider(this.id);
   }
 
-  async createModel(
+  async prepareRun(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
-    context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
-  ): Promise<LanguageModel> {
+    context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
+  ): Promise<LocalAiProviderRun> {
     const tools = context.tools.map((definition) =>
       createClaudeTool(
         definition.name,
@@ -73,17 +73,34 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         ? createSdkMcpServer({ name: "convera", tools })
         : undefined;
 
-    return this.provider(
+    const model = this.provider(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         pathToClaudeCodeExecutable: status.executablePath,
         cwd: request.options?.cwd,
+        resume: context.session?.nativeSessionId,
         mcpServers: mcpServer ? { convera: mcpServer } : undefined,
         allowedTools: context.tools.map(
           (definition) => `mcp__convera__${definition.name}`,
         ),
       },
     );
+    return {
+      model,
+      getNativeSessionId(metadata) {
+        const nativeSessionId = metadata?.["claude-code"]?.sessionId;
+        if (
+          typeof nativeSessionId !== "string" ||
+          nativeSessionId.trim().length === 0
+        ) {
+          throw Object.assign(
+            new Error("Claude Code did not return a session id."),
+            { code: "LOCAL_AI_SESSION_METADATA_INVALID" },
+          );
+        }
+        return nativeSessionId;
+      },
+    };
   }
 
   async dispose(): Promise<void> {

@@ -1,5 +1,4 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
-import type { LanguageModel } from "ai";
 import type {
   CodexAppServerProvider,
   CodexAppServerRequestHandlers,
@@ -9,6 +8,7 @@ import { probeCliProvider } from "../cli-probe";
 import {
   resolveLocalModelId,
   type LocalAiProviderAdapter,
+  type LocalAiProviderRun,
 } from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
 import { createCodexMcpServer } from "./codex-mcp-server";
@@ -51,11 +51,11 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     return this.modelCatalog ? { ...status, ...this.modelCatalog } : status;
   }
 
-  async createModel(
+  async prepareRun(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
-    context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
-  ): Promise<LanguageModel> {
+    context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
+  ): Promise<LocalAiProviderRun> {
     await this.ensureProvider(status.executablePath);
     const { tool } = await importCodexProviderWithZod3Compatibility();
     const tools = context.tools.map((definition) =>
@@ -116,7 +116,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     };
     const cwd = request.options?.cwd;
 
-    return this.provider!(
+    const model = this.provider!(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         cwd,
@@ -130,6 +130,35 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
         },
       },
     );
+    const providerOptions = context.session
+      ? {
+          "codex-app-server": {
+            threadId: context.session.nativeSessionId,
+          },
+        }
+      : {
+          "codex-app-server": {
+            threadMode: "persistent" as const,
+          },
+        };
+
+    return {
+      model,
+      providerOptions,
+      getNativeSessionId(metadata) {
+        const nativeSessionId = metadata?.["codex-app-server"]?.threadId;
+        if (
+          typeof nativeSessionId !== "string" ||
+          nativeSessionId.trim().length === 0
+        ) {
+          throw Object.assign(
+            new Error("Codex did not return a persistent thread id."),
+            { code: "LOCAL_AI_SESSION_METADATA_INVALID" },
+          );
+        }
+        return nativeSessionId;
+      },
+    };
   }
 
   async dispose(): Promise<void> {
@@ -153,7 +182,6 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
       defaultSettings: {
         codexPath: executablePath,
         minCodexVersion: "0.144.0",
-        threadMode: "stateless",
         autoApprove: false,
         approvalPolicy: "on-request",
         sandboxPolicy: "read-only",

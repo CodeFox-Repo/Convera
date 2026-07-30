@@ -55,9 +55,14 @@ describe("CodexCliAdapter MCP transport", () => {
     const adapter = new CodexCliAdapter();
     const request: LocalAIChatRequest = {
       requestId: "test",
+      conversationId: "conversation",
+      turnId: "turn",
       providerId: "codex-cli",
       modelId: "gpt-test",
-      messages: [{ role: "user", content: "use a tool" }],
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "use a tool" },
+      },
       options: { cwd: "/tmp/convera-test" },
     };
     const status: LocalAiProviderStatus = {
@@ -70,7 +75,7 @@ describe("CodexCliAdapter MCP transport", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    await adapter.createModel(request, status, {
+    await adapter.prepareRun(request, status, {
       tools: [
         {
           name: "builtin__probe",
@@ -112,9 +117,14 @@ describe("CodexCliAdapter MCP transport", () => {
     const adapter = new CodexCliAdapter();
     const request: LocalAIChatRequest = {
       requestId: "test",
+      conversationId: "conversation",
+      turnId: "turn",
       providerId: "codex-cli",
       modelId: "gpt-test",
-      messages: [{ role: "user", content: "use a tool" }],
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "use a tool" },
+      },
     };
     const status: LocalAiProviderStatus = {
       ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
@@ -126,7 +136,7 @@ describe("CodexCliAdapter MCP transport", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    await adapter.createModel(request, status, {
+    await adapter.prepareRun(request, status, {
       tools: [
         {
           name: "builtin__probe",
