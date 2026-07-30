@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { execFileSync, spawnSync } from "node:child_process";
-import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -17,20 +16,16 @@ export function electronBinaryPath() {
   return require("electron") as string;
 }
 
-export function defaultConveraUserDataPath() {
-  if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "Convera");
+export function automationProfilePath(profileId: string) {
+  const normalized = profileId
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+  if (!normalized) {
+    throw new Error("Automation profile id must contain a letter or number.");
   }
-  if (process.platform === "win32") {
-    return path.join(
-      process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming"),
-      "Convera",
-    );
-  }
-  return path.join(
-    process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config"),
-    "Convera",
-  );
+  return path.join(RUNTIME_DIR, "profiles", normalized);
 }
 
 export function chromiumVersion() {

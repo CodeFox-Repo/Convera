@@ -9,7 +9,7 @@ import path from "node:path";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import {
   APP_ROOT,
-  defaultConveraUserDataPath,
+  automationProfilePath,
   preparedChromedriverPath,
   RUNTIME_DIR,
   WORKSPACE_ROOT,
@@ -56,6 +56,8 @@ export type LaunchOptions = {
   entryPoint?: string;
   appArgs?: string[];
   userDataPath?: string;
+  profileId?: string;
+  showWindow?: boolean;
 };
 
 export type UiElementSnapshot = {
@@ -144,10 +146,20 @@ export class ConveraDriver {
     const userDataPath = path.resolve(
       options.userDataPath ??
         process.env.CONVERA_AUTOMATION_USER_DATA ??
-        defaultConveraUserDataPath(),
+        automationProfilePath(
+          options.profileId ??
+            process.env.CONVERA_AUTOMATION_PROFILE_ID ??
+            `agent-${process.pid}`,
+        ),
     );
     await mkdir(userDataPath, { recursive: true });
     const appArgs = [...(options.appArgs ?? [])];
+    if (
+      options.showWindow !== true &&
+      !appArgs.includes("--convera-automation-background")
+    ) {
+      appArgs.push("--convera-automation-background");
+    }
     if (!appArgs.some((argument) => argument.startsWith("--user-data-dir="))) {
       appArgs.push(`--user-data-dir=${userDataPath}`);
     }

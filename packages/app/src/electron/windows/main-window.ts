@@ -14,6 +14,10 @@ const logger = getLogger("main-window");
 // Global reference to the main window
 let mainWindow: BrowserWindow | null = null;
 
+export function isBackgroundAutomation(): boolean {
+  return process.argv.includes("--convera-automation-background");
+}
+
 // Create platform-specific configuration for main window
 function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -186,10 +190,12 @@ export function createMainWindow(): void {
     preCreateMainWindow();
   }
 
-  if (mainWindow) {
+  if (mainWindow && !isBackgroundAutomation()) {
     logger.info("Showing main window");
     mainWindow.show();
     mainWindow.focus();
+  } else if (mainWindow) {
+    logger.info("Keeping main window hidden for background automation");
   } else {
     logger.error("Failed to create main window");
   }

@@ -85,7 +85,7 @@ server.registerTool(
   "convera_session",
   {
     description:
-      "Manage the persistent local Convera Electron session. Call launch first. Launch uses the normal local profile and test account; it does not create an isolated user-data directory. If the app bundle is missing, run `pnpm automation:prepare` once.",
+      "Manage one background Convera Electron session. Call launch first. Each MCP server gets a process-unique profile by default; use a distinct stable profile_id per concurrent agent. If the app bundle is missing, run `pnpm automation:prepare` once.",
     inputSchema: {
       action: z.enum(["launch", "status", "close", "switch_window"]),
       binary_path: z
@@ -106,7 +106,20 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          "Optional persistent Convera profile path. Defaults to the platform's normal Convera user-data directory.",
+          "Explicit Electron profile path. Overrides profile_id and should not be shared by concurrent sessions.",
+        ),
+      profile_id: z
+        .string()
+        .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/)
+        .optional()
+        .describe(
+          "Stable agent profile name under .automation/profiles. Omit for a process-unique profile.",
+        ),
+      show_window: z
+        .boolean()
+        .optional()
+        .describe(
+          "Show and focus the Electron window for visual debugging. Defaults to false so automation stays in the background.",
         ),
       window_handle: z
         .string()
@@ -131,6 +144,8 @@ server.registerTool(
     entry_point,
     app_args,
     user_data_path,
+    profile_id,
+    show_window,
     window_handle,
     title_contains,
   }) =>
@@ -141,6 +156,8 @@ server.registerTool(
           entryPoint: entry_point,
           appArgs: app_args,
           userDataPath: user_data_path,
+          profileId: profile_id,
+          showWindow: show_window,
         };
         return driver.launch(options);
       }
@@ -470,6 +487,15 @@ process.once("SIGINT", () => shutdownAndExit(130));
 process.once("SIGTERM", () => shutdownAndExit(143));
 process.stdin.once("end", () => shutdownAndExit(0));
 process.stdin.once("close", () => shutdownAndExit(0));
+
+const initialParentPid = process.ppid;
+const parentWatchdog = setInterval(() => {
+  if (process.ppid !== initialParentPid) {
+    clearInterval(parentWatchdog);
+    shutdownAndExit(0);
+  }
+}, 1_000);
+parentWatchdog.unref();
 
 /*
  * The MCP SDK's stdio server transport does not subscribe to stdin's end
