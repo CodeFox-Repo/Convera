@@ -42,6 +42,9 @@ interface SenderRequests {
 }
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const ALLOWED_PROVIDER_IDS = new Set(["claude-code", "codex-cli"]);
+const MAX_MESSAGE_CHARS = 200_000;
+const MAX_REQUEST_CHARS = 1_000_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -102,8 +105,7 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     typeof request.requestId !== "string" ||
     !REQUEST_ID_PATTERN.test(request.requestId) ||
     typeof request.providerId !== "string" ||
-    request.providerId.length === 0 ||
-    request.providerId.length > 128 ||
+    !ALLOWED_PROVIDER_IDS.has(request.providerId) ||
     !Array.isArray(request.messages) ||
     request.messages.length === 0 ||
     request.messages.length > 1_000
@@ -111,14 +113,21 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     return false;
   }
 
-  return request.messages.every(
-    (message) =>
+  let totalChars = 0;
+  return request.messages.every((message) => {
+    if (
       isRecord(message) &&
       (message.role === "system" ||
         message.role === "user" ||
         message.role === "assistant") &&
-      typeof message.content === "string",
-  );
+      typeof message.content === "string" &&
+      message.content.length <= MAX_MESSAGE_CHARS
+    ) {
+      totalChars += message.content.length;
+      return totalChars <= MAX_REQUEST_CHARS;
+    }
+    return false;
+  });
 }
 
 function failure<T>(error: unknown): LocalAIResult<T> {
@@ -223,8 +232,7 @@ export function setupLocalAIIPC(
       if (!options.runtime) return failure(runtimeUnavailable());
       if (
         typeof providerId !== "string" ||
-        providerId.length === 0 ||
-        providerId.length > 128
+        !ALLOWED_PROVIDER_IDS.has(providerId)
       ) {
         return failure(
           createError("Invalid provider id", "LOCAL_AI_INVALID_REQUEST"),
