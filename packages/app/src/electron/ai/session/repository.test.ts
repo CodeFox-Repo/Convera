@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -359,5 +366,43 @@ describe("SessionStateRepository", () => {
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
       schemaVersion: 999,
     });
+  });
+
+  it("rejects malformed nested state and persists private durable files", async () => {
+    const malformedPath = await statePath();
+    const malformed = {
+      schemaVersion: 1,
+      conversations: [
+        {
+          conversationId: "conversation",
+          revision: "not-an-integer",
+          memoryEpoch: 0,
+          memoryVersion: 0,
+          updatedAt: "not-a-timestamp",
+        },
+      ],
+      bindings: [],
+      turns: [],
+    };
+    await writeFile(malformedPath, JSON.stringify(malformed), "utf8");
+    await expect(
+      new JsonSessionStateRepository({ path: malformedPath }).snapshot(),
+    ).rejects.toMatchObject({ code: "LOCAL_AI_SESSION_STATE_INVALID" });
+    expect(JSON.parse(await readFile(malformedPath, "utf8"))).toEqual(
+      malformed,
+    );
+
+    const privatePath = await statePath();
+    const repository = new JsonSessionStateRepository({ path: privatePath });
+    await repository.beginTurn({
+      turnId: "turn-private",
+      requestId: "request-private",
+      conversationId: "conversation-private",
+      providerId: "codex-cli",
+      operation: "append",
+    });
+    if (process.platform !== "win32") {
+      expect((await stat(privatePath)).mode & 0o777).toBe(0o600);
+    }
   });
 });

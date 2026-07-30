@@ -3,6 +3,7 @@ import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import {
   LOCAL_AI_RUNTIME_STATE_SCHEMA_VERSION,
   SessionStateError,
@@ -54,18 +55,105 @@ function bindingMatches(
   );
 }
 
+const identifierSchema = z.string().trim().min(1).max(4_096);
+const timestampSchema = z.string().datetime();
+const memoryCursorSchema = z
+  .object({
+    version: z.number().int().min(0),
+    epoch: z.number().int().min(0),
+  })
+  .strict();
+const conversationSchema = z
+  .object({
+    conversationId: identifierSchema,
+    revision: z.number().int().min(0),
+    memoryEpoch: z.number().int().min(0),
+    memoryVersion: z.number().int().min(0),
+    updatedAt: timestampSchema,
+  })
+  .strict();
+const bindingSchema = z
+  .object({
+    conversationId: identifierSchema,
+    providerId: z.enum(["codex-cli", "claude-code"]),
+    revision: z.number().int().min(0),
+    nativeSessionId: identifierSchema,
+    cwd: z.string().min(1).max(32_768),
+    modelId: z.string().min(1).max(4_096).optional(),
+    stale: z.boolean(),
+    memoryCursors: z.record(identifierSchema, memoryCursorSchema).optional(),
+    updatedAt: timestampSchema,
+  })
+  .strict();
+const turnSchema = z
+  .object({
+    turnId: identifierSchema,
+    requestId: identifierSchema,
+    conversationId: identifierSchema,
+    providerId: z.enum(["codex-cli", "claude-code"]),
+    revision: z.number().int().min(0),
+    operation: z.enum(["append", "bootstrap", "rebase"]),
+    status: z.enum([
+      "pending",
+      "completed",
+      "failed",
+      "aborted",
+      "uncertain",
+      "interrupted",
+    ]),
+    startedAt: timestampSchema,
+    providerStartedAt: timestampSchema.optional(),
+    completedAt: timestampSchema.optional(),
+    nativeSessionId: identifierSchema.optional(),
+    error: z.string().max(100_000).optional(),
+  })
+  .strict();
+const runtimeStateSchema = z
+  .object({
+    schemaVersion: z.literal(LOCAL_AI_RUNTIME_STATE_SCHEMA_VERSION),
+    conversations: z.array(conversationSchema).max(100_000),
+    bindings: z.array(bindingSchema).max(200_000),
+    turns: z.array(turnSchema).max(500_000),
+  })
+  .strict();
+
 function assertState(value: unknown): asserts value is LocalAiRuntimeStateV1 {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    (value as { schemaVersion?: unknown }).schemaVersion !==
-      LOCAL_AI_RUNTIME_STATE_SCHEMA_VERSION ||
-    !Array.isArray((value as { conversations?: unknown }).conversations) ||
-    !Array.isArray((value as { bindings?: unknown }).bindings) ||
-    !Array.isArray((value as { turns?: unknown }).turns)
-  ) {
+  const parsed = runtimeStateSchema.safeParse(value);
+  if (!parsed.success) {
     throw new SessionStateError(
       "Local AI runtime state has an unsupported or invalid schema.",
+      "LOCAL_AI_SESSION_STATE_INVALID",
+    );
+  }
+  const state = parsed.data;
+  const conversations = new Map(
+    state.conversations.map((conversation) => [
+      conversation.conversationId,
+      conversation,
+    ]),
+  );
+  const uniqueTurnIds = new Set(state.turns.map((turn) => turn.turnId));
+  const uniqueBindings = new Set(
+    state.bindings.map(
+      (binding) =>
+        `${binding.conversationId}\0${binding.providerId}\0${binding.revision}`,
+    ),
+  );
+  const structurallyConsistent =
+    conversations.size === state.conversations.length &&
+    uniqueTurnIds.size === state.turns.length &&
+    uniqueBindings.size === state.bindings.length &&
+    state.bindings.every((binding) => {
+      const conversation = conversations.get(binding.conversationId);
+      return conversation && binding.revision <= conversation.revision;
+    }) &&
+    state.turns.every((turn) => {
+      const conversation = conversations.get(turn.conversationId);
+      return conversation && turn.revision <= conversation.revision;
+    });
+  if (!structurallyConsistent) {
+    throw new SessionStateError(
+      "Local AI runtime state contains inconsistent conversation references.",
       "LOCAL_AI_SESSION_STATE_INVALID",
     );
   }
@@ -601,7 +689,7 @@ export class JsonSessionStateRepository extends SerializedSessionStateRepository
     const directory = dirname(this.options.path);
     const temporaryPath = `${this.options.path}.${process.pid}.${randomUUID()}.tmp`;
     await mkdir(directory, { recursive: true });
-    const handle = await open(temporaryPath, "wx");
+    const handle = await open(temporaryPath, "wx", 0o600);
     try {
       await handle.writeFile(`${JSON.stringify(state, null, 2)}\n`, "utf8");
       await handle.sync();
@@ -611,9 +699,31 @@ export class JsonSessionStateRepository extends SerializedSessionStateRepository
 
     try {
       await rename(temporaryPath, this.options.path);
+      await this.syncParentDirectory();
     } catch (error) {
       await rm(temporaryPath, { force: true });
       throw error;
+    }
+  }
+
+  private async syncParentDirectory(): Promise<void> {
+    let directory: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      directory = await open(dirname(this.options.path), "r");
+      await directory.sync();
+    } catch (error) {
+      const code =
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : undefined;
+      if (!["EINVAL", "EPERM", "EISDIR"].includes(code ?? "")) {
+        throw error;
+      }
+    } finally {
+      await directory?.close().catch(() => undefined);
     }
   }
 }
