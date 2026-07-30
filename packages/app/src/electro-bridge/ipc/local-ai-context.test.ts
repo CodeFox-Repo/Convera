@@ -447,9 +447,7 @@ describe("local AI IPC", () => {
   it("waits for the authoritative runtime terminal after an accepted abort", async () => {
     const sender = new FakeWebContents(1);
     const pendingChats: Array<() => void> = [];
-    let emitRuntimeEvent:
-      | ((event: LocalAIStreamEvent) => void)
-      | undefined;
+    let emitRuntimeEvent: ((event: LocalAIStreamEvent) => void) | undefined;
     const runtime = createRuntime({
       startChat: vi.fn(
         (_request, emit) =>
