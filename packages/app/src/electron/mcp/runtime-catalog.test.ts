@@ -56,7 +56,6 @@ describe("main-process agent tool catalog", () => {
     const context = createModel.mock.calls[0]?.[2];
     expect(context?.tools.map((tool) => tool.qualifiedName)).toEqual([
       "builtin:ask_user_input",
-      "builtin:computer_control",
       "builtin:execute_command",
       "builtin:web_fetch",
     ]);

@@ -5,13 +5,11 @@
  */
 
 import { askUserInput } from "./ask-user-input";
-import { computerControl } from "./computer-control";
 import { executeCommand } from "./execute-command";
 import { webFetch } from "./web-fetch";
 
 export const builtinTools = {
   askUserInput,
-  computerControl,
   executeCommand,
   webFetch,
 };
@@ -22,7 +20,6 @@ export const builtinTools = {
  */
 export const BUILTIN_TOOLS_REGISTRY = {
   ask_user_input: askUserInput,
-  computer_control: computerControl,
   execute_command: executeCommand,
   web_fetch: webFetch,
 } as const;
@@ -32,11 +29,6 @@ export const BUILTIN_TOOL_ANNOTATIONS = {
     readOnlyHint: true,
     destructiveHint: false,
     openWorldHint: false,
-  },
-  computer_control: {
-    readOnlyHint: false,
-    destructiveHint: true,
-    openWorldHint: true,
   },
   execute_command: {
     readOnlyHint: false,
