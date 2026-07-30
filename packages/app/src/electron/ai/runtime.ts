@@ -1,6 +1,7 @@
 import type {
   LocalAIChatRequest,
   LocalAIFinishReason,
+  LocalAIInteractionResponse,
   LocalAIProviderAvailability,
   LocalAIProviderStatus,
   LocalAIRuntimeService,
@@ -9,6 +10,13 @@ import type {
   LocalAIUsage,
 } from "@/shared/types/local-ai";
 import { streamText, type LanguageModel, type ModelMessage } from "ai";
+import { randomUUID } from "node:crypto";
+import {
+  createAgentToolCatalog,
+  type AgentTool,
+  type AgentToolGroup,
+  type AgentToolInteraction,
+} from "./agent-tools";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "./provider-descriptors";
 import type { LocalAiProviderAdapter } from "./provider-adapter";
 import { ClaudeCodeAdapter } from "./providers/claude-code";
@@ -35,6 +43,16 @@ interface RuntimeStreamOptions {
 export type RuntimeStreamInvoker = (
   options: RuntimeStreamOptions,
 ) => RuntimeStreamResult;
+
+export type AgentToolGroupProvider = () =>
+  | AgentToolGroup[]
+  | Promise<AgentToolGroup[]>;
+
+export type AgentToolExecutor = (
+  serverName: string,
+  toolName: string,
+  input: Record<string, unknown>,
+) => Promise<unknown>;
 
 const defaultStreamInvoker: RuntimeStreamInvoker = (options) =>
   streamText(options) as unknown as RuntimeStreamResult;
@@ -168,6 +186,15 @@ function stringField(
   return undefined;
 }
 
+interface PendingInteraction {
+  requestId: string;
+  resolve(response: LocalAIInteractionResponse): void;
+  reject(error: Error): void;
+  timeout: ReturnType<typeof setTimeout>;
+  abortSignal: AbortSignal;
+  onAbort(): void;
+}
+
 export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly adapters = new Map<
     LocalAiProviderId,
@@ -176,12 +203,17 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly activeRequests = new Map<string, AbortController>();
   private readonly streamInvoker: RuntimeStreamInvoker;
   private readonly workingDirectory: string;
+  private readonly getToolGroups: AgentToolGroupProvider;
+  private readonly executeTool: AgentToolExecutor;
+  private readonly pendingInteractions = new Map<string, PendingInteraction>();
 
   constructor(
     options: {
       adapters?: LocalAiProviderAdapter[];
       streamInvoker?: RuntimeStreamInvoker;
       workingDirectory?: string;
+      getToolGroups?: AgentToolGroupProvider;
+      executeTool?: AgentToolExecutor;
     } = {},
   ) {
     const adapters = options.adapters ?? [
@@ -190,6 +222,14 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
     this.workingDirectory = options.workingDirectory ?? process.cwd();
+    this.getToolGroups = options.getToolGroups ?? (() => []);
+    this.executeTool =
+      options.executeTool ??
+      (async (serverName, toolName) => {
+        throw new Error(
+          `Tool executor is unavailable for ${serverName}:${toolName}.`,
+        );
+      });
 
     for (const adapter of adapters) {
       this.adapters.set(adapter.id, adapter);
@@ -312,14 +352,35 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           cwd: this.workingDirectory,
         },
       };
-      const model = await adapter.createModel(trustedRequest, probeStatus);
+      const requestInteraction = (interaction: AgentToolInteraction) =>
+        this.requestInteraction(
+          request.requestId,
+          interaction,
+          controller.signal,
+          emit,
+        );
+      const tools = createAgentToolCatalog({
+        groups: await this.getToolGroups(),
+        executeTool: this.executeTool,
+        requestInteraction,
+      });
+      const model = await adapter.createModel(trustedRequest, probeStatus, {
+        tools,
+        requestInteraction,
+      });
       const result = this.streamInvoker({
         model,
         messages: toMessages(request),
         abortSignal: controller.signal,
         maxOutputTokens: request.options?.maxOutputTokens,
       });
-      await this.forwardStream(request.requestId, result, controller, emit);
+      await this.forwardStream(
+        request.requestId,
+        result,
+        controller,
+        emit,
+        tools,
+      );
     } catch (error) {
       if (controller.signal.aborted) {
         emit({
@@ -331,6 +392,12 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         this.emitFailure(request.requestId, emit, error);
       }
     } finally {
+      this.rejectRequestInteractions(
+        request.requestId,
+        new Error(
+          "Local AI request finished before the interaction completed.",
+        ),
+      );
       this.activeRequests.delete(request.requestId);
     }
   }
@@ -345,11 +412,28 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     return true;
   }
 
+  respondToInteraction(
+    requestId: string,
+    interactionId: string,
+    response: LocalAIInteractionResponse,
+  ): boolean {
+    const pending = this.pendingInteractions.get(interactionId);
+    if (!pending || pending.requestId !== requestId) return false;
+
+    this.releaseInteraction(interactionId, pending);
+    pending.resolve(response);
+    return true;
+  }
+
   async dispose(): Promise<void> {
     for (const controller of this.activeRequests.values()) {
       controller.abort();
     }
     this.activeRequests.clear();
+    for (const [interactionId, pending] of this.pendingInteractions) {
+      this.releaseInteraction(interactionId, pending);
+      pending.reject(new Error("Local AI runtime disposed."));
+    }
 
     await Promise.all(
       [...this.adapters.values()].map((adapter) => adapter.dispose()),
@@ -361,7 +445,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     result: RuntimeStreamResult,
     controller: AbortController,
     emit: (event: LocalAIStreamEvent) => void,
+    tools: AgentTool[],
   ): Promise<void> {
+    const eventNames = new Map(
+      tools.map((tool) => [tool.name, tool.qualifiedName]),
+    );
     const toolNames = new Map<string, string>();
     const toolInputs = new Map<string, string>();
     let terminalEventEmitted = false;
@@ -377,7 +465,10 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         }
         case "tool-input-start": {
           const toolCallId = stringField(part, "id") ?? "unknown";
-          const name = stringField(part, "toolName") ?? "unknown";
+          const name = this.toolEventName(
+            stringField(part, "toolName") ?? "unknown",
+            eventNames,
+          );
           toolNames.set(toolCallId, name);
           toolInputs.set(toolCallId, "");
           emit({
@@ -407,8 +498,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         case "tool-call": {
           const toolCallId = stringField(part, "toolCallId", "id") ?? "unknown";
           const name =
-            stringField(part, "toolName") ??
-            toolNames.get(toolCallId) ??
+            this.toolEventName(
+              stringField(part, "toolName") ?? "",
+              eventNames,
+            ) ||
+            toolNames.get(toolCallId) ||
             "unknown";
           emit({
             type: "tool",
@@ -427,8 +521,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
             requestId,
             toolCallId,
             name:
-              stringField(part, "toolName") ??
-              toolNames.get(toolCallId) ??
+              this.toolEventName(
+                stringField(part, "toolName") ?? "",
+                eventNames,
+              ) ||
+              toolNames.get(toolCallId) ||
               "unknown",
             state: "output-available",
             output: part.output,
@@ -442,8 +539,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
             requestId,
             toolCallId,
             name:
-              stringField(part, "toolName") ??
-              toolNames.get(toolCallId) ??
+              this.toolEventName(
+                stringField(part, "toolName") ?? "",
+                eventNames,
+              ) ||
+              toolNames.get(toolCallId) ||
               "unknown",
             state: "output-error",
             error: serializeLocalAiError(part.error),
@@ -502,5 +602,78 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       error: serializeLocalAiError(error, code),
     });
     emit({ type: "finish", requestId, finishReason: "error" });
+  }
+
+  private requestInteraction(
+    requestId: string,
+    interaction: AgentToolInteraction,
+    abortSignal: AbortSignal,
+    emit: (event: LocalAIStreamEvent) => void,
+  ): Promise<LocalAIInteractionResponse> {
+    const interactionId = randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        const pending = this.pendingInteractions.get(interactionId);
+        if (!pending) return;
+        this.releaseInteraction(interactionId, pending);
+        reject(new Error(`Interaction cancelled for ${interaction.name}.`));
+      };
+      const timeout = setTimeout(() => {
+        const pending = this.pendingInteractions.get(interactionId);
+        if (!pending) return;
+        this.releaseInteraction(interactionId, pending);
+        reject(new Error(`Interaction timed out for ${interaction.name}.`));
+      }, 5 * 60_000);
+
+      this.pendingInteractions.set(interactionId, {
+        requestId,
+        resolve,
+        reject,
+        timeout,
+        abortSignal,
+        onAbort,
+      });
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+      emit({
+        type: "interaction",
+        requestId,
+        interactionId,
+        ...interaction,
+      });
+    });
+  }
+
+  private rejectRequestInteractions(requestId: string, error: Error): void {
+    for (const [interactionId, pending] of this.pendingInteractions) {
+      if (pending.requestId !== requestId) continue;
+      this.releaseInteraction(interactionId, pending);
+      pending.reject(error);
+    }
+  }
+
+  private releaseInteraction(
+    interactionId: string,
+    pending: PendingInteraction,
+  ): void {
+    clearTimeout(pending.timeout);
+    pending.abortSignal.removeEventListener("abort", pending.onAbort);
+    this.pendingInteractions.delete(interactionId);
+  }
+
+  private toolEventName(
+    providerName: string,
+    eventNames: Map<string, string>,
+  ): string {
+    for (const [alias, qualifiedName] of eventNames) {
+      if (
+        providerName === alias ||
+        providerName.endsWith(`__${alias}`) ||
+        providerName.endsWith(`.${alias}`)
+      ) {
+        return qualifiedName;
+      }
+    }
+    return providerName;
   }
 }

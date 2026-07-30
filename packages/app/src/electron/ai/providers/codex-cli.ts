@@ -1,6 +1,9 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
-import type { CodexAppServerProvider } from "ai-sdk-provider-codex-cli";
+import type {
+  CodexAppServerProvider,
+  CodexAppServerRequestHandlers,
+} from "ai-sdk-provider-codex-cli";
 import type { ZodEffects, ZodTypeAny } from "zod";
 import { probeCliProvider } from "../cli-probe";
 import {
@@ -50,13 +53,80 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
   async createModel(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
+    context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
   ): Promise<LanguageModel> {
     await this.ensureProvider(status.executablePath);
+    const { createSdkMcpServer, tool } =
+      await importCodexProviderWithZod3Compatibility();
+    const tools = context.tools.map((definition) =>
+      tool({
+        name: definition.name,
+        description: definition.description,
+        parameters: definition.inputValidator,
+        execute: async (input) =>
+          definition.execute(input as Record<string, unknown>),
+      }),
+    );
+    const mcpServer =
+      tools.length > 0
+        ? createSdkMcpServer({ name: "convera", tools })
+        : undefined;
+    const requestApproval = async (
+      name: string,
+      prompt: string,
+      input: unknown,
+    ) =>
+      (
+        await context.requestInteraction({
+          kind: "approval",
+          name,
+          prompt,
+          input,
+          options: ["Allow once", "Deny"],
+        })
+      ).approved === true;
+    const serverRequests: CodexAppServerRequestHandlers = {
+      onCommandExecutionApproval: async ({ params }) => ({
+        decision: (await requestApproval(
+          "codex:command_execution",
+          `Allow Codex to execute this command?\n${params.command ?? ""}`,
+          params,
+        ))
+          ? "accept"
+          : "decline",
+      }),
+      onFileChangeApproval: async ({ params }) => ({
+        decision: (await requestApproval(
+          "codex:file_change",
+          "Allow Codex to modify files in the current workspace?",
+          params,
+        ))
+          ? "accept"
+          : "decline",
+      }),
+      onSkillApproval: async () => ({ decision: "decline" }),
+      onMcpElicitation: async ({ params }) => ({
+        action:
+          params._meta?.codex_approval_kind === "mcp_tool_call"
+            ? "accept"
+            : "decline",
+        content: null,
+      }),
+    };
+    const cwd = request.options?.cwd;
 
     return this.provider!(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
-        cwd: request.options?.cwd,
+        cwd,
+        mcpServers: mcpServer ? { convera: mcpServer } : undefined,
+        serverRequests,
+        approvalPolicy: "on-request",
+        sandboxPolicy: {
+          type: "workspaceWrite",
+          writableRoots: cwd ? [cwd] : [],
+          networkAccess: false,
+        },
       },
     );
   }

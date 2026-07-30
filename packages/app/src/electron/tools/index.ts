@@ -23,3 +23,21 @@ export const BUILTIN_TOOLS_REGISTRY = {
   execute_command: executeCommand,
   web_fetch: webFetch,
 } as const;
+
+export const BUILTIN_TOOL_ANNOTATIONS = {
+  ask_user_input: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  },
+  execute_command: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: true,
+  },
+  web_fetch: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: true,
+  },
+} as const;

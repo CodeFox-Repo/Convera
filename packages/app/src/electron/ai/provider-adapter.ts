@@ -1,5 +1,6 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
+import type { AgentTool, AgentToolInteraction } from "./agent-tools";
 import type { LocalAiProviderId, LocalAiProviderStatus } from "./types";
 
 export function resolveLocalModelId(
@@ -16,6 +17,12 @@ export interface LocalAiProviderAdapter {
   createModel(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
+    context: {
+      tools: AgentTool[];
+      requestInteraction(
+        interaction: AgentToolInteraction,
+      ): Promise<{ approved?: boolean; value?: string }>;
+    },
   ): Promise<LanguageModel>;
   dispose(): Promise<void>;
 }
