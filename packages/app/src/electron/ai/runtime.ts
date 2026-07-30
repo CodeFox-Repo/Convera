@@ -324,6 +324,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
 
     try {
       const probeStatus = await adapter.getStatus();
+      controller.signal.throwIfAborted();
       if (!probeStatus.available || !probeStatus.authenticated) {
         this.emitFailure(
           request.requestId,
@@ -355,8 +356,10 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           controller.signal,
           emit,
         );
+      const toolGroups = await this.getToolGroups();
+      controller.signal.throwIfAborted();
       const tools = createAgentToolCatalog({
-        groups: await this.getToolGroups(),
+        groups: toolGroups,
         executeTool: this.executeTool,
         requestInteraction,
       });
@@ -364,6 +367,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         tools,
         requestInteraction,
       });
+      controller.signal.throwIfAborted();
       const result = this.streamInvoker({
         model,
         messages: toMessages(request),
@@ -497,6 +501,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     const interactionId = randomUUID();
 
     return new Promise((resolve, reject) => {
+      if (abortSignal.aborted) {
+        reject(new Error(`Interaction cancelled for ${interaction.name}.`));
+        return;
+      }
+
       const onAbort = () => {
         const pending = this.pendingInteractions.get(interactionId);
         if (!pending) return;
