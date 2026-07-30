@@ -1,0 +1,109 @@
+import type { LocalAIChatRequest } from "@/shared/types/local-ai";
+import type { LanguageModel } from "ai";
+import type { CodexAppServerProvider } from "ai-sdk-provider-codex-cli";
+import { ZodEffects, type ZodTypeAny } from "zod";
+import { probeCliProvider } from "../cli-probe";
+import type { LocalAiProviderAdapter } from "../provider-adapter";
+import type { LocalAiProviderStatus } from "../types";
+
+export class CodexCliAdapter implements LocalAiProviderAdapter {
+  readonly id = "codex-cli" as const;
+
+  private provider?: CodexAppServerProvider;
+  private providerExecutablePath?: string;
+
+  getStatus(): Promise<LocalAiProviderStatus> {
+    return probeCliProvider(this.id);
+  }
+
+  async createModel(
+    request: LocalAIChatRequest,
+    status: LocalAiProviderStatus,
+  ): Promise<LanguageModel> {
+    await this.ensureProvider(status.executablePath);
+
+    return this.provider!(request.modelId ?? status.defaultModel, {
+      cwd: request.options?.cwd,
+    });
+  }
+
+  async dispose(): Promise<void> {
+    const provider = this.provider;
+    this.provider = undefined;
+    this.providerExecutablePath = undefined;
+    await provider?.close();
+  }
+
+  private async ensureProvider(executablePath?: string): Promise<void> {
+    if (this.provider && this.providerExecutablePath === executablePath) {
+      return;
+    }
+
+    await this.dispose();
+    const { createCodexAppServer } =
+      await importCodexProviderWithZod3Compatibility();
+    this.providerExecutablePath = executablePath;
+    this.provider = createCodexAppServer({
+      defaultSettings: {
+        codexPath: executablePath,
+        minCodexVersion: "0.144.0",
+        threadMode: "stateless",
+        autoApprove: false,
+        approvalPolicy: "on-request",
+        sandboxPolicy: "read-only",
+        idleTimeoutMs: 5 * 60_000,
+        logger: false,
+      },
+    });
+  }
+}
+
+/**
+ * ai-sdk-provider-codex-cli 1.1-1.3 declares Zod 3 support but one app-server
+ * response schema calls `.passthrough()` after `.refine()`. Zod 3 returns a
+ * ZodEffects from refine, whereas Zod 4 forwards the object method.
+ *
+ * The refined schema declares both fields it consumes (`id` and `result`), so
+ * retaining Zod 3's default unknown-key stripping is sufficient. Keep this
+ * narrowly scoped shim until the provider fixes the upstream chain. The
+ * prototype is restored immediately after module evaluation, so other schemas
+ * retain their normal Zod 3 behavior.
+ */
+async function importCodexProviderWithZod3Compatibility(): Promise<
+  typeof import("ai-sdk-provider-codex-cli")
+> {
+  const prototype = ZodEffects.prototype as typeof ZodEffects.prototype & {
+    passthrough?: () => unknown;
+  };
+  if (prototype.passthrough) {
+    return import("ai-sdk-provider-codex-cli");
+  }
+
+  Object.defineProperty(prototype, "passthrough", {
+    configurable: true,
+    value(this: ZodEffects<ZodTypeAny>) {
+      const refinedSchema = this;
+      const innerObject = refinedSchema.innerType() as unknown as {
+        passthrough(): object;
+      };
+      const objectSchema = innerObject.passthrough() as object & {
+        _parse?: unknown;
+      };
+
+      // Zod 3's discriminatedUnion requires an object with a `shape`, while
+      // parsing still needs the original refinement. Delegate only this
+      // returned schema's parser back to the ZodEffects instance.
+      Object.defineProperty(objectSchema, "_parse", {
+        configurable: true,
+        value: refinedSchema._parse.bind(refinedSchema),
+      });
+      return objectSchema;
+    },
+  });
+
+  try {
+    return await import("ai-sdk-provider-codex-cli");
+  } finally {
+    delete prototype.passthrough;
+  }
+}
