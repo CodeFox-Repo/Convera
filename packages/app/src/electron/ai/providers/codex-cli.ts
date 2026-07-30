@@ -105,13 +105,10 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           : "decline",
       }),
       onSkillApproval: async () => ({ decision: "decline" }),
-      onMcpElicitation: async ({ params }) => ({
-        action:
-          params._meta?.codex_approval_kind === "mcp_tool_call"
-            ? "accept"
-            : "decline",
-        content: null,
-      }),
+      onMcpElicitation: async ({ params }) =>
+        params._meta?.codex_approval_kind === "mcp_tool_call"
+          ? { action: "accept", content: {} }
+          : { action: "decline", content: null },
     };
     const cwd = request.options?.cwd;
 
@@ -120,7 +117,6 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
       {
         cwd,
         mcpServers: mcpServer ? { convera: mcpServer } : undefined,
-        rmcpClient: mcpServer ? true : undefined,
         serverRequests,
         approvalPolicy: "on-request",
         sandboxPolicy: {
