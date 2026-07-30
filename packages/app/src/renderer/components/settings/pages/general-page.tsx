@@ -2,17 +2,8 @@ import { Button } from "@/renderer/components/ui/button";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import {
-  Edit2,
-  Key,
-  Loader2,
-  Plus,
-  RotateCcw,
-  Terminal,
-  Trash2,
-} from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ModelConfigForm } from "../../../components/auth/model-config-form";
+import { Loader2, RotateCcw, Terminal } from "lucide-react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
@@ -21,10 +12,7 @@ export function GeneralSettingsPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Model Config state
-  const [showAddConfigModal, setShowAddConfigModal] = useState(false);
-  const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
-  const { modelConfigs, removeModelConfig, subscribeToModelConfigChanges } =
-    useModelConfigStore();
+  const { subscribeToModelConfigChanges } = useModelConfigStore();
   const { providers, loading: providersLoading } = useLocalAIProviders();
 
   // Settings Store
@@ -319,150 +307,57 @@ export function GeneralSettingsPage() {
 
         {/* Model Configurations Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div>
             <h2 className="text-lg font-medium text-foreground">
-              Model Configurations
+              Local AI Providers
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditingConfigId(null);
-                setShowAddConfigModal(true);
-              }}
-              className="flex items-center gap-2 border-border hover:border-border/80"
-            >
-              <Plus className="h-4 w-4" />
-              Add Configuration
-            </Button>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Convera uses your existing Claude Code or Codex CLI login.
+            </p>
           </div>
 
           <div className="border border-border rounded-lg divide-y divide-border">
-            {providers
-              .filter((provider) => provider.id !== "openai-compatible")
-              .map((provider) => (
-                <div
-                  key={provider.id}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                      <Terminal className="h-4 w-4 text-foreground" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground">
-                        {provider.name}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {providersLoading
-                          ? "Checking local CLI..."
-                          : provider.availability === "available"
-                            ? "Installed and authenticated"
-                            : provider.detail ||
-                              (provider.availability === "unauthenticated"
-                                ? "Authentication required"
-                                : "CLI not installed")}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      provider.availability === "available"
-                        ? "text-emerald-600 bg-emerald-500/10"
-                        : "text-muted-foreground bg-muted"
-                    }`}
-                  >
-                    {provider.availability === "available"
-                      ? "Ready"
-                      : "Unavailable"}
-                  </span>
-                </div>
-              ))}
-
-            {/* Custom Model Configs */}
-            {modelConfigs.map((config) => (
+            {providers.map((provider) => (
               <div
-                key={config.id}
+                key={provider.id}
                 className="flex items-center justify-between p-4"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                    <Key className="h-4 w-4 text-orange-500" />
+                    <Terminal className="h-4 w-4 text-foreground" />
                   </div>
                   <div>
                     <h4 className="font-medium text-foreground">
-                      {config.name}
+                      {provider.name}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      {config.models.length} model
-                      {config.models.length !== 1 ? "s" : ""} configured
+                      {providersLoading
+                        ? "Checking local CLI..."
+                        : provider.availability === "available"
+                          ? "Installed and authenticated"
+                          : provider.detail ||
+                            (provider.availability === "unauthenticated"
+                              ? "Authentication required"
+                              : "CLI not installed")}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setEditingConfigId(config.id);
-                      setShowAddConfigModal(true);
-                    }}
-                    className="h-8 w-8"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeModelConfig(config.id)}
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                <span
+                  className={`text-xs px-2 py-1 rounded ${
+                    provider.availability === "available"
+                      ? "text-emerald-600 bg-emerald-500/10"
+                      : "text-muted-foreground bg-muted"
+                  }`}
+                >
+                  {provider.availability === "available"
+                    ? "Ready"
+                    : "Unavailable"}
+                </span>
               </div>
             ))}
-
-            {/* Empty state */}
-            {modelConfigs.length === 0 && (
-              <div className="p-8 text-center">
-                <Key className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">
-                  No model configurations yet
-                </p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  Add a configuration to use your own API
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Add/Edit Model Config Modal */}
-      {showAddConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg mx-4">
-            <ModelConfigForm
-              editingConfigId={editingConfigId || undefined}
-              onSuccess={() => {
-                setShowAddConfigModal(false);
-                setEditingConfigId(null);
-              }}
-            />
-            <Button
-              variant="ghost"
-              className="w-full mt-2"
-              onClick={() => {
-                setShowAddConfigModal(false);
-                setEditingConfigId(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

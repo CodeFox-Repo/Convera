@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import type { LocalAIProviderStatus } from "@/shared/types/local-ai";
 import {
   getLocalAI,
   LOCAL_AI_PROVIDER_NAMES,
   type LocalAIProviderId,
-  type LocalAIProviderStatus,
-} from "../local-ai-contract";
+} from "../local-ai";
 
 const fallbackProviders = Object.entries(LOCAL_AI_PROVIDER_NAMES).map(
   ([id, name]) => ({

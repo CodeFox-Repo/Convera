@@ -168,13 +168,17 @@ export function useChatHistoryStore() {
  * Legacy hook for backward compatibility
  * Used in ChatProvider
  */
-export function useChatHistory(setMessages: (messages: Message[]) => void) {
+export function useChatHistory(
+  setMessages: (messages: Message[]) => void,
+  streamActive = false,
+) {
   const conversations = useConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
   const messages = useMessages(currentConversationId);
 
   // Update AI SDK messages when messages change
   useEffect(() => {
+    if (streamActive) return;
     if (messages && messages.length > 0) {
       // Filter out "tool" role as AI SDK doesn't support it directly
       const aiMessages: Message[] = messages
@@ -190,7 +194,7 @@ export function useChatHistory(setMessages: (messages: Message[]) => void) {
         }));
       setMessages(aiMessages);
     }
-  }, [messages, setMessages]);
+  }, [messages, setMessages, streamActive]);
 
   // Convert format
   const chatHistory: ConversationData[] = (conversations || []).map((conv) => ({
