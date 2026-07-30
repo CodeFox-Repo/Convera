@@ -40,7 +40,7 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
     webPreferences: {
       devTools: inDevelopment,
       contextIsolation: true,
-      nodeIntegration: true,
+      nodeIntegration: false,
       nodeIntegrationInSubFrames: false,
       preload: path.join(__dirname, "preload.js"),
     },

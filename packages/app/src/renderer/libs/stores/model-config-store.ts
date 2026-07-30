@@ -22,7 +22,7 @@ import {
   LOCAL_AI_PROVIDER_NAMES,
   isLocalAIProviderId,
   type LocalAIProviderId,
-} from "../local-ai-contract";
+} from "../local-ai";
 
 // Re-export for backward compatibility
 export type { ModelConfig };
@@ -99,28 +99,16 @@ export function useModelConfigStore() {
     getAvailableModels: (): GroupedModel[] => {
       const models: GroupedModel[] = [];
 
-      Object.entries(LOCAL_AI_PROVIDER_NAMES)
-        .filter(([id]) => id !== "openai-compatible")
-        .forEach(([configId, configName]) => {
+      Object.entries(LOCAL_AI_PROVIDER_NAMES).forEach(
+        ([configId, configName]) => {
           models.push({
             configId,
             configName,
             modelId: DEFAULT_LOCAL_AI_MODEL_ID,
             isRemote: false,
           });
-        });
-
-      // User custom models
-      (modelConfigs || []).forEach((config) => {
-        config.models.forEach((modelId) => {
-          models.push({
-            configId: config.id,
-            configName: config.name,
-            modelId,
-            isRemote: false,
-          });
-        });
-      });
+        },
+      );
 
       return models;
     },
@@ -179,7 +167,9 @@ useModelConfigStore.getState = () => {
 };
 
 export function resolveLocalAIProviderId(configId: string): LocalAIProviderId {
-  return isLocalAIProviderId(configId) ? configId : "openai-compatible";
+  return isLocalAIProviderId(configId)
+    ? configId
+    : DEFAULT_LOCAL_AI_PROVIDER_ID;
 }
 
 // ==================== Standalone Actions ====================

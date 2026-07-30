@@ -13,16 +13,18 @@
  */
 
 import { create } from "zustand";
+import { db } from "./database";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   DEFAULT_LOCAL_AI_PROVIDER_ID,
-} from "../local-ai-contract";
+  isLocalAIProviderId,
+} from "../local-ai";
 
 // Re-export for convenience
 export {
   DEFAULT_LOCAL_AI_MODEL_ID,
   DEFAULT_LOCAL_AI_PROVIDER_ID,
-} from "../local-ai-contract";
+} from "../local-ai";
 
 // ==================== Selection State ====================
 
@@ -47,9 +49,33 @@ export const useSelectionStore = create<SelectionState>((set) => ({
 
   setCurrentConversation: (id) => set({ currentConversationId: id }),
   setSelectedAgent: (id) => set({ selectedAgentId: id }),
-  setSelectedModel: (configId, modelId) =>
-    set({ selectedConfigId: configId, selectedModelId: modelId }),
+  setSelectedModel: (configId, modelId) => {
+    set({ selectedConfigId: configId, selectedModelId: modelId });
+    void db.settings.put({
+      key: "local-ai-selection",
+      value: { configId, modelId },
+      updatedAt: new Date(),
+    });
+  },
 }));
+
+void db.settings.get("local-ai-selection").then((record) => {
+  const value = record?.value;
+  if (
+    value &&
+    typeof value === "object" &&
+    "configId" in value &&
+    "modelId" in value &&
+    typeof value.configId === "string" &&
+    typeof value.modelId === "string" &&
+    isLocalAIProviderId(value.configId)
+  ) {
+    useSelectionStore.setState({
+      selectedConfigId: value.configId,
+      selectedModelId: value.modelId,
+    });
+  }
+});
 
 // ==================== Chat UI State ====================
 

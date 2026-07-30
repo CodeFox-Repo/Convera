@@ -1,17 +1,16 @@
 import type { Message } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  getLocalAI,
-  type LocalAIChatEvent,
-  type LocalAIChatRequest,
-  type LocalAIProviderId,
-} from "../local-ai-contract";
+import type {
+  LocalAIChatRequest,
+  LocalAIStreamEvent,
+} from "@/shared/types/local-ai";
+import { getLocalAI, type LocalAIProviderId } from "../local-ai";
 
 export interface LocalAIChatOptions {
   providerId: LocalAIProviderId;
   model?: string;
   agent?: LocalAIChatRequest["agent"];
-  options?: Record<string, unknown>;
+  options?: LocalAIChatRequest["options"];
 }
 
 interface UseLocalAIChatResult {
@@ -58,7 +57,7 @@ function toRequestMessages(messages: Message[]) {
 
 function applyToolEvent(
   message: Message,
-  event: Extract<LocalAIChatEvent, { type: "tool" }>,
+  event: Extract<LocalAIStreamEvent, { type: "tool" }>,
 ): Message {
   const existing = message.toolInvocations || [];
   const withoutCurrent = existing.filter(
@@ -101,7 +100,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   }, []);
 
   const handleEvent = useCallback(
-    (assistantMessageId: string, event: LocalAIChatEvent) => {
+    (assistantMessageId: string, event: LocalAIStreamEvent) => {
       if (event.requestId !== activeRequestIdRef.current) return;
 
       if (event.type === "delta") {
@@ -134,8 +133,6 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       if (event.type === "error") {
         setError(new Error(event.error.message));
         setStatus("error");
-        activeRequestIdRef.current = undefined;
-        releaseSubscription();
         return;
       }
 
@@ -156,8 +153,15 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       }
 
       if (activeRequestIdRef.current) {
-        await localAI.abort(activeRequestIdRef.current);
+        const abortResult = await localAI.abort(activeRequestIdRef.current);
+        if (!abortResult.success) {
+          throw new Error(
+            abortResult.error?.message ||
+              "Could not stop the previous local AI request.",
+          );
+        }
         releaseSubscription();
+        activeRequestIdRef.current = undefined;
       }
 
       const requestId = crypto.randomUUID();
@@ -230,10 +234,30 @@ export function useLocalAIChat(): UseLocalAIChatResult {
     const localAI = getLocalAI();
     if (!requestId || !localAI) return;
 
-    await localAI.abort(requestId);
-    activeRequestIdRef.current = undefined;
-    releaseSubscription();
-    setStatus("ready");
+    try {
+      const result = await localAI.abort(requestId);
+      if (!result.success) {
+        throw new Error(
+          result.error?.message || "Could not stop the local AI request.",
+        );
+      }
+
+      // A successful abort emits the terminal event through onEvent. If the
+      // main process no longer owns the request, there will be no event to
+      // wait for, so release the local listener here.
+      if (!result.data?.aborted) {
+        activeRequestIdRef.current = undefined;
+        releaseSubscription();
+        setStatus("ready");
+      }
+    } catch (abortError) {
+      setError(
+        abortError instanceof Error
+          ? abortError
+          : new Error("Could not stop the local AI request."),
+      );
+      setStatus("error");
+    }
   }, [releaseSubscription]);
 
   useEffect(

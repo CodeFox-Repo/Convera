@@ -18,7 +18,7 @@ import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   LOCAL_AI_PROVIDER_NAMES,
   isLocalAIProviderId,
-} from "../local-ai-contract";
+} from "../local-ai";
 
 // ==================== Conversation Hooks ====================
 
