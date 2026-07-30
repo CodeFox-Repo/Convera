@@ -33,6 +33,25 @@ vi.mock("ai-sdk-provider-codex-cli", () => ({
   tool: mocks.tool,
 }));
 
+function providerSettings() {
+  const calls = mocks.provider.mock.calls as unknown as Array<
+    [
+      string,
+      {
+        mcpServers?: { convera?: unknown };
+        serverRequests?: {
+          onMcpElicitation?: (request: {
+            id: number;
+            method: string;
+            params: Record<string, unknown>;
+          }) => Promise<unknown>;
+        };
+      },
+    ]
+  >;
+  return calls.at(-1)?.[1];
+}
+
 describe("CodexCliAdapter MCP transport", () => {
   it("attaches Convera tools without the obsolete RMCP feature flag", async () => {
     const adapter = new CodexCliAdapter();
@@ -79,7 +98,7 @@ describe("CodexCliAdapter MCP transport", () => {
         mcpServers: { convera: mcpServer },
       }),
     );
-    expect(mocks.provider.mock.calls[0]?.[1]).not.toHaveProperty("rmcpClient");
+    expect(providerSettings()).not.toHaveProperty("rmcpClient");
 
     await adapter.dispose();
   });
@@ -117,7 +136,7 @@ describe("CodexCliAdapter MCP transport", () => {
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
-    const settings = mocks.provider.mock.calls.at(-1)?.[1];
+    const settings = providerSettings();
     const handler = settings?.serverRequests?.onMcpElicitation;
     expect(handler).toBeTypeOf("function");
     await expect(
