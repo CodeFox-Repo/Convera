@@ -48,6 +48,9 @@ const ALLOWED_PROVIDER_IDS = new Set(["claude-code", "codex-cli"]);
 const MAX_MESSAGE_CHARS = 200_000;
 const MAX_REQUEST_CHARS = 1_000_000;
 const MAX_INTERACTION_RESPONSE_CHARS = 20_000;
+const MAX_METADATA_CHARS = 512;
+const MAX_CWD_CHARS = 4_096;
+const MAX_OUTPUT_TOKENS = 1_000_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -55,6 +58,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function createError(message: string, code: string): LocalAISerializableError {
   return { name: "LocalAIIPCError", message, code };
+}
+
+function isOptionalString(value: unknown, maximumLength: number): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && value.length <= maximumLength)
+  );
 }
 
 export function serializeLocalAIError(
@@ -116,10 +126,47 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     return false;
   }
 
+  if (!isOptionalString(request.modelId, MAX_METADATA_CHARS)) {
+    return false;
+  }
+
   let totalChars = 0;
+  if (request.agent !== undefined) {
+    if (!isRecord(request.agent)) return false;
+    if (!isOptionalString(request.agent.id, MAX_METADATA_CHARS)) return false;
+    if (!isOptionalString(request.agent.systemPrompt, MAX_MESSAGE_CHARS)) {
+      return false;
+    }
+    if (typeof request.agent.systemPrompt === "string") {
+      totalChars += request.agent.systemPrompt.length;
+    }
+  }
+
+  if (request.options !== undefined) {
+    if (!isRecord(request.options)) return false;
+    if (!isOptionalString(request.options.cwd, MAX_CWD_CHARS)) return false;
+    if (
+      request.options.temperature !== undefined &&
+      (typeof request.options.temperature !== "number" ||
+        !Number.isFinite(request.options.temperature))
+    ) {
+      return false;
+    }
+    if (
+      request.options.maxOutputTokens !== undefined &&
+      (typeof request.options.maxOutputTokens !== "number" ||
+        !Number.isInteger(request.options.maxOutputTokens) ||
+        request.options.maxOutputTokens <= 0 ||
+        request.options.maxOutputTokens > MAX_OUTPUT_TOKENS)
+    ) {
+      return false;
+    }
+  }
+
   return request.messages.every((message) => {
     if (
       isRecord(message) &&
+      isOptionalString(message.id, MAX_METADATA_CHARS) &&
       (message.role === "system" ||
         message.role === "user" ||
         message.role === "assistant") &&
