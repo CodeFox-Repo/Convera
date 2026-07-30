@@ -134,7 +134,7 @@ export default function ModelSelector() {
                   {isLocalAIProviderId(configId) ? (
                     <Terminal className="w-3 h-3" />
                   ) : (
-                    <Key className="w-3 h-3 text-orange-500" />
+                    <Key className="w-3 h-3 text-primary" />
                   )}
                   <span className="font-medium">{group.configName}</span>
                 </div>

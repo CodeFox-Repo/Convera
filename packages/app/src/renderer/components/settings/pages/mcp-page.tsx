@@ -130,29 +130,29 @@ export function McpSettingsPage() {
       switch (status) {
         case ConnectionStatus.CONNECTED:
           return {
-            color: "bg-green-500",
+            color: "bg-success",
             glow: "shadow-green-500/50 shadow-lg animate-pulse",
           };
         case ConnectionStatus.CONNECTING:
           return {
-            color: "bg-yellow-500",
+            color: "bg-warning",
             glow: "shadow-yellow-500/50 shadow-lg animate-pulse",
           };
         case ConnectionStatus.DISABLED:
           return {
-            color: "bg-gray-500",
+            color: "bg-muted-foreground",
             glow: "",
           };
         case ConnectionStatus.UNAUTHORIZED:
           return {
-            color: "bg-orange-500",
+            color: "bg-primary",
             glow: "shadow-orange-500/50 shadow-lg animate-pulse",
           };
         case ConnectionStatus.ERROR:
         case ConnectionStatus.DISCONNECTED:
         default:
           return {
-            color: "bg-red-500",
+            color: "bg-destructive",
             glow: "shadow-red-500/50 shadow-lg animate-pulse",
           };
       }
@@ -203,7 +203,7 @@ export function McpSettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-gray-300 hover:border-gray-400"
+                  className="border-border hover:border-ring"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Config Files
@@ -281,7 +281,7 @@ export function McpSettingsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleRestartServer(server.name)}
-                              className="text-blue-600 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
+                              className="text-info-foreground border-info/40 hover:border-info hover:bg-info-subtle"
                             >
                               <RefreshCw className="h-4 w-4 mr-1" />
                               Restart
@@ -292,7 +292,7 @@ export function McpSettingsPage() {
                             variant="outline"
                             size="sm"
                             disabled
-                            className="border-gray-300"
+                            className="border-border"
                           >
                             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                             Restarting
@@ -303,7 +303,7 @@ export function McpSettingsPage() {
                           size="sm"
                           onClick={() => handleRemoveServerClick(server.name)}
                           disabled={removingServers.has(server.name)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-destructive hover:text-destructive hover:bg-destructive-subtle"
                         >
                           {removingServers.has(server.name) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -338,7 +338,7 @@ export function McpSettingsPage() {
                 Server Configuration (JSON)
               </label>
               <textarea
-                className="w-full h-64 px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm font-mono"
+                className="w-full h-64 px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 value={manualConfig}
                 onChange={(e) => setManualConfig(e.target.value)}
                 placeholder={`{

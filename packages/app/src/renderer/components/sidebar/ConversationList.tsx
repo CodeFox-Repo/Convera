@@ -47,7 +47,7 @@ export function ConversationList() {
       {starredConversations.length > 0 && (
         <div>
           <h3 className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Star size={12} className="text-yellow-500 fill-yellow-500" />
+            <Star size={12} className="text-warning fill-warning" />
             Starred
           </h3>
           <div className="space-y-0.5">

@@ -23,7 +23,7 @@ export function HighlightedText({
         segment.highlighted ? (
           <mark
             key={index}
-            className="bg-yellow-200 dark:bg-yellow-800 text-inherit rounded-sm px-0.5"
+            className="bg-warning-subtle text-inherit rounded-sm px-0.5"
           >
             {segment.text}
           </mark>

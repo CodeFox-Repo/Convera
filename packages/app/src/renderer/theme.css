@@ -16,6 +16,20 @@
     --accent-foreground: rgb(20 20 19);
     --destructive: rgb(180 64 44);
     --destructive-foreground: rgb(250 249 245);
+    /* Semantic status colors. These carry meaning (a state needing attention),
+       so they stay readable against the warm surfaces without drifting into
+       the accent. `-subtle` is the tinted background behind `-foreground`. */
+    --success: rgb(74 122 62);
+    --success-foreground: rgb(52 88 43);
+    --success-subtle: rgb(233 240 227);
+    --warning: rgb(176 124 32);
+    --warning-foreground: rgb(124 87 22);
+    --warning-subtle: rgb(248 240 219);
+    --info: rgb(76 110 145);
+    --info-foreground: rgb(54 82 111);
+    --info-subtle: rgb(230 238 245);
+    --destructive-subtle: rgb(249 232 228);
+    --overlay: rgb(20 20 19 / 0.32);
     --border: rgb(222 218 205);
     --input: rgb(222 218 205);
     --ring: rgb(204 120 92);
@@ -73,6 +87,18 @@
     --accent-foreground: rgb(234 231 223);
     --destructive: rgb(212 117 99);
     --destructive-foreground: rgb(20 20 19);
+    /* Dark mode: lift the hues and dim the surfaces rather than inverting. */
+    --success: rgb(139 187 122);
+    --success-foreground: rgb(157 199 141);
+    --success-subtle: rgb(35 45 32);
+    --warning: rgb(224 184 90);
+    --warning-foreground: rgb(232 198 118);
+    --warning-subtle: rgb(50 43 26);
+    --info: rgb(147 180 213);
+    --info-foreground: rgb(166 194 221);
+    --info-subtle: rgb(29 38 48);
+    --destructive-subtle: rgb(53 34 30);
+    --overlay: rgb(0 0 0 / 0.55);
     --border: rgb(58 56 53);
     --input: rgb(58 56 53);
     --ring: rgb(212 150 126);
@@ -127,6 +153,17 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-overlay: var(--overlay);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

@@ -65,7 +65,7 @@ const ToolCall = ({ toolPart }: ToolCallProps) => {
             </div>
             <div className="max-h-60 overflow-auto rounded border border-border bg-muted/30 p-2 whitespace-pre-wrap text-foreground">
               {!isCompleted ? (
-                <div className="flex items-center text-amber-500">
+                <div className="flex items-center text-warning">
                   <Loader className="mr-2 h-3 w-3 animate-spin" />
                   Waiting for results...
                 </div>

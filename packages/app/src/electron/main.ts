@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import {
@@ -16,6 +16,16 @@ import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
+import {
+  createWebBridgeEvent,
+  createRecordingIpcMain,
+  WebBridgeSender,
+} from "@/electron/web-bridge/dispatch";
+import {
+  isWebBridgeEnabled,
+  startWebBridge,
+  type WebBridgeHandle,
+} from "@/electron/web-bridge/server";
 import { createSystemTray, destroySystemTray } from "./tray";
 import {
   createMainWindow,
@@ -26,6 +36,8 @@ import {
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
+let webBridge: WebBridgeHandle | undefined;
+let webBridgeSender: WebBridgeSender | undefined;
 const localAIRuntime = new LocalAiRuntime({
   getToolGroups: async () => {
     await initializeMCPHub();
@@ -119,15 +131,35 @@ app.whenReady().then(async () => {
       mainWindow.focus();
     }
 
+    const recordingIPC = isWebBridgeEnabled()
+      ? createRecordingIpcMain(ipcMain)
+      : undefined;
+
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
       mainWindow: () => getMainWindow(),
       registerGlobalShortcuts,
       localAIRuntime,
+      ipc: recordingIPC,
+      extraLocalAISenders: () =>
+        webBridgeSender ? [webBridgeSender as never] : [],
     };
 
     logger.debug("Registering IPC listeners");
     registerListeners(listenerOptions);
+
+    if (recordingIPC) {
+      // The sender is created first; its emit closure reads `webBridge` lazily.
+      const sender = new WebBridgeSender((channel, payload) =>
+        webBridge?.emit(channel, payload),
+      );
+      webBridgeSender = sender;
+      webBridge = await startWebBridge({
+        rendererURL: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
+        invoke: (channel, args) =>
+          recordingIPC.dispatch(channel, args, createWebBridgeEvent(sender)),
+      });
+    }
 
     app.on("activate", () => {
       const mainWin = getMainWindow();
@@ -156,6 +188,10 @@ app.on("will-quit", () => {
     hub.cleanup();
     console.log("MCP Hub cleaned up");
   }
+  webBridgeSender?.destroy();
+  void webBridge?.close().catch((error) => {
+    logger.error("Web bridge cleanup failed:", error);
+  });
   void localAIRuntime.dispose().catch((error) => {
     logger.error("Local AI runtime cleanup failed:", error);
   });

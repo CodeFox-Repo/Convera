@@ -655,7 +655,7 @@ export default function AgentPopover() {
             >
               <div className="flex items-center gap-3">
                 <svg
-                  className="w-4 h-4 text-blue-500"
+                  className="w-4 h-4 text-info"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -702,10 +702,10 @@ export default function AgentPopover() {
                     className="flex items-center justify-between p-2 hover:bg-muted/20 rounded-lg transition-all duration-150"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-md bg-info-subtle flex items-center justify-center flex-shrink-0">
                         {tool.id === "websearch" ? (
                           <svg
-                            className="w-3.5 h-3.5 text-blue-700 dark:text-blue-300"
+                            className="w-3.5 h-3.5 text-info-foreground"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -719,7 +719,7 @@ export default function AgentPopover() {
                           </svg>
                         ) : tool.id === "thinking" ? (
                           <svg
-                            className="w-3.5 h-3.5 text-blue-700 dark:text-blue-300"
+                            className="w-3.5 h-3.5 text-info-foreground"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -732,7 +732,7 @@ export default function AgentPopover() {
                             />
                           </svg>
                         ) : (
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase">
+                          <span className="text-xs font-medium text-info-foreground uppercase">
                             {tool.name.charAt(0)}
                           </span>
                         )}
@@ -747,9 +747,7 @@ export default function AgentPopover() {
                       <button
                         onClick={() => handleBasicToolToggle(tool.id)}
                         className={`relative w-11 h-6 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                          tool.enabled
-                            ? "bg-blue-500 dark:bg-blue-600"
-                            : "bg-gray-300 dark:bg-gray-600"
+                          tool.enabled ? "bg-primary" : "bg-muted-foreground/30"
                         }`}
                       >
                         <span
@@ -773,7 +771,7 @@ export default function AgentPopover() {
             >
               <div className="flex items-center gap-3">
                 <svg
-                  className="w-4 h-4 text-emerald-500"
+                  className="w-4 h-4 text-success"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -879,16 +877,16 @@ export default function AgentPopover() {
                               <div
                                 className={`w-2 h-2 rounded-full ${
                                   serverStatus === ConnectionStatus.CONNECTED
-                                    ? "bg-emerald-500 dark:bg-emerald-400"
+                                    ? "bg-success"
                                     : serverStatus ===
                                         ConnectionStatus.CONNECTING
-                                      ? "bg-yellow-500 dark:bg-yellow-400 animate-pulse"
+                                      ? "bg-warning animate-pulse"
                                       : serverStatus === ConnectionStatus.ERROR
-                                        ? "bg-red-500 dark:bg-red-400"
+                                        ? "bg-destructive"
                                         : serverStatus ===
                                             ConnectionStatus.DISABLED
-                                          ? "bg-gray-400 dark:bg-gray-500"
-                                          : "bg-gray-400 dark:bg-gray-500"
+                                          ? "bg-muted-foreground/50"
+                                          : "bg-muted-foreground/50"
                                 }`}
                               ></div>
                               <div>
@@ -950,8 +948,8 @@ export default function AgentPopover() {
                                     {/* Enable/Disable All Tools Option */}
                                     <div className="flex items-center justify-between p-2 hover:bg-muted/20 rounded-md transition-all duration-150">
                                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                                        <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                                          <span className="text-xs font-medium rounded-2xl text-gray-600 dark:text-gray-300 uppercase">
+                                        <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                                          <span className="text-xs font-medium rounded-2xl text-muted-foreground uppercase">
                                             {enabled > 0 ? "D" : "E"}
                                           </span>
                                         </div>
@@ -975,8 +973,8 @@ export default function AgentPopover() {
                                           }}
                                           className={`relative w-11 h-6 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
                                             enabled > 0
-                                              ? "bg-blue-500 dark:bg-blue-600"
-                                              : "bg-gray-300 dark:bg-gray-600"
+                                              ? "bg-primary"
+                                              : "bg-muted-foreground/30"
                                           }`}
                                         >
                                           <span
@@ -1000,8 +998,8 @@ export default function AgentPopover() {
                                         className="flex items-center justify-between p-2 hover:bg-muted/20 rounded-md transition-all duration-150"
                                       >
                                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <div className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase">
+                                          <div className="w-6 h-6 rounded-md bg-success-subtle flex items-center justify-center flex-shrink-0">
+                                            <span className="text-xs font-medium text-success-foreground uppercase">
                                               {tool.name.charAt(0)}
                                             </span>
                                           </div>
@@ -1024,8 +1022,8 @@ export default function AgentPopover() {
                                               (mcpToolsEnabled[id]?.[
                                                 tool.name
                                               ] ?? false)
-                                                ? "bg-blue-500 dark:bg-blue-600"
-                                                : "bg-gray-300 dark:bg-gray-600"
+                                                ? "bg-primary"
+                                                : "bg-muted-foreground/30"
                                             }`}
                                           >
                                             <span

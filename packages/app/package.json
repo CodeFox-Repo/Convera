@@ -8,6 +8,7 @@
   "scripts": {
     "start": "NODE_ENV=production-development electron-forge start",
     "dev:start": "NODE_ENV=development electron-forge start",
+    "dev:web": "tsx scripts/web-bridge-dev.mts",
     "package": "electron-forge package",
     "package:robotjs": "electron-forge package && ./scripts/post-package-robotjs.sh",
     "package:sign": "ENABLE_CODE_SIGNING=true pnpm run package:robotjs && ./scripts/apple-sign.sh",

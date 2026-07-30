@@ -397,13 +397,16 @@ export function HomePage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="mx-6 mb-4"
+                  className="px-6 mb-3"
                 >
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                    <p className="text-destructive text-sm">
-                      {error.message ||
-                        "An error occurred. Please check your API key or try again later."}
-                    </p>
+                  {/* Same max-w-4xl wrapper as the input below, so the two align. */}
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                      <p className="text-destructive text-sm">
+                        {error.message ||
+                          "Something went wrong. Please try again."}
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
               )}

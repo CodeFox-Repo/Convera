@@ -91,7 +91,7 @@ function WindowButtons() {
       <button
         type="button"
         title="Close"
-        className="p-2 hover:bg-red-300"
+        className="p-2 hover:bg-destructive/20"
         onClick={closeWindow}
       >
         <svg

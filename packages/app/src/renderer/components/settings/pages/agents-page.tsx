@@ -132,7 +132,7 @@ const AgentFormFields = ({
       </Label>
       <textarea
         id={`${idPrefix}agent-prompt`}
-        className="w-full min-h-[120px] px-3 py-2 border border-border/30 rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground"
+        className="w-full min-h-[120px] px-3 py-2 border border-border/30 rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         value={form.systemPrompt}
         onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
         placeholder="Define the agent's personality, behavior, and capabilities..."
@@ -237,7 +237,7 @@ const McpServerItem = ({
             >
               {config.name || serverId}
               {isPredefined && allToolsDisabled && (
-                <span className="ml-2 text-xs text-orange-600 dark:text-orange-400">
+                <span className="ml-2 text-xs text-primary">
                   (All tools disabled)
                 </span>
               )}
@@ -354,7 +354,7 @@ const AgentListItem = ({
           variant="ghost"
           size="sm"
           onClick={() => onDelete(agent.id, agent.name)}
-          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive-subtle"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -672,11 +672,11 @@ export function AgentsSettingsPage({
     return (
       <div className="space-y-4">
         {isPredefinedAgent ? (
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
-            <p className="text-sm font-medium mb-1 text-blue-800 dark:text-blue-200">
+          <div className="p-3 bg-info-subtle border border-info/30 rounded-lg">
+            <p className="text-sm font-medium mb-1 text-info-foreground">
               Predefined Agent Configuration
             </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
+            <p className="text-xs text-info-foreground">
               All MCP servers are enabled by default. To disable a server, turn
               off all its tools below.
             </p>

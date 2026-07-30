@@ -1,5 +1,4 @@
 import type {
-  ILocalAIAPI,
   LocalAIChatRequest,
   LocalAIInteractionResponse,
   LocalAIProviderStatus,
@@ -9,28 +8,22 @@ import type {
   LocalAIStartResult,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
+import { createLocalAIAPI, LOCAL_AI_CHANNELS } from "./local-ai-api";
 import {
   contextBridge,
   ipcMain,
   ipcRenderer,
   type IpcMain,
   type IpcMainInvokeEvent,
-  type IpcRenderer,
   type WebContents,
 } from "electron";
 
-export const LOCAL_AI_CHANNELS = {
-  LIST_PROVIDERS: "local-ai:list-providers",
-  GET_PROVIDER_STATUS: "local-ai:get-provider-status",
-  START_CHAT: "local-ai:start-chat",
-  ABORT: "local-ai:abort",
-  RESPOND_INTERACTION: "local-ai:respond-interaction",
-  EVENT: "local-ai:event",
-} as const;
+export { createLocalAIAPI, LOCAL_AI_CHANNELS } from "./local-ai-api";
 
 export interface LocalAIIPCOptions {
   runtime?: LocalAIRuntimeService;
-  getAllowedWebContents: () => WebContents | null;
+  /** The renderer, plus any web bridge sender standing in for a browser tab. */
+  getAllowedWebContents: () => WebContents | WebContents[] | null;
 }
 
 interface ActiveRequest {
@@ -98,13 +91,18 @@ export function serializeLocalAIError(
 
 export function isAllowedLocalAISender(
   event: IpcMainInvokeEvent,
-  allowedWebContents: WebContents | null,
+  allowedWebContents: WebContents | WebContents[] | null,
 ): boolean {
+  if (!allowedWebContents || event.sender.isDestroyed()) return false;
+
+  const allowed = Array.isArray(allowedWebContents)
+    ? allowedWebContents
+    : [allowedWebContents];
+
   if (
-    !allowedWebContents ||
-    allowedWebContents.isDestroyed() ||
-    event.sender.isDestroyed() ||
-    event.sender !== allowedWebContents
+    !allowed.some(
+      (candidate) => candidate === event.sender && !candidate.isDestroyed(),
+    )
   ) {
     return false;
   }
@@ -536,36 +534,6 @@ export function setupLocalAIIPC(
       sender.removeListener("destroyed", onDestroyed);
     });
     senderRequests.clear();
-  };
-}
-
-export function createLocalAIAPI(
-  rendererIPC: Pick<IpcRenderer, "invoke" | "on" | "removeListener">,
-): ILocalAIAPI {
-  return {
-    listProviders: () => rendererIPC.invoke(LOCAL_AI_CHANNELS.LIST_PROVIDERS),
-    getProviderStatus: (providerId) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_PROVIDER_STATUS, providerId),
-    startChat: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.START_CHAT, request),
-    abort: (requestId) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.ABORT, requestId),
-    respondToInteraction: (requestId, interactionId, response) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.RESPOND_INTERACTION,
-        requestId,
-        interactionId,
-        response,
-      ),
-    onEvent: (requestId, callback) => {
-      const handler = (_event: unknown, event: LocalAIStreamEvent) => {
-        if (event.requestId === requestId) callback(event);
-      };
-      rendererIPC.on(LOCAL_AI_CHANNELS.EVENT, handler);
-      return () => {
-        rendererIPC.removeListener(LOCAL_AI_CHANNELS.EVENT, handler);
-      };
-    },
   };
 }
 

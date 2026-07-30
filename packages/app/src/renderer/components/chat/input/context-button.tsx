@@ -36,7 +36,7 @@ const FileBadge = ({
 
   return (
     <div
-      className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
+      className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-border
         bg-background/30 px-2 py-1 text-xs font-medium max-w-[16ch] overflow-hidden pr-5"
     >
       {isImage && preview ? (
@@ -49,7 +49,7 @@ const FileBadge = ({
       <span className="truncate -mr-1">{file.name}</span>
       <button
         onClick={onRemove}
-        className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
+        className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
         aria-label="Remove file"
       >
         <X size={12} />
@@ -61,7 +61,7 @@ const FileBadge = ({
 const RemainingFilesBadge = ({ count }: { count: number }) => {
   return (
     <div
-      className="h-6 no-drag-region flex items-center justify-center rounded-2xl border border-gray-500/45
+      className="h-6 no-drag-region flex items-center justify-center rounded-2xl border border-border
         bg-background/30 px-3 py-1 text-xs font-medium text-foreground/80"
     >
       +{count}
@@ -90,7 +90,7 @@ export function ContextButtons({
         <div className="inline-flex items-center gap-1 h-7">
           {selectedContent && (
             <div
-              className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
+              className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-border
                 bg-background/30 px-2 py-1 text-xs font-medium max-w-[24ch] overflow-hidden pr-5"
             >
               <Monitor size={12} className="flex-shrink-0 mr-1" />
@@ -102,7 +102,7 @@ export function ContextButtons({
               </span>
               <button
                 onClick={onRejectSelectedContent}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
                 aria-label="Clear selected content"
               >
                 <X size={12} />

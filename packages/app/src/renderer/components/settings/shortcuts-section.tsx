@@ -61,7 +61,7 @@ export function ShortcutsSection({
                       : undefined
                   }
                   onClick={() => onStartRecording(shortcut.id)}
-                  className={`${activeShortcut === shortcut.id ? "bg-orange-500/20 text-foreground" : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60"} rounded px-3 py-1.5 text-sm font-medium focus:outline-none transition-all`}
+                  className={`${activeShortcut === shortcut.id ? "bg-primary/20 text-foreground" : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60"} rounded px-3 py-1.5 text-sm font-medium focus:outline-none transition-all`}
                   style={{ minWidth: "120px", textAlign: "center" }}
                 >
                   {activeShortcut === shortcut.id ? (

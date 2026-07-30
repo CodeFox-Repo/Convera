@@ -38,6 +38,18 @@ function createMessageId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+/**
+ * The cause differs by host: in a browser the bridge is simply not wired up
+ * (fixable from the URL), under Electron the runtime genuinely failed to load.
+ */
+function unavailableRuntimeError(): Error {
+  return new Error(
+    window.electronAPI
+      ? "Local AI runtime is not available. Restart Convera, and check that the Claude Code or Codex CLI is installed."
+      : "Not connected to Convera. Open the link printed by `CONVERA_WEB_BRIDGE=1 pnpm start` — this page needs the token it contains.",
+  );
+}
+
 function toRequestMessages(messages: Message[]) {
   return messages
     .filter(
@@ -105,7 +117,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       if (event.type === "interaction") {
         const localAI = getLocalAI();
         if (!localAI) {
-          setError(new Error("Local AI runtime is not available."));
+          setError(unavailableRuntimeError());
           setStatus("error");
           return;
         }
@@ -149,7 +161,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
     async (nextMessages: Message[], options: LocalAIChatOptions) => {
       const localAI = getLocalAI();
       if (!localAI) {
-        setError(new Error("Local AI runtime is not available."));
+        setError(unavailableRuntimeError());
         setStatus("error");
         return;
       }

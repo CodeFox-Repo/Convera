@@ -369,7 +369,7 @@ export function GeneralSettingsPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded ${
                         isAvailable
-                          ? "text-emerald-600 bg-emerald-500/10"
+                          ? "text-success-foreground bg-success-subtle"
                           : "text-muted-foreground bg-muted"
                       }`}
                     >

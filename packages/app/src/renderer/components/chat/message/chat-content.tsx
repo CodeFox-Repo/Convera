@@ -412,7 +412,7 @@ export default function ChatContent({
             <BaseLogo size={64} />
           </div>
           <h3 className="mb-2 text-xl font-semibold">Welcome to Convera</h3>
-          <p className="text-zinc-500 dark:text-zinc-400">
+          <p className="text-muted-foreground">
             Ask me anything about coding, tech, or problems you&apos;re facing
             with your projects.
           </p>
