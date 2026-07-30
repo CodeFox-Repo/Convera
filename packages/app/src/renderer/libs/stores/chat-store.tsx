@@ -1,7 +1,6 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
-import { AppSettings, FOXYCHAT_CONFIG_ID } from "@/shared/types/settings";
+import { AppSettings } from "@/shared/types/settings";
 import { Attachment, Message, UIMessage } from "ai";
-import { useChat } from "ai/react";
 import React, {
   createContext,
   useCallback,
@@ -10,12 +9,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { authClient } from "../auth-client";
-import { getApiBaseUrl } from "../env";
-import { SpeechConfig, useSpeechToText } from "../hooks/use-speech-to-text";
-import { updateOpenAISettings } from "../utils/settings";
+import { useLocalAIChat } from "../hooks/use-local-ai-chat";
+import type { LocalAIProviderId } from "../local-ai-contract";
 import { useAgentStore } from "./agent-store";
-import { useIsLoggedIn, useSetAuthState } from "./auth-store";
 import { useChatHistory } from "./chat-history-store";
 import { useModelConfigStore } from "./model-config-store";
 import { db, createConversation, updateMessages } from "../db";
@@ -119,10 +115,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
-  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
-  const isUserLoggedIn = useIsLoggedIn();
-  const setAuthState = useSetAuthState();
-  const [useRemoteStore, setUseRemoteStore] = useState(false);
 
   // Use shared Zustand store for conversation ID to sync with sidebar selection
   const {
@@ -149,52 +141,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { selectedAgent } = useAgentStore();
   // const { selectedModelId } = useModelStore();
   // const currentModelIdRef = useRef<string>(selectedModelId);
-  const currentInputRef = useRef<string>("");
   const settingsRef = useRef<AppSettings | null>(settings);
-
-  // Initialize speech-to-text hook
-  const speechToText = useSpeechToText();
 
   // Initialize settings on mount (only once)
   useEffect(() => {
     initializeSettings();
   }, [initializeSettings]);
-
-  // Update useRemoteStore when settings change - use specific value to avoid infinite loops
-  const settingsUseRemoteStore = settings?.openai?.useRemoteStore;
-  useEffect(() => {
-    if (settingsUseRemoteStore !== undefined) {
-      setUseRemoteStore(settingsUseRemoteStore);
-    }
-  }, [settingsUseRemoteStore]);
-
-  // Use reactive session hook for real-time authentication state
-  const { data: session, refetch: refetchSession } = authClient.useSession();
-  const isLoggedIn = session?.session?.id ? true : false;
-
-  // Add a ref to track session refetch function for cross-window sync
-  const refetchSessionRef = useRef(refetchSession);
-  useEffect(() => {
-    refetchSessionRef.current = refetchSession;
-  }, [refetchSession]);
-
-  // Update login status and handle remote store accordingly
-  useEffect(() => {
-    // Update auth store with session data
-    setAuthState({
-      isLoggedIn,
-      sessionId: session?.session?.id || undefined,
-    });
-
-    // If user is not logged in, force disable remote server
-    if (!isLoggedIn && useRemoteStore) {
-      setUseRemoteStore(false);
-      // Also save to settings
-      updateOpenAISettings({ useRemoteStore: false }).catch((error) => {
-        console.error("Failed to save remote store preference:", error);
-      });
-    }
-  }, [isLoggedIn, useRemoteStore, session?.session?.id]);
 
   // useEffect(() => {
   //   currentModelIdRef.current = selectedModelId;
@@ -204,150 +156,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     settingsRef.current = settings;
   }, [settings]);
 
-  const chatAPI = useChat({
-    api: getApiBaseUrl() + "/chat/completion",
-    maxSteps: 5,
-    initialInput: "",
-    fetch: async (url, options = {}) => {
-      // Use reactive session from hook
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        ...(options.headers as Record<string, string>),
-      };
-
-      // Always include session if available
-      if (session?.session?.id) {
-        headers["X-Session-ID"] = session.session.id;
-      }
-
-      // Ensure all requests have complete MCP configuration
-      if (options.body && typeof options.body === "string") {
-        try {
-          const body = JSON.parse(options.body) as {
-            mcpServers?: Array<{ name: string; tools: ToolDefinition[] }>;
-            useRemoteServer?: boolean;
-            customApiSettings?: { endpoint: string; apiKey: string };
-            agent?: unknown;
-            modelId?: string;
-            messages?: unknown[];
-            [key: string]: unknown;
-          };
-
-          // Only supplement if missing critical fields
-          if (!body.mcpServers || body.mcpServers.length === 0) {
-            const currentSettings = settingsRef.current;
-            if (currentSettings) {
-              // Get fresh MCP tools data (includes builtin tools)
-              const toolsResponse = await window.mcpAPI.getAllTools();
-              let mcpServers: Array<{
-                name: string;
-                tools: ToolDefinition[];
-              }> = [];
-
-              if (toolsResponse.success && toolsResponse.data) {
-                mcpServers = toolsResponse.data.map((server) => ({
-                  name: server.serverName,
-                  tools: server.tools,
-                }));
-              }
-
-              // Get model config from store for interceptor
-              const {
-                selectedConfigId: interceptorConfigId,
-                getCurrentConfig: getInterceptorConfig,
-              } = useModelConfigStore.getState();
-
-              // Supplement missing configuration with correct logic
-              const shouldUseRemoteServer =
-                interceptorConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
-
-              if (
-                !Object.prototype.hasOwnProperty.call(body, "useRemoteServer")
-              ) {
-                body.useRemoteServer = shouldUseRemoteServer;
-              }
-
-              // Set customApiSettings from model config if NOT using remote server
-              if (!body.customApiSettings && !shouldUseRemoteServer) {
-                const interceptorConfig = await getInterceptorConfig();
-                if (interceptorConfig) {
-                  body.customApiSettings = {
-                    endpoint: interceptorConfig.endpoint,
-                    apiKey: interceptorConfig.apiKey,
-                  };
-                }
-              }
-              if (!body.agent) {
-                body.agent = selectedAgent || undefined;
-              }
-              if (!body.modelId) {
-                // body.modelId = // Let backend use default
-                //   selectedModelId || currentSettings.openai?.modelId;
-              }
-
-              body.mcpServers = mcpServers;
-
-              options.body = JSON.stringify(body);
-            }
-          }
-        } catch (error) {
-          console.warn("Failed to parse/update request body:", error);
-        }
-      }
-
-      return fetch(url, {
-        ...options,
-        headers,
-        credentials: "include", // Always include credentials
-      });
-    },
-    onError: (error) => {
-      if (error instanceof Error && error.message.includes("fetch")) {
-        console.error(
-          "Network error - is the backend server running on port 3001?",
-        );
-      }
-    },
-    onToolCall: async ({ toolCall }) => {
-      // Special handling for ask_user_input - client-side blocking tool
-      if (toolCall.toolName === "ask_user_input") {
-        const args = toolCall.args as { question: string; options: string[] };
-
-        // Register this as a pending input and return a Promise that won't
-        // resolve until the user interacts with the UI
-        const userResponse = await useUserInputStore
-          .getState()
-          .registerPendingInput(
-            toolCall.toolCallId,
-            args.question,
-            args.options,
-          );
-
-        // Return the user's response as the tool result
-        return {
-          success: true,
-          userSelection: userResponse,
-          message: `User selected: ${userResponse}`,
-        };
-      }
-
-      // Use simplified MCP tool call that finds first server with the tool
-      const result = await window.mcpAPI.mcpToolCall(
-        toolCall.toolName,
-        toolCall.args as Record<string, unknown>,
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || "Tool call failed");
-      }
-
-      return result.data;
-    },
-    onFinish: async () => {
-      console.log("✅ Frontend: Message completed successfully");
-      // Messages will be saved via the saveMessagesRef callback
-    },
-  });
+  const chatAPI = useLocalAIChat();
 
   // Auto-expand when there are messages
   useEffect(() => {
@@ -355,11 +164,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       setViewMode("expanded");
     }
   }, [chatAPI.messages.length, viewMode]);
-
-  // Update input ref for speech callbacks
-  useEffect(() => {
-    currentInputRef.current = chatAPI.input;
-  }, [chatAPI.input]);
 
   // Integrate the useChatHistory hook
   useChatHistory(chatAPI.setMessages);
@@ -470,26 +274,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearAttachments = useCallback(() => {
     setAttachments([]);
   }, []);
-
-  // Handle remote store preference change
-  const handleUseRemoteStoreChange = useCallback(
-    async (useRemote: boolean) => {
-      // Only allow enabling if user is logged in
-      if (useRemote && !isUserLoggedIn) {
-        console.warn("Cannot enable remote server without login");
-        return;
-      }
-
-      setUseRemoteStore(useRemote);
-      // Save to settings
-      try {
-        await updateOpenAISettings({ useRemoteStore: useRemote });
-      } catch (error) {
-        console.error("Failed to save remote store preference:", error);
-      }
-    },
-    [isUserLoggedIn],
-  );
 
   const getAvailableTools = useCallback(async () => {
     setToolsLoading(true);
@@ -664,83 +448,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          // Get fresh MCP tools data for this request (includes builtin tools)
-          const toolsResponse = await window.mcpAPI.getAllTools();
-          let mcpServers: Array<{ name: string; tools: ToolDefinition[] }> = [];
-
-          if (toolsResponse.success && toolsResponse.data) {
-            mcpServers = toolsResponse.data.map((server) => ({
-              name: server.serverName,
-              tools: server.tools,
-            }));
-          }
-
-          // Get current model config from store
-          const { selectedConfigId, getCurrentConfig } =
+          const { selectedConfigId, selectedModelId } =
             useModelConfigStore.getState();
+          const providerId = selectedConfigId as LocalAIProviderId;
 
-          // Determine which API to use based on selected config
-          let shouldUseRemoteServer =
-            selectedConfigId === FOXYCHAT_CONFIG_ID && isUserLoggedIn;
-          let currentConfig = await getCurrentConfig();
-
-          // If using FOXYCHAT_CONFIG_ID but not logged in, try to find a custom config
-          if (selectedConfigId === FOXYCHAT_CONFIG_ID && !isUserLoggedIn) {
-            const allConfigs = await db.modelConfigs.toArray();
-            if (allConfigs.length > 0) {
-              // Auto-select the first available custom config
-              currentConfig = allConfigs[0];
-              shouldUseRemoteServer = false;
-            }
-          }
-
-          // Build customApiSettings from the selected model config
-          const customApiSettings =
-            !shouldUseRemoteServer && currentConfig
+          await chatAPI.send(message, {
+            providerId,
+            model: selectedModelId,
+            agent: selectedAgent
               ? {
-                  endpoint: currentConfig.endpoint,
-                  apiKey: currentConfig.apiKey,
+                  id: selectedAgent.id,
+                  systemPrompt: selectedAgent.systemPrompt,
                 }
-              : undefined;
-
-          // If neither remote nor custom API is available, show error
-          const hasValidConfig = shouldUseRemoteServer || currentConfig;
-          if (!hasValidConfig) {
-            // Fallback: check legacy settings
-            const hasLegacyConfig =
-              currentSettings?.openai?.apiKey &&
-              currentSettings.openai.apiKey.trim() !== "" &&
-              currentSettings.openai.endpoint &&
-              currentSettings.openai.endpoint.trim() !== "";
-
-            if (!hasLegacyConfig) {
-              console.error(
-                "No API configured. Please log in or add a model configuration.",
-              );
-              alert(
-                "Please log in or add a model configuration to use the chat. Click the Account button to set up.",
-              );
-              return;
-            }
-          }
-          const requestBody = {
-            agent: selectedAgent || undefined,
-            // modelId: // Let backend use default model
-            //   currentModelIdRef.current || currentSettings?.openai?.modelId,
-            conversationId: conversationIdToUse || undefined,
-            useRemoteServer: shouldUseRemoteServer,
-            customApiSettings,
-            // Re-enable MCP servers
-            mcpServers,
-          };
-          console.log("🔧 Frontend: Sending request with body:", requestBody);
-
-          // Send message with all custom fields
-          chatAPI.append(message, {
-            body: requestBody,
+              : undefined,
+            options: {
+              conversationId: conversationIdToUse,
+            },
           });
 
-          // Clear the input after sending to prevent stale data
           chatAPI.setInput("");
           clearAttachments();
         } catch (error) {
@@ -759,24 +484,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       currentConversationId,
       setCurrentConversationId,
       selectedAgent,
-      isUserLoggedIn,
-      useRemoteStore,
-      session,
     ],
   );
 
   const setInput = useCallback(
     (newInput: string) => {
-      chatAPI.handleInputChange({
-        target: { value: newInput },
-      } as React.ChangeEvent<HTMLInputElement>);
+      chatAPI.setInput(newInput);
     },
     [chatAPI],
   );
 
   const stopGeneration = useCallback(() => {
     if (chatAPI.status === "streaming" || chatAPI.status === "submitted") {
-      chatAPI.stop();
+      void chatAPI.stop();
     }
   }, [chatAPI]);
 
@@ -797,20 +517,42 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         updatedMessages.splice(messageIndex + 1);
       }
 
-      chatAPI.setMessages(updatedMessages);
-
-      setTimeout(() => {
-        chatAPI.reload();
-      }, 100);
+      const { selectedConfigId, selectedModelId } =
+        useModelConfigStore.getState();
+      void chatAPI.resend(updatedMessages, {
+        providerId: selectedConfigId as LocalAIProviderId,
+        model: selectedModelId,
+        agent: selectedAgent
+          ? {
+              id: selectedAgent.id,
+              systemPrompt: selectedAgent.systemPrompt,
+            }
+          : undefined,
+      });
     },
-    [chatAPI],
+    [chatAPI, selectedAgent],
   );
 
   const regenerateMessage = useCallback(() => {
     if (chatAPI.status === "ready" || chatAPI.status === "error") {
-      chatAPI.reload();
+      const nextMessages =
+        chatAPI.messages.at(-1)?.role === "assistant"
+          ? chatAPI.messages.slice(0, -1)
+          : chatAPI.messages;
+      const { selectedConfigId, selectedModelId } =
+        useModelConfigStore.getState();
+      void chatAPI.resend(nextMessages, {
+        providerId: selectedConfigId as LocalAIProviderId,
+        model: selectedModelId,
+        agent: selectedAgent
+          ? {
+              id: selectedAgent.id,
+              systemPrompt: selectedAgent.systemPrompt,
+            }
+          : undefined,
+      });
     }
-  }, [chatAPI]);
+  }, [chatAPI, selectedAgent]);
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
@@ -822,7 +564,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
     setViewMode("compact");
-  }, [chatAPI, clearAttachments]);
+  }, [chatAPI, clearAttachments, setCurrentConversationId]);
 
   const rejectSelectedContent = useCallback(() => {
     setSelectedContent(null);
@@ -835,46 +577,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setInput("");
   }, [resetChat, setInput]);
 
-  // Enhanced voice input functionality with speech-to-text
-  const handleVoiceInput = useCallback(async () => {
-    try {
-      // Toggle voice input state
-      setIsVoiceInputActive((prev) => !prev);
-
-      if (speechToText.isRecording) {
-        // Stop recording - no need to append transcript since it's already added in real-time
-        await speechToText.stopRecording();
-      } else {
-        // Start recording with default configuration and real-time callback
-        const config: SpeechConfig = {
-          languageCode: "en-US",
-          silenceTimeoutMs: 8000, // Auto-stop after 8 seconds of silence in chat
-        };
-
-        // Callback to handle real-time final transcripts
-        const onInterimResult = (transcript: string) => {
-          if (transcript.trim()) {
-            // Get the current input dynamically using ref to avoid stale closures
-            const currentInput = currentInputRef.current.trim();
-            console.log("Real-time transcript received:", transcript);
-            console.log("Current input for real-time update:", currentInput);
-
-            // Append the new transcript to existing input
-            const newInput = currentInput
-              ? `${currentInput} ${transcript}`
-              : transcript;
-
-            setInput(newInput);
-          }
-        };
-
-        await speechToText.startRecording(config, onInterimResult);
-      }
-    } catch (error) {
-      console.error("Voice input error:", error);
-      setIsVoiceInputActive(false);
-    }
-  }, [speechToText, setInput]);
+  const handleVoiceInput = useCallback(() => undefined, []);
 
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
@@ -886,9 +589,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     viewMode,
     setViewMode,
     toggleViewMode,
-    useRemoteStore,
-    setUseRemoteStore: handleUseRemoteStoreChange,
-    isUserLoggedIn,
+    useRemoteStore: false,
+    setUseRemoteStore: () => undefined,
+    isUserLoggedIn: true,
     currentConversationId,
     setInput,
     sendMessage,
@@ -903,10 +606,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     clearAttachments,
     resetChatWindow,
     handleVoiceInput,
-    isVoiceInputActive: speechToText.isRecording || isVoiceInputActive,
+    isVoiceInputActive: false,
     speechState: {
-      isRecording: speechToText.isRecording,
-      error: speechToText.error,
+      isRecording: false,
+      error: null,
     },
     availableTools,
     mcpServers,
