@@ -50,7 +50,7 @@ const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
     "anthropic/claude-3.7-sonnet",
     "openai/o3-mini",
   ],
-  useRemoteStore: true,
+  useRemoteStore: false,
 };
 
 async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {

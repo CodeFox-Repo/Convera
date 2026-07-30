@@ -1,21 +1,11 @@
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
-import {
-  Bot,
-  History,
-  LucideIcon,
-  Mic,
-  MicOff,
-  Send,
-  Settings,
-  Square,
-} from "lucide-react";
+import { Bot, History, LucideIcon, Send, Settings, Square } from "lucide-react";
 import React, { useEffect } from "react";
 import ModelSelector from "../popover/model-selector-popover";
 
 interface ChatInputButtonsProps {
   onReset?: () => void;
   onOpenSettings?: () => void;
-  onVoiceInput?: () => void;
   onStopGeneration?: () => void;
   onSendMessage?: () => void;
   triggerHistoryWindow: () => void;
@@ -23,7 +13,6 @@ interface ChatInputButtonsProps {
   hasContent: boolean;
   selectedModelId?: string;
   onModelSelect?: (modelId: string) => void;
-  isRecording?: boolean;
 }
 
 interface ActionButtonConfig {
@@ -38,8 +27,7 @@ interface ActionButtonConfig {
 }
 
 export function ChatInputButtons(props: ChatInputButtonsProps) {
-  const { onOpenSettings, triggerHistoryWindow, onVoiceInput, isRecording } =
-    props;
+  const { onOpenSettings, triggerHistoryWindow } = props;
 
   const { selectedAgent, triggerAgentSelect, subscribeToAgentChanges } =
     useAgentStore();
@@ -117,27 +105,6 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
   const defaultButtonClassName =
     "no-drag-region text-foreground/70 hover:text-foreground";
 
-  // Determine mic button state and styling
-  const getMicButtonProps = () => {
-    if (isRecording) {
-      return {
-        Icon: MicOff,
-        className:
-          "no-drag-region bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-600 active:bg-red-500/40 mr-3 rounded-full p-1.5 animate-pulse",
-        title: "Stop recording (click to stop and transcribe)",
-      };
-    } else {
-      return {
-        Icon: Mic,
-        className:
-          "no-drag-region text-foreground/70 hover:bg-foreground/10 hover:text-foreground active:bg-foreground/20 mr-3 rounded-full p-1.5",
-        title: "Start voice input (speech-to-text)",
-      };
-    }
-  };
-
-  const micButtonProps = getMicButtonProps();
-
   return (
     <div className="ml-2 mb-2 drag-region flex min-h-[30px] items-center justify-between">
       {/* Left icons and elements */}
@@ -173,17 +140,8 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
         })}
       </div>
 
-      {/* Right side - Mic and Send buttons */}
+      {/* Right side - Send button */}
       <div className="flex shrink-0 items-center mr-2">
-        {/* Enhanced Mic Button with Speech State */}
-        <button
-          onClick={onVoiceInput}
-          className={micButtonProps.className}
-          title={micButtonProps.title}
-        >
-          <micButtonProps.Icon size={16} />
-        </button>
-
         {props.isLoading && props.onStopGeneration ? (
           <button
             onClick={props.onStopGeneration}

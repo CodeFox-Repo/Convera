@@ -42,10 +42,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       selectedContent,
       rejectSelectedContent,
       resetChatWindow,
-      handleVoiceInput,
       attachments,
       addAttachments,
-      speechState,
     } = useChatContext();
 
     // Window controls - dispatch events for the main process to handle
@@ -244,7 +242,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <ChatInputButtons
               onReset={resetChatWindow}
               onOpenSettings={openSettings}
-              onVoiceInput={handleVoiceInput}
               onStopGeneration={stopGeneration}
               onSendMessage={handleSubmit}
               triggerHistoryWindow={openHistoryWindow}
@@ -252,7 +249,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               hasContent={!!editorContent.trim() || attachments.length > 0}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
-              isRecording={speechState?.isRecording}
             />
           </div>
         </div>

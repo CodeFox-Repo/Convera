@@ -49,7 +49,7 @@ const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
     "anthropic/claude-3.7-sonnet",
     "openai/o3-mini",
   ],
-  useRemoteStore: true, // Default to remote server only
+  useRemoteStore: false,
 };
 
 // Get default shortcuts based on platform
