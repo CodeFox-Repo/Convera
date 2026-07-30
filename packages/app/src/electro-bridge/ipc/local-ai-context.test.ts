@@ -252,6 +252,48 @@ describe("local AI IPC", () => {
     expect(runtime.startChat).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed metadata, generation options, and oversized prompts", () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
+    const baseRequest = {
+      requestId: "request-1",
+      providerId: "codex-cli",
+      messages: [{ role: "user", content: "hello" }],
+    };
+    const invalidRequests = [
+      { ...baseRequest, modelId: { id: "not-a-string" } },
+      { ...baseRequest, agent: { systemPrompt: 42 } },
+      { ...baseRequest, options: { temperature: Number.NaN } },
+      { ...baseRequest, options: { maxOutputTokens: 0 } },
+      {
+        ...baseRequest,
+        agent: { systemPrompt: "x" },
+        messages: Array.from({ length: 5 }, () => ({
+          role: "user",
+          content: "x".repeat(200_000),
+        })),
+      },
+    ];
+
+    for (const invalidRequest of invalidRequests) {
+      expect(start?.(createEvent(sender), invalidRequest)).toMatchObject({
+        success: false,
+        accepted: false,
+        error: { code: "LOCAL_AI_INVALID_REQUEST" },
+      });
+    }
+    expect(runtime.startChat).not.toHaveBeenCalled();
+  });
+
   it("accepts interaction responses only from the active request owner", async () => {
     const allowedSender = new FakeWebContents(1);
     const otherSender = new FakeWebContents(2);
