@@ -34,7 +34,7 @@ vi.mock("ai-sdk-provider-codex-cli", () => ({
 }));
 
 describe("CodexCliAdapter MCP transport", () => {
-  it("enables the RMCP client when Convera tools are attached", async () => {
+  it("attaches Convera tools without the obsolete RMCP feature flag", async () => {
     const adapter = new CodexCliAdapter();
     const request: LocalAIChatRequest = {
       requestId: "test",
@@ -77,9 +77,60 @@ describe("CodexCliAdapter MCP transport", () => {
       expect.objectContaining({
         cwd: "/tmp/convera-test",
         mcpServers: { convera: mcpServer },
-        rmcpClient: true,
       }),
     );
+    expect(mocks.provider.mock.calls[0]?.[1]).not.toHaveProperty("rmcpClient");
+
+    await adapter.dispose();
+  });
+
+  it("accepts MCP tool calls with structured empty content", async () => {
+    const adapter = new CodexCliAdapter();
+    const request: LocalAIChatRequest = {
+      requestId: "test",
+      providerId: "codex-cli",
+      modelId: "gpt-test",
+      messages: [{ role: "user", content: "use a tool" }],
+    };
+    const status: LocalAiProviderStatus = {
+      ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
+      available: true,
+      authenticated: true,
+      executablePath: "/test/codex",
+      defaultModel: "gpt-test",
+      models: ["gpt-test"],
+      checkedAt: new Date(0).toISOString(),
+    };
+
+    await adapter.createModel(request, status, {
+      tools: [
+        {
+          name: "builtin__probe",
+          qualifiedName: "builtin:probe",
+          description: "Probe the local MCP bridge",
+          inputSchema: { type: "object", properties: {} },
+          inputShape: {},
+          inputValidator: z.object({}),
+          execute: vi.fn(async () => "PROBE_OK"),
+        },
+      ],
+      requestInteraction: vi.fn(async () => ({ approved: false })),
+    });
+
+    const settings = mocks.provider.mock.calls.at(-1)?.[1];
+    const handler = settings?.serverRequests?.onMcpElicitation;
+    expect(handler).toBeTypeOf("function");
+    await expect(
+      handler?.({
+        id: 1,
+        method: "mcpServer/elicitation/request",
+        params: {
+          threadId: "thread",
+          serverName: "convera",
+          _meta: { codex_approval_kind: "mcp_tool_call" },
+        },
+      }),
+    ).resolves.toEqual({ action: "accept", content: {} });
 
     await adapter.dispose();
   });
