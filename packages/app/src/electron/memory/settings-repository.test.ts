@@ -83,4 +83,27 @@ describe("MemorySettingsRepository", () => {
       batchSize: 2,
     });
   });
+
+  it("derives a stable source fingerprint without exposing the API key", async () => {
+    const repository = new MemorySettingsRepository(
+      new InMemoryMemorySettingsPersistence(),
+      codec(),
+    );
+    await repository.update({
+      provider: "letta",
+      baseURL: "http://127.0.0.1:8283",
+      apiKey: "secret-a",
+    });
+
+    const current = await repository.getSourceId();
+    expect(current).toMatch(/^letta:[a-f0-9]{64}$/);
+    expect(current).not.toContain("secret-a");
+    expect(await repository.getSourceId({ apiKey: "secret-a" })).toBe(current);
+    expect(await repository.getSourceId({ apiKey: "secret-b" })).not.toBe(
+      current,
+    );
+    expect(
+      await repository.getSourceId({ baseURL: "http://127.0.0.1:9999" }),
+    ).not.toBe(current);
+  });
 });

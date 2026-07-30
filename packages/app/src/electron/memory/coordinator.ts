@@ -209,6 +209,8 @@ export class MemoryIntegrationCoordinator
     RestrictedMemoryCurator
   >();
   private readonly lifecycle = new SerialTaskQueue();
+  private generation = 0;
+  private runtimeGeneration = -1;
 
   constructor(options: MemoryIntegrationCoordinatorOptions) {
     this.settings = options.settingsRepository;
@@ -244,21 +246,35 @@ export class MemoryIntegrationCoordinator
     ];
   }
 
-  private async ensureRuntime(): Promise<MemoryRuntime> {
-    return this.lifecycle.run(async () => {
-      if (this.runtime) return this.runtime;
-      const api = await this.apiFactory(this.settings);
-      const runtime = createMemoryRuntime({
-        api,
-        indexRepository: this.indexes,
-        storeOptions: {
-          onScopeForgotten: this.onMemoryScopeForgotten,
-        },
-      });
-      await runtime.store.initialize();
-      this.runtime = runtime;
-      return runtime;
+  private async ensureRuntimeUnlocked(): Promise<MemoryRuntime> {
+    if (this.runtime && this.runtimeGeneration === this.generation) {
+      return this.runtime;
+    }
+    const runtimeGeneration = this.generation;
+    const [api, sourceId] = await Promise.all([
+      this.apiFactory(this.settings),
+      this.settings.getSourceId(),
+    ]);
+    const runtime = createMemoryRuntime({
+      api,
+      indexRepository: this.indexes,
+      storeOptions: {
+        sourceId,
+        isActive: () => this.generation === runtimeGeneration,
+        onScopeForgotten: this.onMemoryScopeForgotten,
+      },
     });
+    await runtime.store.initialize();
+    if (this.generation !== runtimeGeneration) {
+      throw new MemoryError(
+        "Memory settings changed while the Letta runtime was starting.",
+        "CONFLICT",
+        true,
+      );
+    }
+    this.runtime = runtime;
+    this.runtimeGeneration = runtimeGeneration;
+    return runtime;
   }
 
   private async resolveCurator(
@@ -310,6 +326,12 @@ export class MemoryIntegrationCoordinator
   async prepareTurn(
     input: PrepareMemoryTurnInput,
   ): Promise<PreparedMemoryTurn> {
+    return this.lifecycle.run(() => this.prepareTurnUnlocked(input));
+  }
+
+  private async prepareTurnUnlocked(
+    input: PrepareMemoryTurnInput,
+  ): Promise<PreparedMemoryTurn> {
     const settings = await this.settings.get();
     if (settings.provider === "off") {
       return {
@@ -319,7 +341,7 @@ export class MemoryIntegrationCoordinator
       };
     }
 
-    const runtime = await this.ensureRuntime();
+    const runtime = await this.ensureRuntimeUnlocked();
     const scopes = this.scopes({
       conversationId: input.conversationId,
       providerId: input.providerId,
@@ -387,9 +409,15 @@ export class MemoryIntegrationCoordinator
   }
 
   async completeTurn(input: CompleteMemoryTurnInput): Promise<string[]> {
+    return this.lifecycle.run(() => this.completeTurnUnlocked(input));
+  }
+
+  private async completeTurnUnlocked(
+    input: CompleteMemoryTurnInput,
+  ): Promise<string[]> {
     const settings = await this.settings.get();
     if (settings.provider === "off" || settings.curator === "off") return [];
-    const runtime = await this.ensureRuntime();
+    const runtime = await this.ensureRuntimeUnlocked();
     const worker = await this.ensureWorker(runtime);
     if (!worker) return [];
     const candidates = await this.candidates.listByTurn(input.turnId);
@@ -478,10 +506,7 @@ export class MemoryIntegrationCoordinator
   ): Promise<LocalAIMemorySettings> {
     return this.lifecycle.run(async () => {
       const previous = await this.settings.get();
-      await this.stopWorker(false);
-      this.runtime = undefined;
-      await this.disposeCurators();
-      const updated = await this.settings.update({
+      const settingsUpdate = {
         provider: update.provider,
         baseURL:
           update.baseURL === undefined
@@ -492,21 +517,70 @@ export class MemoryIntegrationCoordinator
         batchSize: update.batchSize,
         idleMs: update.idleDelayMs,
         apiKey: update.clearApiKey ? null : update.apiKey,
-      });
+      };
+      const [previousSourceId, nextSourceId, indexes] = await Promise.all([
+        this.settings.getSourceId(),
+        this.settings.getSourceId(settingsUpdate),
+        this.indexes.list(),
+      ]);
+      const sourceChanged = previousSourceId !== nextSourceId;
+      if (sourceChanged && indexes.some(hasRemoteMemory)) {
+        throw new MemoryError(
+          "This Letta source still owns remote or pending memory. Forget it with the current source before changing the base URL or API key.",
+          "CONFIGURATION",
+          false,
+        );
+      }
       const contextSourceChanged =
-        previous.provider !== updated.provider ||
-        previous.baseURL !== updated.baseURL ||
-        update.apiKey !== undefined ||
-        update.clearApiKey === true;
+        previous.provider !== (update.provider ?? previous.provider) ||
+        sourceChanged;
+      await this.stopWorker(false);
+      await this.runtime?.store.quiesce();
+      if (sourceChanged && (await this.indexes.list()).some(hasRemoteMemory)) {
+        this.generation += 1;
+        this.runtime = undefined;
+        this.runtimeGeneration = -1;
+        await this.disposeCurators();
+        throw new MemoryError(
+          "Memory changed while the Letta source switch was quiescing. Retry only after forgetting it with the current source.",
+          "CONFIGURATION",
+          false,
+        );
+      }
+      this.generation += 1;
+      this.runtime = undefined;
+      this.runtimeGeneration = -1;
+      await this.disposeCurators();
       if (contextSourceChanged) {
         await this.onMemoryContextChanged?.();
       }
+      const updated = await this.settings.update(settingsUpdate);
       return publicSettings(updated);
     });
   }
 
   async getMemoryStatus(conversationId?: string): Promise<LocalAIMemoryStatus> {
+    return this.lifecycle.run(() =>
+      this.getMemoryStatusUnlocked(conversationId),
+    );
+  }
+
+  private async getMemoryStatusUnlocked(
+    conversationId?: string,
+  ): Promise<LocalAIMemoryStatus> {
     const settings = await this.settings.get();
+    let runtime: MemoryRuntime | undefined;
+    let startupError: unknown;
+    if (settings.provider !== "off") {
+      try {
+        runtime = await this.ensureRuntimeUnlocked();
+        if (settings.curator !== "off") {
+          await this.ensureWorker(runtime);
+        }
+      } catch (error) {
+        startupError = error;
+      }
+    }
     const persistedJobs = await this.jobs.list();
     const relevantJobs = conversationId
       ? persistedJobs.filter(
@@ -524,8 +598,22 @@ export class MemoryIntegrationCoordinator
           .length,
       };
     }
+    if (startupError || !runtime) {
+      return {
+        health: "error",
+        detail:
+          startupError instanceof Error
+            ? startupError.message
+            : String(startupError),
+        pendingJobs: relevantJobs.filter((job) =>
+          ["queued", "running"].includes(job.state.status),
+        ).length,
+        failedJobs: relevantJobs.filter((job) => job.state.status === "failed")
+          .length,
+      };
+    }
     try {
-      const status = await (await this.ensureRuntime()).store.getStatus();
+      const status = await runtime.store.getStatus();
       const conversation = conversationId
         ? status.scopes.find(
             (entry) =>
@@ -536,13 +624,20 @@ export class MemoryIntegrationCoordinator
       const pendingJobs = relevantJobs.filter((job) =>
         ["queued", "running"].includes(job.state.status),
       ).length;
+      const relevantScopes = conversationId
+        ? status.scopes.filter(
+            (entry) =>
+              entry.scope.kind === "conversation" &&
+              entry.scope.id === conversationId,
+          )
+        : status.scopes;
       return {
         health: status.health.available
           ? pendingJobs > 0 ||
-            status.scopes.some((scope) => scope.pendingWrites)
+            relevantScopes.some((scope) => scope.pendingWrites)
             ? "degraded"
             : "healthy"
-          : status.scopes.some((scope) => scope.cached)
+          : relevantScopes.some((scope) => scope.cached)
             ? "degraded"
             : "offline",
         detail: status.health.detail,
@@ -570,8 +665,14 @@ export class MemoryIntegrationCoordinator
   async branchConversation(
     request: LocalAIBranchConversationRequest,
   ): Promise<void> {
+    await this.lifecycle.run(() => this.branchConversationUnlocked(request));
+  }
+
+  private async branchConversationUnlocked(
+    request: LocalAIBranchConversationRequest,
+  ): Promise<void> {
     if ((await this.settings.get()).provider === "off") return;
-    const runtime = await this.ensureRuntime();
+    const runtime = await this.ensureRuntimeUnlocked();
     const targetScope: MemoryScope = {
       kind: "conversation",
       id: request.targetConversationId,
@@ -606,7 +707,13 @@ export class MemoryIntegrationCoordinator
   }
 
   async deleteConversation(
-    request: LocalAIDeleteConversationRequest,
+    request: Omit<LocalAIDeleteConversationRequest, "leaseToken">,
+  ): Promise<void> {
+    await this.lifecycle.run(() => this.deleteConversationUnlocked(request));
+  }
+
+  private async deleteConversationUnlocked(
+    request: Omit<LocalAIDeleteConversationRequest, "leaseToken">,
   ): Promise<void> {
     const scope: MemoryScope = {
       kind: "conversation",
@@ -637,7 +744,7 @@ export class MemoryIntegrationCoordinator
       this.jobs.deleteByScope(scope),
     ]);
     if (request.forgetConversationMemory && settings.provider === "letta") {
-      const runtime = await this.ensureRuntime();
+      const runtime = await this.ensureRuntimeUnlocked();
       await runtime.store.forget({
         scope,
         target: { type: "scope" },
@@ -678,12 +785,24 @@ export class MemoryIntegrationCoordinator
   }
 
   async dispose(): Promise<void> {
-    await this.stopWorker(false);
-    await this.disposeCurators();
+    await this.lifecycle.run(async () => {
+      await this.stopWorker(false);
+      await this.runtime?.store.quiesce();
+      this.generation += 1;
+      this.runtime = undefined;
+      this.runtimeGeneration = -1;
+      await this.disposeCurators();
+    });
   }
 
   async flushSubconscious(): Promise<void> {
-    await this.worker?.flush();
+    await this.lifecycle.run(async () => {
+      const settings = await this.settings.get();
+      if (settings.provider === "off" || settings.curator === "off") return;
+      const runtime = await this.ensureRuntimeUnlocked();
+      const worker = await this.ensureWorker(runtime);
+      await worker?.flush();
+    });
   }
 
   private async stopWorker(flush: boolean): Promise<void> {

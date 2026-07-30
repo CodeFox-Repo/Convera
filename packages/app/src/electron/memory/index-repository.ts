@@ -25,6 +25,7 @@ export interface MemoryCorrectionIndex {
 
 export interface PendingMemoryWrite {
   patch: MemoryPatch;
+  journalSequence?: number;
   attempts: number;
   queuedAt: string;
   lastError: string;
@@ -32,6 +33,7 @@ export interface PendingMemoryWrite {
 
 export interface PendingMemoryForget {
   request: ForgetRequest;
+  journalSequence?: number;
   attempts: number;
   queuedAt: string;
   lastError: string;
@@ -42,6 +44,8 @@ export interface MemoryScopeIndex {
   revision: number;
   version: number;
   epoch: number;
+  sourceId?: string;
+  nextJournalSequence: number;
   blockIds: Record<string, string>;
   agentId?: string;
   archiveId?: string;
@@ -69,6 +73,7 @@ export function createEmptyMemoryScopeIndex(
     revision: 0,
     version: 0,
     epoch: 0,
+    nextJournalSequence: 1,
     blockIds: {},
     appliedTurns: {},
     corrections: [],
@@ -114,6 +119,8 @@ const persistedScopeIndexSchema = z.object({
   revision: z.number().int().min(0),
   version: z.number().int().min(0),
   epoch: z.number().int().min(0),
+  sourceId: z.string().min(1).optional(),
+  nextJournalSequence: z.number().int().min(1).default(1),
   blockIds: z.record(z.string(), z.string()),
   agentId: z.string().min(1).optional(),
   archiveId: z.string().min(1).optional(),
@@ -153,6 +160,7 @@ const persistedScopeIndexSchema = z.object({
   pendingWrites: z.array(
     z.object({
       patch: memoryPatchSchema,
+      journalSequence: z.number().int().min(1).optional(),
       attempts: z.number().int().min(0),
       queuedAt: z.string().datetime(),
       lastError: z.string(),
@@ -174,6 +182,7 @@ const persistedScopeIndexSchema = z.object({
         turnId: z.string().min(1),
         approved: z.boolean(),
       }),
+      journalSequence: z.number().int().min(1).optional(),
       attempts: z.number().int().min(0),
       queuedAt: z.string().datetime(),
       lastError: z.string(),

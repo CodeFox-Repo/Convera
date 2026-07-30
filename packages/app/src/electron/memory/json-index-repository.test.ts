@@ -30,6 +30,8 @@ describe("JsonMemoryIndexRepository", () => {
     const filePath = await temporaryFile();
     const scope = { kind: "conversation" as const, id: "conversation-1" };
     const index = createEmptyMemoryScopeIndex(scope);
+    index.sourceId = "letta:source-fingerprint";
+    index.nextJournalSequence = 5;
     index.archiveId = "archive-1";
     index.blockIds.current_goal = "block-1";
     index.version = 3;
@@ -51,6 +53,7 @@ describe("JsonMemoryIndexRepository", () => {
           },
         ],
       },
+      journalSequence: 4,
       attempts: 1,
       queuedAt: "2026-07-31T00:00:00.000Z",
       lastError: "offline",
@@ -64,10 +67,13 @@ describe("JsonMemoryIndexRepository", () => {
 
     expect(recovered).toMatchObject({
       archiveId: "archive-1",
+      sourceId: "letta:source-fingerprint",
+      nextJournalSequence: 5,
       version: 3,
       blockIds: { current_goal: "block-1" },
     });
     expect(recovered?.pendingWrites[0]?.patch.turnId).toBe("turn-4");
+    expect(recovered?.pendingWrites[0]?.journalSequence).toBe(4);
     expect(files).toEqual(["index.json"]);
     expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
       schemaVersion: 1,

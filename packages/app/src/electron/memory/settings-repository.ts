@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { MemoryError } from "./errors";
 import { AtomicJsonFile } from "./json-file";
 import { SerialTaskQueue } from "./serial-queue";
@@ -181,6 +182,26 @@ export class MemorySettingsRepository {
       baseURL: persisted.baseURL,
       apiKey,
     });
+  }
+
+  async getSourceId(patch: UpdateMemorySettings = {}): Promise<string> {
+    const validated = updateSchema.parse(patch);
+    const current = await this.readPersisted();
+    const baseURL =
+      validated.baseURL === null
+        ? DEFAULT_MEMORY_SETTINGS.baseURL
+        : (validated.baseURL ?? current.baseURL);
+    const apiKey =
+      validated.apiKey === null
+        ? undefined
+        : validated.apiKey !== undefined
+          ? validated.apiKey
+          : current.encryptedApiKey
+            ? await this.secrets.decrypt(current.encryptedApiKey)
+            : undefined;
+    return `letta:${createHash("sha256")
+      .update(`${new URL(baseURL).toString()}\0${apiKey ?? "anonymous"}`)
+      .digest("hex")}`;
   }
 
   private async readPersisted(): Promise<PersistedMemorySettings> {

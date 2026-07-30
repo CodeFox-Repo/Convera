@@ -41,7 +41,9 @@ function pruneTerminalJobs(
   const terminal = jobs
     .filter(
       (job) =>
-        job.state.status === "completed" || job.state.status === "skipped",
+        job.state.status === "completed" ||
+        job.state.status === "skipped" ||
+        job.state.status === "failed",
     )
     .sort(
       (left, right) =>

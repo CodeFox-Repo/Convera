@@ -56,7 +56,6 @@ async function seedAndAssertRetention(
 
 function assertRetention(jobs: PersistedSubconsciousJob[]): void {
   expect(jobs.map((value) => value.state.id).sort()).toEqual([
-    "failed",
     "new-completed",
     "new-skipped",
     "queued",
@@ -64,19 +63,14 @@ function assertRetention(jobs: PersistedSubconsciousJob[]): void {
   ]);
   expect(
     jobs.filter((value) =>
-      ["completed", "skipped"].includes(value.state.status),
+      ["completed", "skipped", "failed"].includes(value.state.status),
     ),
   ).toHaveLength(2);
-  expect(
-    jobs.find((value) => value.state.id === "failed")?.state,
-  ).toMatchObject({
-    status: "failed",
-    error: "Keep this failure visible.",
-  });
+  expect(jobs.some((value) => value.state.id === "failed")).toBe(false);
 }
 
 describe("SubconsciousJobRepository retention", () => {
-  it("prunes only the oldest completed or skipped in memory", async () => {
+  it("prunes the oldest completed, skipped, or failed jobs in memory", async () => {
     const repository = new InMemorySubconsciousJobRepository([], {
       maxTerminalJobs: 2,
     });
@@ -84,7 +78,7 @@ describe("SubconsciousJobRepository retention", () => {
     await seedAndAssertRetention(repository);
   });
 
-  it("persists bounded terminal history without pruning pending or failed jobs", async () => {
+  it("persists bounded terminal history without pruning pending jobs", async () => {
     const directory = await mkdtemp(
       path.join(os.tmpdir(), "convera-memory-job-retention-"),
     );
