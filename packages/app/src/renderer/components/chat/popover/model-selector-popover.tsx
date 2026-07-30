@@ -186,7 +186,7 @@ export default function ModelSelector() {
                   No models available
                 </p>
                 <p className="text-muted-foreground text-xs mt-1">
-                  Install Claude Code, Codex, or add a custom endpoint
+                  Install and sign in to Claude Code or Codex
                 </p>
               </div>
             )}
