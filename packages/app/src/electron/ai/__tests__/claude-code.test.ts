@@ -74,6 +74,7 @@ describe("ClaudeCodeAdapter sessions", () => {
         nativeSessionId: "session-first",
         cwd: "/workspace",
         stale: false,
+        transcriptVersion: 1,
         memoryCursors: {},
         updatedAt: new Date(0).toISOString(),
       },

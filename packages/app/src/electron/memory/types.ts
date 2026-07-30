@@ -160,6 +160,11 @@ export interface MemoryPatch {
 
 export interface MemoryCandidate {
   id: string;
+  /**
+   * Stable Letta endpoint/account fingerprint. Legacy candidates may omit it
+   * but must never be curated into an arbitrary current source.
+   */
+  sourceId?: string;
   scope: MemoryScope;
   turnId: string;
   provenance: MemoryProvenance;

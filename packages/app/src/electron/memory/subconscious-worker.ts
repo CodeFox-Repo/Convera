@@ -19,6 +19,11 @@ export type SubconsciousSchedule = "every-turn" | "batch" | "idle";
 
 export interface CompletedMemoryTurn {
   turnId: string;
+  /**
+   * Stable Letta endpoint/account fingerprint. Optional only for legacy jobs
+   * and isolated unit workers; production workers require an exact match.
+   */
+  sourceId?: string;
   conversationId?: string;
   candidateTurnId?: string;
   scope: MemoryScope;
@@ -71,6 +76,7 @@ export interface SubconsciousScheduler {
 export interface SubconsciousWorkerOptions {
   store: MemoryStore;
   curator: RestrictedMemoryCurator;
+  sourceId?: string;
   schedule: SubconsciousSchedule;
   batchSize?: number;
   idleMs?: number;
@@ -134,6 +140,7 @@ function parseCuratorDecision(value: unknown): MemoryCuratorDecision {
 export class SubconsciousWorker {
   private readonly store: MemoryStore;
   private readonly curator: RestrictedMemoryCurator;
+  private readonly sourceId?: string;
   private readonly schedule: SubconsciousSchedule;
   private readonly batchSize: number;
   private readonly idleMs: number;
@@ -148,6 +155,7 @@ export class SubconsciousWorker {
   >;
   private readonly queue: QueuedTurn[] = [];
   private readonly states = new Map<string, SubconsciousJobState>();
+  private readonly jobByTurnScope = new Map<string, string>();
   private readonly cancelledScopes = new Set<string>();
   private sequence = 0;
   private drainPromise?: Promise<void>;
@@ -161,6 +169,7 @@ export class SubconsciousWorker {
   constructor(options: SubconsciousWorkerOptions) {
     this.store = options.store;
     this.curator = options.curator;
+    this.sourceId = options.sourceId;
     this.schedule = options.schedule;
     this.batchSize = Math.max(options.batchSize ?? 5, 1);
     this.idleMs = Math.max(options.idleMs ?? 5_000, 0);
@@ -180,7 +189,17 @@ export class SubconsciousWorker {
       if (Number.isFinite(numeric))
         this.sequence = Math.max(this.sequence, numeric);
       const state = structuredClone(job.state);
+      const sourceMatches =
+        this.sourceId === undefined || job.turn.sourceId === this.sourceId;
       if (state.status === "running" || state.status === "queued") {
+        if (!sourceMatches) {
+          // Retain foreign or legacy work durably without placing it onto the
+          // active source's execution queue. Recreating a worker for the
+          // matching source makes the job replayable again.
+          this.states.set(state.id, state);
+          this.jobByTurnScope.set(this.turnScopeKey(job.turn), state.id);
+          continue;
+        }
         state.status = "queued";
         state.error =
           job.state.status === "running"
@@ -197,6 +216,7 @@ export class SubconsciousWorker {
         });
       }
       this.states.set(state.id, state);
+      this.jobByTurnScope.set(this.turnScopeKey(job.turn), state.id);
     }
     if (this.queue.length > 0) {
       queueMicrotask(() => void this.startDrain(true));
@@ -216,6 +236,16 @@ export class SubconsciousWorker {
         false,
       );
     }
+    if (this.sourceId !== undefined && turn.sourceId !== this.sourceId) {
+      throw new MemoryError(
+        "Subconscious memory work belongs to a different Letta source.",
+        "CONFIGURATION",
+        false,
+      );
+    }
+    const idempotencyKey = this.turnScopeKey(turn);
+    const existingId = this.jobByTurnScope.get(idempotencyKey);
+    if (existingId) return existingId;
     this.sequence += 1;
     const id = `memory-job-${this.sequence}`;
     const initialStatus =
@@ -231,12 +261,18 @@ export class SubconsciousWorker {
           ? "Turn was not eligible for memory consolidation."
           : undefined,
     });
-    await this.jobRepository.put({
-      state: structuredClone(this.states.get(id) as SubconsciousJobState),
-      turn: structuredClone(turn),
-      createdAt: this.now().toISOString(),
-      updatedAt: this.now().toISOString(),
-    });
+    try {
+      await this.jobRepository.put({
+        state: structuredClone(this.states.get(id) as SubconsciousJobState),
+        turn: structuredClone(turn),
+        createdAt: this.now().toISOString(),
+        updatedAt: this.now().toISOString(),
+      });
+    } catch (error) {
+      this.states.delete(id);
+      throw error;
+    }
+    this.jobByTurnScope.set(idempotencyKey, id);
     if (initialStatus === "skipped") return id;
 
     this.queue.push({ id, turn: structuredClone(turn) });
@@ -399,9 +435,7 @@ export class SubconsciousWorker {
               state.reason = decision.reason;
               state.error = undefined;
               await this.persistState(queued, state);
-              await this.candidateRepository?.deleteByIds(
-                (queued.turn.candidates ?? []).map((candidate) => candidate.id),
-              );
+              await this.deleteTurnCandidates(queued.turn);
             }
           }
           return;
@@ -449,9 +483,7 @@ export class SubconsciousWorker {
             state.result = result;
             state.error = undefined;
             await this.persistState(queued, state);
-            await this.candidateRepository?.deleteByIds(
-              (queued.turn.candidates ?? []).map((candidate) => candidate.id),
-            );
+            await this.deleteTurnCandidates(queued.turn);
           }
         }
         return;
@@ -508,6 +540,14 @@ export class SubconsciousWorker {
     await this.jobRepository.put(job);
   }
 
+  private async deleteTurnCandidates(turn: CompletedMemoryTurn): Promise<void> {
+    if (!turn.sourceId) return;
+    await this.candidateRepository?.deleteByIds(
+      (turn.candidates ?? []).map((candidate) => candidate.id),
+      turn.sourceId,
+    );
+  }
+
   private async skipBatch(
     batch: QueuedTurn[],
     attempts: number,
@@ -539,6 +579,16 @@ export class SubconsciousWorker {
     }
     await this.skipBatch(removed, 0, "Memory scope was cancelled.");
     if (this.drainPromise) await this.drainPromise;
+    for (const [turnScope, jobId] of this.jobByTurnScope) {
+      const state = this.states.get(jobId);
+      if (state && sameMemoryScope(state.scope, scope)) {
+        this.jobByTurnScope.delete(turnScope);
+      }
+    }
+  }
+
+  private turnScopeKey(turn: CompletedMemoryTurn): string {
+    return `${turn.sourceId ?? "legacy"}\0${memoryScopeKey(turn.scope)}\0${turn.turnId}`;
   }
 
   getState(jobId: string): SubconsciousJobState | undefined {

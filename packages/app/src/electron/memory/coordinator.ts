@@ -14,7 +14,11 @@ import type {
   LocalAiTurnHooks,
   PreparedLocalAiTurnContext,
 } from "../ai/runtime";
-import type { ProviderMemoryCursors } from "../ai/session/types";
+import type {
+  DurableMemoryTurnHookPayload,
+  DurableTurnHookRecord,
+  ProviderMemoryCursors,
+} from "../ai/session/types";
 import type { LocalAiProviderId } from "../ai/types";
 import type { MemoryCandidateRepository } from "./candidate-sink";
 import type {
@@ -111,6 +115,11 @@ export interface CompleteMemoryTurnInput {
 
 export interface MemoryTurnContextToken {
   kind: "convera-memory-turn";
+  /**
+   * Stable Letta endpoint/account fingerprint. Optional only for legacy
+   * serialized work, which is paused rather than replayed.
+   */
+  sourceId?: string;
   turnId: string;
   conversationId: string;
   revision: number;
@@ -303,6 +312,7 @@ export class MemoryIntegrationCoordinator
     const settings = await this.settings.get();
     if (settings.curator === "off") return undefined;
     if (this.worker) return this.worker;
+    const sourceId = await this.settings.getSourceId();
     const dynamicCurator: RestrictedMemoryCurator = {
       curate: async (input) => {
         const activeProvider = [...input.turns]
@@ -313,6 +323,7 @@ export class MemoryIntegrationCoordinator
       },
     };
     this.worker = runtime.createSubconsciousWorker(dynamicCurator, {
+      sourceId,
       schedule: settings.schedule,
       batchSize: settings.batchSize,
       idleMs: settings.idleMs,
@@ -342,6 +353,7 @@ export class MemoryIntegrationCoordinator
     }
 
     const runtime = await this.ensureRuntimeUnlocked();
+    const sourceId = await this.settings.getSourceId();
     const scopes = this.scopes({
       conversationId: input.conversationId,
       providerId: input.providerId,
@@ -380,6 +392,7 @@ export class MemoryIntegrationCoordinator
     ) as MemoryScope;
     const additionalTools = createMemoryAgentTools({
       store: runtime.store,
+      sourceId,
       activeScope,
       allowedScopes: scopes,
       turnId: input.turnId,
@@ -398,6 +411,7 @@ export class MemoryIntegrationCoordinator
       additionalTools,
       contextToken: {
         kind: "convera-memory-turn",
+        sourceId,
         turnId: input.turnId,
         conversationId: input.conversationId,
         revision: input.revision,
@@ -416,11 +430,32 @@ export class MemoryIntegrationCoordinator
     input: CompleteMemoryTurnInput,
   ): Promise<string[]> {
     const settings = await this.settings.get();
-    if (settings.provider === "off" || settings.curator === "off") return [];
+    if (settings.provider === "off" || settings.curator === "off") {
+      throw new MemoryError(
+        "Memory curation is disabled. The durable turn remains paused until memory and its curator are enabled.",
+        "CONFIGURATION",
+        false,
+      );
+    }
+    const currentSourceId = await this.settings.getSourceId();
+    const sourceId = input.token.sourceId;
+    if (!sourceId || sourceId !== currentSourceId) {
+      throw new MemoryError(
+        "Durable memory work belongs to a different or legacy Letta source.",
+        "CONFIGURATION",
+        false,
+      );
+    }
     const runtime = await this.ensureRuntimeUnlocked();
     const worker = await this.ensureWorker(runtime);
-    if (!worker) return [];
-    const candidates = await this.candidates.listByTurn(input.turnId);
+    if (!worker) {
+      throw new MemoryError(
+        "Memory curation is unavailable. The durable turn remains paused.",
+        "CONFIGURATION",
+        false,
+      );
+    }
+    const candidates = await this.candidates.listByTurn(input.turnId, sourceId);
     const conversationScope = input.token.scopes.find(
       (scope) => scope.kind === "conversation",
     );
@@ -436,6 +471,7 @@ export class MemoryIntegrationCoordinator
       );
       const turn: CompletedMemoryTurn = {
         turnId: `${input.turnId}:${scope.kind}`,
+        sourceId,
         conversationId: input.token.conversationId,
         candidateTurnId: input.turnId,
         scope,
@@ -492,9 +528,70 @@ export class MemoryIntegrationCoordinator
     });
   }
 
+  prepareDurableTurnHook(input: {
+    request: LocalAIChatRequest;
+    prepared: { turn: { revision: number } };
+    contextToken?: unknown;
+  }): DurableMemoryTurnHookPayload | undefined {
+    if (!isMemoryToken(input.contextToken)) return undefined;
+    const durableProviderId = providerId(input.request.providerId);
+    if (!durableProviderId) return undefined;
+    return {
+      kind: "memory-turn",
+      sourceId: input.contextToken.sourceId,
+      turnId: input.request.turnId,
+      conversationId: input.request.conversationId,
+      revision: input.prepared.turn.revision,
+      providerId: durableProviderId,
+      scopes: input.contextToken.scopes,
+      userContent: userContent(input.request),
+    };
+  }
+
+  async replayDurableTurnHook(hook: DurableTurnHookRecord): Promise<void> {
+    if (hook.payload.kind !== "memory-turn") return;
+    if (hook.outcome === "failed") {
+      if (!hook.payload.sourceId) {
+        throw new MemoryError(
+          "Legacy memory cleanup has no Letta source and remains quarantined.",
+          "CONFIGURATION",
+          false,
+        );
+      }
+      await this.candidates.deleteByTurn(hook.turnId, hook.payload.sourceId);
+      return;
+    }
+    if (hook.outcome !== "completed") {
+      throw new MemoryError(
+        `Memory hook is not terminal: ${hook.hookId}`,
+        "VALIDATION",
+        false,
+      );
+    }
+    await this.completeTurn({
+      token: {
+        kind: "convera-memory-turn",
+        sourceId: hook.payload.sourceId,
+        turnId: hook.payload.turnId,
+        conversationId: hook.payload.conversationId,
+        revision: hook.payload.revision,
+        scopes: hook.payload.scopes,
+      },
+      turnId: hook.payload.turnId,
+      providerId: hook.payload.providerId,
+      userContent: hook.payload.userContent,
+      assistantContent: hook.payload.assistantContent ?? "",
+      completedAt: hook.terminalAt,
+    });
+  }
+
   async onTurnFailed(input: LocalAiFailedTurn): Promise<void> {
     if (!isMemoryToken(input.contextToken)) return;
-    await this.candidates.deleteByTurn(input.request.turnId);
+    if (!input.contextToken.sourceId) return;
+    await this.candidates.deleteByTurn(
+      input.request.turnId,
+      input.contextToken.sourceId,
+    );
   }
 
   async getMemorySettings(): Promise<LocalAIMemorySettings> {
@@ -743,13 +840,26 @@ export class MemoryIntegrationCoordinator
       this.candidates.deleteByScope(scope),
       this.jobs.deleteByScope(scope),
     ]);
+    if (
+      request.forgetConversationMemory &&
+      indexedMemory &&
+      isEmptyMemoryTombstone(indexedMemory)
+    ) {
+      // A renderer can replay deletion after losing the main-process response,
+      // including after memory forget committed but session deletion failed.
+      // Candidate/job cleanup above remains repeatable, while the durable empty
+      // tombstone proves remote deletion and native-session rotation completed.
+      return;
+    }
     if (request.forgetConversationMemory && settings.provider === "letta") {
       const runtime = await this.ensureRuntimeUnlocked();
       await runtime.store.forget({
         scope,
         target: { type: "scope" },
         reason: "Conversation deletion requested memory removal.",
-        turnId: `delete:${request.conversationId}:${this.now().getTime()}`,
+        turnId: request.operationId
+          ? `delete:${request.operationId}`
+          : `delete:${request.conversationId}:${this.now().getTime()}`,
         approved: true,
       });
     } else if (

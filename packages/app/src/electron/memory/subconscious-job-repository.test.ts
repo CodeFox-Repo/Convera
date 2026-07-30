@@ -29,6 +29,7 @@ function job(
     },
     turn: {
       turnId: `turn-${id}`,
+      sourceId: "letta:source-a",
       conversationId: scope.id,
       scope,
       userContent: "user",
@@ -94,7 +95,15 @@ describe("SubconsciousJobRepository retention", () => {
         path: filePath,
         maxTerminalJobs: 2,
       });
-      assertRetention(await reopened.list());
+      const persisted = await reopened.list();
+      assertRetention(persisted);
+      expect(persisted).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            turn: expect.objectContaining({ sourceId: "letta:source-a" }),
+          }),
+        ]),
+      );
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

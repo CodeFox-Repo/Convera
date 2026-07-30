@@ -13,6 +13,7 @@ import type {
   LocalAISerializableError,
   LocalAIStartResult,
   LocalAIStreamEvent,
+  LocalAITurnRuntimeStateRequest,
 } from "@/shared/types/local-ai";
 import {
   contextBridge,
@@ -31,6 +32,10 @@ export const LOCAL_AI_CHANNELS = {
   ABORT: "local-ai:abort",
   RESPOND_INTERACTION: "local-ai:respond-interaction",
   GET_CONVERSATION_RUNTIME_STATE: "local-ai:get-conversation-runtime-state",
+  GET_TURN_RUNTIME_STATE: "local-ai:get-turn-runtime-state",
+  ACKNOWLEDGE_TURN_PERSISTENCE: "local-ai:acknowledge-turn-persistence",
+  QUIESCE_CONVERSATION: "local-ai:quiesce-conversation",
+  RESUME_CONVERSATION: "local-ai:resume-conversation",
   BRANCH_CONVERSATION: "local-ai:branch-conversation",
   DELETE_CONVERSATION: "local-ai:delete-conversation",
   RESET_CONVERSATION_PROVIDER_SESSION:
@@ -53,7 +58,15 @@ interface ActiveRequest {
 interface SenderRequests {
   sender: WebContents;
   requestIds: Set<string>;
+  leaseTokens: Set<string>;
   onDestroyed: () => void;
+}
+
+interface ActiveConversationLease {
+  conversationId: string;
+  leaseToken: string;
+  sender: WebContents;
+  deleting: boolean;
 }
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -123,11 +136,24 @@ function validateMessage(value: unknown): boolean {
   return validateMessages([value], 1);
 }
 
+function messagesMatch(left: unknown, right: unknown): boolean {
+  if (!isRecord(left) || !isRecord(right)) return false;
+  return (
+    left.id === right.id &&
+    left.role === right.role &&
+    left.content === right.content
+  );
+}
+
 export function serializeLocalAIError(
   error: unknown,
 ): LocalAISerializableError {
   if (error instanceof Error) {
-    const code = (error as Error & { code?: unknown }).code;
+    const serializableError = error as Error & {
+      code?: unknown;
+      retryable?: unknown;
+    };
+    const code = serializableError.code;
     return {
       name: error.name || "Error",
       message: error.message || String(error),
@@ -135,6 +161,9 @@ export function serializeLocalAIError(
         ? { code: String(code) }
         : {}),
       ...(error.stack ? { stack: error.stack } : {}),
+      ...(typeof serializableError.retryable === "boolean"
+        ? { retryable: serializableError.retryable }
+        : {}),
     };
   }
 
@@ -146,7 +175,14 @@ export function serializeLocalAIError(
       typeof error.code === "string" || typeof error.code === "number"
         ? String(error.code)
         : undefined;
-    return { name, message, ...(code ? { code } : {}) };
+    const retryable =
+      typeof error.retryable === "boolean" ? error.retryable : undefined;
+    return {
+      name,
+      message,
+      ...(code ? { code } : {}),
+      ...(retryable === undefined ? {} : { retryable }),
+    };
   }
 
   return { name: "Error", message: String(error) };
@@ -224,14 +260,22 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
   }
 
   switch (request.operation.kind) {
-    case "append":
-      return validateMessage(request.operation.message);
+    case "append": {
+      if (!validateMessage(request.operation.message)) return false;
+      if (request.operation.recoveryMessages === undefined) return true;
+      if (!validateMessages(request.operation.recoveryMessages)) return false;
+      return messagesMatch(
+        request.operation.recoveryMessages.at(-1),
+        request.operation.message,
+      );
+    }
     case "bootstrap":
       return validateMessages(request.operation.messages);
     case "rebase":
       return (
         (request.operation.reason === "edit" ||
-          request.operation.reason === "regenerate") &&
+          request.operation.reason === "regenerate" ||
+          request.operation.reason === "provider-switch") &&
         isOptionalString(
           request.operation.sourceMessageId,
           MAX_METADATA_CHARS,
@@ -262,7 +306,28 @@ function validateDeleteRequest(
   return (
     isRecord(request) &&
     isValidIdentifier(request.conversationId) &&
+    isValidIdentifier(request.leaseToken) &&
     typeof request.forgetConversationMemory === "boolean"
+  );
+}
+
+function validateLeaseRequest(
+  request: unknown,
+): request is { conversationId: string; leaseToken: string } {
+  return (
+    isRecord(request) &&
+    isValidIdentifier(request.conversationId) &&
+    isValidIdentifier(request.leaseToken)
+  );
+}
+
+function validateTurnRuntimeStateRequest(
+  request: unknown,
+): request is LocalAITurnRuntimeStateRequest {
+  return (
+    isRecord(request) &&
+    isValidIdentifier(request.conversationId) &&
+    isValidIdentifier(request.turnId)
   );
 }
 
@@ -362,6 +427,7 @@ export function setupLocalAIIPC(
 ): () => void {
   const activeRequests = new Map<string, ActiveRequest>();
   const senderRequests = new Map<number, SenderRequests>();
+  const activeLeases = new Map<string, ActiveConversationLease>();
 
   const runtimeUnavailable = () =>
     createError(
@@ -376,7 +442,11 @@ export function setupLocalAIIPC(
     activeRequests.delete(requestId);
     const tracked = senderRequests.get(active.sender.id);
     tracked?.requestIds.delete(requestId);
-    if (tracked && tracked.requestIds.size === 0) {
+    if (
+      tracked &&
+      tracked.requestIds.size === 0 &&
+      tracked.leaseTokens.size === 0
+    ) {
       tracked.sender.removeListener("destroyed", tracked.onDestroyed);
       senderRequests.delete(active.sender.id);
     }
@@ -391,23 +461,87 @@ export function setupLocalAIIPC(
     }
   };
 
-  const trackRequest = (requestId: string, sender: WebContents) => {
-    activeRequests.set(requestId, { sender });
-
+  const getTrackedSender = (sender: WebContents) => {
     let tracked = senderRequests.get(sender.id);
     if (!tracked) {
       const onDestroyed = () => {
-        const requestIds = [
-          ...(senderRequests.get(sender.id)?.requestIds ?? []),
-        ];
+        const resources = senderRequests.get(sender.id);
+        const requestIds = [...(resources?.requestIds ?? [])];
+        const leaseTokens = [...(resources?.leaseTokens ?? [])];
         senderRequests.delete(sender.id);
         requestIds.forEach(abortAndRemove);
+        leaseTokens.forEach((leaseToken) => {
+          const lease = activeLeases.get(leaseToken);
+          activeLeases.delete(leaseToken);
+          if (!lease || lease.deleting || !options.runtime) return;
+          void Promise.resolve(
+            options.runtime.resumeConversation(
+              lease.conversationId,
+              lease.leaseToken,
+            ),
+          ).catch(() => {
+            // The owning renderer no longer exists. Runtime-side lease
+            // validation prevents releasing a newer owner's lease.
+          });
+        });
       };
-      tracked = { sender, requestIds: new Set(), onDestroyed };
+      tracked = {
+        sender,
+        requestIds: new Set(),
+        leaseTokens: new Set(),
+        onDestroyed,
+      };
       senderRequests.set(sender.id, tracked);
       sender.once("destroyed", onDestroyed);
     }
+    return tracked;
+  };
+
+  const trackRequest = (requestId: string, sender: WebContents) => {
+    activeRequests.set(requestId, { sender });
+    const tracked = getTrackedSender(sender);
     tracked.requestIds.add(requestId);
+  };
+
+  const trackLease = (
+    conversationId: string,
+    leaseToken: string,
+    sender: WebContents,
+  ) => {
+    activeLeases.set(leaseToken, {
+      conversationId,
+      leaseToken,
+      sender,
+      deleting: false,
+    });
+    getTrackedSender(sender).leaseTokens.add(leaseToken);
+  };
+
+  const removeTrackedLease = (leaseToken: string) => {
+    const lease = activeLeases.get(leaseToken);
+    if (!lease) return;
+    activeLeases.delete(leaseToken);
+    const tracked = senderRequests.get(lease.sender.id);
+    tracked?.leaseTokens.delete(leaseToken);
+    if (
+      tracked &&
+      tracked.requestIds.size === 0 &&
+      tracked.leaseTokens.size === 0
+    ) {
+      tracked.sender.removeListener("destroyed", tracked.onDestroyed);
+      senderRequests.delete(lease.sender.id);
+    }
+  };
+
+  const ownedLease = (
+    sender: WebContents,
+    conversationId: string,
+    leaseToken: string,
+  ) => {
+    const lease = activeLeases.get(leaseToken);
+    return lease?.sender === sender && lease.conversationId === conversationId
+      ? lease
+      : undefined;
   };
 
   const ensureSender = (event: IpcMainInvokeEvent) =>
@@ -535,8 +669,15 @@ export function setupLocalAIIPC(
         }
       };
 
-      void Promise.resolve()
-        .then(() => runtime.startChat(request, emit))
+      let chat: Promise<void> | void;
+      try {
+        // Invoke synchronously so the runtime registers its AbortController
+        // before the accepted response lets the renderer disappear.
+        chat = runtime.startChat(request, emit);
+      } catch (error) {
+        chat = Promise.reject(error);
+      }
+      void Promise.resolve(chat)
         .then(() => {
           if (activeRequests.has(request.requestId)) {
             emit({
@@ -684,6 +825,148 @@ export function setupLocalAIIPC(
   );
 
   mainIPC.handle(
+    LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION,
+    async (event, conversationId: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime) return failure(runtimeUnavailable());
+      if (!isValidIdentifier(conversationId)) {
+        return failure(
+          createError("Invalid conversation id", "LOCAL_AI_INVALID_REQUEST"),
+        );
+      }
+      try {
+        const leaseToken =
+          await options.runtime.quiesceConversation(conversationId);
+        if (event.sender.isDestroyed()) {
+          await options.runtime.resumeConversation(conversationId, leaseToken);
+          return failure(
+            createError(
+              "IPC sender was destroyed while acquiring the conversation lease",
+              "LOCAL_AI_FORBIDDEN",
+            ),
+          );
+        }
+        trackLease(conversationId, leaseToken, event.sender);
+        return {
+          success: true,
+          data: { quiesced: true as const, leaseToken },
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
+    LOCAL_AI_CHANNELS.GET_TURN_RUNTIME_STATE,
+    async (event, request: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime) return failure(runtimeUnavailable());
+      if (!validateTurnRuntimeStateRequest(request)) {
+        return failure(
+          createError(
+            "Invalid turn runtime state request",
+            "LOCAL_AI_INVALID_REQUEST",
+          ),
+        );
+      }
+      try {
+        return {
+          success: true,
+          data: await options.runtime.getTurnRuntimeState(request),
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
+    LOCAL_AI_CHANNELS.ACKNOWLEDGE_TURN_PERSISTENCE,
+    async (event, request: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime) return failure(runtimeUnavailable());
+      if (!validateTurnRuntimeStateRequest(request)) {
+        return failure(
+          createError(
+            "Invalid turn persistence acknowledgement",
+            "LOCAL_AI_INVALID_REQUEST",
+          ),
+        );
+      }
+      try {
+        return {
+          success: true,
+          data: {
+            acknowledged:
+              await options.runtime.acknowledgeTurnPersistence(request),
+          },
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
+    LOCAL_AI_CHANNELS.RESUME_CONVERSATION,
+    async (event, request: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime) return failure(runtimeUnavailable());
+      if (!validateLeaseRequest(request)) {
+        return failure(
+          createError(
+            "Invalid conversation lease request",
+            "LOCAL_AI_INVALID_REQUEST",
+          ),
+        );
+      }
+      const lease = ownedLease(
+        event.sender,
+        request.conversationId,
+        request.leaseToken,
+      );
+      if (!lease || lease.deleting) {
+        return failure(
+          createError(
+            "Conversation lease is not owned by this sender",
+            "LOCAL_AI_CONVERSATION_LEASE_INVALID",
+          ),
+        );
+      }
+      try {
+        const resumed = await options.runtime.resumeConversation(
+          request.conversationId,
+          request.leaseToken,
+        );
+        removeTrackedLease(request.leaseToken);
+        return {
+          success: true,
+          data: { resumed },
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
     LOCAL_AI_CHANNELS.BRANCH_CONVERSATION,
     async (event, request: unknown) => {
       if (!ensureSender(event)) {
@@ -728,6 +1011,20 @@ export function setupLocalAIIPC(
           ),
         );
       }
+      const lease = ownedLease(
+        event.sender,
+        request.conversationId,
+        request.leaseToken,
+      );
+      if (!lease || lease.deleting) {
+        return failure(
+          createError(
+            "Conversation lease is not owned by this sender",
+            "LOCAL_AI_CONVERSATION_LEASE_INVALID",
+          ),
+        );
+      }
+      lease.deleting = true;
       try {
         return {
           success: true,
@@ -735,6 +1032,8 @@ export function setupLocalAIIPC(
         };
       } catch (error) {
         return failure(error);
+      } finally {
+        removeTrackedLease(request.leaseToken);
       }
     },
   );
@@ -843,6 +1142,19 @@ export function setupLocalAIIPC(
       .forEach((channel) => mainIPC.removeHandler(channel));
 
     [...activeRequests.keys()].forEach(abortAndRemove);
+    for (const lease of activeLeases.values()) {
+      if (!lease.deleting && options.runtime) {
+        void Promise.resolve(
+          options.runtime.resumeConversation(
+            lease.conversationId,
+            lease.leaseToken,
+          ),
+        ).catch(() => {
+          // IPC teardown has no remaining renderer to receive this failure.
+        });
+      }
+    }
+    activeLeases.clear();
     senderRequests.forEach(({ sender, onDestroyed }) => {
       sender.removeListener("destroyed", onDestroyed);
     });
@@ -873,6 +1185,20 @@ export function createLocalAIAPI(
         LOCAL_AI_CHANNELS.GET_CONVERSATION_RUNTIME_STATE,
         conversationId,
       ),
+    getTurnRuntimeState: (request) =>
+      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_TURN_RUNTIME_STATE, request),
+    acknowledgeTurnPersistence: (request) =>
+      rendererIPC.invoke(
+        LOCAL_AI_CHANNELS.ACKNOWLEDGE_TURN_PERSISTENCE,
+        request,
+      ),
+    quiesceConversation: (conversationId) =>
+      rendererIPC.invoke(
+        LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION,
+        conversationId,
+      ),
+    resumeConversation: (request) =>
+      rendererIPC.invoke(LOCAL_AI_CHANNELS.RESUME_CONVERSATION, request),
     branchConversation: (request) =>
       rendererIPC.invoke(LOCAL_AI_CHANNELS.BRANCH_CONVERSATION, request),
     deleteConversation: (request) =>

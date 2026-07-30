@@ -14,6 +14,8 @@ import type {
   LocalAIRuntimeService,
   LocalAISerializableError,
   LocalAIStreamEvent,
+  LocalAITurnRuntimeState,
+  LocalAITurnRuntimeStateRequest,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
 import {
@@ -40,6 +42,8 @@ import {
 } from "./session/repository";
 import { KeyedSerialExecutor } from "./session/serial-executor";
 import type {
+  DurableMemoryTurnHookPayload,
+  DurableTurnHookRecord,
   PreparedSessionTurn,
   ProviderMemoryCursors,
   ProviderSessionBinding,
@@ -134,7 +138,10 @@ export function serializeLocalAiError(
   code?: string,
 ): LocalAISerializableError {
   if (error instanceof Error) {
-    const errorWithCode = error as Error & { code?: unknown };
+    const errorWithCode = error as Error & {
+      code?: unknown;
+      retryable?: unknown;
+    };
     return {
       name: error.name,
       message: error.message,
@@ -144,6 +151,10 @@ export function serializeLocalAiError(
           ? errorWithCode.code
           : undefined),
       stack: error.stack,
+      retryable:
+        typeof errorWithCode.retryable === "boolean"
+          ? errorWithCode.retryable
+          : undefined,
     };
   }
 
@@ -163,7 +174,9 @@ function toMessages(
   const turnContext = systemContext?.trim();
   const operationMessages =
     request.operation.kind === "append"
-      ? [request.operation.message]
+      ? resumesNativeSession
+        ? [request.operation.message]
+        : (request.operation.recoveryMessages ?? [request.operation.message])
       : request.operation.messages;
   const messages: ModelMessage[] = operationMessages.map((message) => ({
     role: message.role,
@@ -230,6 +243,11 @@ interface PendingInteraction {
   onAbort(): void;
 }
 
+interface ActiveRuntimeRequest {
+  conversationId: string;
+  controller: AbortController;
+}
+
 interface ForwardedStream {
   finishReason: LocalAIFinishReason;
   usage?: LocalAIUsage;
@@ -294,6 +312,15 @@ export interface LocalAiTurnHooks {
     | Promise<PreparedLocalAiTurnContext | undefined>
     | PreparedLocalAiTurnContext
     | undefined;
+  prepareDurableTurnHook?(input: {
+    request: LocalAIChatRequest;
+    prepared: PreparedSessionTurn;
+    contextToken?: unknown;
+  }):
+    | Promise<DurableMemoryTurnHookPayload | undefined>
+    | DurableMemoryTurnHookPayload
+    | undefined;
+  replayDurableTurnHook?(hook: DurableTurnHookRecord): Promise<void> | void;
   onTurnCompleted?(input: LocalAiCompletedTurn): Promise<void> | void;
   onTurnFailed?(input: LocalAiFailedTurn): Promise<void> | void;
 }
@@ -336,7 +363,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     LocalAiProviderId,
     LocalAiProviderAdapter
   >();
-  private readonly activeRequests = new Map<string, AbortController>();
+  private readonly activeRequests = new Map<string, ActiveRuntimeRequest>();
   private readonly inFlightChats = new Set<Promise<void>>();
   private readonly streamInvoker: RuntimeStreamInvoker;
   private readonly workingDirectory: string;
@@ -344,11 +371,18 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly executeTool: AgentToolExecutor;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
   private readonly detachedHooks = new Set<Promise<void>>();
+  private readonly conversationLeases = new Map<string, string>();
+  private readonly quiesceTimeoutMs: number;
   private disposing = false;
   private readonly turnHooks: LocalAiTurnHooks;
   private readonly memoryService?: LocalAiMemoryRuntimeService;
   private sessionRepository?: SessionStateRepository;
   private readonly sessionExecutor = new KeyedSerialExecutor();
+  private readonly durableHookReplayConversations = new Set<string>();
+  private durableHookRetryTimer?: ReturnType<typeof setTimeout>;
+  private durableHookRetryScheduleVersion = 0;
+  private memorySettingsBarrier: Promise<void> = Promise.resolve();
+  private pendingMemorySettingsUpdates = 0;
 
   constructor(
     options: {
@@ -360,6 +394,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       sessionRepository?: SessionStateRepository;
       turnHooks?: LocalAiTurnHooks;
       memoryService?: LocalAiMemoryRuntimeService;
+      quiesceTimeoutMs?: number;
     } = {},
   ) {
     const adapters = options.adapters ?? [
@@ -372,6 +407,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     this.sessionRepository = options.sessionRepository;
     this.turnHooks = options.turnHooks ?? {};
     this.memoryService = options.memoryService;
+    this.quiesceTimeoutMs = options.quiesceTimeoutMs ?? 5_000;
     this.executeTool =
       options.executeTool ??
       (async (serverName, toolName) => {
@@ -379,9 +415,20 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           `Tool executor is unavailable for ${serverName}:${toolName}.`,
         );
       });
+    if (
+      Boolean(this.turnHooks.prepareDurableTurnHook) !==
+      Boolean(this.turnHooks.replayDurableTurnHook)
+    ) {
+      throw new Error(
+        "Durable turn hooks must configure both prepare and replay handlers.",
+      );
+    }
 
     for (const adapter of adapters) {
       this.adapters.set(adapter.id, adapter);
+    }
+    if (this.turnHooks.replayDurableTurnHook) {
+      queueMicrotask(() => this.initializeDurableTurnHooks());
     }
   }
 
@@ -440,7 +487,6 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       );
       return Promise.resolve();
     }
-
     const task = this.runChat(request, emit).finally(() => {
       this.inFlightChats.delete(task);
     });
@@ -452,6 +498,15 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     request: LocalAIChatRequest,
     emit: (event: LocalAIStreamEvent) => void,
   ): Promise<void> {
+    if (this.conversationLeases.has(request.conversationId)) {
+      this.emitFailure(
+        request.requestId,
+        emit,
+        new Error("The conversation is being deleted."),
+        "LOCAL_AI_CONVERSATION_QUIESCED",
+      );
+      return;
+    }
     if (this.activeRequests.has(request.requestId)) {
       this.emitFailure(
         request.requestId,
@@ -499,20 +554,33 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     }
 
     const controller = new AbortController();
-    this.activeRequests.set(request.requestId, controller);
+    this.activeRequests.set(request.requestId, {
+      conversationId: request.conversationId,
+      controller,
+    });
 
     let prepared: PreparedSessionTurn | undefined;
     let providerMayHaveAdvanced = false;
     let turnContext: PreparedLocalAiTurnContext | undefined;
+    let durableHookArmed = false;
     try {
+      await this.memorySettingsBarrier;
       await this.sessionExecutor.run(request.conversationId, async () => {
         const repository = this.getSessionRepository();
+        await this.replayDurableTurnHooksForConversation(
+          request.conversationId,
+        );
+        await this.rescheduleDurableTurnHookRetry();
         prepared = await repository.beginTurn({
           turnId: request.turnId,
           requestId: request.requestId,
           conversationId: request.conversationId,
           providerId,
           operation: request.operation.kind,
+          operationReason:
+            request.operation.kind === "rebase"
+              ? request.operation.reason
+              : undefined,
           expectedRevision: request.expectedRevision,
         });
         controller.signal.throwIfAborted();
@@ -554,7 +622,27 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         });
         controller.signal.throwIfAborted();
         if (turnContext?.forceNewSession && prepared.binding) {
+          if (
+            request.operation.kind === "append" &&
+            !request.operation.recoveryMessages
+          ) {
+            throw Object.assign(
+              new Error(
+                "A bounded recovery transcript is required before rotating an append turn.",
+              ),
+              { code: "LOCAL_AI_RECOVERY_TRANSCRIPT_REQUIRED" },
+            );
+          }
           prepared = await repository.rotatePendingTurn(request.turnId);
+        }
+        const durableHook = await this.turnHooks.prepareDurableTurnHook?.({
+          request: trustedRequest,
+          prepared,
+          contextToken: turnContext?.contextToken,
+        });
+        if (durableHook) {
+          await repository.armTurnHook(request.turnId, durableHook);
+          durableHookArmed = true;
         }
 
         const resumableBinding =
@@ -642,6 +730,9 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           nativeSessionId,
           cwd: this.workingDirectory,
           modelId: request.modelId,
+          finishReason: forwarded.finishReason,
+          assistantText: forwarded.assistantText,
+          assistantHookContent: forwarded.assistantText,
           memoryCursors: turnContext?.memoryCursors,
         });
         if (forwarded.finishChunk) {
@@ -660,15 +751,19 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           turnId: request.turnId,
           revision: prepared!.turn.revision,
         });
-        this.runDetachedHook(() =>
-          this.turnHooks.onTurnCompleted?.({
-            request: trustedRequest,
-            revision: prepared!.turn.revision,
-            assistantText: forwarded.assistantText,
-            binding,
-            contextToken: turnContext?.contextToken,
-          }),
-        );
+        if (durableHookArmed && this.turnHooks.replayDurableTurnHook) {
+          this.scheduleDurableTurnHookReplay(request.conversationId);
+        } else {
+          this.runDetachedHook(() =>
+            this.turnHooks.onTurnCompleted?.({
+              request: trustedRequest,
+              revision: prepared!.turn.revision,
+              assistantText: forwarded.assistantText,
+              binding,
+              contextToken: turnContext?.contextToken,
+            }),
+          );
+        }
       });
     } catch (error) {
       const serializedError = serializeLocalAiError(error);
@@ -703,15 +798,19 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           revision: prepared?.turn.revision,
         });
       }
-      this.runDetachedHook(() =>
-        this.turnHooks.onTurnFailed?.({
-          request,
-          revision: prepared?.turn.revision,
-          error: serializedError,
-          providerMayHaveAdvanced,
-          contextToken: turnContext?.contextToken,
-        }),
-      );
+      if (durableHookArmed && this.turnHooks.replayDurableTurnHook) {
+        this.scheduleDurableTurnHookReplay(request.conversationId);
+      } else {
+        this.runDetachedHook(() =>
+          this.turnHooks.onTurnFailed?.({
+            request,
+            revision: prepared?.turn.revision,
+            error: serializedError,
+            providerMayHaveAdvanced,
+            contextToken: turnContext?.contextToken,
+          }),
+        );
+      }
     } finally {
       this.rejectRequestInteractions(
         request.requestId,
@@ -724,12 +823,12 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   }
 
   abort(requestId: string): boolean {
-    const controller = this.activeRequests.get(requestId);
-    if (!controller) {
+    const active = this.activeRequests.get(requestId);
+    if (!active) {
       return false;
     }
 
-    controller.abort();
+    active.controller.abort();
     return true;
   }
 
@@ -756,6 +855,8 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     return {
       conversationId,
       revision: conversation.revision,
+      transcriptVersion: conversation.transcriptVersion,
+      lastCompletedProviderId: conversation.lastCompletedProviderId,
       memoryEpoch: conversation.memoryEpoch,
       memoryVersion: conversation.memoryVersion,
       providers: bindings
@@ -764,53 +865,190 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           providerId: binding.providerId,
           modelId: binding.modelId,
           revision: binding.revision,
+          transcriptVersion: binding.transcriptVersion,
           stale: binding.stale,
           updatedAt: binding.updatedAt,
         })),
     };
   }
 
+  async quiesceConversation(conversationId: string): Promise<string> {
+    if (this.conversationLeases.has(conversationId)) {
+      throw Object.assign(
+        new Error("The conversation already has an active lifecycle lease."),
+        { code: "LOCAL_AI_CONVERSATION_LEASE_CONFLICT" },
+      );
+    }
+
+    const leaseToken = randomUUID();
+    this.conversationLeases.set(conversationId, leaseToken);
+    for (const active of this.activeRequests.values()) {
+      if (active.conversationId === conversationId) {
+        active.controller.abort();
+      }
+    }
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        this.sessionExecutor.run(conversationId, async () => undefined),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(
+              Object.assign(
+                new Error("Timed out while stopping active conversation work."),
+                { code: "LOCAL_AI_CONVERSATION_QUIESCE_TIMEOUT" },
+              ),
+            );
+          }, this.quiesceTimeoutMs);
+        }),
+      ]);
+      return leaseToken;
+    } catch (error) {
+      if (this.conversationLeases.get(conversationId) === leaseToken) {
+        this.conversationLeases.delete(conversationId);
+      }
+      throw error;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
+
+  resumeConversation(conversationId: string, leaseToken: string): boolean {
+    this.assertConversationLease(conversationId, leaseToken);
+    this.conversationLeases.delete(conversationId);
+    return true;
+  }
+
+  async getTurnRuntimeState(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<LocalAITurnRuntimeState | null> {
+    return this.sessionExecutor.run(
+      request.conversationId,
+      async () =>
+        (await this.getSessionRepository().getTurnRuntimeState(
+          request.conversationId,
+          request.turnId,
+        )) ?? null,
+    );
+  }
+
+  acknowledgeTurnPersistence(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<boolean> {
+    return this.sessionExecutor.run(request.conversationId, () =>
+      this.getSessionRepository().acknowledgeTurnPersistence(
+        request.conversationId,
+        request.turnId,
+      ),
+    );
+  }
+
   async branchConversation(
     request: LocalAIBranchConversationRequest,
   ): Promise<LocalAIConversationRuntimeState> {
-    return this.sessionExecutor.run(request.sourceConversationId, async () => {
-      const repository = this.getSessionRepository();
-      await repository.branchConversation(
-        request.sourceConversationId,
-        request.targetConversationId,
-      );
-      try {
-        await this.memoryService?.branchConversation?.(request);
-      } catch (error) {
-        await repository.deleteConversation(request.targetConversationId);
-        throw error;
-      }
-      const state = await this.getConversationRuntimeState(
-        request.targetConversationId,
-      );
-      if (!state) {
-        throw new Error(
-          `Conversation branch was not persisted: ${request.targetConversationId}`,
+    return this.sessionExecutor.runMany(
+      [request.sourceConversationId, request.targetConversationId],
+      async () => {
+        if (
+          this.conversationLeases.has(request.sourceConversationId) ||
+          this.conversationLeases.has(request.targetConversationId)
+        ) {
+          throw Object.assign(
+            new Error("A conversation in this branch is being deleted."),
+            { code: "LOCAL_AI_CONVERSATION_QUIESCED" },
+          );
+        }
+        const repository = this.getSessionRepository();
+        await repository.branchConversation(
+          request.sourceConversationId,
+          request.targetConversationId,
         );
-      }
-      return state;
-    });
+        try {
+          await this.memoryService?.branchConversation?.(request);
+        } catch (error) {
+          await repository.deleteConversation(request.targetConversationId);
+          throw error;
+        }
+        const conversation = await repository.getConversation(
+          request.targetConversationId,
+        );
+        if (!conversation) {
+          throw new Error(
+            `Conversation branch was not persisted: ${request.targetConversationId}`,
+          );
+        }
+        const bindings = await repository.getBindings(
+          request.targetConversationId,
+        );
+        return {
+          conversationId: request.targetConversationId,
+          revision: conversation.revision,
+          transcriptVersion: conversation.transcriptVersion,
+          lastCompletedProviderId: conversation.lastCompletedProviderId,
+          memoryEpoch: conversation.memoryEpoch,
+          memoryVersion: conversation.memoryVersion,
+          providers: bindings
+            .filter((binding) => binding.revision === conversation.revision)
+            .map((binding) => ({
+              providerId: binding.providerId,
+              modelId: binding.modelId,
+              revision: binding.revision,
+              transcriptVersion: binding.transcriptVersion,
+              stale: binding.stale,
+              updatedAt: binding.updatedAt,
+            })),
+        };
+      },
+    );
   }
 
   async deleteConversation(
     request: LocalAIDeleteConversationRequest,
   ): Promise<boolean> {
-    return this.sessionExecutor.run(request.conversationId, async () => {
-      if (request.forgetConversationMemory) {
-        await this.memoryService?.deleteConversation?.(request);
-      }
-      await this.getSessionRepository().deleteConversation(
+    this.assertConversationLease(request.conversationId, request.leaseToken);
+    try {
+      return await this.sessionExecutor.run(
         request.conversationId,
+        async () => {
+          const repository = this.getSessionRepository();
+          const deletion = await repository.beginConversationDeletion(
+            request.conversationId,
+            request.forgetConversationMemory,
+          );
+          if (deletion.status === "completed") {
+            return true;
+          }
+          try {
+            await this.memoryService?.deleteConversation?.({
+              ...request,
+              forgetConversationMemory: deletion.forgetConversationMemory,
+              operationId: deletion.operationId,
+            });
+            await repository.completeConversationDeletion(
+              request.conversationId,
+            );
+          } catch (error) {
+            await repository
+              .failConversationDeletion(
+                request.conversationId,
+                serializeLocalAiError(error).message,
+              )
+              .catch(() => undefined);
+            throw error;
+          }
+          return true;
+        },
       );
-      // Deletion is intentionally idempotent so legacy renderer-only
-      // conversations can still be removed.
-      return true;
-    });
+    } finally {
+      await this.rescheduleDurableTurnHookRetry().catch(() => undefined);
+      if (
+        this.conversationLeases.get(request.conversationId) ===
+        request.leaseToken
+      ) {
+        this.conversationLeases.delete(request.conversationId);
+      }
+    }
   }
 
   async resetConversationProviderSession(
@@ -847,9 +1085,9 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     );
   }
 
-  updateMemorySettings(
+  async updateMemorySettings(
     update: LocalAIMemorySettingsUpdate,
-  ): Promise<LocalAIMemorySettings> | LocalAIMemorySettings {
+  ): Promise<LocalAIMemorySettings> {
     if (!this.memoryService) {
       if (
         Object.keys(update).length === 0 ||
@@ -861,7 +1099,43 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         code: "LOCAL_AI_MEMORY_UNAVAILABLE",
       });
     }
-    return this.memoryService.updateMemorySettings(update);
+    const previousSettingsBarrier = this.memorySettingsBarrier;
+    let releaseSettingsBarrier!: () => void;
+    const currentSettingsBarrier = new Promise<void>((resolve) => {
+      releaseSettingsBarrier = resolve;
+    });
+    this.memorySettingsBarrier = previousSettingsBarrier.then(
+      () => currentSettingsBarrier,
+    );
+    this.pendingMemorySettingsUpdates += 1;
+    this.clearDurableTurnHookRetryTimer();
+    await previousSettingsBarrier;
+    try {
+      const repository = this.getSessionRepository();
+      const snapshot = await repository.snapshot();
+      const conversations = new Set(
+        (snapshot.turnHooks ?? []).map((hook) => hook.conversationId),
+      );
+      for (const active of this.activeRequests.values()) {
+        conversations.add(active.conversationId);
+      }
+      return await this.sessionExecutor.runMany(
+        [...conversations],
+        async () => {
+          const settings =
+            await this.memoryService!.updateMemorySettings(update);
+          await repository.resetTurnHookRetries("configuration");
+          return settings;
+        },
+      );
+    } finally {
+      releaseSettingsBarrier();
+      this.pendingMemorySettingsUpdates -= 1;
+      if (this.pendingMemorySettingsUpdates === 0) {
+        this.triggerDurableTurnHookReplay();
+        await this.rescheduleDurableTurnHookRetry();
+      }
+    }
   }
 
   getMemoryStatus(
@@ -876,8 +1150,9 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
 
   async dispose(): Promise<void> {
     this.disposing = true;
-    for (const controller of this.activeRequests.values()) {
-      controller.abort();
+    this.clearDurableTurnHookRetryTimer();
+    for (const active of this.activeRequests.values()) {
+      active.controller.abort();
     }
     for (const [interactionId, pending] of this.pendingInteractions) {
       this.releaseInteraction(interactionId, pending);
@@ -885,10 +1160,19 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     }
 
     await Promise.allSettled([...this.inFlightChats]);
+    if (this.turnHooks.replayDurableTurnHook) {
+      const hooks = await this.getSessionRepository().listReplayableTurnHooks();
+      for (const conversationId of new Set(
+        hooks.map((hook) => hook.conversationId),
+      )) {
+        this.scheduleDurableTurnHookReplay(conversationId, true);
+      }
+    }
     while (this.detachedHooks.size > 0) {
       await Promise.allSettled([...this.detachedHooks]);
     }
     this.activeRequests.clear();
+    this.conversationLeases.clear();
     await Promise.all(
       [...this.adapters.values()].map((adapter) => adapter.dispose()),
     );
@@ -975,6 +1259,175 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     this.detachedHooks.add(task);
   }
 
+  private trackDetachedTask(task: Promise<unknown>): void {
+    const tracked = task
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        this.detachedHooks.delete(tracked);
+      });
+    this.detachedHooks.add(tracked);
+  }
+
+  private triggerDurableTurnHookReplay(): void {
+    if (
+      this.disposing ||
+      this.pendingMemorySettingsUpdates > 0 ||
+      !this.turnHooks.replayDurableTurnHook
+    ) {
+      return;
+    }
+    this.runDetachedHook(async () => {
+      try {
+        const hooks =
+          await this.getSessionRepository().listReplayableTurnHooks();
+        for (const conversationId of new Set(
+          hooks.map((hook) => hook.conversationId),
+        )) {
+          this.scheduleDurableTurnHookReplay(conversationId);
+        }
+      } finally {
+        await this.rescheduleDurableTurnHookRetry();
+      }
+    });
+  }
+
+  private scheduleDurableTurnHookReplay(
+    conversationId: string,
+    duringDispose = false,
+  ): void {
+    if (
+      (this.disposing && !duringDispose) ||
+      this.pendingMemorySettingsUpdates > 0 ||
+      !this.turnHooks.replayDurableTurnHook ||
+      this.durableHookReplayConversations.has(conversationId)
+    ) {
+      return;
+    }
+    this.durableHookReplayConversations.add(conversationId);
+    // Queue synchronously behind the current provider turn. A later
+    // quiesce/delete cannot overtake this replay.
+    const replay = this.sessionExecutor.run(conversationId, () =>
+      this.replayDurableTurnHooksForConversation(conversationId),
+    );
+    this.trackDetachedTask(
+      replay.finally(async () => {
+        this.durableHookReplayConversations.delete(conversationId);
+        await this.rescheduleDurableTurnHookRetry();
+      }),
+    );
+  }
+
+  private async replayDurableTurnHooksForConversation(
+    conversationId: string,
+  ): Promise<void> {
+    if (!this.turnHooks.replayDurableTurnHook) return;
+    const repository = this.getSessionRepository();
+    const deletion = await repository.getConversationDeletion(conversationId);
+    const hooks = (await repository.listReplayableTurnHooks()).filter(
+      (hook) => hook.conversationId === conversationId,
+    );
+    for (const hook of hooks) {
+      if (deletion) {
+        await repository.acknowledgeTurnHook(hook.hookId);
+        continue;
+      }
+      try {
+        await this.turnHooks.replayDurableTurnHook(hook);
+        await repository.acknowledgeTurnHook(hook.hookId);
+      } catch (error) {
+        const serialized = serializeLocalAiError(error);
+        await repository.failTurnHook(
+          hook.hookId,
+          serialized.message,
+          serialized.retryable !== false,
+          serialized.code === "CONFIGURATION" ? "configuration" : undefined,
+        );
+      }
+    }
+  }
+
+  private clearDurableTurnHookRetryTimer(): void {
+    this.durableHookRetryScheduleVersion += 1;
+    if (this.durableHookRetryTimer !== undefined) {
+      clearTimeout(this.durableHookRetryTimer);
+      this.durableHookRetryTimer = undefined;
+    }
+  }
+
+  private initializeDurableTurnHooks(): void {
+    if (this.disposing || !this.turnHooks.replayDurableTurnHook) return;
+    this.runDetachedHook(async () => {
+      try {
+        await this.memorySettingsBarrier;
+        if (this.disposing) return;
+        const settings = await this.memoryService?.getMemorySettings();
+        if (
+          settings?.provider === "letta" &&
+          settings.subconsciousProvider !== "off"
+        ) {
+          await this.getSessionRepository().resetTurnHookRetries(
+            "configuration",
+          );
+        }
+      } finally {
+        this.triggerDurableTurnHookReplay();
+        await this.rescheduleDurableTurnHookRetry();
+      }
+    });
+  }
+
+  private async rescheduleDurableTurnHookRetry(): Promise<void> {
+    const scheduleVersion = ++this.durableHookRetryScheduleVersion;
+    if (
+      this.disposing ||
+      this.pendingMemorySettingsUpdates > 0 ||
+      !this.turnHooks.replayDurableTurnHook
+    ) {
+      if (scheduleVersion === this.durableHookRetryScheduleVersion) {
+        this.clearDurableTurnHookRetryTimer();
+      }
+      return;
+    }
+
+    const hooks =
+      (await this.getSessionRepository().snapshot()).turnHooks ?? [];
+    const nextAttemptAt = hooks
+      .filter(
+        (hook) =>
+          hook.status === "pending" &&
+          hook.retryable &&
+          hook.nextAttemptAt !== undefined &&
+          !this.durableHookReplayConversations.has(hook.conversationId),
+      )
+      .reduce<number | undefined>((earliest, hook) => {
+        const timestamp = Date.parse(hook.nextAttemptAt as string);
+        if (!Number.isFinite(timestamp)) return earliest;
+        return earliest === undefined
+          ? timestamp
+          : Math.min(earliest, timestamp);
+      }, undefined);
+    if (scheduleVersion !== this.durableHookRetryScheduleVersion) return;
+
+    if (this.durableHookRetryTimer !== undefined) {
+      clearTimeout(this.durableHookRetryTimer);
+      this.durableHookRetryTimer = undefined;
+    }
+    if (nextAttemptAt === undefined) return;
+
+    const maximumDelay = 2_147_483_647;
+    const delay = Math.min(
+      Math.max(nextAttemptAt - Date.now(), 0),
+      maximumDelay,
+    );
+    this.durableHookRetryTimer = setTimeout(() => {
+      this.durableHookRetryTimer = undefined;
+      this.durableHookRetryScheduleVersion += 1;
+      this.triggerDurableTurnHookReplay();
+    }, delay);
+    this.durableHookRetryTimer.unref?.();
+  }
+
   private getSessionRepository(): SessionStateRepository {
     if (!this.sessionRepository) {
       this.sessionRepository = new JsonSessionStateRepository({
@@ -1006,6 +1459,17 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       finishReason: "error",
       ...context,
     });
+  }
+
+  private assertConversationLease(
+    conversationId: string,
+    leaseToken: string,
+  ): void {
+    if (this.conversationLeases.get(conversationId) === leaseToken) return;
+    throw Object.assign(
+      new Error("The conversation lifecycle lease is missing or invalid."),
+      { code: "LOCAL_AI_CONVERSATION_LEASE_INVALID" },
+    );
   }
 
   private requestInteraction(

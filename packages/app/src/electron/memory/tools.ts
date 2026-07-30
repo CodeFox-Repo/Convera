@@ -120,6 +120,7 @@ export interface MemoryToolApprovalRequest {
 
 export interface CreateMemoryToolsOptions {
   store: MemoryStore;
+  sourceId?: string;
   activeScope: MemoryScope;
   allowedScopes?: MemoryScope[];
   turnId: string;
@@ -285,6 +286,7 @@ export function createMemoryTools(options: CreateMemoryToolsOptions) {
         const candidatePatch = nextMutation(scope, operation);
         await options.candidateSink.enqueue({
           id: candidatePatch.turnId,
+          sourceId: options.sourceId,
           scope,
           turnId: candidatePatch.turnId,
           provenance: candidatePatch.provenance,
@@ -338,6 +340,7 @@ export function createMemoryTools(options: CreateMemoryToolsOptions) {
         const candidatePatch = nextMutation(scope, operation);
         await options.candidateSink.enqueue({
           id: candidatePatch.turnId,
+          sourceId: options.sourceId,
           scope,
           turnId: candidatePatch.turnId,
           provenance: candidatePatch.provenance,

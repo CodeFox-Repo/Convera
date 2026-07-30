@@ -121,6 +121,7 @@ const persistedJobSchema = z.object({
   }),
   turn: z.object({
     turnId: z.string().min(1),
+    sourceId: z.string().min(1).optional(),
     conversationId: z.string().min(1).optional(),
     candidateTurnId: z.string().min(1).optional(),
     scope: memoryScopeSchema,

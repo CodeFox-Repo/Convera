@@ -38,10 +38,18 @@ export interface LocalAIMessage {
   content: string;
 }
 
+export type LocalAIRebaseReason = "edit" | "regenerate" | "provider-switch";
+
 export type LocalAIChatOperation =
   | {
       kind: "append";
       message: LocalAIMessage;
+      /**
+       * Bounded visible transcript used only when main must rotate away from
+       * a provider-native session after request admission. Ordinary resume
+       * paths still send only `message` to the provider.
+       */
+      recoveryMessages?: LocalAIMessage[];
     }
   | {
       kind: "bootstrap";
@@ -49,7 +57,7 @@ export type LocalAIChatOperation =
     }
   | {
       kind: "rebase";
-      reason: "edit" | "regenerate";
+      reason: LocalAIRebaseReason;
       sourceMessageId?: string;
       messages: LocalAIMessage[];
     };
@@ -82,6 +90,7 @@ export interface LocalAISerializableError {
   message: string;
   code?: string;
   stack?: string;
+  retryable?: boolean;
 }
 
 export interface LocalAIUsage {
@@ -123,6 +132,7 @@ export interface LocalAIProviderBindingState {
   providerId: string;
   modelId?: string;
   revision: number;
+  transcriptVersion: number;
   stale: boolean;
   updatedAt: string;
 }
@@ -130,6 +140,8 @@ export interface LocalAIProviderBindingState {
 export interface LocalAIConversationRuntimeState {
   conversationId: string;
   revision: number;
+  transcriptVersion: number;
+  lastCompletedProviderId?: string;
   memoryEpoch: number;
   memoryVersion: number;
   providers: LocalAIProviderBindingState[];
@@ -158,9 +170,50 @@ export interface LocalAIBranchConversationRequest {
   bootstrapMessages: LocalAIMessage[];
 }
 
+export interface LocalAIConversationLeaseRequest {
+  conversationId: string;
+  leaseToken: string;
+}
+
+export type LocalAITurnPersistenceStatus =
+  | "pending"
+  | "completed"
+  | "failed"
+  | "aborted"
+  | "uncertain"
+  | "interrupted";
+
+export interface LocalAITurnRuntimeStateRequest {
+  conversationId: string;
+  turnId: string;
+}
+
+export interface LocalAITurnRuntimeState {
+  conversationId: string;
+  turnId: string;
+  requestId: string;
+  providerId: string;
+  modelId?: string;
+  revision: number;
+  status: LocalAITurnPersistenceStatus;
+  startedAt: string;
+  completedAt?: string;
+  finishReason?: LocalAIFinishReason;
+  assistantText?: string;
+  assistantTextTruncated?: boolean;
+  error?: string;
+  rendererPersistedAt?: string;
+}
+
 export interface LocalAIDeleteConversationRequest {
   conversationId: string;
   forgetConversationMemory: boolean;
+  leaseToken: string;
+  /**
+   * Stable main-process idempotency key. Renderer callers omit this; the
+   * runtime supplies it from its durable deletion record before memory I/O.
+   */
+  operationId?: string;
 }
 
 export interface LocalAIResetProviderSessionRequest {
@@ -246,6 +299,17 @@ export interface LocalAIRuntimeService {
     | Promise<LocalAIConversationRuntimeState | null>
     | LocalAIConversationRuntimeState
     | null;
+  quiesceConversation(conversationId: string): Promise<string> | string;
+  resumeConversation(
+    conversationId: string,
+    leaseToken: string,
+  ): Promise<boolean> | boolean;
+  getTurnRuntimeState(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<LocalAITurnRuntimeState | null> | LocalAITurnRuntimeState | null;
+  acknowledgeTurnPersistence(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<boolean> | boolean;
   branchConversation(
     request: LocalAIBranchConversationRequest,
   ): Promise<LocalAIConversationRuntimeState> | LocalAIConversationRuntimeState;
@@ -279,6 +343,18 @@ export interface ILocalAIAPI {
   getConversationRuntimeState(
     conversationId: string,
   ): Promise<LocalAIResult<LocalAIConversationRuntimeState | null>>;
+  quiesceConversation(
+    conversationId: string,
+  ): Promise<LocalAIResult<{ quiesced: true; leaseToken: string }>>;
+  resumeConversation(
+    request: LocalAIConversationLeaseRequest,
+  ): Promise<LocalAIResult<{ resumed: boolean }>>;
+  getTurnRuntimeState(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<LocalAIResult<LocalAITurnRuntimeState | null>>;
+  acknowledgeTurnPersistence(
+    request: LocalAITurnRuntimeStateRequest,
+  ): Promise<LocalAIResult<{ acknowledged: boolean }>>;
   branchConversation(
     request: LocalAIBranchConversationRequest,
   ): Promise<LocalAIResult<LocalAIConversationRuntimeState>>;

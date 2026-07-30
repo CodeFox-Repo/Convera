@@ -9,10 +9,21 @@ import { AtomicJsonFile } from "./json-file";
 import { SerialTaskQueue } from "./serial-queue";
 
 export interface MemoryCandidateRepository extends MemoryCandidateSink {
-  listByTurn(turnId: string): Promise<MemoryCandidate[]>;
-  deleteByIds(ids: string[]): Promise<void>;
-  deleteByTurn(turnId: string): Promise<void>;
+  listByTurn(turnId: string, sourceId: string): Promise<MemoryCandidate[]>;
+  deleteByIds(ids: string[], sourceId: string): Promise<void>;
+  deleteByTurn(turnId: string, sourceId: string): Promise<void>;
   deleteByScope(scope: MemoryScope): Promise<void>;
+}
+
+function belongsToTurn(candidate: MemoryCandidate, turnId: string): boolean {
+  return (
+    candidate.turnId === turnId ||
+    candidate.turnId.startsWith(`${turnId}:memory:`)
+  );
+}
+
+function candidateKey(candidate: MemoryCandidate): string {
+  return `${candidate.sourceId ?? "legacy"}\0${candidate.id}`;
 }
 
 export class InMemoryMemoryCandidateRepository
@@ -21,34 +32,39 @@ export class InMemoryMemoryCandidateRepository
   private readonly candidates = new Map<string, MemoryCandidate>();
 
   async enqueue(candidate: MemoryCandidate): Promise<void> {
-    if (!this.candidates.has(candidate.id)) {
-      this.candidates.set(candidate.id, structuredClone(candidate));
+    const key = candidateKey(candidate);
+    if (!this.candidates.has(key)) {
+      this.candidates.set(key, structuredClone(candidate));
     }
   }
 
-  async listByTurn(turnId: string): Promise<MemoryCandidate[]> {
+  async listByTurn(
+    turnId: string,
+    sourceId: string,
+  ): Promise<MemoryCandidate[]> {
     return [...this.candidates.values()]
       .filter(
         (candidate) =>
-          candidate.turnId === turnId ||
-          candidate.turnId.startsWith(`${turnId}:memory:`),
+          candidate.sourceId === sourceId && belongsToTurn(candidate, turnId),
       )
       .map((candidate) => structuredClone(candidate));
   }
 
-  async deleteByTurn(turnId: string): Promise<void> {
-    for (const [id, candidate] of this.candidates) {
-      if (
-        candidate.turnId === turnId ||
-        candidate.turnId.startsWith(`${turnId}:memory:`)
-      ) {
-        this.candidates.delete(id);
+  async deleteByTurn(turnId: string, sourceId: string): Promise<void> {
+    for (const [key, candidate] of this.candidates) {
+      if (candidate.sourceId === sourceId && belongsToTurn(candidate, turnId)) {
+        this.candidates.delete(key);
       }
     }
   }
 
-  async deleteByIds(ids: string[]): Promise<void> {
-    for (const id of ids) this.candidates.delete(id);
+  async deleteByIds(ids: string[], sourceId: string): Promise<void> {
+    const targets = new Set(ids);
+    for (const [key, candidate] of this.candidates) {
+      if (candidate.sourceId === sourceId && targets.has(candidate.id)) {
+        this.candidates.delete(key);
+      }
+    }
   }
 
   async deleteByScope(scope: MemoryScope): Promise<void> {
@@ -100,31 +116,36 @@ export class JsonMemoryCandidateRepository
   async enqueue(candidate: MemoryCandidate): Promise<void> {
     await this.writes.run(async () => {
       const state = await this.readState();
-      if (!state.candidates.some((existing) => existing.id === candidate.id)) {
+      if (
+        !state.candidates.some(
+          (existing) => candidateKey(existing) === candidateKey(candidate),
+        )
+      ) {
         state.candidates.push(structuredClone(candidate));
         await this.file.write(state);
       }
     });
   }
 
-  async listByTurn(turnId: string): Promise<MemoryCandidate[]> {
+  async listByTurn(
+    turnId: string,
+    sourceId: string,
+  ): Promise<MemoryCandidate[]> {
     const state = await this.readState();
     return state.candidates
       .filter(
         (candidate) =>
-          candidate.turnId === turnId ||
-          candidate.turnId.startsWith(`${turnId}:memory:`),
+          candidate.sourceId === sourceId && belongsToTurn(candidate, turnId),
       )
       .map((candidate) => structuredClone(candidate));
   }
 
-  async deleteByTurn(turnId: string): Promise<void> {
+  async deleteByTurn(turnId: string, sourceId: string): Promise<void> {
     await this.writes.run(async () => {
       const state = await this.readState();
       const next = state.candidates.filter(
         (candidate) =>
-          candidate.turnId !== turnId &&
-          !candidate.turnId.startsWith(`${turnId}:memory:`),
+          candidate.sourceId !== sourceId || !belongsToTurn(candidate, turnId),
       );
       if (next.length === state.candidates.length) return;
       state.candidates = next;
@@ -132,13 +153,14 @@ export class JsonMemoryCandidateRepository
     });
   }
 
-  async deleteByIds(ids: string[]): Promise<void> {
+  async deleteByIds(ids: string[], sourceId: string): Promise<void> {
     if (ids.length === 0) return;
     const targets = new Set(ids);
     await this.writes.run(async () => {
       const state = await this.readState();
       const next = state.candidates.filter(
-        (candidate) => !targets.has(candidate.id),
+        (candidate) =>
+          candidate.sourceId !== sourceId || !targets.has(candidate.id),
       );
       if (next.length === state.candidates.length) return;
       state.candidates = next;

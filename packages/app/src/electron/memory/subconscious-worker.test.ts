@@ -26,6 +26,7 @@ const timestamp = "2026-07-31T00:00:00.000Z";
 function turn(id: string): CompletedMemoryTurn {
   return {
     turnId: id,
+    sourceId: "letta:source-a",
     scope,
     userContent: "Remember the selected architecture.",
     assistantContent: "Letta stores memory and native sessions store history.",
@@ -332,6 +333,57 @@ describe("SubconsciousWorker", () => {
     worker.dispose();
   });
 
+  it("keeps foreign-source jobs paused until a matching worker is restored", async () => {
+    const persisted: PersistedSubconsciousJob = {
+      state: {
+        id: "memory-job-8",
+        turnIds: ["turn-source-a"],
+        scope,
+        status: "queued",
+        attempts: 0,
+      },
+      turn: turn("turn-source-a"),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const jobs = new InMemorySubconsciousJobRepository([persisted]);
+    const foreignCurator = vi.fn(async (input: CuratorInput) =>
+      patchFor(input),
+    );
+    const foreignWorker = new SubconsciousWorker({
+      store: setup(),
+      curator: { curate: foreignCurator },
+      sourceId: "letta:source-b",
+      schedule: "every-turn",
+      jobRepository: jobs,
+      retryBaseMs: 0,
+    });
+
+    await foreignWorker.initialize();
+    await foreignWorker.flush();
+    expect(foreignCurator).not.toHaveBeenCalled();
+    expect(foreignWorker.getState("memory-job-8")?.status).toBe("queued");
+    await foreignWorker.stop();
+
+    const matchingCurator = vi.fn(async (input: CuratorInput) =>
+      patchFor(input),
+    );
+    const matchingWorker = new SubconsciousWorker({
+      store: setup(),
+      curator: { curate: matchingCurator },
+      sourceId: "letta:source-a",
+      schedule: "every-turn",
+      jobRepository: jobs,
+      retryBaseMs: 0,
+    });
+    await matchingWorker.initialize();
+    await matchingWorker.flush();
+
+    expect(matchingCurator).toHaveBeenCalledOnce();
+    expect(matchingWorker.getState("memory-job-8")?.status).toBe("completed");
+    matchingWorker.dispose();
+  });
+
   it("recovers and completes an interrupted job from the atomic JSON repository", async () => {
     const directory = await mkdtemp(
       path.join(os.tmpdir(), "convera-memory-jobs-"),
@@ -381,6 +433,35 @@ describe("SubconsciousWorker", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it("deduplicates a replayed turn and scope after job persistence and restart", async () => {
+    const jobs = new InMemorySubconsciousJobRepository();
+    const completedTurn = {
+      ...turn("turn-idempotent"),
+      eligibleForMemory: false,
+    };
+    const first = new SubconsciousWorker({
+      store: setup(),
+      curator: { curate: async (input) => patchFor(input) },
+      schedule: "batch",
+      batchSize: 10,
+      jobRepository: jobs,
+    });
+    expect(await first.enqueue(completedTurn)).toBe("memory-job-1");
+    await first.stop();
+
+    const recovered = new SubconsciousWorker({
+      store: setup(),
+      curator: { curate: async (input) => patchFor(input) },
+      schedule: "batch",
+      batchSize: 10,
+      jobRepository: jobs,
+    });
+    await recovered.initialize();
+    expect(await recovered.enqueue(completedTurn)).toBe("memory-job-1");
+    expect(await jobs.list()).toHaveLength(1);
+    recovered.dispose();
   });
 
   it("rejects an unknown job schema without overwriting it", async () => {

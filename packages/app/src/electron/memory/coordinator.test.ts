@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { LocalAiRuntime } from "../ai/runtime";
+import { InMemorySessionStateRepository } from "../ai/session/repository";
 import {
   InMemoryMemoryCandidateRepository,
   type MemoryCandidateRepository,
@@ -30,7 +32,9 @@ function secretCodec(): SecretCodec {
 function setup(
   callbacks: Pick<
     ConstructorParameters<typeof MemoryIntegrationCoordinator>[0],
-    "onConversationMemoryObserved" | "onMemoryContextChanged"
+    | "onConversationMemoryObserved"
+    | "onMemoryContextChanged"
+    | "onMemoryScopeForgotten"
   > = {},
 ) {
   const settings = new MemorySettingsRepository(
@@ -116,6 +120,7 @@ describe("MemoryIntegrationCoordinator", () => {
       "memory:status",
     ]);
     expect(prepared.contextToken).toMatchObject({
+      sourceId: await settings.getSourceId(),
       conversationId: "conversation-1",
       scopes: [
         { kind: "user", id: "local-user" },
@@ -199,6 +204,7 @@ describe("MemoryIntegrationCoordinator", () => {
 
     await candidates.enqueue({
       id: "turn-2:memory:1",
+      sourceId: await settings.getSourceId(),
       scope: { kind: "user", id: "local-user" },
       turnId: "turn-2:memory:1",
       provenance: {
@@ -227,7 +233,308 @@ describe("MemoryIntegrationCoordinator", () => {
       .slice(1)
       .map((call) => call[0].scope.kind);
     expect(secondTurnScopes).toEqual(["user", "conversation"]);
-    expect(await candidates.listByTurn("turn-2")).toEqual([]);
+    expect(
+      await candidates.listByTurn("turn-2", await settings.getSourceId()),
+    ).toEqual([]);
+  });
+
+  it("uses the durable terminal time when replaying completion curation", async () => {
+    const { coordinator, jobs, settings } = setup();
+    await settings.update({
+      provider: "letta",
+      curator: "codex-cli",
+      schedule: "batch",
+      batchSize: 10,
+    });
+    const prepared = await prepare(coordinator, "turn-terminal-time");
+    const terminalAt = "2026-07-31T01:00:00.000Z";
+
+    await coordinator.replayDurableTurnHook({
+      hookId: "turn-terminal-time",
+      turnId: "turn-terminal-time",
+      conversationId: "conversation-1",
+      outcome: "completed",
+      status: "pending",
+      payload: {
+        kind: "memory-turn",
+        sourceId: prepared.contextToken!.sourceId,
+        turnId: "turn-terminal-time",
+        conversationId: "conversation-1",
+        revision: 0,
+        providerId: "codex-cli",
+        scopes: prepared.contextToken!.scopes,
+        userContent: "stable chronology",
+        assistantContent: "persist the original completion time",
+      },
+      attempts: 2,
+      retryable: true,
+      createdAt: timestamp,
+      terminalAt,
+      updatedAt: "2026-07-31T03:00:00.000Z",
+    });
+
+    expect((await jobs.list())[0]?.turn.completedAt).toBe(terminalAt);
+  });
+
+  it("pauses a durable hook across Letta source changes and resumes it only for its original source", async () => {
+    const { coordinator, jobs, settings } = setup();
+    await settings.update({
+      provider: "letta",
+      curator: "codex-cli",
+      schedule: "batch",
+      batchSize: 10,
+    });
+    const originalSettings = await coordinator.getMemorySettings();
+    const prepared = await prepare(coordinator, "turn-source-bound-hook");
+    const sourceId = prepared.contextToken!.sourceId;
+    const hook = {
+      hookId: "turn-source-bound-hook",
+      turnId: "turn-source-bound-hook",
+      conversationId: "conversation-1",
+      outcome: "completed" as const,
+      status: "pending" as const,
+      payload: {
+        kind: "memory-turn" as const,
+        sourceId,
+        turnId: "turn-source-bound-hook",
+        conversationId: "conversation-1",
+        revision: 0,
+        providerId: "codex-cli" as const,
+        scopes: prepared.contextToken!.scopes,
+        userContent: "Keep this work bound to its original Letta source.",
+        assistantContent: "Do not replay it into replacement storage.",
+      },
+      attempts: 0,
+      retryable: true,
+      createdAt: timestamp,
+      terminalAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await coordinator.updateMemorySettings({
+      baseURL: "http://127.0.0.1:9999",
+    });
+    await expect(coordinator.replayDurableTurnHook(hook)).rejects.toMatchObject(
+      {
+        code: "CONFIGURATION",
+        retryable: false,
+      },
+    );
+    expect(await jobs.list()).toEqual([]);
+
+    await coordinator.updateMemorySettings({
+      baseURL: originalSettings.baseURL,
+    });
+    await coordinator.replayDurableTurnHook(hook);
+    expect(await jobs.list()).toEqual([
+      expect.objectContaining({
+        turn: expect.objectContaining({
+          sourceId,
+          turnId: "turn-source-bound-hook:conversation",
+        }),
+      }),
+    ]);
+  });
+
+  it("retains durable curation while memory is disabled and resumes after settings repair", async () => {
+    const { coordinator, jobs, settings } = setup();
+    await settings.update({
+      provider: "letta",
+      curator: "codex-cli",
+      schedule: "batch",
+      batchSize: 10,
+    });
+    const prepared = await prepare(coordinator, "turn-disabled-hook");
+    const sourceId = prepared.contextToken!.sourceId;
+    const hook = {
+      hookId: "turn-disabled-hook",
+      turnId: "turn-disabled-hook",
+      conversationId: "conversation-1",
+      outcome: "completed" as const,
+      status: "pending" as const,
+      payload: {
+        kind: "memory-turn" as const,
+        sourceId,
+        turnId: "turn-disabled-hook",
+        conversationId: "conversation-1",
+        revision: 0,
+        providerId: "codex-cli" as const,
+        scopes: prepared.contextToken!.scopes,
+        userContent: "Retain this work while memory is disabled.",
+        assistantContent: "Replay only after settings are repaired.",
+      },
+      attempts: 0,
+      retryable: true,
+      createdAt: timestamp,
+      terminalAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await coordinator.updateMemorySettings({ provider: "off" });
+    await expect(coordinator.replayDurableTurnHook(hook)).rejects.toMatchObject(
+      {
+        code: "CONFIGURATION",
+        retryable: false,
+      },
+    );
+    expect(await jobs.list()).toEqual([]);
+
+    await coordinator.updateMemorySettings({ provider: "letta" });
+    await coordinator.replayDurableTurnHook(hook);
+    expect(await jobs.list()).toEqual([
+      expect.objectContaining({
+        turn: expect.objectContaining({ sourceId }),
+      }),
+    ]);
+  });
+
+  it("curates and removes only exact-source candidates when sources share a turn id", async () => {
+    const { candidates, coordinator, jobs, settings } = setup();
+    await settings.update({
+      provider: "letta",
+      curator: "codex-cli",
+      schedule: "batch",
+      batchSize: 10,
+    });
+    const prepared = await prepare(coordinator, "turn-shared");
+    const sourceId = prepared.contextToken!.sourceId as string;
+    const foreignSourceId = "letta:foreign-source";
+    const candidate = {
+      id: "turn-shared:memory:1",
+      scope: { kind: "conversation" as const, id: "conversation-1" },
+      turnId: "turn-shared:memory:1",
+      provenance: {
+        actor: "primary-agent" as const,
+        turnId: "turn-shared:memory:1",
+        timestamp,
+        providerId: "codex-cli",
+      },
+      operation: {
+        type: "upsert_block" as const,
+        label: "decision",
+        value: "Keep source-local candidates isolated.",
+      },
+    };
+    await candidates.enqueue({ ...candidate, sourceId });
+    await candidates.enqueue({ ...candidate, sourceId: foreignSourceId });
+
+    await coordinator.replayDurableTurnHook({
+      hookId: "turn-shared",
+      turnId: "turn-shared",
+      conversationId: "conversation-1",
+      outcome: "completed",
+      status: "pending",
+      payload: {
+        kind: "memory-turn",
+        sourceId,
+        turnId: "turn-shared",
+        conversationId: "conversation-1",
+        revision: 0,
+        providerId: "codex-cli",
+        scopes: prepared.contextToken!.scopes,
+        userContent: "Complete source A without consuming source B.",
+        assistantContent: "Only exact-source candidates enter the job.",
+      },
+      attempts: 0,
+      retryable: true,
+      createdAt: timestamp,
+      terminalAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    expect((await jobs.list())[0]?.turn.candidates).toEqual([
+      expect.objectContaining({ sourceId }),
+    ]);
+    await coordinator.flushSubconscious();
+    await expect(
+      candidates.listByTurn("turn-shared", sourceId),
+    ).resolves.toEqual([]);
+    await expect(
+      candidates.listByTurn("turn-shared", foreignSourceId),
+    ).resolves.toHaveLength(1);
+  });
+
+  it("cleans a failed turn only inside the hook source", async () => {
+    const { candidates, coordinator } = setup();
+    const sourceId = "letta:source-a";
+    const foreignSourceId = "letta:source-b";
+    const candidate = {
+      id: "turn-failed-shared:memory:1",
+      scope: { kind: "conversation" as const, id: "conversation-1" },
+      turnId: "turn-failed-shared:memory:1",
+      provenance: {
+        actor: "primary-agent" as const,
+        turnId: "turn-failed-shared:memory:1",
+        timestamp,
+      },
+      operation: {
+        type: "upsert_block" as const,
+        label: "failed",
+        value: "Clean only the failed source.",
+      },
+    };
+    await candidates.enqueue({ ...candidate, sourceId });
+    await candidates.enqueue({ ...candidate, sourceId: foreignSourceId });
+
+    await coordinator.replayDurableTurnHook({
+      hookId: "turn-failed-shared",
+      turnId: "turn-failed-shared",
+      conversationId: "conversation-1",
+      outcome: "failed",
+      status: "pending",
+      payload: {
+        kind: "memory-turn",
+        sourceId,
+        turnId: "turn-failed-shared",
+        conversationId: "conversation-1",
+        revision: 0,
+        providerId: "codex-cli",
+        scopes: [{ kind: "conversation", id: "conversation-1" }],
+        userContent: "This turn failed.",
+      },
+      attempts: 0,
+      retryable: true,
+      createdAt: timestamp,
+      terminalAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    await expect(
+      candidates.listByTurn("turn-failed-shared", sourceId),
+    ).resolves.toEqual([]);
+    await expect(
+      candidates.listByTurn("turn-failed-shared", foreignSourceId),
+    ).resolves.toHaveLength(1);
+
+    await candidates.enqueue({ ...candidate, sourceId });
+    await coordinator.onTurnFailed({
+      request: {
+        requestId: "request-failed-shared",
+        conversationId: "conversation-1",
+        turnId: "turn-failed-shared",
+        providerId: "codex-cli",
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "This turn also failed." },
+        },
+      },
+      error: { name: "Error", message: "provider failed" },
+      providerMayHaveAdvanced: false,
+      contextToken: {
+        kind: "convera-memory-turn",
+        sourceId,
+        turnId: "turn-failed-shared",
+        conversationId: "conversation-1",
+        revision: 0,
+        scopes: [{ kind: "conversation", id: "conversation-1" }],
+      },
+    });
+    await expect(
+      candidates.listByTurn("turn-failed-shared", sourceId),
+    ).resolves.toEqual([]);
+    await expect(
+      candidates.listByTurn("turn-failed-shared", foreignSourceId),
+    ).resolves.toHaveLength(1);
   });
 
   it("reports observed conversation memory and rotates sessions when the context source changes", async () => {
@@ -324,10 +631,10 @@ describe("MemoryIntegrationCoordinator", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    candidates.listByTurn = vi.fn(async (turnId) => {
+    candidates.listByTurn = vi.fn(async (turnId, sourceId) => {
       markStarted?.();
       await gate;
-      return originalList(turnId);
+      return originalList(turnId, sourceId);
     });
 
     const completing = coordinator.completeTurn({
@@ -387,6 +694,55 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
+  it("keeps a late candidate from an old tool closure bound to its prepared source", async () => {
+    const { candidates, coordinator, settings } = setup();
+    await settings.update({ provider: "letta", curator: "off" });
+    const prepared = await prepare(coordinator, "turn-late-tool");
+    const originalSourceId = prepared.contextToken!.sourceId as string;
+    const learn = prepared.additionalTools.find(
+      (tool) => tool.qualifiedName === "memory:learn",
+    );
+    const originalEnqueue = candidates.enqueue.bind(candidates);
+    let markStarted: (() => void) | undefined;
+    let release: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    candidates.enqueue = vi.fn(async (candidate) => {
+      markStarted?.();
+      await gate;
+      await originalEnqueue(candidate);
+    });
+
+    const executing = learn!.execute({
+      storage: "block",
+      label: "late",
+      content: "This candidate started before the source switch.",
+    });
+    await started;
+    await coordinator.updateMemorySettings({
+      baseURL: "http://127.0.0.1:9999",
+    });
+    const replacementSourceId = await settings.getSourceId();
+    release?.();
+    await expect(executing).resolves.toMatchObject({
+      ok: true,
+      status: "queued",
+    });
+
+    await expect(
+      candidates.listByTurn("turn-late-tool", originalSourceId),
+    ).resolves.toEqual([
+      expect.objectContaining({ sourceId: originalSourceId }),
+    ]);
+    await expect(
+      candidates.listByTurn("turn-late-tool", replacementSourceId),
+    ).resolves.toEqual([]);
+  });
+
   it("hydrates and flushes persisted jobs without requiring a new turn", async () => {
     const { coordinator, curate, jobs, settings } = setup();
     await settings.update({
@@ -404,6 +760,7 @@ describe("MemoryIntegrationCoordinator", () => {
       },
       turn: {
         turnId: "persisted-turn",
+        sourceId: await settings.getSourceId(),
         conversationId: "conversation-1",
         scope: { kind: "conversation", id: "conversation-1" },
         userContent: "Remember after restart.",
@@ -438,6 +795,7 @@ describe("MemoryIntegrationCoordinator", () => {
       },
       turn: {
         turnId: "status-recovery-turn",
+        sourceId: await settings.getSourceId(),
         conversationId: "conversation-1",
         scope: { kind: "conversation", id: "conversation-1" },
         userContent: "Recover from status.",
@@ -581,5 +939,143 @@ describe("MemoryIntegrationCoordinator", () => {
       epoch: 1,
       blockIds: {},
     });
+  });
+
+  it("replays deletion after response loss without forgetting an empty tombstone twice", async () => {
+    const onMemoryScopeForgotten = vi.fn(async () => undefined);
+    const { api, candidates, coordinator, indexes, jobs, settings } = setup({
+      onMemoryScopeForgotten,
+    });
+    const scope = {
+      kind: "conversation" as const,
+      id: "response-loss-conversation",
+    };
+    await settings.update({ provider: "letta", curator: "off" });
+    const store = new LettaMemoryStore({
+      api,
+      indexRepository: indexes,
+      sourceId: await settings.getSourceId(),
+      now: () => new Date(timestamp),
+    });
+    await store.applyPatch({
+      scope,
+      baseVersion: 0,
+      turnId: "seed-response-loss-delete",
+      provenance: {
+        actor: "system",
+        turnId: "seed-response-loss-delete",
+        timestamp,
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "working_state",
+          value: "Delete exactly once.",
+        },
+      ],
+    });
+
+    class FailFirstSessionDeleteRepository extends InMemorySessionStateRepository {
+      private failNextDelete = true;
+
+      override async completeConversationDeletion(conversationId: string) {
+        if (this.failNextDelete) {
+          this.failNextDelete = false;
+          throw new Error("injected session delete response loss");
+        }
+        return super.completeConversationDeletion(conversationId);
+      }
+    }
+
+    const sessions = new FailFirstSessionDeleteRepository();
+    await sessions.branchConversation("missing-source", scope.id);
+    const runtime = new LocalAiRuntime({
+      adapters: [],
+      sessionRepository: sessions,
+      memoryService: coordinator,
+    });
+
+    const firstLease = await runtime.quiesceConversation(scope.id);
+    await expect(
+      runtime.deleteConversation({
+        conversationId: scope.id,
+        forgetConversationMemory: true,
+        leaseToken: firstLease,
+      }),
+    ).rejects.toThrow("injected session delete response loss");
+    expect(await indexes.get(scope)).toMatchObject({
+      version: 2,
+      epoch: 1,
+      blockIds: {},
+    });
+    expect(onMemoryScopeForgotten).toHaveBeenCalledOnce();
+    expect(api.calls.filter((call) => call === "deleteBlock")).toHaveLength(1);
+
+    await candidates.enqueue({
+      id: "late-candidate",
+      scope,
+      turnId: "late-turn",
+      provenance: {
+        actor: "primary-agent",
+        turnId: "late-turn",
+        timestamp,
+      },
+      operation: {
+        type: "upsert_block",
+        label: "late",
+        value: "Must still be cleaned during replay.",
+      },
+    });
+    await jobs.put({
+      state: {
+        id: "late-job",
+        turnIds: ["late-turn"],
+        scope,
+        status: "queued",
+        attempts: 0,
+      },
+      turn: {
+        turnId: "late-turn",
+        conversationId: scope.id,
+        scope,
+        userContent: "Late",
+        assistantContent: "Cleanup",
+        completedAt: timestamp,
+      },
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    const retryLease = await runtime.quiesceConversation(scope.id);
+    await expect(
+      runtime.deleteConversation({
+        conversationId: scope.id,
+        forgetConversationMemory: true,
+        leaseToken: retryLease,
+      }),
+    ).resolves.toBe(true);
+    expect(await sessions.getConversation(scope.id)).toBeUndefined();
+    expect(
+      await candidates.listByTurn("late-turn", await settings.getSourceId()),
+    ).toEqual([]);
+    expect(await jobs.list()).toEqual([]);
+
+    // The renderer may replay once more after main completed but its response
+    // was lost. Main deletion remains idempotent and memory stays at epoch 1.
+    const replayLease = await runtime.quiesceConversation(scope.id);
+    await expect(
+      runtime.deleteConversation({
+        conversationId: scope.id,
+        forgetConversationMemory: true,
+        leaseToken: replayLease,
+      }),
+    ).resolves.toBe(true);
+    expect(await indexes.get(scope)).toMatchObject({
+      version: 2,
+      epoch: 1,
+      blockIds: {},
+    });
+    expect(onMemoryScopeForgotten).toHaveBeenCalledOnce();
+    expect(api.calls.filter((call) => call === "deleteBlock")).toHaveLength(1);
   });
 });

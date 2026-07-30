@@ -87,6 +87,7 @@ describe("CodexCliAdapter", () => {
         nativeSessionId: "thread-existing",
         cwd: "/workspace",
         stale: false,
+        transcriptVersion: 2,
         memoryCursors: {},
         updatedAt: new Date(0).toISOString(),
       },
