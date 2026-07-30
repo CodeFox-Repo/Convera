@@ -8,8 +8,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MCPHub } from "./hub";
+import * as managedServers from "./managed-servers";
 
 vi.mock("electron", () => ({
   app: {
@@ -28,12 +30,17 @@ function configPath(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const directory of tempDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
 describe("managed Cua MCP server", () => {
+  it("supports the protocol version used by the official Cua Driver", () => {
+    expect(SUPPORTED_PROTOCOL_VERSIONS).toContain("2025-06-18");
+  });
+
   it("adds the official cua-driver stdio server to the default config", () => {
     const path = configPath();
     const hub = new MCPHub(path);
@@ -106,9 +113,12 @@ describe("managed Cua MCP server", () => {
 
   it("does not block startup and reports a clear error when cua-driver is missing", async () => {
     const hub = new MCPHub(configPath());
-    const originalPath = process.env.PATH;
-    process.env.PATH = mkdtempSync(join(tmpdir(), "convera-empty-path-"));
-    tempDirectories.push(process.env.PATH);
+    vi.spyOn(
+      managedServers,
+      "resolveManagedStdioExecutable",
+    ).mockImplementation(() => {
+      throw new Error("executable 'cua-driver' was not found on PATH");
+    });
 
     try {
       await expect(hub.initialize()).resolves.toBeUndefined();
@@ -122,11 +132,6 @@ describe("managed Cua MCP server", () => {
         });
       });
     } finally {
-      if (originalPath === undefined) {
-        delete process.env.PATH;
-      } else {
-        process.env.PATH = originalPath;
-      }
       await hub.cleanup();
     }
   });
