@@ -117,25 +117,25 @@ describe("local AI IPC", () => {
     listener?.(
       {},
       {
-        type: "delta",
+        type: "ui-message",
         requestId: "request-2",
-        text: "ignore",
+        chunk: { type: "text-delta", id: "text-1", delta: "ignore" },
       },
     );
     listener?.(
       {},
       {
-        type: "delta",
+        type: "ui-message",
         requestId: "request-1",
-        text: "hello",
+        chunk: { type: "text-delta", id: "text-1", delta: "hello" },
       },
     );
 
     expect(callback).toHaveBeenCalledOnce();
     expect(callback).toHaveBeenCalledWith({
-      type: "delta",
+      type: "ui-message",
       requestId: "request-1",
-      text: "hello",
+      chunk: { type: "text-delta", id: "text-1", delta: "hello" },
     });
 
     unsubscribe();
@@ -152,9 +152,9 @@ describe("local AI IPC", () => {
     const runtime = createRuntime({
       startChat: vi.fn((_request, emit) => {
         emit({
-          type: "delta",
+          type: "ui-message",
           requestId: "runtime-cannot-change-owner",
-          text: "hello",
+          chunk: { type: "text-delta", id: "text-1", delta: "hello" },
         });
         emit({
           type: "finish",
@@ -194,9 +194,9 @@ describe("local AI IPC", () => {
       {
         channel: LOCAL_AI_CHANNELS.EVENT,
         event: {
-          type: "delta",
+          type: "ui-message",
           requestId: "request-1",
-          text: "hello",
+          chunk: { type: "text-delta", id: "text-1", delta: "hello" },
         },
       },
       {

@@ -1,7 +1,16 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { Markdown } from "@/renderer/components/common/markdown";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
-import type { UIMessage } from "@/renderer/types/chat";
+import type {
+  MessagePart,
+  ToolInvocation,
+  UIMessage,
+} from "@/renderer/types/chat";
+import {
+  getToolName,
+  isToolUIPart,
+  type UIMessage as AISDKUIMessage,
+} from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
@@ -10,20 +19,56 @@ import { TOOL_COMPONENTS } from "../tools";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
 
-/**
- * Type definitions for tool invocations
- */
-interface ToolInvocation {
-  toolCallId: string;
-  toolName: string;
-  state: "partial-call" | "call" | "result";
-  args?: Record<string, unknown>;
-  result?: string | { message?: string; [key: string]: unknown };
+function normalizeToolArgs(input: unknown): Record<string, unknown> {
+  if (input && typeof input === "object" && !Array.isArray(input)) {
+    return input as Record<string, unknown>;
+  }
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return { input };
+    }
+  }
+  return input === undefined ? {} : { input };
 }
 
-interface ToolPart {
-  type: "tool-invocation";
-  toolInvocation: ToolInvocation;
+function toToolInvocation(part: MessagePart): ToolInvocation | undefined {
+  if ("toolInvocation" in part) {
+    return part.toolInvocation;
+  }
+
+  const sdkPart = part as AISDKUIMessage["parts"][number];
+  if (!isToolUIPart(sdkPart)) return undefined;
+
+  const completed =
+    sdkPart.state === "output-available" ||
+    sdkPart.state === "output-error" ||
+    sdkPart.state === "output-denied";
+  const result =
+    sdkPart.state === "output-available"
+      ? sdkPart.output
+      : sdkPart.state === "output-error"
+        ? { error: sdkPart.errorText }
+        : sdkPart.state === "output-denied"
+          ? { error: "Tool execution was denied." }
+          : undefined;
+
+  return {
+    toolCallId: sdkPart.toolCallId,
+    toolName: getToolName(sdkPart),
+    args: normalizeToolArgs(sdkPart.input),
+    state:
+      sdkPart.state === "input-streaming"
+        ? "partial-call"
+        : completed
+          ? "result"
+          : "call",
+    ...(completed ? { result } : {}),
+  };
 }
 
 interface ChatContentProps {
@@ -208,10 +253,9 @@ export default function ChatContent({
   );
 
   // Render tool calls with detailed information
-  const renderToolCall = useCallback((part: ToolPart, index: number) => {
-    if (!part.toolInvocation) return null;
-
-    const toolInvocation = part.toolInvocation;
+  const renderToolCall = useCallback((part: MessagePart, index: number) => {
+    const toolInvocation = toToolInvocation(part);
+    if (!toolInvocation) return null;
     const toolName = toolInvocation.toolName || "Tool";
     const rendererName = toolName.includes(":")
       ? toolName.slice(toolName.lastIndexOf(":") + 1)
@@ -233,16 +277,22 @@ export default function ChatContent({
     const args = toolInvocation.args || {};
     let result = "Pending result...";
 
-    if (toolInvocation.result) {
+    if (toolInvocation.result !== undefined) {
       if (typeof toolInvocation.result === "string") {
         result = toolInvocation.result;
-      } else if (typeof toolInvocation.result === "object") {
+      } else if (
+        toolInvocation.result &&
+        typeof toolInvocation.result === "object"
+      ) {
         // Try to extract message from result object if it exists
-        if (toolInvocation.result.message) {
-          result = toolInvocation.result.message as string;
+        const resultObject = toolInvocation.result as Record<string, unknown>;
+        if (resultObject.message) {
+          result = String(resultObject.message);
         } else {
           result = JSON.stringify(toolInvocation.result, null, 2);
         }
+      } else {
+        result = String(toolInvocation.result);
       }
     }
 
@@ -277,11 +327,8 @@ export default function ChatContent({
               {renderMessageContent(part.text, message.id, isStreaming)}
             </div>,
           );
-        } else if (
-          part.type === "tool-invocation" &&
-          "toolInvocation" in part
-        ) {
-          contentElements.push(renderToolCall(part as ToolPart, index));
+        } else if (toToolInvocation(part)) {
+          contentElements.push(renderToolCall(part, index));
         }
       });
 

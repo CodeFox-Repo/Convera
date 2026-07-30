@@ -4,6 +4,8 @@
  * or other process-owned objects on this boundary.
  */
 
+import type { UIMessageChunk } from "ai";
+
 export type LocalAIProviderKind =
   | "claude-code"
   | "codex-cli"
@@ -72,12 +74,6 @@ export interface LocalAIInteractionResponse {
   value?: string;
 }
 
-export type LocalAIToolState =
-  | "input-streaming"
-  | "input-available"
-  | "output-available"
-  | "output-error";
-
 export type LocalAIFinishReason =
   | "stop"
   | "length"
@@ -89,19 +85,9 @@ export type LocalAIFinishReason =
 
 export type LocalAIStreamEvent =
   | {
-      type: "delta";
+      type: "ui-message";
       requestId: string;
-      text: string;
-    }
-  | {
-      type: "tool";
-      requestId: string;
-      toolCallId: string;
-      name: string;
-      state: LocalAIToolState;
-      input?: unknown;
-      output?: unknown;
-      error?: LocalAISerializableError;
+      chunk: UIMessageChunk;
     }
   | {
       type: "error";

@@ -1,3 +1,5 @@
+import type { UIMessage as AISDKUIMessage } from "ai";
+
 export interface Attachment {
   url: string;
   name?: string;
@@ -12,7 +14,7 @@ export interface ToolInvocation {
   result?: unknown;
 }
 
-export type MessagePart =
+export type LegacyMessagePart =
   | {
       type: "text";
       text: string;
@@ -21,6 +23,8 @@ export type MessagePart =
       type: "tool-invocation";
       toolInvocation: ToolInvocation;
     };
+
+export type MessagePart = AISDKUIMessage["parts"][number] | LegacyMessagePart;
 
 /**
  * Renderer and Dexie use the stable, content-based message shape that Convera

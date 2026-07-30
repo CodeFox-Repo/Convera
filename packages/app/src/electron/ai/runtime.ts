@@ -9,7 +9,12 @@ import type {
   LocalAIStreamEvent,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
-import { streamText, type LanguageModel, type ModelMessage } from "ai";
+import {
+  streamText,
+  type LanguageModel,
+  type ModelMessage,
+  type UIMessageChunk,
+} from "ai";
 import { randomUUID } from "node:crypto";
 import {
   createAgentToolCatalog,
@@ -27,10 +32,14 @@ import {
   type LocalAiProviderStatus as ProbeStatus,
 } from "./types";
 
-type RuntimeStreamPart = Record<string, unknown> & { type: string };
-
 interface RuntimeStreamResult {
-  fullStream: AsyncIterable<RuntimeStreamPart>;
+  toUIMessageStream(options?: {
+    onError?: (error: unknown) => string;
+    sendReasoning?: boolean;
+    sendSources?: boolean;
+  }): AsyncIterable<UIMessageChunk>;
+  finishReason?: PromiseLike<unknown>;
+  usage?: PromiseLike<unknown>;
 }
 
 interface RuntimeStreamOptions {
@@ -171,19 +180,6 @@ function usageFrom(value: unknown): LocalAIUsage | undefined {
   }
 
   return { inputTokens, outputTokens, totalTokens };
-}
-
-function stringField(
-  part: RuntimeStreamPart,
-  ...fields: string[]
-): string | undefined {
-  for (const field of fields) {
-    const value = part[field];
-    if (typeof value === "string") {
-      return value;
-    }
-  }
-  return undefined;
 }
 
 interface PendingInteraction {
@@ -450,144 +446,32 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     const eventNames = new Map(
       tools.map((tool) => [tool.name, tool.qualifiedName]),
     );
-    const toolNames = new Map<string, string>();
-    const toolInputs = new Map<string, string>();
-    let terminalEventEmitted = false;
+    let streamedFinishReason: LocalAIFinishReason = "unknown";
 
-    for await (const part of result.fullStream) {
-      switch (part.type) {
-        case "text-delta": {
-          const text = stringField(part, "text");
-          if (text) {
-            emit({ type: "delta", requestId, text });
-          }
-          break;
-        }
-        case "tool-input-start": {
-          const toolCallId = stringField(part, "id") ?? "unknown";
-          const name = this.toolEventName(
-            stringField(part, "toolName") ?? "unknown",
-            eventNames,
-          );
-          toolNames.set(toolCallId, name);
-          toolInputs.set(toolCallId, "");
-          emit({
-            type: "tool",
-            requestId,
-            toolCallId,
-            name,
-            state: "input-streaming",
-          });
-          break;
-        }
-        case "tool-input-delta": {
-          const toolCallId = stringField(part, "id") ?? "unknown";
-          const delta = stringField(part, "delta") ?? "";
-          const input = `${toolInputs.get(toolCallId) ?? ""}${delta}`;
-          toolInputs.set(toolCallId, input);
-          emit({
-            type: "tool",
-            requestId,
-            toolCallId,
-            name: toolNames.get(toolCallId) ?? "unknown",
-            state: "input-streaming",
-            input,
-          });
-          break;
-        }
-        case "tool-call": {
-          const toolCallId = stringField(part, "toolCallId", "id") ?? "unknown";
-          const name =
-            this.toolEventName(
-              stringField(part, "toolName") ?? "",
-              eventNames,
-            ) ||
-            toolNames.get(toolCallId) ||
-            "unknown";
-          emit({
-            type: "tool",
-            requestId,
-            toolCallId,
-            name,
-            state: "input-available",
-            input: part.input,
-          });
-          break;
-        }
-        case "tool-result": {
-          const toolCallId = stringField(part, "toolCallId", "id") ?? "unknown";
-          emit({
-            type: "tool",
-            requestId,
-            toolCallId,
-            name:
-              this.toolEventName(
-                stringField(part, "toolName") ?? "",
-                eventNames,
-              ) ||
-              toolNames.get(toolCallId) ||
-              "unknown",
-            state: "output-available",
-            output: part.output,
-          });
-          break;
-        }
-        case "tool-error": {
-          const toolCallId = stringField(part, "toolCallId", "id") ?? "unknown";
-          emit({
-            type: "tool",
-            requestId,
-            toolCallId,
-            name:
-              this.toolEventName(
-                stringField(part, "toolName") ?? "",
-                eventNames,
-              ) ||
-              toolNames.get(toolCallId) ||
-              "unknown",
-            state: "output-error",
-            error: serializeLocalAiError(part.error),
-          });
-          break;
-        }
-        case "abort":
-          emit({ type: "finish", requestId, finishReason: "aborted" });
-          terminalEventEmitted = true;
-          break;
-        case "error":
-          emit({
-            type: "error",
-            requestId,
-            error: serializeLocalAiError(part.error),
-          });
-          emit({ type: "finish", requestId, finishReason: "error" });
-          terminalEventEmitted = true;
-          break;
-        case "finish":
-          emit({
-            type: "finish",
-            requestId,
-            finishReason: controller.signal.aborted
-              ? "aborted"
-              : finishReason(part.finishReason),
-            usage: usageFrom(part.totalUsage),
-          });
-          terminalEventEmitted = true;
-          break;
+    for await (const chunk of result.toUIMessageStream({
+      onError: (error) => serializeLocalAiError(error).message,
+    })) {
+      const qualifiedChunk = this.qualifyToolChunk(chunk, eventNames);
+      if (qualifiedChunk.type === "finish") {
+        streamedFinishReason = finishReason(qualifiedChunk.finishReason);
+      } else if (qualifiedChunk.type === "error") {
+        streamedFinishReason = "error";
       }
-
-      if (terminalEventEmitted) {
-        break;
-      }
+      emit({ type: "ui-message", requestId, chunk: qualifiedChunk });
     }
 
-    if (!terminalEventEmitted) {
-      emit({
-        type: "finish",
-        requestId,
-        finishReason: controller.signal.aborted ? "aborted" : "unknown",
-      });
-    }
+    const resolvedFinishReason = result.finishReason
+      ? finishReason(await result.finishReason)
+      : streamedFinishReason;
+    const usage = result.usage ? usageFrom(await result.usage) : undefined;
+    emit({
+      type: "finish",
+      requestId,
+      finishReason: controller.signal.aborted
+        ? "aborted"
+        : resolvedFinishReason,
+      usage,
+    });
   }
 
   private emitFailure(
@@ -675,5 +559,22 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       }
     }
     return providerName;
+  }
+
+  private qualifyToolChunk(
+    chunk: UIMessageChunk,
+    eventNames: Map<string, string>,
+  ): UIMessageChunk {
+    switch (chunk.type) {
+      case "tool-input-start":
+      case "tool-input-available":
+      case "tool-input-error":
+        return {
+          ...chunk,
+          toolName: this.toolEventName(chunk.toolName, eventNames),
+        };
+      default:
+        return chunk;
+    }
   }
 }

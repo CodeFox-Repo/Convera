@@ -330,13 +330,7 @@ export function setupLocalAIIPC(
                 requestId: request.requestId,
                 error: serializeLocalAIError(runtimeEvent.error),
               }
-            : runtimeEvent.type === "tool" && runtimeEvent.error
-              ? {
-                  ...runtimeEvent,
-                  requestId: request.requestId,
-                  error: serializeLocalAIError(runtimeEvent.error),
-                }
-              : { ...runtimeEvent, requestId: request.requestId };
+            : { ...runtimeEvent, requestId: request.requestId };
 
         try {
           sender.send(LOCAL_AI_CHANNELS.EVENT, streamEvent);

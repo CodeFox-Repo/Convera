@@ -40,6 +40,7 @@ export interface Message {
   conversationId: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
+  parts?: unknown[];
   toolInvocations?: unknown[];
   experimental_attachments?: Array<{
     url: string;
