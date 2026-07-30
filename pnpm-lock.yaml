@@ -25,14 +25,14 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^1.3.10
-        version: 1.3.22(zod@3.25.75)
+        version: 1.3.22(zod@3.25.76)
       '@daveyplate/better-auth-tanstack':
         specifier: 1.3.6
         version: 1.3.6(@tanstack/query-core@5.81.5)(@tanstack/react-query@5.81.5)(better-auth@1.2.12)(react-dom@19.1.0)(react@19.1.0)
       '@daveyplate/better-auth-ui':
         specifier: 1.7.4
         version: >-
-          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
+          1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.76)
       '@fontsource/inter':
         specifier: ^5.2.5
         version: 5.2.5
@@ -44,7 +44,7 @@ importers:
         version: 1.14.3(hono@4.7.11)
       '@hono/zod-validator':
         specifier: ^0.7.0
-        version: 0.7.0(hono@4.7.11)(zod@3.25.75)
+        version: 0.7.0(hono@4.7.11)(zod@3.25.76)
       '@hookform/resolvers':
         specifier: ^5.0.1
         version: 5.1.1(react-hook-form@7.60.0)
@@ -62,7 +62,7 @@ importers:
         version: 1.12.3
       '@openrouter/ai-sdk-provider':
         specifier: ^0.4.5
-        version: 0.4.5(zod@3.25.75)
+        version: 0.4.5(zod@3.25.76)
       '@radix-ui/react-accordion':
         specifier: ^1.2.4
         version: 1.2.11(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
@@ -143,7 +143,7 @@ importers:
         version: 1.2.7(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
       '@smithery/sdk':
         specifier: ^1.0.4
-        version: 1.3.3(react@19.1.0)(ws@8.18.2)(zod@3.25.75)
+        version: 1.3.3(react@19.1.0)(ws@8.18.2)(zod@3.25.76)
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.16(tailwindcss@4.1.11)
@@ -184,8 +184,14 @@ importers:
         specifier: ^4.3.4
         version: 4.4.1(vite@6.3.5)
       ai:
-        specifier: ^4.3.19
-        version: 4.3.19(react@19.1.0)(zod@3.25.75)
+        specifier: ^6.0.238
+        version: 6.0.238(zod@3.25.76)
+      ai-sdk-provider-claude-code:
+        specifier: 3.1.0
+        version: 3.1.0(zod@3.25.76)
+      ai-sdk-provider-codex-cli:
+        specifier: ^1.3.1
+        version: 1.3.1(zod@3.25.76)
       babel-plugin-react-compiler:
         specifier: ^19.0.0-beta-e993439-20250328
         version: 19.0.0-beta-ebf51a3-20250411
@@ -254,7 +260,7 @@ importers:
         version: 2.2.4
       openai:
         specifier: ^4.93.0
-        version: 4.98.0(ws@8.18.2)(zod@3.25.75)
+        version: 4.98.0(ws@8.18.2)(zod@3.25.76)
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -310,8 +316,8 @@ importers:
         specifier: ^8.18.1
         version: 8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5)
       zod:
-        specifier: ^3.24.4
-        version: 3.25.75
+        specifier: ^3.25.76
+        version: 3.25.76
       zustand:
         specifier: ^5.0.4
         version: 5.0.4(@types/react@19.1.4)(react@19.1.0)
@@ -752,18 +758,30 @@ packages:
     resolution: {integrity: sha512-baYZExFpsdkBNuvGKTKWCwKH57HRZLVtycZS05WTQNVOiXVSeAki3nU35zlRbToeMW8aHlJfyS+1C4BOv27q0A==}
     dev: true
 
-  /@ai-sdk/openai@1.3.22(zod@3.25.75):
+  /@ai-sdk/gateway@3.0.160(zod@3.25.76):
+    resolution: {integrity: sha512-yL024nICtDX74vFkfFJl8t7uHlA3BXl/5C+Ah92dPunI0U2WPCPhTnmiWu4zEYTjZmmvFOC3pDojniLsHkUFqA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
+      '@vercel/oidc': 3.2.0
+      zod: 3.25.76
+    dev: false
+
+  /@ai-sdk/openai@1.3.22(zod@3.25.76):
     resolution: {integrity: sha512-QwA+2EkG0QyjVR+7h6FE7iOu2ivNqAVMm9UJZkVxxTk5OIq5fFJDTEI/zICEMuHImTTXR2JjsL6EirJ28Jc4cw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
     dependencies:
       '@ai-sdk/provider': 1.1.3
-      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.75)
-      zod: 3.25.75
+      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.76)
+      zod: 3.25.76
     dev: false
 
-  /@ai-sdk/provider-utils@2.1.10(zod@3.25.75):
+  /@ai-sdk/provider-utils@2.1.10(zod@3.25.76):
     resolution: {integrity: sha512-4GZ8GHjOFxePFzkl3q42AU0DQOtTQ5w09vmaWUf/pKFXJPizlnzKSUkF0f+VkapIUfDugyMqPMT1ge8XQzVI7Q==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -776,10 +794,10 @@ packages:
       eventsource-parser: 3.0.1
       nanoid: 3.3.11
       secure-json-parse: 2.7.0
-      zod: 3.25.75
+      zod: 3.25.76
     dev: false
 
-  /@ai-sdk/provider-utils@2.2.8(zod@3.25.75):
+  /@ai-sdk/provider-utils@2.2.8(zod@3.25.76):
     resolution: {integrity: sha512-fqhG+4sCVv8x7nFzYnFo19ryhAa3w096Kmc3hWxMQfW/TubPOmt3A6tYZhl4mUfQWWQMsuSkLrtjlWuXBVSGQA==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -788,7 +806,20 @@ packages:
       '@ai-sdk/provider': 1.1.3
       nanoid: 3.3.11
       secure-json-parse: 2.7.0
-      zod: 3.25.75
+      zod: 3.25.76
+    dev: false
+
+  /@ai-sdk/provider-utils@4.0.41(zod@3.25.76):
+    resolution: {integrity: sha512-I7hhjfw01yEI8NkuAsT8Mv6xbWFr/lqLXMdaJQ2zWfXEpxog1eT7skDcv1+RY29/+5btzH8wD+vVvy48bk9oNQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.0
+      undici: 5.29.0
+      zod: 3.25.76
     dev: false
 
   /@ai-sdk/provider@1.0.9:
@@ -805,7 +836,14 @@ packages:
       json-schema: 0.4.0
     dev: false
 
-  /@ai-sdk/react@1.2.12(react@19.1.0)(zod@3.25.75):
+  /@ai-sdk/provider@3.0.14:
+    resolution: {integrity: sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA==}
+    engines: {node: '>=18'}
+    dependencies:
+      json-schema: 0.4.0
+    dev: false
+
+  /@ai-sdk/react@1.2.12(react@19.1.0)(zod@3.25.76):
     resolution: {integrity: sha512-jK1IZZ22evPZoQW3vlkZ7wvjYGYF+tRBKXtrcolduIkQ/m/sOAVcVeVDUDvh1T91xCnWCdUGCPZg2avZ90mv3g==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -815,24 +853,24 @@ packages:
       zod:
         optional: true
     dependencies:
-      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.75)
-      '@ai-sdk/ui-utils': 1.2.11(zod@3.25.75)
+      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.76)
+      '@ai-sdk/ui-utils': 1.2.11(zod@3.25.76)
       react: 19.1.0
       swr: 2.3.3(react@19.1.0)
       throttleit: 2.1.0
-      zod: 3.25.75
+      zod: 3.25.76
     dev: false
 
-  /@ai-sdk/ui-utils@1.2.11(zod@3.25.75):
+  /@ai-sdk/ui-utils@1.2.11(zod@3.25.76):
     resolution: {integrity: sha512-3zcwCc8ezzFlwp3ZD15wAPjf2Au4s3vAbKsXQVyhxODHcmu0iyPO2Eua6D/vicq/AUm/BAo60r97O6HU+EI0+w==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.8
     dependencies:
       '@ai-sdk/provider': 1.1.3
-      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.75)
-      zod: 3.25.75
-      zod-to-json-schema: 3.24.5(zod@3.25.75)
+      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.76)
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.5(zod@3.25.76)
     dev: false
 
   /@alloc/quick-lru@5.2.0:
@@ -852,6 +890,24 @@ packages:
     dependencies:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
+    dev: false
+
+  /@anthropic-ai/claude-agent-sdk@0.1.77(zod@3.25.76):
+    resolution: {integrity: sha512-ZEjWQtkoB2MEY6K16DWMmF+8OhywAynH0m08V265cerbZ8xPD/2Ng2jPzbbO40mPeFSsMDJboShL+a3aObP0Jg==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      zod: 3.25.76
+    optionalDependencies:
+      '@img/sharp-darwin-arm64': 0.33.5
+      '@img/sharp-darwin-x64': 0.33.5
+      '@img/sharp-linux-arm': 0.33.5
+      '@img/sharp-linux-arm64': 0.33.5
+      '@img/sharp-linux-x64': 0.33.5
+      '@img/sharp-linuxmusl-arm64': 0.33.5
+      '@img/sharp-linuxmusl-x64': 0.33.5
+      '@img/sharp-win32-x64': 0.33.5
     dev: false
 
   /@anthropic-ai/sdk@0.32.1:
@@ -1509,7 +1565,7 @@ packages:
       react-dom: 19.1.0(react@19.1.0)
     dev: false
 
-  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
+  ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.487.0)(react-dom@19.1.0)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@19.1.0)(sonner@2.0.3)(tailwind-merge@3.3.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.76)
   : resolution: {integrity: sha512-YMlH0jXxZkfi97ibxvPqzYn02hQWOqV2EZ7jXab/NRYC57/KEacRV2ykWnyswzsBnes6LGW6ir8TREPitz2K+Q==}
     peerDependencies:
       '@better-fetch/fetch': '>=1.1.0'
@@ -1590,7 +1646,7 @@ packages:
       tailwind-merge: 3.3.0
       tailwindcss: 4.1.11
       ua-parser-js: 2.0.4
-      zod: 3.25.75
+      zod: 3.25.76
     dev: false
 
   ? /@daveyplate/better-auth-ui@1.7.4(@better-fetch/fetch@1.1.18)(@daveyplate/better-auth-tanstack@1.3.6)(@hcaptcha/react-hcaptcha@1.12.0)(@hookform/resolvers@5.1.1)(@instantdb/react@0.20.4)(@marsidev/react-turnstile@1.1.0)(@radix-ui/react-avatar@1.1.10)(@radix-ui/react-checkbox@1.3.2)(@radix-ui/react-context@1.1.2)(@radix-ui/react-dialog@1.1.14)(@radix-ui/react-dropdown-menu@2.1.15)(@radix-ui/react-label@2.1.7)(@radix-ui/react-primitive@2.1.3)(@radix-ui/react-select@2.2.5)(@radix-ui/react-separator@1.1.7)(@radix-ui/react-slot@1.2.3)(@radix-ui/react-tabs@1.1.12)(@radix-ui/react-use-callback-ref@1.1.1)(@radix-ui/react-use-layout-effect@1.1.1)(@react-email/components@0.1.1)(@tanstack/react-query@5.81.5)(@triplit/client@1.0.46)(@triplit/react@1.0.46)(@wojtekmaj/react-recaptcha-v3@0.1.4)(better-auth@1.2.12)(class-variance-authority@0.7.1)(clsx@2.1.1)(input-otp@1.4.2)(lucide-react@0.522.0)(react-dom@18.3.1)(react-google-recaptcha@3.1.0)(react-hook-form@7.60.0)(react-qr-code@2.0.16)(react@18.3.1)(sonner@1.7.4)(tailwind-merge@2.6.0)(tailwindcss@4.1.11)(ua-parser-js@2.0.4)(zod@3.25.75)
@@ -2962,6 +3018,11 @@ packages:
       levn: 0.4.1
     dev: true
 
+  /@fastify/busboy@2.1.1:
+    resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
+    engines: {node: '>=14'}
+    dev: false
+
   /@floating-ui/core@1.7.0:
     resolution: {integrity: sha512-FRdBLykrPPA6P76GGGqlex/e7fbe0F1ykgxHYNXQsH/iTEtjMj/f9bpY5oQqbjt5VgZvgz/uKXbGuROijh3VLA==}
     dependencies:
@@ -3116,14 +3177,14 @@ packages:
       hono: 4.7.11
     dev: false
 
-  /@hono/zod-validator@0.7.0(hono@4.7.11)(zod@3.25.75):
+  /@hono/zod-validator@0.7.0(hono@4.7.11)(zod@3.25.76):
     resolution: {integrity: sha512-qe2ZE6sHFE98dcUrbYMtS3bAV8hqcCOflykvZga2S7XhmNSZzT+dIz4OuMILsjLHkJw9JMn912/dB7dQOmuPvg==}
     peerDependencies:
       hono: '>=3.9.0'
       zod: ^3.25.0
     dependencies:
       hono: 4.7.11
-      zod: 3.25.75
+      zod: 3.25.76
     dev: false
 
   /@hookform/resolvers@5.1.1(react-hook-form@7.60.0):
@@ -3208,6 +3269,17 @@ packages:
       react: 19.1.0
     dev: false
 
+  /@img/sharp-darwin-arm64@0.33.5:
+    resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [arm64]
+    os: [darwin]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-darwin-arm64': 1.0.4
+    dev: false
+    optional: true
+
   /@img/sharp-darwin-arm64@0.34.2:
     resolution: {integrity: sha512-OfXHZPppddivUJnqyKoi5YVeHRkkNE2zUFT2gbpKxp/JZCFYEYubnMg+gOp6lWfasPrTS+KPosKqdI+ELYVDtg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -3216,6 +3288,17 @@ packages:
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-darwin-arm64': 1.1.0
+    dev: false
+    optional: true
+
+  /@img/sharp-darwin-x64@0.33.5:
+    resolution: {integrity: sha512-fyHac4jIc1ANYGRDxtiqelIbdWkIuQaI84Mv45KvGRRxSAa7o7d1ZKAOBaYbnepLC1WqxfpimdeWfvqqSGwR2Q==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [x64]
+    os: [darwin]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-darwin-x64': 1.0.4
     dev: false
     optional: true
 
@@ -3230,9 +3313,25 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-libvips-darwin-arm64@1.0.4:
+    resolution: {integrity: sha512-XblONe153h0O2zuFfTAbQYAX2JhYmDHeWikp1LM9Hul9gVPjFY427k6dFEcOL72O01QxQsWi761svJ/ev9xEDg==}
+    cpu: [arm64]
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
+
   /@img/sharp-libvips-darwin-arm64@1.1.0:
     resolution: {integrity: sha512-HZ/JUmPwrJSoM4DIQPv/BfNh9yrOA8tlBbqbLz4JZ5uew2+o22Ik+tHQJcih7QJuSa0zo5coHTfD5J8inqj9DA==}
     cpu: [arm64]
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@img/sharp-libvips-darwin-x64@1.0.4:
+    resolution: {integrity: sha512-xnGR8YuZYfJGmWPvmlunFaWJsb9T/AO2ykoP3Fz/0X5XV2aoYBPkX6xqCQvUTKKiLddarLaxpzNe+b1hjeWHAQ==}
+    cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: false
@@ -3246,9 +3345,25 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-libvips-linux-arm64@1.0.4:
+    resolution: {integrity: sha512-9B+taZ8DlyyqzZQnoeIvDVR/2F4EbMepXMc/NdVbkzsJbzkUjhXv/70GQJ7tdLA4YJgNP25zukcxpX2/SueNrA==}
+    cpu: [arm64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
   /@img/sharp-libvips-linux-arm64@1.1.0:
     resolution: {integrity: sha512-IVfGJa7gjChDET1dK9SekxFFdflarnUB8PwW8aGwEoF3oAsSDuNUTYS+SKDOyOJxQyDC1aPFMuRYLoDInyV9Ew==}
     cpu: [arm64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@img/sharp-libvips-linux-arm@1.0.5:
+    resolution: {integrity: sha512-gvcC4ACAOPRNATg/ov8/MnbxFDJqf/pDePbBnuBDcjsI8PssmjoKMAz4LtLaVi+OnSb5FK/yIOamqDwGmXW32g==}
+    cpu: [arm]
     os: [linux]
     requiresBuild: true
     dev: false
@@ -3278,9 +3393,25 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-libvips-linux-x64@1.0.4:
+    resolution: {integrity: sha512-MmWmQ3iPFZr0Iev+BAgVMb3ZyC4KeFc3jFxnNbEPas60e1cIfevbtuyf9nDGIzOaW9PdnDciJm+wFFaTlj5xYw==}
+    cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
   /@img/sharp-libvips-linux-x64@1.1.0:
     resolution: {integrity: sha512-yRj2+reB8iMg9W5sULM3S74jVS7zqSzHG3Ol/twnAAkAhnGQnpjj6e4ayUz7V+FpKypwgs82xbRdYtchTTUB+Q==}
     cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@img/sharp-libvips-linuxmusl-arm64@1.0.4:
+    resolution: {integrity: sha512-9Ti+BbTYDcsbp4wfYib8Ctm1ilkugkA/uscUn6UXK1ldpC1JjiXbLfFZtRlBhjPZ5o1NCLiDbg8fhUPKStHoTA==}
+    cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: false
@@ -3294,11 +3425,30 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-libvips-linuxmusl-x64@1.0.4:
+    resolution: {integrity: sha512-viYN1KX9m+/hGkJtvYYp+CCLgnJXwiQB39damAO7WMdKWlIhmYTfHjwSbQeUK/20vY154mwezd9HflVFM1wVSw==}
+    cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
   /@img/sharp-libvips-linuxmusl-x64@1.1.0:
     resolution: {integrity: sha512-wK7SBdwrAiycjXdkPnGCPLjYb9lD4l6Ze2gSdAGVZrEL05AOUJESWU2lhlC+Ffn5/G+VKuSm6zzbQSzFX/P65A==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
+    dev: false
+    optional: true
+
+  /@img/sharp-linux-arm64@0.33.5:
+    resolution: {integrity: sha512-JMVv+AMRyGOHtO1RFBiJy/MBsgz0x4AWrT6QoEVVTyh1E39TrCUpTRI7mx9VksGX4awWASxqCYLCV4wBZHAYxA==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [arm64]
+    os: [linux]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-linux-arm64': 1.0.4
     dev: false
     optional: true
 
@@ -3310,6 +3460,17 @@ packages:
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linux-arm64': 1.1.0
+    dev: false
+    optional: true
+
+  /@img/sharp-linux-arm@0.33.5:
+    resolution: {integrity: sha512-JTS1eldqZbJxjvKaAkxhZmBqPRGmxgu+qFKSInv8moZ2AmT5Yib3EQ1c6gp493HvrvV8QgdOXdyaIBrhvFhBMQ==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [arm]
+    os: [linux]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-linux-arm': 1.0.5
     dev: false
     optional: true
 
@@ -3335,6 +3496,17 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-linux-x64@0.33.5:
+    resolution: {integrity: sha512-opC+Ok5pRNAzuvq1AG0ar+1owsu842/Ab+4qvU879ippJBHvyY5n2mxF1izXqkPYlGuP/M556uh53jRLJmzTWA==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-linux-x64': 1.0.4
+    dev: false
+    optional: true
+
   /@img/sharp-linux-x64@0.34.2:
     resolution: {integrity: sha512-sD7J+h5nFLMMmOXYH4DD9UtSNBD05tWSSdWAcEyzqW8Cn5UxXvsHAxmxSesYUsTOBmUnjtxghKDl15EvfqLFbQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -3346,6 +3518,17 @@ packages:
     dev: false
     optional: true
 
+  /@img/sharp-linuxmusl-arm64@0.33.5:
+    resolution: {integrity: sha512-XrHMZwGQGvJg2V/oRSUfSAfjfPxO+4DkiRh6p2AFjLQztWUuY/o8Mq0eMQVIY7HJ1CDQUJlxGGZRw1a5bqmd1g==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [arm64]
+    os: [linux]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-linuxmusl-arm64': 1.0.4
+    dev: false
+    optional: true
+
   /@img/sharp-linuxmusl-arm64@0.34.2:
     resolution: {integrity: sha512-NEE2vQ6wcxYav1/A22OOxoSOGiKnNmDzCYFOZ949xFmrWZOVII1Bp3NqVVpvj+3UeHMFyN5eP/V5hzViQ5CZNA==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -3354,6 +3537,17 @@ packages:
     requiresBuild: true
     optionalDependencies:
       '@img/sharp-libvips-linuxmusl-arm64': 1.1.0
+    dev: false
+    optional: true
+
+  /@img/sharp-linuxmusl-x64@0.33.5:
+    resolution: {integrity: sha512-WT+d/cgqKkkKySYmqoZ8y3pxx7lx9vVejxW/W4DOFMYVSkErR+w7mf2u8m/y4+xHe7yY9DAXQMWQhpnMuFfScw==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    optionalDependencies:
+      '@img/sharp-libvips-linuxmusl-x64': 1.0.4
     dev: false
     optional: true
 
@@ -3391,6 +3585,15 @@ packages:
     resolution: {integrity: sha512-QLjGGvAbj0X/FXl8n1WbtQ6iVBpWU7JO94u/P2M4a8CFYsvQi4GW2mRy/JqkRx0qpBzaOdKJKw8uc930EX2AHw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [ia32]
+    os: [win32]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@img/sharp-win32-x64@0.33.5:
+    resolution: {integrity: sha512-MpY/o8/8kj+EcnxwvrP4aTJSWw/aZ7JIGR4aBeZkZw5B7/Jn+tY9/VNwtcoGmdT7GfggGIU4kygOMSbYnOrAbg==}
+    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+    cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: false
@@ -3662,8 +3865,8 @@ packages:
       express-rate-limit: 7.5.0(express@5.1.0)
       pkce-challenge: 5.0.0
       raw-body: 3.0.0
-      zod: 3.25.75
-      zod-to-json-schema: 3.24.5(zod@3.25.75)
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.5(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -3857,15 +4060,84 @@ packages:
       rimraf: 3.0.2
     dev: true
 
-  /@openrouter/ai-sdk-provider@0.4.5(zod@3.25.75):
+  /@openai/codex@0.144.6:
+    resolution: {integrity: sha512-wk+2CWiBNXiJLBoN2D08N9RceWkSBnlgk5g2K1a4CXrP/C0gdlHyRUG7RFzm9y41DCK/7tvCct233JVxyFmznw==}
+    engines: {node: '>=16'}
+    hasBin: true
+    requiresBuild: true
+    optionalDependencies:
+      '@openai/codex-darwin-arm64': /@openai/codex@0.144.6-darwin-arm64
+      '@openai/codex-darwin-x64': /@openai/codex@0.144.6-darwin-x64
+      '@openai/codex-linux-arm64': /@openai/codex@0.144.6-linux-arm64
+      '@openai/codex-linux-x64': /@openai/codex@0.144.6-linux-x64
+      '@openai/codex-win32-arm64': /@openai/codex@0.144.6-win32-arm64
+      '@openai/codex-win32-x64': /@openai/codex@0.144.6-win32-x64
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-darwin-arm64:
+    resolution: {integrity: sha512-6zgvh70MzBNSeT17HEhSOrmmGGZGAKzSC7x6JAq+edkJkdPYA9P0I1tG7aJ49GlBkBxuC+MKBH1qm6+2Cghcww==}
+    engines: {node: '>=16'}
+    cpu: [arm64]
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-darwin-x64:
+    resolution: {integrity: sha512-THRyPG0zSU6M8NQAge1LHEHsJDnoH4BpKsfJHB/qe3Fm+Wf6zqAmWJFlOKzBm27m0K2Hq3za4Ac2I5p5i4yp/A==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-linux-arm64:
+    resolution: {integrity: sha512-PGiLXMN+2IQRkf7tOLi64dMInjU1pRLbz0Rwfj/yt2Y97SZQqAjFQoi2wmswmqtqMDnfwCPTC1DRXVQkvU6T6Q==}
+    engines: {node: '>=16'}
+    cpu: [arm64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-linux-x64:
+    resolution: {integrity: sha512-4E7EnzCg0OnBxCyYnwJ+qnZwWHYe0YScr5ucKWbngE9u4+0XrpWELqq2Kn9jl5GZK8MDjU7PrJwFIwusHOHjuw==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [linux]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-win32-arm64:
+    resolution: {integrity: sha512-SpMjXJLW43JzMP0K62mVcYfmFcpk0BK4AOgYmWSfyZHs3iRtHMd0UYw7605n/9lwkT2EqbwQLT2omZFeKJFzwA==}
+    engines: {node: '>=16'}
+    cpu: [arm64]
+    os: [win32]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openai/codex@0.144.6-win32-x64:
+    resolution: {integrity: sha512-dN39VnjEthKz5io1RNWwZDtErdSn07nW3pGUgvlA6DMxgm/nuGaIAZO/sG/Hgxq/x5j9HteAENfrFgVkpZ0lFg==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [win32]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /@openrouter/ai-sdk-provider@0.4.5(zod@3.25.76):
     resolution: {integrity: sha512-gbCOcSjNhyWlLHyYZX2rIFnpJi3C2RXNyyzJj+d6pMRfTS/mdvEEOsU66KxK9H8Qju2i9YRLOn/FdQT26K7bIQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
     dependencies:
       '@ai-sdk/provider': 1.0.9
-      '@ai-sdk/provider-utils': 2.1.10(zod@3.25.75)
-      zod: 3.25.75
+      '@ai-sdk/provider-utils': 2.1.10(zod@3.25.76)
+      zod: 3.25.76
     dev: false
 
   /@opentelemetry/api@1.9.0:
@@ -7137,15 +7409,15 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /@smithery/sdk@1.3.3(react@19.1.0)(ws@8.18.2)(zod@3.25.75):
+  /@smithery/sdk@1.3.3(react@19.1.0)(ws@8.18.2)(zod@3.25.76):
     resolution: {integrity: sha512-Rt7kee+mc4YE4szzA13YESBfM8H7V9zR05OJQbyRLXHsnnBX4PfLOGLqbhgQ4ccTOZgUGxjmESuklExw+kXnJQ==}
     dependencies:
       '@anthropic-ai/sdk': 0.32.1
       '@modelcontextprotocol/sdk': 1.12.3
-      ai: 4.3.19(react@19.1.0)(zod@3.25.75)
+      ai: 4.3.19(react@19.1.0)(zod@3.25.76)
       express: 5.1.0
       json-schema: 0.4.0
-      openai: 4.98.0(ws@8.18.2)(zod@3.25.75)
+      openai: 4.98.0(ws@8.18.2)(zod@3.25.76)
       uuid: 11.1.0
     transitivePeerDependencies:
       - encoding
@@ -7157,6 +7429,10 @@ packages:
 
   /@standard-schema/spec@1.0.0:
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+    dev: false
+
+  /@standard-schema/spec@1.1.0:
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
     dev: false
 
   /@standard-schema/utils@0.3.0:
@@ -7854,7 +8130,7 @@ packages:
       recast: 0.23.11
       source-map: 0.7.4
       tsx: 4.23.1
-      zod: 3.25.75
+      zod: 3.25.76
     transitivePeerDependencies:
       - supports-color
 
@@ -7935,7 +8211,7 @@ packages:
       chokidar: 3.6.0
       unplugin: 2.3.5
       vite: 6.3.5(@types/node@22.16.0)(tsx@4.23.1)
-      zod: 3.25.75
+      zod: 3.25.76
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -9292,6 +9568,11 @@ packages:
     dev: true
     optional: true
 
+  /@vercel/oidc@3.2.0:
+    resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
+    engines: {node: '>= 20'}
+    dev: false
+
   /@vitejs/plugin-react-swc@3.10.2(vite@5.4.19):
     resolution: {integrity: sha512-xD3Rdvrt5LgANug7WekBn1KhcvLn1H3jNBfJRL3reeOIua/WnZOEV5qi5qIBq5T8R0jUDmRtxuvk4bPhzGHDWw==}
     peerDependencies:
@@ -9734,7 +10015,33 @@ packages:
       clean-stack: 2.2.0
       indent-string: 4.0.0
 
-  /ai@4.3.19(react@19.1.0)(zod@3.25.75):
+  /ai-sdk-provider-claude-code@3.1.0(zod@3.25.76):
+    resolution: {integrity: sha512-5LvG7HJMbMhTcQ09W3+P7mX3zVS8SOcKplQ7VwLBDNuSlPVd3bWOUxbrbgnpUaPh9QtnSBACZNm7qQ0tM7ue4Q==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.24.1 || ^4.0.0
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
+      '@anthropic-ai/claude-agent-sdk': 0.1.77(zod@3.25.76)
+      zod: 3.25.76
+    dev: false
+
+  /ai-sdk-provider-codex-cli@1.3.1(zod@3.25.76):
+    resolution: {integrity: sha512-edTG3jkjF32ChGGctyivRi1Vyd/vLx6ktUuvlBTA5ennu4J3eKesLphKu+Lzv80nJQhrsqFXjM1aC1NfZc7elw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0 || ^4.0.0
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
+      jsonc-parser: 3.3.1
+      zod: 3.25.76
+    optionalDependencies:
+      '@openai/codex': 0.144.6
+    dev: false
+
+  /ai@4.3.19(react@19.1.0)(zod@3.25.76):
     resolution: {integrity: sha512-dIE2bfNpqHN3r6IINp9znguYdhIOheKW2LDigAMrgt/upT3B8eBGPSCblENvaZGoq+hxaN9fSMzjWpbqloP+7Q==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -9745,13 +10052,26 @@ packages:
         optional: true
     dependencies:
       '@ai-sdk/provider': 1.1.3
-      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.75)
-      '@ai-sdk/react': 1.2.12(react@19.1.0)(zod@3.25.75)
-      '@ai-sdk/ui-utils': 1.2.11(zod@3.25.75)
+      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.76)
+      '@ai-sdk/react': 1.2.12(react@19.1.0)(zod@3.25.76)
+      '@ai-sdk/ui-utils': 1.2.11(zod@3.25.76)
       '@opentelemetry/api': 1.9.0
       jsondiffpatch: 0.6.0
       react: 19.1.0
-      zod: 3.25.75
+      zod: 3.25.76
+    dev: false
+
+  /ai@6.0.238(zod@3.25.76):
+    resolution: {integrity: sha512-XBIrxDzOrUAOqf+mkvzpOY67SRJoa5X99iMGAuCIcsey302+QW4AWpAJIyRuE3jJxmslWO4K3ToSeBUl1DeguA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/gateway': 3.0.160(zod@3.25.76)
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.76
     dev: false
 
   /ajv@6.12.6:
@@ -10667,7 +10987,7 @@ packages:
     dependencies:
       devtools-protocol: 0.0.1653615
       mitt: 3.0.1
-      zod: 3.25.75
+      zod: 3.25.76
     dev: true
 
   /ci-info@3.9.0:
@@ -12575,8 +12895,8 @@ packages:
       '@babel/plugin-proposal-private-methods': 7.18.6(@babel/core@7.28.0)
       eslint: 9.30.1
       hermes-parser: 0.25.1
-      zod: 3.25.75
-      zod-validation-error: 3.4.1(zod@3.25.75)
+      zod: 3.25.76
+      zod-validation-error: 3.4.1(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -12914,6 +13234,11 @@ packages:
 
   /eventsource-parser@3.0.1:
     resolution: {integrity: sha512-VARTJ9CYeuQYb0pZEPbzi740OWFgpHe7AYJ2WFZVnUDUQp5Dk2yJUgF36YsZ81cOyxT0QxmXD2EQpapAouzWVA==}
+    engines: {node: '>=18.0.0'}
+    dev: false
+
+  /eventsource-parser@3.1.0:
+    resolution: {integrity: sha512-kJezFj9YFAMLeORyi7aCLxLbD5/qWMQnoMVlVPyHIll7lgRJCc3JVln9Vgl9nwQi0YkMnhdGTMNn7CkRRAptMg==}
     engines: {node: '>=18.0.0'}
     dev: false
 
@@ -15215,6 +15540,10 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
+  /jsonc-parser@3.3.1:
+    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
+    dev: false
+
   /jsondiffpatch@0.6.0:
     resolution: {integrity: sha512-3QItJOXp2AP1uv7waBkao5nCvhEv+QmJAd38Ybq7wNI74Q+BBmnLn4EDKz6yI9xGAIQoUF87qHt+kc1IVxB4zQ==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -17404,7 +17733,7 @@ packages:
       regex-recursion: 6.0.2
     dev: false
 
-  /openai@4.98.0(ws@8.18.2)(zod@3.25.75):
+  /openai@4.98.0(ws@8.18.2)(zod@3.25.76):
     resolution: {integrity: sha512-TmDKur1WjxxMPQAtLG5sgBSCJmX7ynTsGmewKzoDwl1fRxtbLOsiR0FA/AOAAtYUmP6azal+MYQuOENfdU+7yg==}
     hasBin: true
     peerDependencies:
@@ -17424,7 +17753,7 @@ packages:
       formdata-node: 4.4.1
       node-fetch: 2.7.0
       ws: 8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5)
-      zod: 3.25.75
+      zod: 3.25.76
     transitivePeerDependencies:
       - encoding
     dev: false
@@ -20896,6 +21225,13 @@ packages:
   /undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
+  /undici@5.29.0:
+    resolution: {integrity: sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg==}
+    engines: {node: '>=14.0'}
+    dependencies:
+      '@fastify/busboy': 2.1.1
+    dev: false
+
   /undici@6.28.0:
     resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
     engines: {node: '>=18.17'}
@@ -22022,25 +22358,29 @@ packages:
       readable-stream: 4.7.0
     dev: true
 
-  /zod-to-json-schema@3.24.5(zod@3.25.75):
+  /zod-to-json-schema@3.24.5(zod@3.25.76):
     resolution: {integrity: sha512-/AuWwMP+YqiPbsJx5D6TfgRTc4kTLjsh5SOcd4bLsfUg2RcEXrFMJl1DGgdHy2aCfsIA/cr/1JM0xcB2GZji8g==}
     peerDependencies:
       zod: ^3.24.1
     dependencies:
-      zod: 3.25.75
+      zod: 3.25.76
     dev: false
 
-  /zod-validation-error@3.4.1(zod@3.25.75):
+  /zod-validation-error@3.4.1(zod@3.25.76):
     resolution: {integrity: sha512-1KP64yqDPQ3rupxNv7oXhf7KdhHHgaqbKuspVoiN93TT0xrBjql+Svjkdjq/Qh/7GSMmgQs3AfvBT0heE35thw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.24.4
     dependencies:
-      zod: 3.25.75
+      zod: 3.25.76
     dev: true
 
   /zod@3.25.75:
     resolution: {integrity: sha512-OhpzAmVzabPOL6C3A3gpAifqr9MqihV/Msx3gor2b2kviCgcb+HM9SEOpMWwwNp9MRunWnhtAKUoo0AHhjyPPg==}
+    dev: false
+
+  /zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   /zustand@5.0.4(@types/react@19.1.4)(react@19.1.0):
     resolution: {integrity: sha512-39VFTN5InDtMd28ZhjLyuTnlytDr9HfwO512Ai4I8ZABCoyAj4F1+sr7sD1jP/+p7k77Iko0Pb5NhgBFDCX0kQ==}
