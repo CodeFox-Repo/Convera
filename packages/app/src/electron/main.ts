@@ -18,6 +18,7 @@ import { createSystemTray, destroySystemTray } from "./tray";
 import {
   createMainWindow,
   getMainWindow,
+  isBackgroundAutomation,
   preCreateMainWindow,
 } from "./windows/main-window";
 
@@ -26,6 +27,10 @@ const logger = getLogger("main-process");
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
+
+  if (isBackgroundAutomation()) {
+    return;
+  }
 
   const currentShortcut = getCurrentShortcut();
 
@@ -97,7 +102,7 @@ app.whenReady().then(async () => {
 
     // Pre-create and show main window
     const mainWindow = preCreateMainWindow();
-    if (mainWindow) {
+    if (mainWindow && !isBackgroundAutomation()) {
       mainWindow.show();
       mainWindow.focus();
     }
@@ -114,8 +119,10 @@ app.whenReady().then(async () => {
     app.on("activate", () => {
       const mainWin = getMainWindow();
       if (mainWin) {
-        mainWin.show();
-        mainWin.focus();
+        if (!isBackgroundAutomation()) {
+          mainWin.show();
+          mainWin.focus();
+        }
       } else if (BrowserWindow.getAllWindows().length === 0) {
         logger.info("App activated, creating main window");
         createMainWindow();

@@ -44,9 +44,17 @@ Example MCP client configuration:
 with the semantic tools. It accepts a JavaScript function body and exposes
 `args`; the main-process context also exposes `electron`.
 
-By design, launch explicitly reuses Convera's normal persistent user-data
-directory (for example `~/Library/Application Support/Convera` on macOS), so a
-test account can be signed in once and reused. Pass `user_data_path` to
-`convera_session` only when a different persistent profile is intentional.
+Each MCP server process gets its own profile under `.automation/profiles` by
+default, so multiple agents can run hidden Electron sessions concurrently
+without sharing Chromium database locks. Pass a stable `profile_id` to reuse
+one agent's test state across launches. A profile remains single-writer: do not
+give two concurrent sessions the same `profile_id` or `user_data_path`.
+
+Claude Code and Codex CLI authentication remain in their normal host
+configuration and are available to every agent profile. Pass `user_data_path`
+only when a specific external Electron profile is intentional.
+The Electron window stays hidden by default while WebdriverIO continues to
+control and inspect it. Pass `show_window: true` to `convera_session` only for
+visual debugging.
 Screenshots and WDIO logs are kept under the ignored
 `packages/app/.automation/` directory.
