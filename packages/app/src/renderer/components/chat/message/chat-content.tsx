@@ -213,10 +213,13 @@ export default function ChatContent({
 
     const toolInvocation = part.toolInvocation;
     const toolName = toolInvocation.toolName || "Tool";
+    const rendererName = toolName.includes(":")
+      ? toolName.slice(toolName.lastIndexOf(":") + 1)
+      : toolName;
 
     // Check if there's a custom renderer for this tool
     const CustomRenderer =
-      TOOL_COMPONENTS[toolName as keyof typeof TOOL_COMPONENTS];
+      TOOL_COMPONENTS[rendererName as keyof typeof TOOL_COMPONENTS];
     if (CustomRenderer) {
       return (
         <CustomRenderer

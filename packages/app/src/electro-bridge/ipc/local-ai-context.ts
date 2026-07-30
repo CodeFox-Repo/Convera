@@ -1,6 +1,7 @@
 import type {
   ILocalAIAPI,
   LocalAIChatRequest,
+  LocalAIInteractionResponse,
   LocalAIProviderStatus,
   LocalAIResult,
   LocalAIRuntimeService,
@@ -23,6 +24,7 @@ export const LOCAL_AI_CHANNELS = {
   GET_PROVIDER_STATUS: "local-ai:get-provider-status",
   START_CHAT: "local-ai:start-chat",
   ABORT: "local-ai:abort",
+  RESPOND_INTERACTION: "local-ai:respond-interaction",
   EVENT: "local-ai:event",
 } as const;
 
@@ -45,6 +47,7 @@ const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const ALLOWED_PROVIDER_IDS = new Set(["claude-code", "codex-cli"]);
 const MAX_MESSAGE_CHARS = 200_000;
 const MAX_REQUEST_CHARS = 1_000_000;
+const MAX_INTERACTION_RESPONSE_CHARS = 20_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -128,6 +131,28 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     }
     return false;
   });
+}
+
+function validateInteractionResponse(
+  response: unknown,
+): response is LocalAIInteractionResponse {
+  if (!isRecord(response)) return false;
+
+  const keys = Object.keys(response);
+  if (
+    keys.length === 0 ||
+    keys.some((key) => key !== "approved" && key !== "value")
+  ) {
+    return false;
+  }
+
+  return (
+    (response.approved === undefined ||
+      typeof response.approved === "boolean") &&
+    (response.value === undefined ||
+      (typeof response.value === "string" &&
+        response.value.length <= MAX_INTERACTION_RESPONSE_CHARS))
+  );
 }
 
 function failure<T>(error: unknown): LocalAIResult<T> {
@@ -355,6 +380,57 @@ export function setupLocalAIIPC(
   );
 
   mainIPC.handle(
+    LOCAL_AI_CHANNELS.RESPOND_INTERACTION,
+    async (
+      event,
+      requestId: unknown,
+      interactionId: unknown,
+      response: unknown,
+    ): Promise<LocalAIResult<{ accepted: boolean }>> => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime) return failure(runtimeUnavailable());
+      if (
+        typeof requestId !== "string" ||
+        !REQUEST_ID_PATTERN.test(requestId) ||
+        typeof interactionId !== "string" ||
+        !REQUEST_ID_PATTERN.test(interactionId) ||
+        !validateInteractionResponse(response)
+      ) {
+        return failure(
+          createError(
+            "Invalid local AI interaction response",
+            "LOCAL_AI_INVALID_REQUEST",
+          ),
+        );
+      }
+
+      const active = activeRequests.get(requestId);
+      if (!active || active.sender !== event.sender) {
+        return { success: true, data: { accepted: false } };
+      }
+
+      try {
+        return {
+          success: true,
+          data: {
+            accepted: await options.runtime.respondToInteraction(
+              requestId,
+              interactionId,
+              response,
+            ),
+          },
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
     LOCAL_AI_CHANNELS.ABORT,
     async (
       event,
@@ -433,6 +509,13 @@ export function createLocalAIAPI(
       rendererIPC.invoke(LOCAL_AI_CHANNELS.START_CHAT, request),
     abort: (requestId) =>
       rendererIPC.invoke(LOCAL_AI_CHANNELS.ABORT, requestId),
+    respondToInteraction: (requestId, interactionId, response) =>
+      rendererIPC.invoke(
+        LOCAL_AI_CHANNELS.RESPOND_INTERACTION,
+        requestId,
+        interactionId,
+        response,
+      ),
     onEvent: (requestId, callback) => {
       const handler = (_event: unknown, event: LocalAIStreamEvent) => {
         if (event.requestId === requestId) callback(event);

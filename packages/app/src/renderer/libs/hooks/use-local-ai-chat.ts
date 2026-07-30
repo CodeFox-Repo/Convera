@@ -5,6 +5,7 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import { getLocalAI, type LocalAIProviderId } from "../local-ai";
+import { useUserInputStore } from "../stores/user-input-store";
 
 export interface LocalAIChatOptions {
   providerId: LocalAIProviderId;
@@ -139,7 +140,35 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         return;
       }
 
+      if (event.type === "interaction") {
+        const localAI = getLocalAI();
+        if (!localAI) {
+          setError(new Error("Local AI runtime is not available."));
+          setStatus("error");
+          return;
+        }
+
+        setStatus("streaming");
+        useUserInputStore
+          .getState()
+          .registerInteraction(event, async (response) => {
+            const result = await localAI.respondToInteraction(
+              event.requestId,
+              event.interactionId,
+              response,
+            );
+            if (!result.success || !result.data?.accepted) {
+              throw new Error(
+                result.error?.message ||
+                  "Local AI interaction is no longer active.",
+              );
+            }
+          });
+        return;
+      }
+
       setStatus(event.finishReason === "error" ? "error" : "ready");
+      useUserInputStore.getState().dismissRequest(event.requestId);
       activeRequestIdRef.current = undefined;
       releaseSubscription();
     },
@@ -156,13 +185,15 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       }
 
       if (activeRequestIdRef.current) {
-        const abortResult = await localAI.abort(activeRequestIdRef.current);
+        const previousRequestId = activeRequestIdRef.current;
+        const abortResult = await localAI.abort(previousRequestId);
         if (!abortResult.success) {
           throw new Error(
             abortResult.error?.message ||
               "Could not stop the previous local AI request.",
           );
         }
+        useUserInputStore.getState().dismissRequest(previousRequestId);
         releaseSubscription();
         activeRequestIdRef.current = undefined;
       }
@@ -206,6 +237,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
             : new Error("Failed to start local AI chat.");
         setError(nextError);
         setStatus("error");
+        useUserInputStore.getState().dismissRequest(requestId);
         activeRequestIdRef.current = undefined;
         releaseSubscription();
       }
@@ -249,6 +281,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       // main process no longer owns the request, there will be no event to
       // wait for, so release the local listener here.
       if (!result.data?.aborted) {
+        useUserInputStore.getState().dismissRequest(requestId);
         activeRequestIdRef.current = undefined;
         releaseSubscription();
         setStatus("ready");
@@ -269,6 +302,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       const localAI = getLocalAI();
       releaseSubscription();
       if (requestId && localAI) {
+        useUserInputStore.getState().dismissRequest(requestId);
         void localAI.abort(requestId);
       }
     },

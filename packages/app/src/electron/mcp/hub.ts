@@ -9,7 +9,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { BUILTIN_TOOLS_REGISTRY } from "../tools";
+import { BUILTIN_TOOL_ANNOTATIONS, BUILTIN_TOOLS_REGISTRY } from "../tools";
 import { MCPConnection } from "./connection";
 
 /**
@@ -544,6 +544,8 @@ export class MCPHub extends EventEmitter {
       description: tool.description || "",
       inputSchema: this.zodSchemaToJsonSchema(tool.inputSchema),
       parameters: this.zodSchemaToJsonSchema(tool.inputSchema),
+      annotations:
+        BUILTIN_TOOL_ANNOTATIONS[name as keyof typeof BUILTIN_TOOL_ANNOTATIONS],
     }));
   }
 

@@ -113,7 +113,7 @@ export function getAllTools(): Array<{
   }
 
   const builtinTools = {
-    serverName: "Builtin",
+    serverName: "builtin",
     tools: globalHub.getBuiltinToolsDefinition(),
   };
 

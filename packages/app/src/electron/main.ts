@@ -1,7 +1,13 @@
 import { app, BrowserWindow, globalShortcut } from "electron";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
-import { getMCPHub, initializeMCPHub } from "@/electron/mcp";
+import {
+  callTool,
+  getAllTools,
+  getMCPHub,
+  initializeMCPHub,
+  mcpToolCall,
+} from "@/electron/mcp";
 import { LocalAiRuntime } from "@/electron/ai";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
@@ -20,7 +26,16 @@ import {
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
-const localAIRuntime = new LocalAiRuntime();
+const localAIRuntime = new LocalAiRuntime({
+  getToolGroups: async () => {
+    await initializeMCPHub();
+    return getAllTools();
+  },
+  executeTool: (serverName, toolName, input) =>
+    serverName.toLowerCase() === "builtin"
+      ? mcpToolCall(toolName, input)
+      : callTool(serverName, toolName, input),
+});
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
