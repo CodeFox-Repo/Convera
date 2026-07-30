@@ -84,36 +84,38 @@ describe("LocalAiRuntime", () => {
     ]);
   });
 
-  it("forwards text, tool, finish, usage, and explicit agent context", async () => {
+  it("forwards the AI SDK UI stream, usage, and explicit agent context", async () => {
     const events: LocalAIStreamEvent[] = [];
     let streamOptions: Parameters<RuntimeStreamInvoker>[0] | undefined;
     const streamInvoker: RuntimeStreamInvoker = (options) => {
       streamOptions = options;
       return {
-        fullStream: (async function* () {
-          yield { type: "text-delta", text: "Hi" };
+        toUIMessageStream: async function* () {
+          yield { type: "start" as const, messageId: "assistant-1" };
+          yield { type: "text-start" as const, id: "text-1" };
+          yield { type: "text-delta" as const, id: "text-1", delta: "Hi" };
+          yield { type: "text-end" as const, id: "text-1" };
           yield {
-            type: "tool-call",
+            type: "tool-input-available" as const,
             toolCallId: "tool-1",
             toolName: "read_file",
             input: { path: "README.md" },
+            dynamic: true,
           };
           yield {
-            type: "tool-result",
+            type: "tool-output-available" as const,
             toolCallId: "tool-1",
-            toolName: "read_file",
             output: "contents",
+            dynamic: true,
           };
-          yield {
-            type: "finish",
-            finishReason: "stop",
-            totalUsage: {
-              inputTokens: 3,
-              outputTokens: 2,
-              totalTokens: 5,
-            },
-          };
-        })(),
+          yield { type: "finish" as const, finishReason: "stop" as const };
+        },
+        finishReason: Promise.resolve("stop"),
+        usage: Promise.resolve({
+          inputTokens: 3,
+          outputTokens: 2,
+          totalTokens: 5,
+        }),
       };
     };
     const adapter = fakeAdapter("claude-code");
@@ -146,22 +148,51 @@ describe("LocalAiRuntime", () => {
       { role: "user", content: "hello" },
     ]);
     expect(events).toEqual([
-      { type: "delta", requestId: "request-1", text: "Hi" },
       {
-        type: "tool",
+        type: "ui-message",
         requestId: "request-1",
-        toolCallId: "tool-1",
-        name: "read_file",
-        state: "input-available",
-        input: { path: "README.md" },
+        chunk: { type: "start", messageId: "assistant-1" },
       },
       {
-        type: "tool",
+        type: "ui-message",
         requestId: "request-1",
-        toolCallId: "tool-1",
-        name: "read_file",
-        state: "output-available",
-        output: "contents",
+        chunk: { type: "text-start", id: "text-1" },
+      },
+      {
+        type: "ui-message",
+        requestId: "request-1",
+        chunk: { type: "text-delta", id: "text-1", delta: "Hi" },
+      },
+      {
+        type: "ui-message",
+        requestId: "request-1",
+        chunk: { type: "text-end", id: "text-1" },
+      },
+      {
+        type: "ui-message",
+        requestId: "request-1",
+        chunk: {
+          type: "tool-input-available",
+          toolCallId: "tool-1",
+          toolName: "read_file",
+          input: { path: "README.md" },
+          dynamic: true,
+        },
+      },
+      {
+        type: "ui-message",
+        requestId: "request-1",
+        chunk: {
+          type: "tool-output-available",
+          toolCallId: "tool-1",
+          output: "contents",
+          dynamic: true,
+        },
+      },
+      {
+        type: "ui-message",
+        requestId: "request-1",
+        chunk: { type: "finish", finishReason: "stop" },
       },
       {
         type: "finish",
@@ -175,15 +206,20 @@ describe("LocalAiRuntime", () => {
   it("aborts an active stream and reports an aborted terminal event", async () => {
     const events: LocalAIStreamEvent[] = [];
     const streamInvoker: RuntimeStreamInvoker = (options) => ({
-      fullStream: (async function* () {
-        yield { type: "text-delta", text: "partial" };
+      toUIMessageStream: async function* () {
+        yield { type: "start" as const, messageId: "assistant-1" };
+        yield { type: "text-start" as const, id: "text-1" };
+        yield {
+          type: "text-delta" as const,
+          id: "text-1",
+          delta: "partial",
+        };
         await new Promise<void>((resolve) => {
           options.abortSignal.addEventListener("abort", () => resolve(), {
             once: true,
           });
         });
-        yield { type: "abort" };
-      })(),
+      },
     });
     const adapter = fakeAdapter("claude-code");
     const runtime = new LocalAiRuntime({
@@ -194,9 +230,9 @@ describe("LocalAiRuntime", () => {
     const chat = runtime.startChat(request(), (event) => events.push(event));
     await vi.waitFor(() => {
       expect(events).toContainEqual({
-        type: "delta",
+        type: "ui-message",
         requestId: "request-1",
-        text: "partial",
+        chunk: { type: "text-delta", id: "text-1", delta: "partial" },
       });
     });
 
@@ -245,18 +281,25 @@ describe("LocalAiRuntime", () => {
       ],
       executeTool: vi.fn(async () => ({ written: true })),
       streamInvoker: () => ({
-        fullStream: (async function* () {
+        toUIMessageStream: async function* () {
           const tool = toolContext?.tools[0];
           if (!tool) throw new Error("Expected tool context");
           const output = await tool.execute({ value: "ready" });
           yield {
-            type: "tool-result",
+            type: "tool-input-available" as const,
             toolCallId: "tool-1",
             toolName: tool.name,
-            output,
+            input: { value: "ready" },
+            dynamic: true,
           };
-          yield { type: "finish", finishReason: "stop" };
-        })(),
+          yield {
+            type: "tool-output-available" as const,
+            toolCallId: "tool-1",
+            output,
+            dynamic: true,
+          };
+          yield { type: "finish" as const, finishReason: "stop" as const };
+        },
       }),
     });
 
@@ -284,12 +327,15 @@ describe("LocalAiRuntime", () => {
     await chat;
 
     expect(events).toContainEqual({
-      type: "tool",
+      type: "ui-message",
       requestId: "request-1",
-      toolCallId: "tool-1",
-      name: "external:write_value",
-      state: "output-available",
-      output: { written: true },
+      chunk: {
+        type: "tool-input-available",
+        toolCallId: "tool-1",
+        toolName: "external:write_value",
+        input: { value: "ready" },
+        dynamic: true,
+      },
     });
     expect(events.at(-1)).toEqual({
       type: "finish",

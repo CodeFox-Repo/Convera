@@ -4,6 +4,10 @@ import type {
   LocalAIChatRequest,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
+import {
+  createLocalAIUIMessageStream,
+  type LocalAIUIMessageStream,
+} from "../local-ai-ui-stream";
 import { getLocalAI, type LocalAIProviderId } from "../local-ai";
 import { useUserInputStore } from "../stores/user-input-store";
 
@@ -56,40 +60,6 @@ function toRequestMessages(messages: Message[]) {
     }));
 }
 
-function applyToolEvent(
-  message: Message,
-  event: Extract<LocalAIStreamEvent, { type: "tool" }>,
-): Message {
-  const existing = message.toolInvocations || [];
-  const withoutCurrent = existing.filter(
-    (tool) => tool.toolCallId !== event.toolCallId,
-  );
-  const base = {
-    toolCallId: event.toolCallId,
-    toolName: event.name,
-    args:
-      event.input && typeof event.input === "object"
-        ? (event.input as Record<string, unknown>)
-        : {},
-  };
-
-  const next =
-    event.state === "output-available"
-      ? { ...base, state: "result" as const, result: event.output }
-      : event.state === "output-error"
-        ? {
-            ...base,
-            state: "result" as const,
-            result: { error: event.error?.message },
-          }
-        : { ...base, state: "call" as const };
-
-  return {
-    ...message,
-    toolInvocations: [...withoutCurrent, next],
-  };
-}
-
 export function useLocalAIChat(): UseLocalAIChatResult {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -97,40 +67,32 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   const [error, setError] = useState<Error>();
   const activeRequestIdRef = useRef<string | undefined>(undefined);
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
+  const activeUIMessageStreamRef = useRef<LocalAIUIMessageStream | undefined>(
+    undefined,
+  );
 
   const releaseSubscription = useCallback(() => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = undefined;
   }, []);
 
+  const closeUIMessageStream = useCallback(async () => {
+    const stream = activeUIMessageStreamRef.current;
+    if (!stream) return;
+    stream.close();
+    await stream.done;
+    if (activeUIMessageStreamRef.current === stream) {
+      activeUIMessageStreamRef.current = undefined;
+    }
+  }, []);
+
   const handleEvent = useCallback(
-    (assistantMessageId: string, event: LocalAIStreamEvent) => {
+    (event: LocalAIStreamEvent) => {
       if (event.requestId !== activeRequestIdRef.current) return;
 
-      if (event.type === "delta") {
+      if (event.type === "ui-message") {
         setStatus("streaming");
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? {
-                  ...message,
-                  content: `${message.content}${event.text}`,
-                }
-              : message,
-          ),
-        );
-        return;
-      }
-
-      if (event.type === "tool") {
-        setStatus("streaming");
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? applyToolEvent(message, event)
-              : message,
-          ),
-        );
+        activeUIMessageStreamRef.current?.push(event.chunk);
         return;
       }
 
@@ -167,10 +129,18 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         return;
       }
 
-      setStatus(event.finishReason === "error" ? "error" : "ready");
-      useUserInputStore.getState().dismissRequest(event.requestId);
-      activeRequestIdRef.current = undefined;
-      releaseSubscription();
+      const stream = activeUIMessageStreamRef.current;
+      stream?.close();
+      void (stream?.done ?? Promise.resolve()).finally(() => {
+        if (activeRequestIdRef.current !== event.requestId) return;
+        if (activeUIMessageStreamRef.current === stream) {
+          activeUIMessageStreamRef.current = undefined;
+        }
+        setStatus(event.finishReason === "error" ? "error" : "ready");
+        useUserInputStore.getState().dismissRequest(event.requestId);
+        activeRequestIdRef.current = undefined;
+        releaseSubscription();
+      });
     },
     [releaseSubscription],
   );
@@ -196,6 +166,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         useUserInputStore.getState().dismissRequest(previousRequestId);
         releaseSubscription();
         activeRequestIdRef.current = undefined;
+        await closeUIMessageStream();
       }
 
       const requestId = crypto.randomUUID();
@@ -206,13 +177,29 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         content: "",
         createdAt: new Date(),
       };
+      const uiMessageStream = createLocalAIUIMessageStream({
+        messageId: assistantMessageId,
+        createdAt: assistantMessage.createdAt!,
+        onMessage: (message) => {
+          setMessages((current) =>
+            current.map((candidate) =>
+              candidate.id === assistantMessageId ? message : candidate,
+            ),
+          );
+        },
+        onError: (streamError) => {
+          setError(streamError);
+          setStatus("error");
+        },
+      });
 
       setError(undefined);
       setStatus("submitted");
       setMessages([...nextMessages, assistantMessage]);
       activeRequestIdRef.current = requestId;
+      activeUIMessageStreamRef.current = uiMessageStream;
       unsubscribeRef.current = localAI.onEvent(requestId, (event) => {
-        handleEvent(assistantMessageId, event);
+        handleEvent(event);
       });
 
       try {
@@ -240,9 +227,10 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         useUserInputStore.getState().dismissRequest(requestId);
         activeRequestIdRef.current = undefined;
         releaseSubscription();
+        await closeUIMessageStream();
       }
     },
-    [handleEvent, releaseSubscription],
+    [closeUIMessageStream, handleEvent, releaseSubscription],
   );
 
   const send = useCallback(
@@ -284,6 +272,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         useUserInputStore.getState().dismissRequest(requestId);
         activeRequestIdRef.current = undefined;
         releaseSubscription();
+        await closeUIMessageStream();
         setStatus("ready");
       }
     } catch (abortError) {
@@ -294,13 +283,15 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       );
       setStatus("error");
     }
-  }, [releaseSubscription]);
+  }, [closeUIMessageStream, releaseSubscription]);
 
   useEffect(
     () => () => {
       const requestId = activeRequestIdRef.current;
       const localAI = getLocalAI();
       releaseSubscription();
+      activeUIMessageStreamRef.current?.close();
+      activeUIMessageStreamRef.current = undefined;
       if (requestId && localAI) {
         useUserInputStore.getState().dismissRequest(requestId);
         void localAI.abort(requestId);

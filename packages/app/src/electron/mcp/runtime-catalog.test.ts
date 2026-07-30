@@ -38,9 +38,9 @@ describe("main-process agent tool catalog", () => {
         return getAllTools();
       },
       streamInvoker: () => ({
-        fullStream: (async function* () {
-          yield { type: "finish", finishReason: "stop" };
-        })(),
+        toUIMessageStream: async function* () {
+          yield { type: "finish" as const, finishReason: "stop" as const };
+        },
       }),
     });
 
