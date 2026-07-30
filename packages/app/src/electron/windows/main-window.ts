@@ -42,6 +42,10 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
       contextIsolation: true,
       nodeIntegration: false,
       nodeIntegrationInSubFrames: false,
+      // The preload bundle owns the privileged bridge and imports Node-backed
+      // Electron modules. Keep the renderer isolated, but do not run preload
+      // inside Electron's restricted sandbox where those imports fail.
+      sandbox: false,
       preload: path.join(__dirname, "preload.js"),
     },
     show: false,
@@ -95,6 +99,10 @@ function loadWindowContent(window: BrowserWindow) {
 
 // Setup window event handlers
 function setupWindowEventHandlers(window: BrowserWindow) {
+  window.webContents.on("preload-error", (_event, preloadPath, error) => {
+    logger.error(`Failed to load preload script at ${preloadPath}`, error);
+  });
+
   // Intercept navigations that might be triggered by OAuth flows and open externally
   const maybeOpenExternal = (targetUrl: string): boolean => {
     try {
