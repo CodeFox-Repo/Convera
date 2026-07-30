@@ -11,6 +11,7 @@ import {
   type LocalAiProviderAdapter,
 } from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
+import { createCodexMcpServer } from "./codex-mcp-server";
 
 export class CodexCliAdapter implements LocalAiProviderAdapter {
   readonly id = "codex-cli" as const;
@@ -56,8 +57,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
   ): Promise<LanguageModel> {
     await this.ensureProvider(status.executablePath);
-    const { createSdkMcpServer, tool } =
-      await importCodexProviderWithZod3Compatibility();
+    const { tool } = await importCodexProviderWithZod3Compatibility();
     const tools = context.tools.map((definition) =>
       tool({
         name: definition.name,
@@ -69,7 +69,11 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     );
     const mcpServer =
       tools.length > 0
-        ? createSdkMcpServer({ name: "convera", tools })
+        ? createCodexMcpServer({
+            name: "convera",
+            tools,
+            definitions: context.tools,
+          })
         : undefined;
     const requestApproval = async (
       name: string,
