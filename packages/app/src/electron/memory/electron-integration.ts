@@ -1,5 +1,9 @@
-import { RestrictedMemoryCurator } from "../ai/subscription-memory-curator";
+import {
+  memoryCuratorConversationId,
+  RestrictedMemoryCurator,
+} from "../ai/subscription-memory-curator";
 import type { SessionStateRepository } from "../ai/session/types";
+import type { LocalAiProviderId } from "../ai/types";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { MemoryIntegrationCoordinator } from "./coordinator";
@@ -54,6 +58,24 @@ function stableScopeId(namespace: string, value: string): string {
   return `${namespace}-${digest}`;
 }
 
+const CURATOR_SESSION_PROVIDERS: LocalAiProviderId[] = [
+  "codex-cli",
+  "claude-code",
+];
+
+export async function forgetMemoryCuratorSessions(
+  repository: SessionStateRepository,
+  scope: Parameters<typeof memoryCuratorConversationId>[0],
+): Promise<void> {
+  await Promise.all(
+    CURATOR_SESSION_PROVIDERS.map((providerId) =>
+      repository.deleteConversation(
+        memoryCuratorConversationId(scope, providerId),
+      ),
+    ),
+  );
+}
+
 /**
  * Builds the production memory graph without contacting Letta. The official
  * client and subscription curator are both lazy and remain dormant while the
@@ -94,6 +116,9 @@ export function createElectronMemoryIntegration(
     },
     onMemoryContextChanged: async () => {
       await options.sessionRepository.rotateAllForMemoryContextChange();
+    },
+    onMemoryScopeForgotten: async (scope) => {
+      await forgetMemoryCuratorSessions(options.sessionRepository, scope);
     },
   });
   return coordinator;

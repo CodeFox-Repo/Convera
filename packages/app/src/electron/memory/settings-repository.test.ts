@@ -71,4 +71,16 @@ describe("MemorySettingsRepository", () => {
       apiKeyConfigured: false,
     });
   });
+
+  it("keeps batch scheduling aligned with the IPC minimum", async () => {
+    const repository = new MemorySettingsRepository(
+      new InMemoryMemorySettingsPersistence(),
+      codec(),
+    );
+
+    await expect(repository.update({ batchSize: 1 })).rejects.toThrow();
+    await expect(repository.update({ batchSize: 2 })).resolves.toMatchObject({
+      batchSize: 2,
+    });
+  });
 });

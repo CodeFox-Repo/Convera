@@ -77,7 +77,7 @@ const updateSchema = z.object({
   baseURL: z.string().url().nullable().optional(),
   curator: z.enum(MEMORY_CURATORS).optional(),
   schedule: z.enum(MEMORY_SCHEDULES).optional(),
-  batchSize: z.number().int().min(1).max(100).optional(),
+  batchSize: z.number().int().min(2).max(100).optional(),
   idleMs: z.number().int().min(0).max(86_400_000).optional(),
   apiKey: z.string().trim().min(1).max(20_000).nullable().optional(),
 });

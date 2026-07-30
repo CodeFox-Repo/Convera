@@ -37,6 +37,7 @@ import {
   type RestrictedMemoryCurator,
   SubconsciousWorker,
 } from "./subconscious-worker";
+import { SerialTaskQueue } from "./serial-queue";
 import { createMemoryAgentTools } from "./tools";
 import { sameMemoryScope, type MemoryScope } from "./types";
 import type { LettaApi } from "./letta-api";
@@ -72,6 +73,7 @@ export interface MemoryIntegrationCoordinatorOptions {
     state: { memoryVersion: number; memoryEpoch: number },
   ) => Promise<void> | void;
   onMemoryContextChanged?: () => Promise<void> | void;
+  onMemoryScopeForgotten?: (scope: MemoryScope) => Promise<void> | void;
   now?: () => Date;
 }
 
@@ -199,12 +201,14 @@ export class MemoryIntegrationCoordinator
   ) => string;
   private readonly onConversationMemoryObserved?: MemoryIntegrationCoordinatorOptions["onConversationMemoryObserved"];
   private readonly onMemoryContextChanged?: MemoryIntegrationCoordinatorOptions["onMemoryContextChanged"];
+  private readonly onMemoryScopeForgotten?: MemoryIntegrationCoordinatorOptions["onMemoryScopeForgotten"];
   private runtime?: MemoryRuntime;
   private worker?: SubconsciousWorker;
   private readonly curators = new Map<
     LocalAiProviderId,
     RestrictedMemoryCurator
   >();
+  private readonly lifecycle = new SerialTaskQueue();
 
   constructor(options: MemoryIntegrationCoordinatorOptions) {
     this.settings = options.settingsRepository;
@@ -226,6 +230,7 @@ export class MemoryIntegrationCoordinator
       ((input) => input.workingDirectory?.trim() || "default-workspace");
     this.onConversationMemoryObserved = options.onConversationMemoryObserved;
     this.onMemoryContextChanged = options.onMemoryContextChanged;
+    this.onMemoryScopeForgotten = options.onMemoryScopeForgotten;
   }
 
   private scopes(input: MemoryScopeResolverInput): MemoryScope[] {
@@ -240,13 +245,20 @@ export class MemoryIntegrationCoordinator
   }
 
   private async ensureRuntime(): Promise<MemoryRuntime> {
-    if (this.runtime) return this.runtime;
-    const api = await this.apiFactory(this.settings);
-    this.runtime = createMemoryRuntime({
-      api,
-      indexRepository: this.indexes,
+    return this.lifecycle.run(async () => {
+      if (this.runtime) return this.runtime;
+      const api = await this.apiFactory(this.settings);
+      const runtime = createMemoryRuntime({
+        api,
+        indexRepository: this.indexes,
+        storeOptions: {
+          onScopeForgotten: this.onMemoryScopeForgotten,
+        },
+      });
+      await runtime.store.initialize();
+      this.runtime = runtime;
+      return runtime;
     });
-    return this.runtime;
   }
 
   private async resolveCurator(
@@ -464,31 +476,33 @@ export class MemoryIntegrationCoordinator
   async updateMemorySettings(
     update: LocalAIMemorySettingsUpdate,
   ): Promise<LocalAIMemorySettings> {
-    const previous = await this.settings.get();
-    await this.stopWorker(false);
-    this.runtime = undefined;
-    await this.disposeCurators();
-    const updated = await this.settings.update({
-      provider: update.provider,
-      baseURL:
-        update.baseURL === undefined
-          ? undefined
-          : update.baseURL.trim() || null,
-      curator: update.subconsciousProvider,
-      schedule: update.schedule,
-      batchSize: update.batchSize,
-      idleMs: update.idleDelayMs,
-      apiKey: update.clearApiKey ? null : update.apiKey,
+    return this.lifecycle.run(async () => {
+      const previous = await this.settings.get();
+      await this.stopWorker(false);
+      this.runtime = undefined;
+      await this.disposeCurators();
+      const updated = await this.settings.update({
+        provider: update.provider,
+        baseURL:
+          update.baseURL === undefined
+            ? undefined
+            : update.baseURL.trim() || null,
+        curator: update.subconsciousProvider,
+        schedule: update.schedule,
+        batchSize: update.batchSize,
+        idleMs: update.idleDelayMs,
+        apiKey: update.clearApiKey ? null : update.apiKey,
+      });
+      const contextSourceChanged =
+        previous.provider !== updated.provider ||
+        previous.baseURL !== updated.baseURL ||
+        update.apiKey !== undefined ||
+        update.clearApiKey === true;
+      if (contextSourceChanged) {
+        await this.onMemoryContextChanged?.();
+      }
+      return publicSettings(updated);
     });
-    const contextSourceChanged =
-      previous.provider !== updated.provider ||
-      previous.baseURL !== updated.baseURL ||
-      update.apiKey !== undefined ||
-      update.clearApiKey === true;
-    if (contextSourceChanged) {
-      await this.onMemoryContextChanged?.();
-    }
-    return publicSettings(updated);
   }
 
   async getMemoryStatus(conversationId?: string): Promise<LocalAIMemoryStatus> {
@@ -558,18 +572,13 @@ export class MemoryIntegrationCoordinator
   ): Promise<void> {
     if ((await this.settings.get()).provider === "off") return;
     const runtime = await this.ensureRuntime();
-    const sourceScope: MemoryScope = {
-      kind: "conversation",
-      id: request.sourceConversationId,
-    };
     const targetScope: MemoryScope = {
       kind: "conversation",
       id: request.targetConversationId,
     };
-    const [source, target] = await Promise.all([
-      runtime.store.getSnapshot(sourceScope).catch(() => undefined),
-      runtime.store.getSnapshot(targetScope).catch(() => undefined),
-    ]);
+    const target = await runtime.store
+      .getSnapshot(targetScope)
+      .catch(() => undefined);
     const checkpoint = request.bootstrapMessages
       .map((message) => `${message.role}: ${message.content}`)
       .join("\n")
@@ -585,16 +594,12 @@ export class MemoryIntegrationCoordinator
         timestamp: this.now().toISOString(),
       },
       operations: [
-        ...(source?.blocks.map((block) => ({
-          type: "upsert_block" as const,
-          label: block.label,
-          value: block.value,
-          description: block.description,
-          limit: block.limit,
-        })) ?? []),
         {
           type: "set_checkpoint",
-          value: checkpoint || source?.checkpoint || "",
+          // The source memory is its latest state, not its state at
+          // throughMessageId. Rebuild solely from the already-truncated
+          // transcript so facts learned after the branch point cannot leak.
+          value: checkpoint,
         },
       ],
     });
@@ -624,8 +629,8 @@ export class MemoryIntegrationCoordinator
     const worker = this.worker;
     this.worker = undefined;
     if (worker) {
-      worker.dispose();
       await worker.cancelScope(scope);
+      await worker.stop();
     }
     await Promise.all([
       this.candidates.deleteByScope(scope),
@@ -662,6 +667,9 @@ export class MemoryIntegrationCoordinator
         archiveId: undefined,
       });
     }
+    if (request.forgetConversationMemory && settings.provider !== "letta") {
+      await this.onMemoryScopeForgotten?.(scope);
+    }
   }
 
   async resetConversationProviderSession(): Promise<void> {
@@ -683,7 +691,7 @@ export class MemoryIntegrationCoordinator
     this.worker = undefined;
     if (!worker) return;
     if (flush) await worker.flush().catch(() => undefined);
-    worker.dispose();
+    await worker.stop();
   }
 
   private async disposeCurators(): Promise<void> {

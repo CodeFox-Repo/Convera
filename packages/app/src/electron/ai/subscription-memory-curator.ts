@@ -25,6 +25,13 @@ const SUPPORTED_CURATOR_PROVIDERS = new Set<LocalAiProviderId>([
   "claude-code",
 ]);
 
+export function memoryCuratorConversationId(
+  scope: MemoryScope,
+  providerId: LocalAiProviderId,
+): string {
+  return `memory-curator:${memoryScopeKey(scope)}:${providerId}`;
+}
+
 export const RESTRICTED_MEMORY_CURATOR_SYSTEM_PROMPT = `
 You are Convera's restricted memory curator. Your only task is to turn the
 provided memory snapshot, completed turns, and explicit memory candidates into
@@ -245,7 +252,7 @@ export class RestrictedMemoryCurator
       input,
       this.getActiveProviderId,
     );
-    const conversationId = `memory-curator:${memoryScopeKey(input.scope)}:${providerId}`;
+    const conversationId = memoryCuratorConversationId(input.scope, providerId);
     const prompt = buildCuratorPrompt(
       input,
       providerId,

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { InMemorySessionStateRepository } from "../ai/session/repository";
 import {
   createElectronMemoryIntegration,
+  forgetMemoryCuratorSessions,
   SafeStorageSecretCodec,
   type SafeStorageBackend,
 } from "./electron-integration";
@@ -64,5 +65,25 @@ describe("Electron memory integration", () => {
     await expect(codec.encrypt("secret")).rejects.toMatchObject({
       code: "CONFIGURATION",
     });
+  });
+
+  it("forgets both provider-native curator sessions for a memory scope", async () => {
+    const sessions = new InMemorySessionStateRepository();
+    const scope = { kind: "conversation" as const, id: "conversation-1" };
+    const codexId = "memory-curator:conversation:conversation-1:codex-cli";
+    const claudeId = "memory-curator:conversation:conversation-1:claude-code";
+    await sessions.setConversationMemoryState(codexId, {
+      memoryVersion: 3,
+      memoryEpoch: 1,
+    });
+    await sessions.setConversationMemoryState(claudeId, {
+      memoryVersion: 4,
+      memoryEpoch: 2,
+    });
+
+    await forgetMemoryCuratorSessions(sessions, scope);
+
+    expect(await sessions.getConversation(codexId)).toBeUndefined();
+    expect(await sessions.getConversation(claudeId)).toBeUndefined();
   });
 });

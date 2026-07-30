@@ -125,6 +125,54 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
+  it("replays durable write intents when the Letta runtime starts", async () => {
+    const { api, coordinator, indexes, settings } = setup();
+    const scope = {
+      kind: "conversation" as const,
+      id: "conversation-1",
+    };
+    const offlineStore = new LettaMemoryStore({
+      api,
+      indexRepository: indexes,
+      now: () => new Date(timestamp),
+    });
+    api.available = false;
+    await expect(
+      offlineStore.applyPatch({
+        scope,
+        baseVersion: 0,
+        turnId: "offline-turn",
+        provenance: {
+          actor: "subconscious",
+          turnId: "offline-turn",
+          timestamp,
+        },
+        operations: [
+          {
+            type: "upsert_block",
+            label: "delivery",
+            value: "Replay this durable intent.",
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({ status: "queued" });
+
+    api.available = true;
+    await settings.update({ provider: "letta", curator: "off" });
+    await prepare(coordinator, "startup-turn");
+
+    await expect(offlineStore.getSnapshot(scope)).resolves.toMatchObject({
+      version: 1,
+      blocks: [
+        {
+          label: "delivery",
+          value: "Replay this durable intent.",
+        },
+      ],
+      pendingTurnIds: [],
+    });
+  });
+
   it("curates the conversation once and only adds other scopes with explicit candidates", async () => {
     const { candidates, coordinator, curate, settings } = setup();
     await settings.update({
@@ -203,6 +251,65 @@ describe("MemoryIntegrationCoordinator", () => {
       baseURL: "http://127.0.0.1:8284",
     });
     expect(rotated).toHaveBeenCalledOnce();
+  });
+
+  it("rebuilds branch memory only from the transcript at the branch point", async () => {
+    const { api, coordinator, indexes, settings } = setup();
+    await settings.update({ provider: "letta", curator: "off" });
+    const store = new LettaMemoryStore({
+      api,
+      indexRepository: indexes,
+      now: () => new Date(timestamp),
+    });
+    const sourceScope = {
+      kind: "conversation" as const,
+      id: "conversation-source",
+    };
+    const targetScope = {
+      kind: "conversation" as const,
+      id: "conversation-target",
+    };
+    await store.applyPatch({
+      scope: sourceScope,
+      baseVersion: 0,
+      turnId: "future-source-turn",
+      provenance: {
+        actor: "subconscious",
+        turnId: "future-source-turn",
+        timestamp,
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "future_decision",
+          value: "This fact was learned after the branch point.",
+        },
+        {
+          type: "set_checkpoint",
+          value: "Future source checkpoint that must not leak.",
+        },
+      ],
+    });
+
+    await coordinator.branchConversation({
+      sourceConversationId: sourceScope.id,
+      targetConversationId: targetScope.id,
+      throughMessageId: "message-before-future-turn",
+      bootstrapMessages: [
+        { role: "user", content: "Decision before branch." },
+        { role: "assistant", content: "Acknowledged." },
+      ],
+    });
+
+    const target = await store.getSnapshot(targetScope);
+    expect(target.blocks).toEqual([]);
+    expect(target.checkpoint).toBe(
+      "user: Decision before branch.\nassistant: Acknowledged.",
+    );
+    expect(target.checkpoint).not.toContain("Future source checkpoint");
+    expect(JSON.stringify(target)).not.toContain(
+      "This fact was learned after the branch point.",
+    );
   });
 
   it("requires Letta only for an existing remote memory and retains a tombstone epoch", async () => {
