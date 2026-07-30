@@ -115,8 +115,8 @@ async function importCodexProviderWithZod3Compatibility(): Promise<
   Object.defineProperty(prototype, "passthrough", {
     configurable: true,
     value(this: ZodEffects<ZodTypeAny>) {
-      const refinedSchema = this;
-      const innerObject = refinedSchema.innerType() as unknown as {
+      const parseRefinedSchema = this._parse.bind(this);
+      const innerObject = this.innerType() as unknown as {
         passthrough(): object;
       };
       const objectSchema = innerObject.passthrough() as object & {
@@ -128,7 +128,7 @@ async function importCodexProviderWithZod3Compatibility(): Promise<
       // returned schema's parser back to the ZodEffects instance.
       Object.defineProperty(objectSchema, "_parse", {
         configurable: true,
-        value: refinedSchema._parse.bind(refinedSchema),
+        value: parseRefinedSchema,
       });
       return objectSchema;
     },
