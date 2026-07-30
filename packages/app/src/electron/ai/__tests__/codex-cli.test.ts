@@ -27,7 +27,10 @@ describe("CodexCliAdapter", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    const model = await adapter.createModel(request, status);
+    const model = await adapter.createModel(request, status, {
+      tools: [],
+      requestInteraction: async () => ({ approved: false }),
+    });
 
     expect(model).toBeDefined();
     expect(effectsPrototype.passthrough).toBeUndefined();
