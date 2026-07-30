@@ -22,14 +22,12 @@ const mocks = vi.hoisted(() => {
     model,
     provider,
     createCodexAppServer: vi.fn(() => provider),
-    createSdkMcpServer: vi.fn(() => ({ url: "http://127.0.0.1/mcp" })),
     tool: vi.fn((definition) => definition),
   };
 });
 
 vi.mock("ai-sdk-provider-codex-cli", () => ({
   createCodexAppServer: mocks.createCodexAppServer,
-  createSdkMcpServer: mocks.createSdkMcpServer,
   tool: mocks.tool,
 }));
 
@@ -90,7 +88,14 @@ describe("CodexCliAdapter MCP transport", () => {
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
-    const mcpServer = mocks.createSdkMcpServer.mock.results[0].value;
+    const mcpServer = mocks.provider.mock.calls[0]?.[1]?.mcpServers?.convera;
+    expect(mcpServer).toEqual(
+      expect.objectContaining({
+        name: "convera",
+        _start: expect.any(Function),
+        _stop: expect.any(Function),
+      }),
+    );
     expect(mocks.provider).toHaveBeenCalledWith(
       "gpt-test",
       expect.objectContaining({
