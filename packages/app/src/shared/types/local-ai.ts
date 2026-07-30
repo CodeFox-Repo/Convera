@@ -65,6 +65,13 @@ export interface LocalAIUsage {
   totalTokens?: number;
 }
 
+export type LocalAIInteractionKind = "approval" | "input";
+
+export interface LocalAIInteractionResponse {
+  approved?: boolean;
+  value?: string;
+}
+
 export type LocalAIToolState =
   | "input-streaming"
   | "input-available"
@@ -102,6 +109,16 @@ export type LocalAIStreamEvent =
       error: LocalAISerializableError;
     }
   | {
+      type: "interaction";
+      requestId: string;
+      interactionId: string;
+      kind: LocalAIInteractionKind;
+      name: string;
+      prompt: string;
+      input?: unknown;
+      options?: string[];
+    }
+  | {
       type: "finish";
       requestId: string;
       finishReason: LocalAIFinishReason;
@@ -128,6 +145,11 @@ export interface LocalAIRuntimeService {
     emit: (event: LocalAIStreamEvent) => void,
   ): Promise<void> | void;
   abort(requestId: string): Promise<boolean> | boolean;
+  respondToInteraction(
+    requestId: string,
+    interactionId: string,
+    response: LocalAIInteractionResponse,
+  ): Promise<boolean> | boolean;
 }
 
 export interface ILocalAIAPI {
@@ -137,6 +159,11 @@ export interface ILocalAIAPI {
   ): Promise<LocalAIResult<LocalAIProviderStatus>>;
   startChat(request: LocalAIChatRequest): Promise<LocalAIStartResult>;
   abort(requestId: string): Promise<LocalAIResult<{ aborted: boolean }>>;
+  respondToInteraction(
+    requestId: string,
+    interactionId: string,
+    response: LocalAIInteractionResponse,
+  ): Promise<LocalAIResult<{ accepted: boolean }>>;
   onEvent(
     requestId: string,
     callback: (event: LocalAIStreamEvent) => void,
