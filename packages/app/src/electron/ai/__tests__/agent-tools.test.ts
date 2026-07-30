@@ -120,4 +120,54 @@ describe("createAgentToolCatalog", () => {
     ).resolves.toMatchObject({ userSelection: "Proceed" });
     expect(executeTool).not.toHaveBeenCalled();
   });
+
+  it("normalizes structured ask_user_input options for Codex clients", async () => {
+    const requestInteraction = vi.fn(async () => ({ value: "Alpha" }));
+    const tools = createAgentToolCatalog({
+      groups: [
+        {
+          serverName: "builtin",
+          tools: [
+            {
+              name: "ask_user_input",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  question: { type: "string" },
+                  options: {
+                    type: "array",
+                    items: {
+                      anyOf: [
+                        { type: "string" },
+                        {
+                          type: "object",
+                          properties: {
+                            label: { type: "string" },
+                            description: { type: "string" },
+                          },
+                          required: ["label"],
+                        },
+                      ],
+                    },
+                  },
+                },
+                required: ["question", "options"],
+              },
+            },
+          ],
+        },
+      ],
+      executeTool: vi.fn(),
+      requestInteraction,
+    });
+
+    await tools[0].execute({
+      question: "Choose",
+      options: [{ label: "Alpha", description: "First" }, { label: "Beta" }],
+    });
+
+    expect(requestInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({ options: ["Alpha", "Beta"] }),
+    );
+  });
 });
