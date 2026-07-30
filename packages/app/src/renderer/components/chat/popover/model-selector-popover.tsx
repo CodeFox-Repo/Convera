@@ -36,8 +36,16 @@ export default function ModelSelector() {
       const models =
         provider?.models && provider.models.length > 0
           ? provider.models
-          : [DEFAULT_LOCAL_AI_MODEL_ID];
-      return models.map((modelId) => ({ ...model, modelId }));
+          : [
+              {
+                id: DEFAULT_LOCAL_AI_MODEL_ID,
+                name: DEFAULT_LOCAL_AI_MODEL_ID,
+              },
+            ];
+      return models.map((providerModel) => ({
+        ...model,
+        modelId: providerModel.id,
+      }));
     });
   }, [getAvailableModels, providers]);
 

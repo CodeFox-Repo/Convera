@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
-  LayoutGrid,
   Moon,
   Plus,
   Search,
@@ -17,8 +16,7 @@ import {
   Settings,
   Sun,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { UserButton } from "../auth/user-button";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ChatInputContainer from "../chat/input/chat-input-container";
 import type { ChatInputRef } from "../chat/input/chat-input-container";
 import ChatContent from "../chat/message/chat-content";
@@ -29,7 +27,6 @@ import {
 
 // Import settings pages
 import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
-import { AppSettingsPage } from "@/renderer/components/settings/pages/app-page";
 import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
 import { GeneralSettingsPage } from "@/renderer/components/settings/pages/general-page";
 import { McpSettingsPage } from "@/renderer/components/settings/pages/mcp-page";
@@ -46,7 +43,7 @@ import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut
 import { branchFromMessage } from "@/renderer/libs/db/hooks";
 
 type ViewType = "chat" | "settings";
-type SettingsTab = "general" | "app" | "agents" | "mcp" | "developer";
+type SettingsTab = "general" | "agents" | "mcp" | "developer";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -79,17 +76,17 @@ export function HomePage() {
   });
 
   // Helper to navigate to settings - auto-expands sidebar
-  const navigateToSettings = () => {
+  const navigateToSettings = useCallback(() => {
     if (sidebarCollapsed) {
       setSidebarCollapsed(false);
     }
     setActiveView("settings");
-  };
+  }, [sidebarCollapsed]);
 
   // Listen for navigate-to-settings from main process (tray menu)
   useEffect(() => {
     window.electronAPI?.onNavigateToSettings?.(navigateToSettings);
-  }, [sidebarCollapsed]);
+  }, [navigateToSettings]);
 
   const handleNewChat = () => {
     resetChat();
@@ -119,7 +116,6 @@ export function HomePage() {
   // Settings navigation items
   const settingsNavItems = [
     { id: "general" as SettingsTab, label: "General", icon: Settings },
-    { id: "app" as SettingsTab, label: "Apps", icon: LayoutGrid },
     { id: "agents" as SettingsTab, label: "Agents", icon: Bot },
     { id: "mcp" as SettingsTab, label: "MCP Servers", icon: Server },
     { id: "developer" as SettingsTab, label: "Developer", icon: Code },
@@ -138,8 +134,6 @@ export function HomePage() {
         );
       case "mcp":
         return <McpSettingsPage />;
-      case "app":
-        return <AppSettingsPage />;
       case "developer":
         return <DeveloperSettingsPage />;
       default:
@@ -285,7 +279,6 @@ export function HomePage() {
                     </button>
                   </>
                 )}
-                <UserButton collapsed={false} />
               </div>
             </div>
           )}

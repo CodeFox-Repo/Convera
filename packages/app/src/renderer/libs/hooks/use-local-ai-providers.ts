@@ -10,8 +10,8 @@ const fallbackProviders = Object.entries(LOCAL_AI_PROVIDER_NAMES).map(
   ([id, name]) => ({
     id: id as LocalAIProviderId,
     name,
-    available: false,
-    authenticated: false,
+    kind: id as LocalAIProviderId,
+    availability: "unavailable" as const,
   }),
 );
 

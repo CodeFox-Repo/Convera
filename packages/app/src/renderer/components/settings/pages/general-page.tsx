@@ -356,10 +356,10 @@ export function GeneralSettingsPage() {
                       <p className="text-xs text-muted-foreground">
                         {providersLoading
                           ? "Checking local CLI..."
-                          : provider.available && provider.authenticated
+                          : provider.availability === "available"
                             ? "Installed and authenticated"
-                            : provider.error ||
-                              (provider.available
+                            : provider.detail ||
+                              (provider.availability === "unauthenticated"
                                 ? "Authentication required"
                                 : "CLI not installed")}
                       </p>
@@ -367,12 +367,12 @@ export function GeneralSettingsPage() {
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded ${
-                      provider.available && provider.authenticated
+                      provider.availability === "available"
                         ? "text-emerald-600 bg-emerald-500/10"
                         : "text-muted-foreground bg-muted"
                     }`}
                   >
-                    {provider.available && provider.authenticated
+                    {provider.availability === "available"
                       ? "Ready"
                       : "Unavailable"}
                   </span>

@@ -7,9 +7,7 @@
  * - modelConfigs: Custom model configurations (local only)
  * - settings: App settings (local only)
  *
- * Cloud API (retained):
- * - /api/chat/completion: AI inference
- * - /api/marketplace/*: Agent/MCP template downloads (future)
+ * AI inference and tools run through the Electron main process.
  */
 
 import Dexie, { type EntityTable } from "dexie";

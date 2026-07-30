@@ -17,12 +17,20 @@ export function isLocalAIProviderId(value: string): value is LocalAIProviderId {
 }
 
 export interface LocalAIProviderStatus {
-  id: LocalAIProviderId;
+  id: string;
   name: string;
-  available: boolean;
-  authenticated: boolean;
-  models?: string[];
-  error?: string;
+  kind: LocalAIProviderId;
+  availability:
+    | "available"
+    | "missing"
+    | "unauthenticated"
+    | "unavailable"
+    | "error";
+  detail?: string;
+  models?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface LocalAIMessage {
@@ -34,13 +42,17 @@ export interface LocalAIMessage {
 export interface LocalAIChatRequest {
   requestId: string;
   providerId: LocalAIProviderId;
-  model?: string;
+  modelId?: string;
   messages: LocalAIMessage[];
   agent?: {
     id?: string;
     systemPrompt?: string;
   };
-  options?: Record<string, unknown>;
+  options?: {
+    temperature?: number;
+    maxOutputTokens?: number;
+    cwd?: string;
+  };
 }
 
 export interface LocalAIError {
@@ -68,7 +80,7 @@ export type LocalAIChatEvent =
         | "output-error";
       input?: unknown;
       output?: unknown;
-      error?: string;
+      error?: LocalAIError;
     }
   | {
       type: "error";
@@ -96,19 +108,16 @@ export type LocalAIChatEvent =
 export interface LocalAIResult<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: LocalAIError;
 }
 
 export interface LocalAIStartResult extends LocalAIResult<never> {
   accepted: boolean;
-  requestId: string;
 }
 
 export interface LocalAIAPI {
   listProviders(): Promise<LocalAIResult<LocalAIProviderStatus[]>>;
-  getProviderStatus(
-    id: LocalAIProviderId,
-  ): Promise<LocalAIResult<LocalAIProviderStatus>>;
+  getProviderStatus(id: string): Promise<LocalAIResult<LocalAIProviderStatus>>;
   startChat(request: LocalAIChatRequest): Promise<LocalAIStartResult>;
   abort(requestId: string): Promise<LocalAIResult<{ aborted: boolean }>>;
   onEvent(
