@@ -14,14 +14,19 @@ import {
   deleteModelConfig as deleteConfigDB,
   db,
   type ModelConfig,
-  FOXYCHAT_CONFIG_ID,
-  DEFAULT_FOXYCHAT_MODELS,
 } from "../db";
 import { useSelectionStore } from "../db/ui-state";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  DEFAULT_LOCAL_AI_PROVIDER_ID,
+  LOCAL_AI_PROVIDER_NAMES,
+  isLocalAIProviderId,
+  type LocalAIProviderId,
+} from "../local-ai-contract";
 
 // Re-export for backward compatibility
 export type { ModelConfig };
-export { FOXYCHAT_CONFIG_ID };
+export { DEFAULT_LOCAL_AI_PROVIDER_ID };
 
 interface GroupedModel {
   configId: string;
@@ -64,9 +69,12 @@ export function useModelConfigStore() {
     removeModelConfig: async (id: string) => {
       await deleteConfigDB(id);
 
-      // If removing the selected config, switch to foxychat remote
+      // If removing the selected config, switch to the default local provider
       if (selectedConfigId === id) {
-        setSelectedModel(FOXYCHAT_CONFIG_ID, DEFAULT_FOXYCHAT_MODELS[0]);
+        setSelectedModel(
+          DEFAULT_LOCAL_AI_PROVIDER_ID,
+          DEFAULT_LOCAL_AI_MODEL_ID,
+        );
       }
     },
 
@@ -88,20 +96,19 @@ export function useModelConfigStore() {
     },
 
     // Helpers
-    getAvailableModels: (isUserLoggedIn: boolean): GroupedModel[] => {
+    getAvailableModels: (): GroupedModel[] => {
       const models: GroupedModel[] = [];
 
-      // Foxychat remote models (requires login)
-      if (isUserLoggedIn) {
-        DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
+      Object.entries(LOCAL_AI_PROVIDER_NAMES)
+        .filter(([id]) => id !== "openai-compatible")
+        .forEach(([configId, configName]) => {
           models.push({
-            configId: FOXYCHAT_CONFIG_ID,
-            configName: "Foxychat",
-            modelId,
-            isRemote: true,
+            configId,
+            configName,
+            modelId: DEFAULT_LOCAL_AI_MODEL_ID,
+            isRemote: false,
           });
         });
-      }
 
       // User custom models
       (modelConfigs || []).forEach((config) => {
@@ -119,14 +126,14 @@ export function useModelConfigStore() {
     },
 
     getConfigById: (id: string): ModelConfig | undefined => {
-      if (id === FOXYCHAT_CONFIG_ID) {
+      if (isLocalAIProviderId(id)) {
         return undefined;
       }
       return (modelConfigs || []).find((config) => config.id === id);
     },
 
     getCurrentConfig: (): ModelConfig | undefined => {
-      if (selectedConfigId === FOXYCHAT_CONFIG_ID) {
+      if (isLocalAIProviderId(selectedConfigId)) {
         return undefined;
       }
       return currentConfig;
@@ -157,19 +164,23 @@ useModelConfigStore.getState = () => {
     selectedConfigId,
     selectedModelId,
     getCurrentConfig: async (): Promise<ModelConfig | undefined> => {
-      if (selectedConfigId === FOXYCHAT_CONFIG_ID) {
+      if (isLocalAIProviderId(selectedConfigId)) {
         return undefined;
       }
       return await db.modelConfigs.get(selectedConfigId);
     },
     getConfigById: async (id: string): Promise<ModelConfig | undefined> => {
-      if (id === FOXYCHAT_CONFIG_ID) {
+      if (isLocalAIProviderId(id)) {
         return undefined;
       }
       return await db.modelConfigs.get(id);
     },
   };
 };
+
+export function resolveLocalAIProviderId(configId: string): LocalAIProviderId {
+  return isLocalAIProviderId(configId) ? configId : "openai-compatible";
+}
 
 // ==================== Standalone Actions ====================
 

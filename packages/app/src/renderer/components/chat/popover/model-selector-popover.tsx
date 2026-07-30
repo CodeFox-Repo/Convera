@@ -1,7 +1,11 @@
-import { authClient } from "@/renderer/libs/auth-client";
+import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  isLocalAIProviderId,
+} from "@/renderer/libs/local-ai-contract";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import * as Popover from "@radix-ui/react-popover";
-import { Key, Satellite } from "lucide-react";
+import { Key, Terminal } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 export default function ModelSelector() {
@@ -14,8 +18,7 @@ export default function ModelSelector() {
     subscribeToModelConfigChanges,
   } = useModelConfigStore();
 
-  const { data: session } = authClient.useSession();
-  const isUserLoggedIn = !!session?.user;
+  const { providers } = useLocalAIProviders();
 
   useEffect(() => {
     const unsubscribe = subscribeToModelConfigChanges();
@@ -23,10 +26,20 @@ export default function ModelSelector() {
   }, [subscribeToModelConfigChanges]);
 
   // Get all available models grouped by config
-  const availableModels = useMemo(
-    () => getAvailableModels(isUserLoggedIn),
-    [getAvailableModels, isUserLoggedIn],
-  );
+  const availableModels = useMemo(() => {
+    const configuredModels = getAvailableModels();
+    return configuredModels.flatMap((model) => {
+      if (!isLocalAIProviderId(model.configId)) return model;
+      const provider = providers.find(
+        (candidate) => candidate.id === model.configId,
+      );
+      const models =
+        provider?.models && provider.models.length > 0
+          ? provider.models
+          : [DEFAULT_LOCAL_AI_MODEL_ID];
+      return models.map((modelId) => ({ ...model, modelId }));
+    });
+  }, [getAvailableModels, providers]);
 
   // Group models by configId
   const groupedModels = useMemo(() => {
@@ -107,8 +120,8 @@ export default function ModelSelector() {
               <div key={configId} className="mb-3 last:mb-0">
                 {/* Group Header */}
                 <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
-                  {group.isRemote ? (
-                    <Satellite className="w-3 h-3" />
+                  {isLocalAIProviderId(configId) ? (
+                    <Terminal className="w-3 h-3" />
                   ) : (
                     <Key className="w-3 h-3 text-orange-500" />
                   )}
@@ -162,7 +175,7 @@ export default function ModelSelector() {
                   No models available
                 </p>
                 <p className="text-muted-foreground text-xs mt-1">
-                  Log in or add a model configuration
+                  Install Claude Code, Codex, or add a custom endpoint
                 </p>
               </div>
             )}

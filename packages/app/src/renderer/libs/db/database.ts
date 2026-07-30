@@ -118,15 +118,3 @@ export const DEFAULT_AGENT: Agent = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
-
-// Foxychat remote models (requires login)
-export const DEFAULT_FOXYCHAT_MODELS = [
-  "google/gemini-2.5-flash",
-  "openai/gpt-4o-mini",
-  "openai/gpt-4o",
-  "qwen/qwq-32b",
-  "anthropic/claude-3.7-sonnet",
-  "openai/o3-mini",
-];
-
-export const FOXYCHAT_CONFIG_ID = "foxychat-remote";

@@ -10,10 +10,12 @@ import React, {
   useState,
 } from "react";
 import { useLocalAIChat } from "../hooks/use-local-ai-chat";
-import type { LocalAIProviderId } from "../local-ai-contract";
 import { useAgentStore } from "./agent-store";
 import { useChatHistory } from "./chat-history-store";
-import { useModelConfigStore } from "./model-config-store";
+import {
+  resolveLocalAIProviderId,
+  useModelConfigStore,
+} from "./model-config-store";
 import { db, createConversation, updateMessages } from "../db";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
@@ -47,11 +49,6 @@ interface ChatContextType {
   viewMode: ChatViewMode;
   setViewMode: (mode: ChatViewMode) => void;
   toggleViewMode: () => void;
-
-  // Remote store management
-  useRemoteStore: boolean;
-  setUseRemoteStore: (useRemote: boolean) => void;
-  isUserLoggedIn: boolean;
 
   // Conversation management
   currentConversationId: string | null;
@@ -448,9 +445,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          const { selectedConfigId, selectedModelId } =
+          const { selectedConfigId, selectedModelId, getCurrentConfig } =
             useModelConfigStore.getState();
-          const providerId = selectedConfigId as LocalAIProviderId;
+          const providerId = resolveLocalAIProviderId(selectedConfigId);
+          const currentConfig = await getCurrentConfig();
 
           await chatAPI.send(message, {
             providerId,
@@ -463,6 +461,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               : undefined,
             options: {
               conversationId: conversationIdToUse,
+              customApiSettings: currentConfig
+                ? {
+                    endpoint: currentConfig.endpoint,
+                    apiKey: currentConfig.apiKey,
+                  }
+                : undefined,
             },
           });
 
@@ -520,7 +524,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const { selectedConfigId, selectedModelId } =
         useModelConfigStore.getState();
       void chatAPI.resend(updatedMessages, {
-        providerId: selectedConfigId as LocalAIProviderId,
+        providerId: resolveLocalAIProviderId(selectedConfigId),
         model: selectedModelId,
         agent: selectedAgent
           ? {
@@ -542,7 +546,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const { selectedConfigId, selectedModelId } =
         useModelConfigStore.getState();
       void chatAPI.resend(nextMessages, {
-        providerId: selectedConfigId as LocalAIProviderId,
+        providerId: resolveLocalAIProviderId(selectedConfigId),
         model: selectedModelId,
         agent: selectedAgent
           ? {
@@ -589,9 +593,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     viewMode,
     setViewMode,
     toggleViewMode,
-    useRemoteStore: false,
-    setUseRemoteStore: () => undefined,
-    isUserLoggedIn: true,
     currentConversationId,
     setInput,
     sendMessage,

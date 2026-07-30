@@ -13,9 +13,12 @@ import {
   type Message,
   type ModelConfig,
   DEFAULT_AGENT,
-  FOXYCHAT_CONFIG_ID,
-  DEFAULT_FOXYCHAT_MODELS,
 } from "./database";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  LOCAL_AI_PROVIDER_NAMES,
+  isLocalAIProviderId,
+} from "../local-ai-contract";
 
 // ==================== Conversation Hooks ====================
 
@@ -279,7 +282,7 @@ export function useModelConfigs() {
 export function useModelConfig(id: string | null) {
   return useLiveQuery(
     () =>
-      id && id !== FOXYCHAT_CONFIG_ID ? db.modelConfigs.get(id) : undefined,
+      id && !isLocalAIProviderId(id) ? db.modelConfigs.get(id) : undefined,
     [id],
   );
 }
@@ -351,24 +354,23 @@ interface GroupedModel {
   isRemote: boolean;
 }
 
-export function useAvailableModels(isUserLoggedIn: boolean): GroupedModel[] {
+export function useAvailableModels(): GroupedModel[] {
   const configs = useModelConfigs();
 
   if (!configs) return [];
 
   const models: GroupedModel[] = [];
 
-  // Foxychat remote models (requires login)
-  if (isUserLoggedIn) {
-    DEFAULT_FOXYCHAT_MODELS.forEach((modelId) => {
+  Object.entries(LOCAL_AI_PROVIDER_NAMES)
+    .filter(([id]) => id !== "openai-compatible")
+    .forEach(([configId, configName]) => {
       models.push({
-        configId: FOXYCHAT_CONFIG_ID,
-        configName: "Foxychat",
-        modelId,
-        isRemote: true,
+        configId,
+        configName,
+        modelId: DEFAULT_LOCAL_AI_MODEL_ID,
+        isRemote: false,
       });
     });
-  }
 
   // User custom models
   configs.forEach((config) => {
