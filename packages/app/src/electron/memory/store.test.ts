@@ -134,6 +134,28 @@ describe("LettaMemoryStore", () => {
     expect(api.archivePassages.get(archive.id)?.size).toBe(2);
   });
 
+  it("rejects corrections outside the managed scope instead of retrying them", async () => {
+    const { indexes, store } = setup();
+    await expect(
+      store.applyPatch(
+        patch({
+          operations: [
+            {
+              type: "correct_passage",
+              memoryId: "foreign-passage",
+              replacement: "Must not be written.",
+              reason: "Invalid target.",
+            },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      retryable: false,
+    });
+    expect((await indexes.get(scope))?.pendingWrites).toEqual([]);
+  });
+
   it("uses last-known-good snapshot while Letta is offline", async () => {
     const { api, store } = setup();
     await store.applyPatch(patch());
@@ -143,6 +165,38 @@ describe("LettaMemoryStore", () => {
 
     expect(fresh.stale).toBe(false);
     expect(stale.stale).toBe(true);
+    expect(stale.blocks[0]?.value).toBe("Implement durable memory");
+  });
+
+  it("retains the previous validated snapshot after a newer write until it can refresh", async () => {
+    const { api, store } = setup();
+    await store.applyPatch(patch());
+    const validated = await store.getSnapshot(scope);
+    await store.applyPatch(
+      patch({
+        turnId: "turn-2",
+        baseVersion: 1,
+        operations: [
+          {
+            type: "upsert_block",
+            label: "current_goal",
+            value: "A newer value that has not been read back",
+          },
+        ],
+      }),
+    );
+    api.available = false;
+
+    const stale = await store.getSnapshot(scope);
+
+    expect(validated).toMatchObject({
+      version: 1,
+      stale: false,
+    });
+    expect(stale).toMatchObject({
+      version: 1,
+      stale: true,
+    });
     expect(stale.blocks[0]?.value).toBe("Implement durable memory");
   });
 

@@ -397,7 +397,6 @@ export class LettaMemoryStore implements MemoryStore {
       index.pendingWrites = index.pendingWrites.filter(
         (pending) => pending.patch.turnId !== patch.turnId,
       );
-      index.lastKnownGood = undefined;
       index.revision += 1;
       await this.indexes.put(index);
       return {
@@ -408,6 +407,7 @@ export class LettaMemoryStore implements MemoryStore {
         message: `Applied ${patch.operations.length} memory operation(s) at version ${nextVersion}.`,
       };
     } catch (error) {
+      if (error instanceof MemoryError && !error.retryable) throw error;
       if (!queueOnFailure) throw error;
       const existing = index.pendingWrites.find(
         (pending) => pending.patch.turnId === patch.turnId,
@@ -451,23 +451,36 @@ export class LettaMemoryStore implements MemoryStore {
         );
         const tags = [BLOCK_TAG, scopeTag(patch.scope)];
         const blockId = index.blockIds[operation.label];
-        const record = blockId
-          ? await this.api.updateBlock(blockId, {
-              label: operation.label,
-              value: operation.value,
-              description: operation.description,
-              limit: operation.limit,
-              metadata,
-              tags,
-            })
-          : await this.api.createBlock({
-              label: operation.label,
-              value: operation.value,
-              description: operation.description,
-              limit: operation.limit,
-              metadata,
-              tags,
-            });
+        let record: LettaBlockRecord;
+        try {
+          record = blockId
+            ? await this.api.updateBlock(blockId, {
+                label: operation.label,
+                value: operation.value,
+                description: operation.description,
+                limit: operation.limit,
+                metadata,
+                tags,
+              })
+            : await this.api.createBlock({
+                label: operation.label,
+                value: operation.value,
+                description: operation.description,
+                limit: operation.limit,
+                metadata,
+                tags,
+              });
+        } catch (error) {
+          if (!blockId || !isNotFoundError(error)) throw error;
+          record = await this.api.createBlock({
+            label: operation.label,
+            value: operation.value,
+            description: operation.description,
+            limit: operation.limit,
+            metadata,
+            tags,
+          });
+        }
         index.blockIds[operation.label] = record.id;
         return;
       }

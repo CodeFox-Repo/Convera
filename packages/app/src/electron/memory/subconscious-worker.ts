@@ -50,6 +50,7 @@ export interface CuratorInput {
  */
 export interface RestrictedMemoryCurator {
   curate(input: CuratorInput): Promise<unknown>;
+  dispose?(): Promise<void> | void;
 }
 
 export interface MemoryCuratorNoopDecision {
@@ -147,6 +148,7 @@ export class SubconsciousWorker {
   >;
   private readonly queue: QueuedTurn[] = [];
   private readonly states = new Map<string, SubconsciousJobState>();
+  private readonly cancelledScopes = new Set<string>();
   private sequence = 0;
   private drainPromise?: Promise<void>;
   private idleHandle?: unknown;
@@ -281,7 +283,7 @@ export class SubconsciousWorker {
   }
 
   private async drain(force: boolean): Promise<void> {
-    while (this.queue.length > 0) {
+    while (!this.disposed && this.queue.length > 0) {
       if (
         !force &&
         this.schedule === "batch" &&
@@ -314,6 +316,10 @@ export class SubconsciousWorker {
   private async processBatch(batch: QueuedTurn[]): Promise<void> {
     const first = batch[0];
     if (!first) return;
+    if (this.cancelledScopes.has(memoryScopeKey(first.turn.scope))) {
+      await this.skipBatch(batch, 0, "Memory scope was cancelled.");
+      return;
+    }
     const jobId =
       batch.length === 1
         ? first.id
@@ -353,6 +359,14 @@ export class SubconsciousWorker {
             "memory_apply_patch",
           ],
         });
+        if (this.cancelledScopes.has(memoryScopeKey(first.turn.scope))) {
+          await this.skipBatch(
+            batch,
+            attempt,
+            "Memory scope was cancelled before consolidation.",
+          );
+          return;
+        }
         const decision = parseCuratorDecision(raw);
         if ("action" in decision) {
           aggregate.status = "skipped";
@@ -463,6 +477,39 @@ export class SubconsciousWorker {
       updatedAt: timestamp,
     };
     await this.jobRepository.put(job);
+  }
+
+  private async skipBatch(
+    batch: QueuedTurn[],
+    attempts: number,
+    reason: string,
+  ): Promise<void> {
+    for (const queued of batch) {
+      const state = this.states.get(queued.id);
+      if (!state) continue;
+      state.status = "skipped";
+      state.attempts = attempts;
+      state.reason = reason;
+      state.error = undefined;
+      await this.persistState(queued, state);
+    }
+  }
+
+  async cancelScope(scope: MemoryScope): Promise<void> {
+    await this.ready;
+    const key = memoryScopeKey(scope);
+    this.cancelledScopes.add(key);
+    const removed = this.queue.filter((queued) =>
+      sameMemoryScope(queued.turn.scope, scope),
+    );
+    for (let index = this.queue.length - 1; index >= 0; index -= 1) {
+      const queued = this.queue[index];
+      if (queued && sameMemoryScope(queued.turn.scope, scope)) {
+        this.queue.splice(index, 1);
+      }
+    }
+    await this.skipBatch(removed, 0, "Memory scope was cancelled.");
+    if (this.drainPromise) await this.drainPromise;
   }
 
   getState(jobId: string): SubconsciousJobState | undefined {

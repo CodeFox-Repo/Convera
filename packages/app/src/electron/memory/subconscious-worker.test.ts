@@ -1,9 +1,4 @@
-import {
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -121,6 +116,44 @@ describe("SubconsciousWorker", () => {
     expect(attempts).toBe(2);
     expect(worker.getState(jobId)?.status).toBe("completed");
     worker.dispose();
+  });
+
+  it("does not apply a curator result after its scope is cancelled", async () => {
+    const store = setup();
+    let release: (() => void) | undefined;
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const worker = new SubconsciousWorker({
+      store,
+      curator: {
+        curate: async (input) => {
+          markStarted?.();
+          await gate;
+          return patchFor(input);
+        },
+      },
+      schedule: "every-turn",
+      retryBaseMs: 0,
+      jobRepository: new InMemorySubconsciousJobRepository(),
+    });
+    const jobId = await worker.enqueue(turn("turn-cancelled"));
+    await started;
+
+    worker.dispose();
+    const cancelled = worker.cancelScope(scope);
+    release?.();
+    await cancelled;
+
+    expect((await store.getSnapshot(scope)).version).toBe(0);
+    expect(worker.getState(jobId)).toMatchObject({
+      status: "skipped",
+      reason: expect.stringContaining("cancelled"),
+    });
   });
 
   it("accepts an explicit curator noop without bumping memory version", async () => {
