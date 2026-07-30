@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode } from "@/shared/types/electron";
+import type { LocalAIRuntimeService } from "@/shared/types/local-ai";
 import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
 import { getAppIcon, getPlatform } from "./active-app-context";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
@@ -25,6 +26,7 @@ import {
   updateGlobalShortcut,
 } from "./ipc-handlers";
 import { setupLoggerIPC } from "./logger-context";
+import { setupLocalAIIPC } from "./local-ai-context";
 import { setupMCPIPC } from "./mcp-context";
 
 // Extended interface that includes additional methods beyond IPCServer
@@ -88,6 +90,7 @@ export function createElectronAPI(ipcRenderer: IpcRenderer): ElectronAPI {
 export interface ListenerOptions {
   mainWindow?: () => BrowserWindow | null;
   registerGlobalShortcuts?: () => void;
+  localAIRuntime?: LocalAIRuntimeService;
 }
 
 /**
@@ -231,5 +234,12 @@ export function registerListeners(options: ListenerOptions = {}) {
   setupLoggerIPC();
   setupElectronAPIIPC(options);
   setupEnvIPC();
+  setupLocalAIIPC({
+    runtime: options.localAIRuntime,
+    getAllowedWebContents: () => {
+      const window = options.mainWindow?.();
+      return window && !window.isDestroyed() ? window.webContents : null;
+    },
+  });
   console.log("All IPC listeners registered successfully");
 }
