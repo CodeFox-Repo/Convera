@@ -1,4 +1,5 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import { app, BrowserWindow, globalShortcut, safeStorage } from "electron";
+import { join } from "node:path";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
 import {
@@ -9,6 +10,11 @@ import {
   mcpToolCall,
 } from "@/electron/mcp";
 import { LocalAiRuntime } from "@/electron/ai";
+import { JsonSessionStateRepository } from "@/electron/ai/session/repository";
+import {
+  createElectronMemoryIntegration,
+  type MemoryIntegrationCoordinator,
+} from "@/electron/memory";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -26,16 +32,8 @@ import {
 
 // Initialize logger for main process
 const logger = getLogger("main-process");
-const localAIRuntime = new LocalAiRuntime({
-  getToolGroups: async () => {
-    await initializeMCPHub();
-    return getAllTools();
-  },
-  executeTool: (serverName, toolName, input) =>
-    serverName.toLowerCase() === "builtin"
-      ? mcpToolCall(toolName, input)
-      : callTool(serverName, toolName, input),
-});
+let localAIRuntime: LocalAiRuntime | undefined;
+let memoryCoordinator: MemoryIntegrationCoordinator | undefined;
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
@@ -99,6 +97,30 @@ app.whenReady().then(async () => {
     // Initialize synchronous components first
     initializeLogger();
 
+    const userDataPath = app.getPath("userData");
+    const sessionRepository = new JsonSessionStateRepository({
+      path: join(userDataPath, "local-ai-runtime-state.json"),
+    });
+    memoryCoordinator = createElectronMemoryIntegration({
+      userDataPath,
+      workingDirectory: process.cwd(),
+      safeStorage,
+      sessionRepository,
+    });
+    localAIRuntime = new LocalAiRuntime({
+      sessionRepository,
+      turnHooks: memoryCoordinator,
+      memoryService: memoryCoordinator,
+      getToolGroups: async () => {
+        await initializeMCPHub();
+        return getAllTools();
+      },
+      executeTool: (serverName, toolName, input) =>
+        serverName.toLowerCase() === "builtin"
+          ? mcpToolCall(toolName, input)
+          : callTool(serverName, toolName, input),
+    });
+
     // Initialize MCP Hub asynchronously but don't block startup
     initializeMCPHub()
       .then(() => {
@@ -156,8 +178,15 @@ app.on("will-quit", () => {
     hub.cleanup();
     console.log("MCP Hub cleaned up");
   }
-  void localAIRuntime.dispose().catch((error) => {
-    logger.error("Local AI runtime cleanup failed:", error);
+  void Promise.allSettled([
+    memoryCoordinator?.dispose(),
+    localAIRuntime?.dispose(),
+  ]).then((results) => {
+    for (const result of results) {
+      if (result.status === "rejected") {
+        logger.error("Local AI cleanup failed:", result.reason);
+      }
+    }
   });
 });
 

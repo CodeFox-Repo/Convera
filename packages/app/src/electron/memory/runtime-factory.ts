@@ -1,17 +1,33 @@
+import { join } from "node:path";
+import {
+  JsonMemoryCandidateRepository,
+  type MemoryCandidateRepository,
+} from "./candidate-sink";
 import { MemoryContextCompiler } from "./context-compiler";
-import type { MemoryIndexRepository } from "./index-repository";
+import {
+  JsonMemoryIndexRepository,
+  type MemoryIndexRepository,
+} from "./index-repository";
 import {
   OfficialLettaApiAdapter,
   type LettaApi,
   type OfficialLettaApiConfig,
 } from "./letta-api";
-import type { MemorySettingsRepository } from "./settings-repository";
+import {
+  JsonMemorySettingsPersistence,
+  MemorySettingsRepository,
+  type SecretCodec,
+} from "./settings-repository";
 import { LettaMemoryStore, type LettaMemoryStoreOptions } from "./store";
 import {
   SubconsciousWorker,
   type RestrictedMemoryCurator,
   type SubconsciousWorkerOptions,
 } from "./subconscious-worker";
+import {
+  JsonSubconsciousJobRepository,
+  type SubconsciousJobRepository,
+} from "./subconscious-job-repository";
 
 export interface MemoryRuntime {
   store: LettaMemoryStore;
@@ -20,6 +36,36 @@ export interface MemoryRuntime {
     curator: RestrictedMemoryCurator,
     options: Omit<SubconsciousWorkerOptions, "store" | "curator">,
   ): SubconsciousWorker;
+}
+
+export interface PersistentMemoryRepositories {
+  settings: MemorySettingsRepository;
+  indexes: MemoryIndexRepository;
+  jobs: SubconsciousJobRepository;
+  candidates: MemoryCandidateRepository;
+}
+
+export function createPersistentMemoryRepositories(options: {
+  directory: string;
+  secretCodec: SecretCodec;
+}): PersistentMemoryRepositories {
+  return {
+    settings: new MemorySettingsRepository(
+      new JsonMemorySettingsPersistence({
+        path: join(options.directory, "settings.json"),
+      }),
+      options.secretCodec,
+    ),
+    indexes: new JsonMemoryIndexRepository({
+      path: join(options.directory, "indexes.json"),
+    }),
+    jobs: new JsonSubconsciousJobRepository({
+      path: join(options.directory, "subconscious-jobs.json"),
+    }),
+    candidates: new JsonMemoryCandidateRepository({
+      path: join(options.directory, "candidates.json"),
+    }),
+  };
 }
 
 export function createLettaApi(config: OfficialLettaApiConfig): LettaApi {

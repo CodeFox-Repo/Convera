@@ -107,7 +107,26 @@ function beginTurn(
     );
   }
 
-  if (input.operation === "rebase") {
+  const currentBinding = state.bindings.find((candidate) =>
+    bindingMatches(
+      candidate,
+      input.conversationId,
+      input.providerId,
+      conversation.revision,
+    ),
+  );
+  const currentRevisionIsUncertain = state.turns.some(
+    (turn) =>
+      turn.conversationId === input.conversationId &&
+      turn.providerId === input.providerId &&
+      turn.revision === conversation.revision &&
+      turn.status === "uncertain",
+  );
+  const bootstrapRecoversUncertainSession =
+    input.operation === "bootstrap" &&
+    (currentBinding?.stale === true || currentRevisionIsUncertain);
+
+  if (input.operation === "rebase" || bootstrapRecoversUncertainSession) {
     conversation.revision += 1;
     conversation.updatedAt = now;
   }
@@ -464,6 +483,18 @@ abstract class SerializedSessionStateRepository
             turn.status === "uncertain"
           ),
       );
+    });
+  }
+
+  rotateAllForMemoryContextChange(): Promise<number> {
+    return this.transact((state, now) => {
+      for (const conversation of state.conversations) {
+        conversation.revision += 1;
+        conversation.memoryEpoch += 1;
+        conversation.memoryVersion = 0;
+        conversation.updatedAt = now;
+      }
+      return state.conversations.length;
     });
   }
 

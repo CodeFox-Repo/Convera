@@ -18,6 +18,7 @@ import type { ProviderMemoryCursors } from "../ai/session/types";
 import type { LocalAiProviderId } from "../ai/types";
 import type { MemoryCandidateRepository } from "./candidate-sink";
 import type { MemoryIndexRepository } from "./index-repository";
+import { MemoryError } from "./errors";
 import {
   createConfiguredLettaApi,
   createMemoryRuntime,
@@ -63,6 +64,11 @@ export interface MemoryIntegrationCoordinatorOptions {
     charactersPerToken?: number;
   };
   apiFactory?: (settings: MemorySettingsRepository) => Promise<LettaApi>;
+  onConversationMemoryObserved?: (
+    conversationId: string,
+    state: { memoryVersion: number; memoryEpoch: number },
+  ) => Promise<void> | void;
+  onMemoryContextChanged?: () => Promise<void> | void;
   now?: () => Date;
 }
 
@@ -165,6 +171,8 @@ export class MemoryIntegrationCoordinator
   private readonly resolveWorkspaceScopeId: (
     input: MemoryScopeResolverInput,
   ) => string;
+  private readonly onConversationMemoryObserved?: MemoryIntegrationCoordinatorOptions["onConversationMemoryObserved"];
+  private readonly onMemoryContextChanged?: MemoryIntegrationCoordinatorOptions["onMemoryContextChanged"];
   private runtime?: MemoryRuntime;
   private worker?: SubconsciousWorker;
   private readonly curators = new Map<
@@ -190,6 +198,8 @@ export class MemoryIntegrationCoordinator
     this.resolveWorkspaceScopeId =
       options.resolveWorkspaceScopeId ??
       ((input) => input.workingDirectory?.trim() || "default-workspace");
+    this.onConversationMemoryObserved = options.onConversationMemoryObserved;
+    this.onMemoryContextChanged = options.onMemoryContextChanged;
   }
 
   private scopes(input: MemoryScopeResolverInput): MemoryScope[] {
@@ -296,6 +306,15 @@ export class MemoryIntegrationCoordinator
       },
       budget: this.budget ?? DEFAULT_CONTEXT_BUDGET,
     });
+    const conversationSnapshot = snapshots.find(
+      (snapshot) => snapshot.scope.kind === "conversation",
+    );
+    if (conversationSnapshot) {
+      await this.onConversationMemoryObserved?.(input.conversationId, {
+        memoryVersion: conversationSnapshot.version,
+        memoryEpoch: conversationSnapshot.epoch,
+      });
+    }
     const activeScope = scopes.find(
       (scope) => scope.kind === "conversation",
     ) as MemoryScope;
@@ -342,9 +361,7 @@ export class MemoryIntegrationCoordinator
     const scopesToCurate = input.token.scopes.filter(
       (scope) =>
         scope.kind === "conversation" ||
-        candidates.some((candidate) =>
-          sameMemoryScope(candidate.scope, scope),
-        ),
+        candidates.some((candidate) => sameMemoryScope(candidate.scope, scope)),
     );
     const jobIds: string[] = [];
     for (const scope of scopesToCurate) {
@@ -421,9 +438,10 @@ export class MemoryIntegrationCoordinator
   async updateMemorySettings(
     update: LocalAIMemorySettingsUpdate,
   ): Promise<LocalAIMemorySettings> {
+    const previous = await this.settings.get();
     await this.stopWorker(false);
     this.runtime = undefined;
-    this.curators.clear();
+    await this.disposeCurators();
     const updated = await this.settings.update({
       provider: update.provider,
       baseURL:
@@ -436,6 +454,14 @@ export class MemoryIntegrationCoordinator
       idleMs: update.idleDelayMs,
       apiKey: update.clearApiKey ? null : update.apiKey,
     });
+    const contextSourceChanged =
+      previous.provider !== updated.provider ||
+      previous.baseURL !== updated.baseURL ||
+      update.apiKey !== undefined ||
+      update.clearApiKey === true;
+    if (contextSourceChanged) {
+      await this.onMemoryContextChanged?.();
+    }
     return publicSettings(updated);
   }
 
@@ -555,15 +581,30 @@ export class MemoryIntegrationCoordinator
       kind: "conversation",
       id: request.conversationId,
     };
-    await this.stopWorker(false);
+    const settings = await this.settings.get();
+    const indexedMemory = await this.indexes.get(scope);
+    if (
+      request.forgetConversationMemory &&
+      settings.provider !== "letta" &&
+      indexedMemory !== undefined
+    ) {
+      throw new MemoryError(
+        "This conversation has persisted memory. Enable its Letta provider before deleting it so the remote memory can also be forgotten.",
+        "CONFIGURATION",
+        false,
+      );
+    }
+    const worker = this.worker;
+    this.worker = undefined;
+    if (worker) {
+      worker.dispose();
+      await worker.cancelScope(scope);
+    }
     await Promise.all([
       this.candidates.deleteByScope(scope),
       this.jobs.deleteByScope(scope),
     ]);
-    if (
-      request.forgetConversationMemory &&
-      (await this.settings.get()).provider === "letta"
-    ) {
+    if (request.forgetConversationMemory && settings.provider === "letta") {
       const runtime = await this.ensureRuntime();
       await runtime.store.forget({
         scope,
@@ -582,6 +623,7 @@ export class MemoryIntegrationCoordinator
 
   async dispose(): Promise<void> {
     await this.stopWorker(false);
+    await this.disposeCurators();
   }
 
   async flushSubconscious(): Promise<void> {
@@ -594,5 +636,13 @@ export class MemoryIntegrationCoordinator
     if (!worker) return;
     if (flush) await worker.flush().catch(() => undefined);
     worker.dispose();
+  }
+
+  private async disposeCurators(): Promise<void> {
+    const curators = [...this.curators.values()];
+    this.curators.clear();
+    await Promise.allSettled(
+      curators.map((curator) => Promise.resolve(curator.dispose?.())),
+    );
   }
 }

@@ -208,6 +208,36 @@ describe("SessionStateRepository", () => {
         operation: "append",
       }),
     ).rejects.toMatchObject({ code: "LOCAL_AI_SESSION_REBASE_REQUIRED" });
+
+    const bootstrap = await recovered.beginTurn({
+      turnId: "turn-4",
+      requestId: "request-4",
+      conversationId: "conversation",
+      providerId: "codex-cli",
+      operation: "bootstrap",
+      expectedRevision: 0,
+    });
+    expect(bootstrap.turn.revision).toBe(1);
+    expect(bootstrap.binding).toBeUndefined();
+    await recovered.completeTurn({
+      turnId: bootstrap.turn.turnId,
+      nativeSessionId: "thread-2",
+      cwd: "/workspace",
+    });
+
+    const continued = await recovered.beginTurn({
+      turnId: "turn-5",
+      requestId: "request-5",
+      conversationId: "conversation",
+      providerId: "codex-cli",
+      operation: "append",
+      expectedRevision: 1,
+    });
+    expect(continued.binding).toMatchObject({
+      nativeSessionId: "thread-2",
+      revision: 1,
+      stale: false,
+    });
   });
 
   it("serializes concurrent writes without losing turns", async () => {
@@ -291,6 +321,19 @@ describe("SessionStateRepository", () => {
 
     await repository.resetProvider("source", "claude-code");
     expect(await repository.getBindings("source")).toEqual([]);
+
+    expect(await repository.rotateAllForMemoryContextChange()).toBe(2);
+    expect(await repository.getConversation("source")).toMatchObject({
+      revision: 1,
+      memoryEpoch: 3,
+      memoryVersion: 0,
+    });
+    expect(await repository.getConversation("branch")).toMatchObject({
+      revision: 1,
+      memoryEpoch: 3,
+      memoryVersion: 0,
+    });
+
     expect(await repository.deleteConversation("source")).toBe(true);
     expect(await repository.getConversation("source")).toBeUndefined();
     expect(await repository.deleteConversation("source")).toBe(false);

@@ -1,6 +1,7 @@
 export * from "./candidate-sink";
 export * from "./context-compiler";
 export * from "./coordinator";
+export * from "./electron-integration";
 export * from "./errors";
 export * from "./index-repository";
 export * from "./letta-api";

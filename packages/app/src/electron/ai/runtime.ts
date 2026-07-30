@@ -290,7 +290,10 @@ export interface LocalAiFailedTurn {
 export interface LocalAiTurnHooks {
   prepareTurnContext?(
     input: LocalAiTurnHookInput,
-  ): Promise<PreparedLocalAiTurnContext> | PreparedLocalAiTurnContext;
+  ):
+    | Promise<PreparedLocalAiTurnContext | undefined>
+    | PreparedLocalAiTurnContext
+    | undefined;
   onTurnCompleted?(input: LocalAiCompletedTurn): Promise<void> | void;
   onTurnFailed?(input: LocalAiFailedTurn): Promise<void> | void;
 }

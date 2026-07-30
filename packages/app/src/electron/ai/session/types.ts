@@ -108,6 +108,7 @@ export interface SessionStateRepository {
     conversationId: string,
     providerId: LocalAiProviderId,
   ): Promise<void>;
+  rotateAllForMemoryContextChange(): Promise<number>;
   failTurn(
     turnId: string,
     status: Extract<SessionTurnStatus, "failed" | "aborted" | "uncertain">,
