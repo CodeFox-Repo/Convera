@@ -207,6 +207,22 @@ function interactionPrompt(
   )}`;
 }
 
+function interactionOptions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((option) => {
+    if (typeof option === "string") return [option];
+    if (
+      isRecord(option) &&
+      typeof option.label === "string" &&
+      option.label.trim()
+    ) {
+      return [option.label];
+    }
+    return [];
+  });
+}
+
 export function createAgentToolCatalog(
   options: AgentToolCatalogOptions,
 ): AgentTool[] {
@@ -253,11 +269,7 @@ export function createAgentToolCatalog(
               name: qualifiedName,
               prompt: question,
               input: parsed,
-              options: Array.isArray(parsed.options)
-                ? parsed.options.filter(
-                    (option): option is string => typeof option === "string",
-                  )
-                : [],
+              options: interactionOptions(parsed.options),
             });
             if (typeof interaction.value !== "string") {
               throw new Error(`User cancelled ${qualifiedName}.`);
