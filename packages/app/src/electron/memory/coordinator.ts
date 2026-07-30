@@ -17,7 +17,10 @@ import type {
 import type { ProviderMemoryCursors } from "../ai/session/types";
 import type { LocalAiProviderId } from "../ai/types";
 import type { MemoryCandidateRepository } from "./candidate-sink";
-import type { MemoryIndexRepository } from "./index-repository";
+import type {
+  MemoryIndexRepository,
+  MemoryScopeIndex,
+} from "./index-repository";
 import { MemoryError } from "./errors";
 import {
   createConfiguredLettaApi,
@@ -151,6 +154,29 @@ function isMemoryToken(value: unknown): value is MemoryTurnContextToken {
     value !== null &&
     "kind" in value &&
     value.kind === "convera-memory-turn"
+  );
+}
+
+function hasRemoteMemory(index: MemoryScopeIndex): boolean {
+  return (
+    Object.keys(index.blockIds).length > 0 ||
+    index.archiveId !== undefined ||
+    index.agentId !== undefined ||
+    index.pendingWrites.length > 0 ||
+    index.pendingForgets.length > 0
+  );
+}
+
+function isEmptyMemoryTombstone(index: MemoryScopeIndex): boolean {
+  return (
+    !hasRemoteMemory(index) &&
+    index.checkpoint === undefined &&
+    index.lastKnownGood === undefined &&
+    Object.keys(index.appliedTurns).length === 0 &&
+    index.corrections.length === 0 &&
+    index.deltas.length === 0 &&
+    index.version > 0 &&
+    index.epoch > 0
   );
 }
 
@@ -586,7 +612,8 @@ export class MemoryIntegrationCoordinator
     if (
       request.forgetConversationMemory &&
       settings.provider !== "letta" &&
-      indexedMemory !== undefined
+      indexedMemory !== undefined &&
+      hasRemoteMemory(indexedMemory)
     ) {
       throw new MemoryError(
         "This conversation has persisted memory. Enable its Letta provider before deleting it so the remote memory can also be forgotten.",
@@ -612,6 +639,27 @@ export class MemoryIntegrationCoordinator
         reason: "Conversation deletion requested memory removal.",
         turnId: `delete:${request.conversationId}:${this.now().getTime()}`,
         approved: true,
+      });
+    } else if (
+      request.forgetConversationMemory &&
+      indexedMemory &&
+      !isEmptyMemoryTombstone(indexedMemory)
+    ) {
+      await this.indexes.put({
+        ...indexedMemory,
+        revision: indexedMemory.revision + 1,
+        version: indexedMemory.version + 1,
+        epoch: indexedMemory.epoch + 1,
+        blockIds: {},
+        checkpoint: undefined,
+        lastKnownGood: undefined,
+        appliedTurns: {},
+        corrections: [],
+        deltas: [],
+        pendingWrites: [],
+        pendingForgets: [],
+        agentId: undefined,
+        archiveId: undefined,
       });
     }
   }

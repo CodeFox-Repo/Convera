@@ -156,6 +156,42 @@ describe("SubconsciousWorker", () => {
     });
   });
 
+  it("does not apply an in-flight curator result after the worker is disposed", async () => {
+    const store = setup();
+    let release: (() => void) | undefined;
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const jobs = new InMemorySubconsciousJobRepository();
+    const worker = new SubconsciousWorker({
+      store,
+      curator: {
+        curate: async (input) => {
+          markStarted?.();
+          await gate;
+          return patchFor(input);
+        },
+      },
+      schedule: "every-turn",
+      retryBaseMs: 0,
+      jobRepository: jobs,
+    });
+    const jobId = await worker.enqueue(turn("turn-disposed"));
+    await started;
+
+    worker.dispose();
+    release?.();
+    await worker.flush();
+
+    expect((await store.getSnapshot(scope)).version).toBe(0);
+    expect(worker.getState(jobId)?.status).toBe("running");
+    expect((await jobs.list())[0]?.state.status).toBe("running");
+  });
+
   it("accepts an explicit curator noop without bumping memory version", async () => {
     const store = setup();
     const worker = new SubconsciousWorker({

@@ -259,5 +259,16 @@ describe("MemoryIntegrationCoordinator", () => {
       epoch: 1,
       blockIds: {},
     });
+
+    await settings.update({ provider: "off" });
+    await coordinator.deleteConversation({
+      conversationId: "conversation-1",
+      forgetConversationMemory: true,
+    });
+    expect(await indexes.get(scope)).toMatchObject({
+      version: 2,
+      epoch: 1,
+      blockIds: {},
+    });
   });
 });

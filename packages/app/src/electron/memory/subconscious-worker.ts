@@ -316,6 +316,7 @@ export class SubconsciousWorker {
   private async processBatch(batch: QueuedTurn[]): Promise<void> {
     const first = batch[0];
     if (!first) return;
+    if (this.disposed) return;
     if (this.cancelledScopes.has(memoryScopeKey(first.turn.scope))) {
       await this.skipBatch(batch, 0, "Memory scope was cancelled.");
       return;
@@ -343,6 +344,7 @@ export class SubconsciousWorker {
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      if (this.disposed) return;
       aggregate.attempts = attempt;
       try {
         const snapshot = await this.store.getSnapshot(first.turn.scope);
@@ -367,6 +369,11 @@ export class SubconsciousWorker {
           );
           return;
         }
+        // Provider disposal aborts in-flight native subscription calls. Leave
+        // the persisted job as running so the next worker can recover it,
+        // rather than applying a result produced against an obsolete memory
+        // provider or context source.
+        if (this.disposed) return;
         const decision = parseCuratorDecision(raw);
         if ("action" in decision) {
           aggregate.status = "skipped";
@@ -436,6 +443,15 @@ export class SubconsciousWorker {
         }
         return;
       } catch (error) {
+        if (this.disposed) return;
+        if (this.cancelledScopes.has(memoryScopeKey(first.turn.scope))) {
+          await this.skipBatch(
+            batch,
+            attempt,
+            "Memory scope was cancelled during consolidation.",
+          );
+          return;
+        }
         lastError = error;
         if (error instanceof MemoryError && !error.retryable) {
           break;
