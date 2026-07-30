@@ -1,6 +1,7 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
 import { createClaudeCode } from "ai-sdk-provider-claude-code";
+import { loadClaudeEnvironment } from "../claude-environment";
 import { probeCliProvider } from "../cli-probe";
 import type { LocalAiProviderAdapter } from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
@@ -18,6 +19,12 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
       tools: [],
       maxTurns: 1,
       logger: false,
+      // Some local Claude subscriptions store their auth/base URL in the
+      // user settings env block. Load only those environment entries without
+      // enabling user hooks, permissions, tools, or project instructions.
+      sdkOptions: {
+        env: loadClaudeEnvironment(),
+      },
     },
   });
 
