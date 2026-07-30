@@ -2,7 +2,7 @@ import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-provider
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   isLocalAIProviderId,
-} from "@/renderer/libs/local-ai-contract";
+} from "@/renderer/libs/local-ai";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import * as Popover from "@radix-ui/react-popover";
 import { Key, Terminal } from "lucide-react";

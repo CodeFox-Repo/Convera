@@ -154,11 +154,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [chatAPI.messages.length, viewMode]);
 
   // Integrate the useChatHistory hook
-  useChatHistory(chatAPI.setMessages);
+  useChatHistory(chatAPI.setMessages, chatAPI.isLoading);
 
   // Track previous loading state to detect when message completes
   const prevLoadingRef = useRef(false);
   const currentConversationIdRef = useRef(currentConversationId);
+  const activeConversationIdRef = useRef<string | null>(null);
   const selectedAgentIdRef = useRef(selectedAgent?.id);
 
   // Keep refs in sync
@@ -180,37 +181,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     if (wasLoading && !isLoading && chatAPI.messages.length > 0) {
       const saveMessages = async () => {
         try {
-          let convId = currentConversationIdRef.current;
+          const convId = activeConversationIdRef.current;
           const messages = chatAPI.messages;
 
-          // Check if conversation exists in database
-          const existingConv = convId
-            ? await db.conversations.get(convId)
-            : null;
-
-          // Create new conversation if none exists or if current ID is not in database
-          if (!existingConv) {
-            const firstUserMessage = messages.find(
-              (m: Message) => m.role === "user",
+          if (!convId || !(await db.conversations.get(convId))) {
+            console.error(
+              "Refusing to save a local AI stream without its originating conversation.",
             );
-            const title =
-              typeof firstUserMessage?.content === "string"
-                ? firstUserMessage.content.slice(0, 50)
-                : "New Conversation";
-
-            convId = await createConversation({
-              title,
-              agentId: selectedAgentIdRef.current ?? null,
-              modelId: null,
-            });
-            setCurrentConversationId(convId);
-            currentConversationIdRef.current = convId;
-            console.log("📝 Created new conversation:", convId);
+            return;
           }
 
-          // Save all messages to the conversation (convId is guaranteed to be set now)
           await updateMessages(
-            convId!,
+            convId,
             messages.map((m: Message) => ({
               id: m.id,
               role: m.role as "user" | "assistant" | "system" | "tool",
@@ -229,6 +211,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             })),
           );
           console.log("💾 Saved messages to conversation:", convId);
+          activeConversationIdRef.current = null;
         } catch (error) {
           console.error("Failed to save conversation:", error);
         }
@@ -393,14 +376,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!messageText && !selectedContent && filesToSend.length === 0) return;
 
-      // Generate conversation ID if this is the first message
-      let conversationIdToUse = currentConversationId;
-
-      if (!conversationIdToUse) {
-        conversationIdToUse = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        setCurrentConversationId(conversationIdToUse);
-      }
-
       // Handle selected content (text only)
       if (selectedContent) {
         // Handle text content
@@ -439,6 +414,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const { selectedConfigId, selectedModelId } =
             useModelConfigStore.getState();
           const providerId = resolveLocalAIProviderId(selectedConfigId);
+          let conversationIdToUse = currentConversationId;
+
+          if (
+            !conversationIdToUse ||
+            !(await db.conversations.get(conversationIdToUse))
+          ) {
+            conversationIdToUse = await createConversation({
+              title: messageText.slice(0, 50) || "New Conversation",
+              agentId: selectedAgent?.id ?? null,
+              modelId: `${providerId}:${selectedModelId}`,
+            });
+            setCurrentConversationId(conversationIdToUse);
+            currentConversationIdRef.current = conversationIdToUse;
+          }
+
+          activeConversationIdRef.current = conversationIdToUse;
 
           await chatAPI.send(message, {
             providerId,
@@ -504,6 +495,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const { selectedConfigId, selectedModelId } =
         useModelConfigStore.getState();
+      activeConversationIdRef.current = currentConversationId;
       void chatAPI.resend(updatedMessages, {
         providerId: resolveLocalAIProviderId(selectedConfigId),
         model: selectedModelId,
@@ -515,7 +507,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           : undefined,
       });
     },
-    [chatAPI, selectedAgent],
+    [chatAPI, currentConversationId, selectedAgent],
   );
 
   const regenerateMessage = useCallback(() => {
@@ -526,6 +518,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           : chatAPI.messages;
       const { selectedConfigId, selectedModelId } =
         useModelConfigStore.getState();
+      activeConversationIdRef.current = currentConversationId;
       void chatAPI.resend(nextMessages, {
         providerId: resolveLocalAIProviderId(selectedConfigId),
         model: selectedModelId,
@@ -537,7 +530,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           : undefined,
       });
     }
-  }, [chatAPI, selectedAgent]);
+  }, [chatAPI, currentConversationId, selectedAgent]);
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
