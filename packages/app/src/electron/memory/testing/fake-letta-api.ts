@@ -2,6 +2,7 @@ import type {
   LettaApi,
   LettaAgentCreate,
   LettaAgentRecord,
+  LettaArchiveRecord,
   LettaBlockCreate,
   LettaBlockRecord,
   LettaBlockUpdate,
@@ -26,6 +27,7 @@ export class FakeLettaApi implements LettaApi {
   readonly calls: string[] = [];
   available = true;
   failWrites = 0;
+  readonly failAfterWriteMethods = new Set<string>();
   writeDelay?: () => Promise<void>;
   private blockSequence = 0;
   private passageSequence = 0;
@@ -77,6 +79,11 @@ export class FakeLettaApi implements LettaApi {
     }
   }
 
+  private afterWrite(name: string): void {
+    if (!this.failAfterWriteMethods.delete(name)) return;
+    throw new Error(`Injected response loss after ${name}`);
+  }
+
   async createBlock(input: LettaBlockCreate): Promise<LettaBlockRecord> {
     await this.beforeWrite("createBlock");
     this.blockSequence += 1;
@@ -85,6 +92,7 @@ export class FakeLettaApi implements LettaApi {
       ...clone(input),
     };
     this.blocks.set(block.id, block);
+    this.afterWrite("createBlock");
     return clone(block);
   }
 
@@ -107,6 +115,7 @@ export class FakeLettaApi implements LettaApi {
       throw Object.assign(new Error("Block not found"), { status: 404 });
     const updated = { ...block, ...clone(input) };
     this.blocks.set(blockId, updated);
+    this.afterWrite("updateBlock");
     return clone(updated);
   }
 
@@ -132,12 +141,13 @@ export class FakeLettaApi implements LettaApi {
     if (!this.blocks.delete(blockId)) {
       throw Object.assign(new Error("Block not found"), { status: 404 });
     }
+    this.afterWrite("deleteBlock");
   }
 
   async createArchive(input: {
     name: string;
     description?: string;
-  }): Promise<{ id: string; name: string }> {
+  }): Promise<LettaArchiveRecord> {
     await this.beforeWrite("createArchive");
     this.archiveSequence += 1;
     const archive = {
@@ -146,7 +156,18 @@ export class FakeLettaApi implements LettaApi {
       description: input.description,
     };
     this.archives.set(archive.id, archive);
+    this.afterWrite("createArchive");
     return clone(archive);
+  }
+
+  async listArchives(filter?: {
+    name?: string;
+  }): Promise<LettaArchiveRecord[]> {
+    this.calls.push("listArchives");
+    if (!this.available) throw new Error("Letta is offline");
+    return [...this.archives.values()]
+      .filter((archive) => !filter?.name || archive.name === filter.name)
+      .map(clone);
   }
 
   async deleteArchive(archiveId: string): Promise<void> {
@@ -155,6 +176,7 @@ export class FakeLettaApi implements LettaApi {
       throw Object.assign(new Error("Archive not found"), { status: 404 });
     }
     this.archivePassages.delete(archiveId);
+    this.afterWrite("deleteArchive");
   }
 
   async createArchivePassage(
@@ -177,6 +199,7 @@ export class FakeLettaApi implements LettaApi {
       new Map<string, LettaPassageRecord>();
     passages.set(passage.id, passage);
     this.archivePassages.set(archiveId, passages);
+    this.afterWrite("createArchivePassage");
     return clone(passage);
   }
 
@@ -196,6 +219,7 @@ export class FakeLettaApi implements LettaApi {
     if (!this.archivePassages.get(archiveId)?.delete(passageId)) {
       throw Object.assign(new Error("Passage not found"), { status: 404 });
     }
+    this.afterWrite("deleteArchivePassage");
   }
 
   async searchArchivePassages(
@@ -240,6 +264,7 @@ export class FakeLettaApi implements LettaApi {
     if (!this.passages.get(agentId)?.delete(passageId)) {
       throw Object.assign(new Error("Passage not found"), { status: 404 });
     }
+    this.afterWrite("deletePassage");
   }
 
   async searchPassages(

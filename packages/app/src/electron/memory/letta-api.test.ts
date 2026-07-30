@@ -68,6 +68,16 @@ describe("OfficialLettaApiAdapter", () => {
       if (url.pathname === "/v1/archives/" && method === "POST") {
         return json({ id: "archive-1", name: "convera-memory" });
       }
+      if (url.pathname === "/v1/archives/" && method === "GET") {
+        if (url.searchParams.has("after")) return json([]);
+        return json([
+          {
+            id: "archive-1",
+            name: "convera-memory",
+            description: "managed",
+          },
+        ]);
+      }
       if (
         url.pathname === "/v1/archives/archive-1/passages" &&
         method === "POST"
@@ -122,6 +132,7 @@ describe("OfficialLettaApiAdapter", () => {
     });
     await api.deleteBlock("block-1");
     const archive = await api.createArchive({ name: "convera-memory" });
+    const archives = await api.listArchives({ name: "convera-memory" });
     await api.createArchivePassage(archive.id, {
       content: "The user chose native sessions.",
       tags: ["decision"],
@@ -138,6 +149,13 @@ describe("OfficialLettaApiAdapter", () => {
     expect(hits).toEqual([
       expect.objectContaining({ id: "passage-1", score: 0.91 }),
     ]);
+    expect(archives).toEqual([
+      {
+        id: "archive-1",
+        name: "convera-memory",
+        description: "managed",
+      },
+    ]);
     expect(
       requests.map(({ method, url }) => `${method} ${url.pathname}`),
     ).toEqual([
@@ -147,6 +165,8 @@ describe("OfficialLettaApiAdapter", () => {
       "PATCH /v1/blocks/block-1",
       "DELETE /v1/blocks/block-1",
       "POST /v1/archives/",
+      "GET /v1/archives/",
+      "GET /v1/archives/",
       "POST /v1/archives/archive-1/passages",
       "POST /v1/passages/search",
       "DELETE /v1/archives/archive-1/passages/passage-1",
@@ -161,14 +181,16 @@ describe("OfficialLettaApiAdapter", () => {
       label: "current_goal",
       value: "ship memory",
     });
-    expect(requests[6]?.body).toMatchObject({
+    expect(requests[8]?.body).toMatchObject({
       text: "The user chose native sessions.",
       tags: ["decision"],
     });
-    expect(requests[7]?.body).toMatchObject({
+    expect(requests[9]?.body).toMatchObject({
       archive_id: "archive-1",
       query: "native sessions",
       limit: 3,
     });
+    expect(requests[6]?.url.searchParams.get("name")).toBe("convera-memory");
+    expect(requests[7]?.url.searchParams.get("after")).toBe("archive-1");
   });
 });

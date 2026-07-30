@@ -36,6 +36,7 @@ export interface LettaMemoryStoreOptions {
   now?: () => Date;
   maxDeltas?: number;
   maxAppliedTurns?: number;
+  onScopeForgotten?: (scope: MemoryScope) => Promise<void> | void;
 }
 
 const BLOCK_TAG = "convera_memory_block";
@@ -182,6 +183,9 @@ export class LettaMemoryStore implements MemoryStore {
   private readonly now: () => Date;
   private readonly maxDeltas: number;
   private readonly maxAppliedTurns: number;
+  private readonly onScopeForgotten?: (
+    scope: MemoryScope,
+  ) => Promise<void> | void;
   private readonly writes = new SerialTaskQueue();
 
   constructor(options: LettaMemoryStoreOptions) {
@@ -190,6 +194,7 @@ export class LettaMemoryStore implements MemoryStore {
     this.now = options.now ?? (() => new Date());
     this.maxDeltas = options.maxDeltas ?? 100;
     this.maxAppliedTurns = options.maxAppliedTurns ?? 1_000;
+    this.onScopeForgotten = options.onScopeForgotten;
   }
 
   async health(): Promise<MemoryHealth> {
@@ -335,18 +340,79 @@ export class LettaMemoryStore implements MemoryStore {
 
   async applyPatch(patch: MemoryPatch): Promise<ApplyPatchResult> {
     const validated = validateMemoryPatch(patch);
-    return this.writes.run(() => this.applyPatchInternal(validated, true));
+    return this.writes.run(async () => {
+      const index =
+        (await this.indexes.get(validated.scope)) ??
+        createEmptyMemoryScopeIndex(validated.scope);
+      const appliedVersion = index.appliedTurns[validated.turnId];
+      if (appliedVersion !== undefined) {
+        return {
+          status: "duplicate",
+          scope: validated.scope,
+          version: appliedVersion,
+          turnId: validated.turnId,
+          message: `Turn ${validated.turnId} was already consolidated at memory version ${appliedVersion}.`,
+        };
+      }
+      if (validated.baseVersion !== index.version) {
+        return {
+          status: "conflict",
+          scope: validated.scope,
+          version: index.version,
+          expectedVersion: index.version,
+          turnId: validated.turnId,
+          message: `Patch baseVersion ${validated.baseVersion} is stale. Read version ${index.version} and curate the turn again.`,
+        };
+      }
+
+      if (
+        !index.pendingWrites.some(
+          (pending) => pending.patch.turnId === validated.turnId,
+        )
+      ) {
+        index.pendingWrites.push({
+          patch: structuredClone(validated),
+          attempts: 0,
+          queuedAt: toIso(this.now),
+          lastError: "Write-ahead intent has not been attempted yet.",
+        });
+        index.revision += 1;
+        await this.indexes.put(index);
+      }
+
+      const results = await this.drainPendingWrites(
+        validated.scope,
+        validated.turnId,
+      );
+      const ownResult = results.find(
+        (result) => result.turnId === validated.turnId,
+      );
+      if (ownResult) return ownResult;
+
+      const current =
+        (await this.indexes.get(validated.scope)) ??
+        createEmptyMemoryScopeIndex(validated.scope);
+      return {
+        status: "queued",
+        scope: validated.scope,
+        version: current.version,
+        turnId: validated.turnId,
+        message: `Turn ${validated.turnId} is durably queued behind an earlier pending memory write.`,
+      };
+    });
   }
 
-  private async applyPatchInternal(
+  private async applyPendingPatch(
+    index: MemoryScopeIndex,
     patch: MemoryPatch,
-    queueOnFailure: boolean,
   ): Promise<ApplyPatchResult> {
-    const index =
-      (await this.indexes.get(patch.scope)) ??
-      createEmptyMemoryScopeIndex(patch.scope);
     const appliedVersion = index.appliedTurns[patch.turnId];
     if (appliedVersion !== undefined) {
+      index.pendingWrites = index.pendingWrites.filter(
+        (pending) => pending.patch.turnId !== patch.turnId,
+      );
+      index.revision += 1;
+      await this.indexes.put(index);
       return {
         status: "duplicate",
         scope: patch.scope,
@@ -355,17 +421,6 @@ export class LettaMemoryStore implements MemoryStore {
         message: `Turn ${patch.turnId} was already consolidated at memory version ${appliedVersion}.`,
       };
     }
-    if (patch.baseVersion !== index.version) {
-      return {
-        status: "conflict",
-        scope: patch.scope,
-        version: index.version,
-        expectedVersion: index.version,
-        turnId: patch.turnId,
-        message: `Patch baseVersion ${patch.baseVersion} is stale. Read version ${index.version} and curate the turn again.`,
-      };
-    }
-
     const nextVersion = index.version + 1;
     try {
       for (const [operationIndex, operation] of patch.operations.entries()) {
@@ -407,11 +462,17 @@ export class LettaMemoryStore implements MemoryStore {
         message: `Applied ${patch.operations.length} memory operation(s) at version ${nextVersion}.`,
       };
     } catch (error) {
-      if (error instanceof MemoryError && !error.retryable) throw error;
-      if (!queueOnFailure) throw error;
       const existing = index.pendingWrites.find(
         (pending) => pending.patch.turnId === patch.turnId,
       );
+      if (error instanceof MemoryError && !error.retryable) {
+        index.pendingWrites = index.pendingWrites.filter(
+          (pending) => pending.patch.turnId !== patch.turnId,
+        );
+        index.revision += 1;
+        await this.indexes.put(index);
+        throw error;
+      }
       if (existing) {
         existing.attempts += 1;
         existing.lastError = errorMessage(error);
@@ -435,6 +496,31 @@ export class LettaMemoryStore implements MemoryStore {
     }
   }
 
+  private async drainPendingWrites(
+    scope: MemoryScope,
+    requestedTurnId?: string,
+  ): Promise<ApplyPatchResult[]> {
+    const results: ApplyPatchResult[] = [];
+    while (true) {
+      const index = await this.indexes.get(scope);
+      const pending = index?.pendingWrites[0];
+      if (!index || !pending) return results;
+      const rebased = {
+        ...structuredClone(pending.patch),
+        baseVersion: index.version,
+      };
+      try {
+        const result = await this.applyPendingPatch(index, rebased);
+        results.push(result);
+        if (result.status === "queued") return results;
+      } catch (error) {
+        if (pending.patch.turnId === requestedTurnId) throw error;
+        // A non-retryable corrupt/invalid intent must not starve the valid
+        // intents behind it. applyPendingPatch has already removed it.
+      }
+    }
+  }
+
   private async applyOperation(
     index: MemoryScopeIndex,
     patch: MemoryPatch,
@@ -449,19 +535,34 @@ export class LettaMemoryStore implements MemoryStore {
           nextVersion,
           patch.provenance,
         );
-        const tags = [BLOCK_TAG, scopeTag(patch.scope)];
+        const idempotencyTag = mutationTag(patch.turnId, operationIndex);
+        const tags = [BLOCK_TAG, scopeTag(patch.scope), idempotencyTag];
         const blockId = index.blockIds[operation.label];
-        let record: LettaBlockRecord;
-        try {
-          record = blockId
-            ? await this.api.updateBlock(blockId, {
-                label: operation.label,
-                value: operation.value,
-                description: operation.description,
-                limit: operation.limit,
-                metadata,
-                tags,
-              })
+        const input = {
+          label: operation.label,
+          value: operation.value,
+          description: operation.description,
+          limit: operation.limit,
+          metadata,
+          tags,
+        };
+        let record: LettaBlockRecord | undefined;
+        if (blockId) {
+          try {
+            record = await this.api.updateBlock(blockId, input);
+          } catch (error) {
+            if (!isNotFoundError(error)) throw error;
+          }
+        }
+        if (!record) {
+          const reconciled = (
+            await this.api.listBlocks({
+              tags,
+              matchAllTags: true,
+            })
+          ).find((block) => block.label === operation.label);
+          record = reconciled
+            ? await this.api.updateBlock(reconciled.id, input)
             : await this.api.createBlock({
                 label: operation.label,
                 value: operation.value,
@@ -470,18 +571,10 @@ export class LettaMemoryStore implements MemoryStore {
                 metadata,
                 tags,
               });
-        } catch (error) {
-          if (!blockId || !isNotFoundError(error)) throw error;
-          record = await this.api.createBlock({
-            label: operation.label,
-            value: operation.value,
-            description: operation.description,
-            limit: operation.limit,
-            metadata,
-            tags,
-          });
         }
         index.blockIds[operation.label] = record.id;
+        index.revision += 1;
+        await this.indexes.put(index);
         return;
       }
       case "insert_passage": {
@@ -566,7 +659,10 @@ export class LettaMemoryStore implements MemoryStore {
   ): Promise<LettaPassageRecord> {
     const idempotencyTag = mutationTag(patch.turnId, operationIndex);
     const archiveId = await this.ensureArchive(index);
-    const passages = await this.api.listArchivePassages(archiveId);
+    const passages = await this.api.searchArchivePassages(archiveId, {
+      tags: [idempotencyTag],
+      maxResults: 10,
+    });
     const existing = passages.find((passage) =>
       passage.tags.includes(idempotencyTag),
     );
@@ -587,11 +683,20 @@ export class LettaMemoryStore implements MemoryStore {
   private async ensureArchive(index: MemoryScopeIndex): Promise<string> {
     if (index.archiveId) return index.archiveId;
     const key = memoryScopeKey(index.scope);
-    const archive = await this.api.createArchive({
-      name: `convera_${index.scope.kind}_${stableHash(index.scope.id)}`,
-      description: `Convera-managed archival memory for ${key}.`,
-    });
+    const name = `convera_${index.scope.kind}_${stableHash(index.scope.id)}`;
+    const description = `Convera-managed archival memory for ${key}.`;
+    const archive =
+      (await this.api.listArchives({ name })).find(
+        (candidate) =>
+          candidate.name === name && candidate.description === description,
+      ) ??
+      (await this.api.createArchive({
+        name,
+        description,
+      }));
     index.archiveId = archive.id;
+    index.revision += 1;
+    await this.indexes.put(index);
     return archive.id;
   }
 
@@ -600,7 +705,10 @@ export class LettaMemoryStore implements MemoryStore {
     memoryId: string,
   ): Promise<LettaPassageRecord | undefined> {
     const passages = index.archiveId
-      ? await this.api.listArchivePassages(index.archiveId)
+      ? await this.api.searchArchivePassages(index.archiveId, {
+          tags: [PASSAGE_TAG, scopeTag(index.scope)],
+          maxResults: 1_000,
+        })
       : index.agentId
         ? await this.api.listPassages(index.agentId)
         : [];
@@ -622,7 +730,32 @@ export class LettaMemoryStore implements MemoryStore {
           "Forgetting persistent memory is destructive and requires explicit user approval.",
       };
     }
-    return this.writes.run(() => this.forgetInternal(request, true));
+    return this.writes.run(async () => {
+      let index = await this.indexes.get(request.scope);
+      if (!index && request.target.type !== "scope") {
+        return {
+          status: "not_found",
+          scope: request.scope,
+          message: `No memory exists for ${memoryScopeKey(request.scope)}.`,
+        };
+      }
+      index ??= createEmptyMemoryScopeIndex(request.scope);
+      if (
+        !index.pendingForgets.some(
+          (pending) => pending.request.turnId === request.turnId,
+        )
+      ) {
+        index.pendingForgets.push({
+          request: structuredClone(request),
+          attempts: 0,
+          queuedAt: toIso(this.now),
+          lastError: "Write-ahead forget intent has not been attempted yet.",
+        });
+        index.revision += 1;
+        await this.indexes.put(index);
+      }
+      return this.forgetInternal(request, true);
+    });
   }
 
   private async forgetInternal(
@@ -642,6 +775,11 @@ export class LettaMemoryStore implements MemoryStore {
         case "block": {
           const blockId = index.blockIds[request.target.label];
           if (!blockId) {
+            index.pendingForgets = index.pendingForgets.filter(
+              (pending) => pending.request.turnId !== request.turnId,
+            );
+            index.revision += 1;
+            await this.indexes.put(index);
             return {
               status: "not_found",
               scope: request.scope,
@@ -654,16 +792,24 @@ export class LettaMemoryStore implements MemoryStore {
         }
         case "passage": {
           const memoryId = request.target.memoryId;
-          if (!(await this.findManagedPassage(index, memoryId))) {
-            return {
-              status: "not_found",
-              scope: request.scope,
-              message: `Archival memory ${memoryId} does not exist in ${memoryScopeKey(request.scope)}.`,
-            };
-          }
           if (index.archiveId) {
+            // Each archive is dedicated to exactly one Convera scope. Delete
+            // the caller-provided known ID directly so archival size and
+            // search pagination cannot make approved forget impossible.
             await this.deleteArchivePassageIfPresent(index.archiveId, memoryId);
           } else {
+            if (!(await this.findManagedPassage(index, memoryId))) {
+              index.pendingForgets = index.pendingForgets.filter(
+                (pending) => pending.request.turnId !== request.turnId,
+              );
+              index.revision += 1;
+              await this.indexes.put(index);
+              return {
+                status: "not_found",
+                scope: request.scope,
+                message: `Archival memory ${memoryId} does not exist in ${memoryScopeKey(request.scope)}.`,
+              };
+            }
             const agentId = this.requireAgentId(index);
             await this.deletePassageIfPresent(agentId, memoryId);
           }
@@ -691,6 +837,10 @@ export class LettaMemoryStore implements MemoryStore {
               }
             }
           }
+          // Rotate hidden native/curator sessions before clearing the durable
+          // intent. If this hook fails or the process exits, replay repeats
+          // the idempotent remote deletes and callback.
+          await this.onScopeForgotten?.(structuredClone(request.scope));
           index.version += 1;
           index.epoch += 1;
           index.revision += 1;
@@ -798,23 +948,7 @@ export class LettaMemoryStore implements MemoryStore {
         : await this.indexes.list();
       const results: ApplyPatchResult[] = [];
       for (const initial of indexes) {
-        for (const pending of [...initial.pendingWrites]) {
-          try {
-            results.push(await this.applyPatchInternal(pending.patch, false));
-          } catch (error) {
-            const current = await this.indexes.get(initial.scope);
-            if (!current) continue;
-            const queued = current.pendingWrites.find(
-              (entry) => entry.patch.turnId === pending.patch.turnId,
-            );
-            if (queued) {
-              queued.attempts += 1;
-              queued.lastError = errorMessage(error);
-              current.revision += 1;
-              await this.indexes.put(current);
-            }
-          }
-        }
+        results.push(...(await this.drainPendingWrites(initial.scope)));
         const current = await this.indexes.get(initial.scope);
         for (const pending of [...(current?.pendingForgets ?? [])]) {
           try {
@@ -836,6 +970,14 @@ export class LettaMemoryStore implements MemoryStore {
       }
       return results;
     });
+  }
+
+  /**
+   * Replays crash-persisted write intents and approved forget requests.
+   * Safe to call on every runtime creation or provider reconnect.
+   */
+  async initialize(): Promise<ApplyPatchResult[]> {
+    return this.flushPending();
   }
 
   async getStatus(): Promise<MemoryStoreStatus> {

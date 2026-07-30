@@ -25,6 +25,12 @@ export interface LettaAgentRecord {
   metadata?: Record<string, unknown> | null;
 }
 
+export interface LettaArchiveRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
 export interface LettaAgentCreate {
   name: string;
   description?: string;
@@ -90,7 +96,8 @@ export interface LettaApi {
   createArchive(input: {
     name: string;
     description?: string;
-  }): Promise<{ id: string; name: string }>;
+  }): Promise<LettaArchiveRecord>;
+  listArchives(filter?: { name?: string }): Promise<LettaArchiveRecord[]>;
   deleteArchive(archiveId: string): Promise<void>;
   createArchivePassage(
     archiveId: string,
@@ -273,9 +280,28 @@ export class OfficialLettaApiAdapter implements LettaApi {
   async createArchive(input: {
     name: string;
     description?: string;
-  }): Promise<{ id: string; name: string }> {
+  }): Promise<LettaArchiveRecord> {
     const archive = await this.client.archives.create(input);
-    return { id: archive.id, name: archive.name };
+    return {
+      id: archive.id,
+      name: archive.name,
+      description: archive.description,
+    };
+  }
+
+  async listArchives(filter?: {
+    name?: string;
+  }): Promise<LettaArchiveRecord[]> {
+    const page = await this.client.archives.list({ name: filter?.name });
+    const archives: LettaArchiveRecord[] = [];
+    for await (const archive of page) {
+      archives.push({
+        id: archive.id,
+        name: archive.name,
+        description: archive.description,
+      });
+    }
+    return archives;
   }
 
   async deleteArchive(archiveId: string): Promise<void> {
