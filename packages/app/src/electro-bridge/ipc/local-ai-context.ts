@@ -646,20 +646,6 @@ export function setupLocalAIIPC(
 
       try {
         const aborted = await options.runtime.abort(requestId);
-        const stillActive = activeRequests.get(requestId);
-        if (aborted && stillActive?.sender === event.sender) {
-          try {
-            if (!event.sender.isDestroyed()) {
-              event.sender.send(LOCAL_AI_CHANNELS.EVENT, {
-                type: "finish",
-                requestId,
-                finishReason: "aborted",
-              } satisfies LocalAIStreamEvent);
-            }
-          } finally {
-            removeActiveRequest(requestId);
-          }
-        }
         return {
           success: true,
           data: { aborted },

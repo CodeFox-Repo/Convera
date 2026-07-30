@@ -444,13 +444,17 @@ describe("local AI IPC", () => {
     resolveChat?.();
   });
 
-  it("makes an accepted abort terminal and releases the request id", async () => {
+  it("waits for the authoritative runtime terminal after an accepted abort", async () => {
     const sender = new FakeWebContents(1);
     const pendingChats: Array<() => void> = [];
+    let emitRuntimeEvent:
+      | ((event: LocalAIStreamEvent) => void)
+      | undefined;
     const runtime = createRuntime({
       startChat: vi.fn(
-        () =>
+        (_request, emit) =>
           new Promise<void>((resolve) => {
+            emitRuntimeEvent = emit;
             pendingChats.push(resolve);
           }),
       ),
@@ -476,14 +480,35 @@ describe("local AI IPC", () => {
       success: true,
       data: { aborted: true },
     });
-    expect(sender.sent.at(-1)).toEqual({
-      channel: LOCAL_AI_CHANNELS.EVENT,
-      event: {
-        type: "finish",
-        requestId: "request-1",
-        finishReason: "aborted",
-      },
+    expect(sender.sent).toEqual([]);
+    expect(start?.(createEvent(sender), request)).toMatchObject({
+      success: false,
+      accepted: false,
+      error: { code: "LOCAL_AI_DUPLICATE_REQUEST" },
     });
+
+    emitRuntimeEvent?.({
+      type: "finish",
+      requestId: "request-1",
+      finishReason: "aborted",
+      conversationId: "conversation-1",
+      turnId: "turn-1",
+      revision: 4,
+    });
+    pendingChats.shift()?.();
+    await vi.waitFor(() =>
+      expect(sender.sent.at(-1)).toEqual({
+        channel: LOCAL_AI_CHANNELS.EVENT,
+        event: {
+          type: "finish",
+          requestId: "request-1",
+          finishReason: "aborted",
+          conversationId: "conversation-1",
+          turnId: "turn-1",
+          revision: 4,
+        },
+      }),
+    );
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,

@@ -871,6 +871,62 @@ describe("LocalAiRuntime", () => {
     expect(disposed).toBe(true);
   });
 
+  it("waits for active turns and their failure hooks before disposing providers", async () => {
+    const adapter = fakeAdapter("codex-cli");
+    const originalGetStatus = adapter.getStatus.bind(adapter);
+    let markStatusStarted: (() => void) | undefined;
+    let releaseStatus: (() => void) | undefined;
+    const statusStarted = new Promise<void>((resolve) => {
+      markStatusStarted = resolve;
+    });
+    const statusGate = new Promise<void>((resolve) => {
+      releaseStatus = resolve;
+    });
+    adapter.getStatus = vi.fn(async () => {
+      markStatusStarted?.();
+      await statusGate;
+      return originalGetStatus();
+    });
+
+    let markFailureHookStarted: (() => void) | undefined;
+    let releaseFailureHook: (() => void) | undefined;
+    const failureHookStarted = new Promise<void>((resolve) => {
+      markFailureHookStarted = resolve;
+    });
+    const failureHookGate = new Promise<void>((resolve) => {
+      releaseFailureHook = resolve;
+    });
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      sessionRepository: new InMemorySessionStateRepository(),
+      turnHooks: {
+        onTurnFailed: async () => {
+          markFailureHookStarted?.();
+          await failureHookGate;
+        },
+      },
+    });
+
+    const chat = runtime.startChat(
+      request({ providerId: "codex-cli" }),
+      () => undefined,
+    );
+    await statusStarted;
+    let disposed = false;
+    const disposal = runtime.dispose().then(() => {
+      disposed = true;
+    });
+    releaseStatus?.();
+    await failureHookStarted;
+
+    expect(disposed).toBe(false);
+    expect(adapter.dispose).not.toHaveBeenCalled();
+    releaseFailureHook?.();
+    await Promise.all([chat, disposal]);
+    expect(disposed).toBe(true);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
   it("rotates revision when a turn hook rejects an existing hidden session", async () => {
     const repository = new InMemorySessionStateRepository();
     const adapter = fakeAdapter("codex-cli");

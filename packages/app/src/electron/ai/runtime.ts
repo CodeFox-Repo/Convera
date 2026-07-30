@@ -337,12 +337,14 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     LocalAiProviderAdapter
   >();
   private readonly activeRequests = new Map<string, AbortController>();
+  private readonly inFlightChats = new Set<Promise<void>>();
   private readonly streamInvoker: RuntimeStreamInvoker;
   private readonly workingDirectory: string;
   private readonly getToolGroups: AgentToolGroupProvider;
   private readonly executeTool: AgentToolExecutor;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
   private readonly detachedHooks = new Set<Promise<void>>();
+  private disposing = false;
   private readonly turnHooks: LocalAiTurnHooks;
   private readonly memoryService?: LocalAiMemoryRuntimeService;
   private sessionRepository?: SessionStateRepository;
@@ -425,7 +427,28 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     }
   }
 
-  async startChat(
+  startChat(
+    request: LocalAIChatRequest,
+    emit: (event: LocalAIStreamEvent) => void,
+  ): Promise<void> {
+    if (this.disposing) {
+      this.emitFailure(
+        request.requestId,
+        emit,
+        new Error("Local AI runtime is shutting down."),
+        "LOCAL_AI_RUNTIME_DISPOSED",
+      );
+      return Promise.resolve();
+    }
+
+    const task = this.runChat(request, emit).finally(() => {
+      this.inFlightChats.delete(task);
+    });
+    this.inFlightChats.add(task);
+    return task;
+  }
+
+  private async runChat(
     request: LocalAIChatRequest,
     emit: (event: LocalAIStreamEvent) => void,
   ): Promise<void> {
@@ -852,16 +875,20 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   }
 
   async dispose(): Promise<void> {
+    this.disposing = true;
     for (const controller of this.activeRequests.values()) {
       controller.abort();
     }
-    this.activeRequests.clear();
     for (const [interactionId, pending] of this.pendingInteractions) {
       this.releaseInteraction(interactionId, pending);
       pending.reject(new Error("Local AI runtime disposed."));
     }
 
-    await Promise.allSettled([...this.detachedHooks]);
+    await Promise.allSettled([...this.inFlightChats]);
+    while (this.detachedHooks.size > 0) {
+      await Promise.allSettled([...this.detachedHooks]);
+    }
+    this.activeRequests.clear();
     await Promise.all(
       [...this.adapters.values()].map((adapter) => adapter.dispose()),
     );
