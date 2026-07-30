@@ -1,4 +1,5 @@
 import { Button } from "@/renderer/components/ui/button";
+import { Input } from "@/renderer/components/ui/input";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
@@ -6,8 +7,20 @@ import {
 } from "@/renderer/libs/local-ai";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import { Check, Loader2, RotateCcw, Terminal } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import type {
+  LocalAIMemorySettings,
+  LocalAIMemorySettingsUpdate,
+  LocalAIMemoryStatus,
+} from "@/shared/types/local-ai";
+import {
+  Check,
+  Database,
+  Loader2,
+  RotateCcw,
+  Save,
+  Terminal,
+} from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
@@ -16,9 +29,18 @@ export function GeneralSettingsPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Model Config state
-  const { selectedConfigId, setSelectedModel, subscribeToModelConfigChanges } =
+  const { defaultConfigId, setDefaultModel, subscribeToModelConfigChanges } =
     useModelConfigStore();
   const { providers, loading: providersLoading } = useLocalAIProviders();
+  const [memorySettings, setMemorySettings] =
+    useState<LocalAIMemorySettings | null>(null);
+  const [memoryStatus, setMemoryStatus] = useState<LocalAIMemoryStatus | null>(
+    null,
+  );
+  const [memoryBaseURL, setMemoryBaseURL] = useState("");
+  const [memoryApiKey, setMemoryApiKey] = useState("");
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
 
   // Settings Store
   const {
@@ -48,6 +70,70 @@ export function GeneralSettingsPage() {
     subscribeToSettingsChanges,
     subscribeToModelConfigChanges,
   ]);
+
+  const refreshMemoryConfiguration = useCallback(async () => {
+    setMemoryError(null);
+    try {
+      const [settingsResult, statusResult] = await Promise.all([
+        window.localAI.getMemorySettings(),
+        window.localAI.getMemoryStatus(),
+      ]);
+      if (!settingsResult.success || !settingsResult.data) {
+        throw new Error(
+          settingsResult.error?.message || "Could not load memory settings.",
+        );
+      }
+      setMemorySettings(settingsResult.data);
+      setMemoryBaseURL(settingsResult.data.baseURL);
+      if (!statusResult.success || !statusResult.data) {
+        throw new Error(
+          statusResult.error?.message || "Could not load memory status.",
+        );
+      }
+      setMemoryStatus(statusResult.data);
+    } catch (error) {
+      setMemoryError(
+        error instanceof Error
+          ? error.message
+          : "Could not load memory settings.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMemoryConfiguration();
+  }, [refreshMemoryConfiguration]);
+
+  const updateMemoryConfiguration = useCallback(
+    async (update: LocalAIMemorySettingsUpdate) => {
+      setMemorySaving(true);
+      setMemoryError(null);
+      try {
+        const result = await window.localAI.updateMemorySettings(update);
+        if (!result.success || !result.data) {
+          throw new Error(
+            result.error?.message || "Could not update memory settings.",
+          );
+        }
+        setMemorySettings(result.data);
+        setMemoryBaseURL(result.data.baseURL);
+        setMemoryApiKey("");
+        const statusResult = await window.localAI.getMemoryStatus();
+        if (statusResult.success && statusResult.data) {
+          setMemoryStatus(statusResult.data);
+        }
+      } catch (error) {
+        setMemoryError(
+          error instanceof Error
+            ? error.message
+            : "Could not update memory settings.",
+        );
+      } finally {
+        setMemorySaving(false);
+      }
+    },
+    [],
+  );
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
@@ -324,7 +410,7 @@ export function GeneralSettingsPage() {
 
           <div className="border border-border rounded-lg divide-y divide-border">
             {providers.map((provider) => {
-              const isSelected = provider.id === selectedConfigId;
+              const isSelected = provider.id === defaultConfigId;
               const isAvailable = provider.availability === "available";
               const canSelect =
                 !providersLoading &&
@@ -340,7 +426,7 @@ export function GeneralSettingsPage() {
                   disabled={!canSelect}
                   onClick={() => {
                     if (isLocalAIProviderId(provider.id)) {
-                      setSelectedModel(provider.id, DEFAULT_LOCAL_AI_MODEL_ID);
+                      setDefaultModel(provider.id, DEFAULT_LOCAL_AI_MODEL_ID);
                     }
                   }}
                   className="flex w-full items-center justify-between p-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
@@ -387,6 +473,263 @@ export function GeneralSettingsPage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-medium text-foreground">
+                Memory and Context
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Letta stores durable memory. A separate local Codex or Claude
+              session curates completed turns without blocking the reply.
+            </p>
+          </div>
+
+          <div className="border border-border rounded-lg divide-y divide-border">
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Memory provider
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Disable memory or connect Convera to Letta.
+                </p>
+              </div>
+              <select
+                aria-label="Memory provider"
+                value={memorySettings?.provider ?? "off"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) =>
+                  void updateMemoryConfiguration({
+                    provider: event.target.value as "off" | "letta",
+                  })
+                }
+                className="min-w-36 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <option value="off">Off</option>
+                <option value="letta">Letta</option>
+              </select>
+            </label>
+
+            <div className="space-y-3 p-4">
+              <div>
+                <label
+                  htmlFor="letta-base-url"
+                  className="font-medium text-foreground"
+                >
+                  Letta endpoint
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Local or hosted Letta server URL.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="letta-base-url"
+                  value={memoryBaseURL}
+                  disabled={memorySaving}
+                  onChange={(event) => setMemoryBaseURL(event.target.value)}
+                  placeholder="http://127.0.0.1:8283"
+                  className="bg-transparent"
+                />
+                <Button
+                  variant="outline"
+                  disabled={
+                    memorySaving ||
+                    !memorySettings ||
+                    memoryBaseURL === memorySettings.baseURL
+                  }
+                  onClick={() =>
+                    void updateMemoryConfiguration({ baseURL: memoryBaseURL })
+                  }
+                >
+                  <Save className="h-4 w-4" />
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Letta credential
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Sent directly to Electron main and never stored in Dexie.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={memoryApiKey}
+                  disabled={memorySaving}
+                  onChange={(event) => setMemoryApiKey(event.target.value)}
+                  placeholder={
+                    memorySettings?.apiKeyConfigured
+                      ? "Credential configured"
+                      : "API key"
+                  }
+                  className="bg-transparent"
+                />
+                <Button
+                  variant="outline"
+                  disabled={memorySaving || !memoryApiKey.trim()}
+                  onClick={() =>
+                    void updateMemoryConfiguration({
+                      apiKey: memoryApiKey.trim(),
+                    })
+                  }
+                >
+                  Save
+                </Button>
+                {memorySettings?.apiKeyConfigured && (
+                  <Button
+                    variant="outline"
+                    disabled={memorySaving}
+                    onClick={() =>
+                      void updateMemoryConfiguration({ clearApiKey: true })
+                    }
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Subconscious curator
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Uses an isolated subscription session to consolidate memory.
+                </p>
+              </div>
+              <select
+                aria-label="Subconscious curator"
+                value={memorySettings?.subconsciousProvider ?? "off"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) =>
+                  void updateMemoryConfiguration({
+                    subconsciousProvider: event.target
+                      .value as LocalAIMemorySettings["subconsciousProvider"],
+                  })
+                }
+                className="min-w-44 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <option value="off">Off</option>
+                <option value="codex-cli">Codex</option>
+                <option value="claude-code">Claude</option>
+                <option value="follow-active">Follow active provider</option>
+              </select>
+            </label>
+
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Consolidation schedule
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Run after every turn, in batches, or while idle.
+                </p>
+              </div>
+              <select
+                aria-label="Memory consolidation schedule"
+                value={memorySettings?.schedule ?? "every-turn"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) =>
+                  void updateMemoryConfiguration({
+                    schedule: event.target
+                      .value as LocalAIMemorySettings["schedule"],
+                  })
+                }
+                className="min-w-36 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <option value="every-turn">Every turn</option>
+                <option value="batch">Batch</option>
+                <option value="idle">Idle</option>
+              </select>
+            </label>
+
+            {memorySettings?.schedule === "batch" && (
+              <label className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm text-foreground">Batch size</span>
+                <Input
+                  key={memorySettings.batchSize}
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={memorySettings.batchSize}
+                  disabled={memorySaving}
+                  onBlur={(event) => {
+                    const batchSize = Number(event.target.value);
+                    if (
+                      Number.isInteger(batchSize) &&
+                      batchSize >= 1 &&
+                      batchSize <= 100 &&
+                      batchSize !== memorySettings.batchSize
+                    ) {
+                      void updateMemoryConfiguration({ batchSize });
+                    }
+                  }}
+                  className="w-28 bg-transparent"
+                />
+              </label>
+            )}
+
+            {memorySettings?.schedule === "idle" && (
+              <label className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm text-foreground">
+                  Idle delay (seconds)
+                </span>
+                <Input
+                  key={memorySettings.idleDelayMs}
+                  type="number"
+                  min={1}
+                  max={3600}
+                  defaultValue={Math.round(memorySettings.idleDelayMs / 1000)}
+                  disabled={memorySaving}
+                  onBlur={(event) => {
+                    const seconds = Number(event.target.value);
+                    const idleDelayMs = seconds * 1000;
+                    if (
+                      Number.isFinite(seconds) &&
+                      seconds >= 1 &&
+                      seconds <= 3600 &&
+                      idleDelayMs !== memorySettings.idleDelayMs
+                    ) {
+                      void updateMemoryConfiguration({ idleDelayMs });
+                    }
+                  }}
+                  className="w-28 bg-transparent"
+                />
+              </label>
+            )}
+
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Memory status
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  {memoryError ||
+                    memoryStatus?.detail ||
+                    "Memory runtime has not reported a status yet."}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {memorySaving
+                  ? "Saving…"
+                  : `${memoryStatus?.health ?? "unknown"} · ${
+                      memoryStatus?.pendingJobs ?? 0
+                    } pending · ${memoryStatus?.failedJobs ?? 0} failed`}
+              </span>
+            </div>
           </div>
         </div>
       </div>

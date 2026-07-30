@@ -23,6 +23,7 @@ import {
   isLocalAIProviderId,
   type LocalAIProviderId,
 } from "../local-ai";
+import { resolveNativeProviderSelection } from "../provider-selection";
 
 // Re-export for backward compatibility
 export type { ModelConfig };
@@ -43,8 +44,14 @@ interface GroupedModel {
  */
 export function useModelConfigStore() {
   const modelConfigs = useModelConfigs();
-  const { selectedConfigId, selectedModelId, setSelectedModel } =
-    useSelectionStore();
+  const {
+    selectedConfigId,
+    selectedModelId,
+    defaultConfigId,
+    defaultModelId,
+    setSelectedModel,
+    setDefaultModel,
+  } = useSelectionStore();
   const currentConfig = useModelConfig(selectedConfigId);
 
   return {
@@ -52,6 +59,8 @@ export function useModelConfigStore() {
     modelConfigs: modelConfigs || [],
     selectedConfigId,
     selectedModelId,
+    defaultConfigId,
+    defaultModelId,
 
     // Actions
     addModelConfig: async (config: Omit<ModelConfig, "id">) => {
@@ -93,6 +102,9 @@ export function useModelConfigStore() {
           detail: { modelId },
         }),
       );
+    },
+    setDefaultModel: (configId: string, modelId: string) => {
+      setDefaultModel(configId, modelId);
     },
 
     // Helpers
@@ -146,11 +158,14 @@ export { useAvailableModels };
  * Compatible with the old useModelConfigStore.getState() calling pattern
  */
 useModelConfigStore.getState = () => {
-  const { selectedConfigId, selectedModelId } = useSelectionStore.getState();
+  const { selectedConfigId, selectedModelId, defaultConfigId, defaultModelId } =
+    useSelectionStore.getState();
 
   return {
     selectedConfigId,
     selectedModelId,
+    defaultConfigId,
+    defaultModelId,
     getCurrentConfig: async (): Promise<ModelConfig | undefined> => {
       if (isLocalAIProviderId(selectedConfigId)) {
         return undefined;
@@ -167,9 +182,8 @@ useModelConfigStore.getState = () => {
 };
 
 export function resolveLocalAIProviderId(configId: string): LocalAIProviderId {
-  return isLocalAIProviderId(configId)
-    ? configId
-    : DEFAULT_LOCAL_AI_PROVIDER_ID;
+  return resolveNativeProviderSelection(configId, undefined)
+    .configId as LocalAIProviderId;
 }
 
 // ==================== Standalone Actions ====================

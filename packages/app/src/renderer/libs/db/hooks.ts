@@ -92,9 +92,11 @@ export function useMessages(conversationId: string | null) {
 // ==================== Conversation Actions ====================
 
 export async function createConversation(
-  data: Partial<Omit<Conversation, "id" | "createdAt" | "updatedAt">>,
+  data: Partial<Omit<Conversation, "id" | "createdAt" | "updatedAt">> & {
+    id?: string;
+  },
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = data.id ?? crypto.randomUUID();
   const now = new Date();
 
   await db.conversations.add({
@@ -102,6 +104,9 @@ export async function createConversation(
     title: data.title ?? null,
     agentId: data.agentId ?? null,
     modelId: data.modelId ?? null,
+    activeRevision: data.activeRevision ?? 0,
+    activeProviderId: data.activeProviderId ?? null,
+    activeModelId: data.activeModelId ?? null,
     systemPrompt: data.systemPrompt ?? null,
     metadata: data.metadata ?? null,
     createdAt: now,
@@ -153,37 +158,86 @@ export async function addMessage(
   return id;
 }
 
+type MessageSnapshot = Omit<Message, "conversationId" | "createdAt"> & {
+  id: string;
+};
+
+async function synchronizeMessages(
+  conversationId: string,
+  messages: MessageSnapshot[],
+): Promise<void> {
+  const existingMessages = await db.messages
+    .where("conversationId")
+    .equals(conversationId)
+    .toArray();
+  const existingById = new Map(
+    existingMessages.map((message) => [message.id, message]),
+  );
+  const nextIds = new Set(messages.map((message) => message.id));
+  const removedIds = existingMessages
+    .filter((message) => !nextIds.has(message.id))
+    .map((message) => message.id);
+
+  if (removedIds.length > 0) {
+    await db.messages.bulkDelete(removedIds);
+  }
+
+  const baseTime = Date.now();
+  await db.messages.bulkPut(
+    messages.map((message, index) => {
+      const existing = existingById.get(message.id);
+      return {
+        ...existing,
+        ...message,
+        conversationId,
+        turnId: message.turnId ?? existing?.turnId,
+        revision: message.revision ?? existing?.revision,
+        providerId: message.providerId ?? existing?.providerId,
+        modelId: message.modelId ?? existing?.modelId,
+        status: message.status ?? existing?.status,
+        finishReason: message.finishReason ?? existing?.finishReason,
+        createdAt: existing?.createdAt ?? new Date(baseTime + index),
+      };
+    }),
+  );
+}
+
 export async function updateMessages(
   conversationId: string,
-  messages: Array<
-    Omit<Message, "conversationId" | "createdAt"> & { id: string }
-  >,
+  messages: MessageSnapshot[],
 ): Promise<void> {
   await db.transaction("rw", [db.messages, db.conversations], async () => {
-    // Delete old messages
-    await db.messages.where("conversationId").equals(conversationId).delete();
-
-    // Add new messages with incremental timestamps to preserve order
-    // Use bulkPut instead of bulkAdd to handle existing messages gracefully
-    const baseTime = Date.now();
-    await db.messages.bulkPut(
-      messages.map((msg, index) => ({
-        ...msg,
-        conversationId,
-        // Use index to ensure proper ordering
-        createdAt: new Date(baseTime + index),
-      })),
-    );
-
-    // Get existing conversation to preserve metadata
-    const conv = await db.conversations.get(conversationId);
-    const existingMetadata = conv?.metadata || {};
-
-    // Update conversation's updatedAt and message count
+    await synchronizeMessages(conversationId, messages);
+    const conversation = await db.conversations.get(conversationId);
     await db.conversations.update(conversationId, {
       updatedAt: new Date(),
       metadata: {
-        ...existingMetadata,
+        ...(conversation?.metadata || {}),
+        messageCount: messages.length,
+      },
+    });
+  });
+}
+
+export async function commitCompletedTurn(
+  conversationId: string,
+  messages: MessageSnapshot[],
+  updates: Pick<
+    Conversation,
+    "activeRevision" | "activeProviderId" | "activeModelId" | "modelId"
+  >,
+): Promise<void> {
+  await db.transaction("rw", [db.messages, db.conversations], async () => {
+    const conversation = await db.conversations.get(conversationId);
+    if (!conversation) {
+      throw new Error("Conversation disappeared before the turn was saved.");
+    }
+    await synchronizeMessages(conversationId, messages);
+    await db.conversations.update(conversationId, {
+      ...updates,
+      updatedAt: new Date(),
+      metadata: {
+        ...(conversation.metadata || {}),
         messageCount: messages.length,
       },
     });
@@ -413,6 +467,7 @@ export async function initializeDatabase(): Promise<void> {
 export async function branchFromMessage(
   conversationId: string,
   upToMessageIndex: number,
+  targetConversationId?: string,
 ): Promise<string> {
   // Get source conversation and its messages
   const sourceConv = await db.conversations.get(conversationId);
@@ -434,9 +489,13 @@ export async function branchFromMessage(
 
   // Create new conversation with branch metadata
   const newConvId = await createConversation({
+    id: targetConversationId,
     title: sourceConv.title ? `${sourceConv.title} (branch)` : "New Branch",
     agentId: sourceConv.agentId,
     modelId: sourceConv.modelId,
+    activeRevision: sourceConv.activeRevision,
+    activeProviderId: sourceConv.activeProviderId,
+    activeModelId: sourceConv.activeModelId,
     systemPrompt: sourceConv.systemPrompt,
     metadata: {
       ...sourceConv.metadata,
@@ -457,6 +516,12 @@ export async function branchFromMessage(
         conversationId: newConvId,
         role: msg.role,
         content: msg.content,
+        turnId: msg.turnId,
+        revision: msg.revision,
+        providerId: msg.providerId,
+        modelId: msg.modelId,
+        status: msg.status,
+        finishReason: msg.finishReason,
         parts: msg.parts,
         experimental_attachments: msg.experimental_attachments,
         createdAt: new Date(baseTime + index),

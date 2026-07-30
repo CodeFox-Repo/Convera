@@ -12,11 +12,11 @@ import {
   useMessages,
   createConversation,
   updateConversation,
-  deleteConversation as deleteConv,
   addMessage,
   updateMessages,
   type Conversation,
 } from "../db";
+import { deleteConversationWithRuntime } from "../conversation-lifecycle";
 import { useSelectionStore } from "../db/ui-state";
 
 // Re-export types for backward compatibility
@@ -25,6 +25,9 @@ export interface ConversationData {
   title: string | null;
   agentId: string | null;
   modelId: string | null;
+  activeRevision: number;
+  activeProviderId: string | null;
+  activeModelId: string | null;
   systemPrompt: string | null;
   metadata: {
     settings?: Record<string, unknown>;
@@ -36,6 +39,16 @@ export interface ConversationData {
   messages: Message[];
   createdAt: string;
   updatedAt: string;
+}
+
+function parseModelSelection(modelId?: string) {
+  const separatorIndex = modelId?.indexOf(":") ?? -1;
+  return {
+    providerId:
+      modelId && separatorIndex >= 0 ? modelId.slice(0, separatorIndex) : null,
+    activeModelId:
+      modelId && separatorIndex >= 0 ? modelId.slice(separatorIndex + 1) : null,
+  };
 }
 
 // ==================== Hooks ====================
@@ -57,6 +70,9 @@ export function useChatHistoryStore() {
     title: conv.title,
     agentId: conv.agentId,
     modelId: conv.modelId,
+    activeRevision: conv.activeRevision,
+    activeProviderId: conv.activeProviderId,
+    activeModelId: conv.activeModelId,
     systemPrompt: conv.systemPrompt,
     metadata: conv.metadata as ConversationData["metadata"],
     messages: [], // Messages are queried separately
@@ -85,10 +101,14 @@ export function useChatHistoryStore() {
         content: string;
       };
     }) => {
+      const selection = parseModelSelection(options?.modelId);
       const id = await createConversation({
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
       });
@@ -112,7 +132,7 @@ export function useChatHistoryStore() {
     },
 
     deleteConversation: async (id: string) => {
-      await deleteConv(id);
+      await deleteConversationWithRuntime(id, true);
       if (currentConversationId === id) {
         setCurrentConversation(null);
       }
@@ -202,6 +222,9 @@ export function useChatHistory(
     title: conv.title,
     agentId: conv.agentId,
     modelId: conv.modelId,
+    activeRevision: conv.activeRevision,
+    activeProviderId: conv.activeProviderId,
+    activeModelId: conv.activeModelId,
     systemPrompt: conv.systemPrompt,
     metadata: conv.metadata as ConversationData["metadata"],
     messages: [],
@@ -218,7 +241,7 @@ export function useChatHistory(
 
   const deleteChat = useCallback(
     async (conversationId: string) => {
-      await deleteConv(conversationId);
+      await deleteConversationWithRuntime(conversationId, true);
       if (currentConversationId === conversationId) {
         setCurrentConversation(null);
       }
@@ -236,10 +259,14 @@ export function useChatHistory(
         content: string;
       };
     }) => {
+      const selection = parseModelSelection(options?.modelId);
       const id = await createConversation({
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
       });
@@ -258,6 +285,9 @@ export function useChatHistory(
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
         messages: options?.initialMessage

@@ -19,6 +19,10 @@ import {
   DEFAULT_LOCAL_AI_PROVIDER_ID,
   isLocalAIProviderId,
 } from "../local-ai";
+import {
+  resolveConversationProviderSelection,
+  resolveNativeProviderSelection,
+} from "../provider-selection";
 
 // Re-export for convenience
 export {
@@ -34,32 +38,95 @@ interface SelectionState {
   selectedAgentId: string | null;
   selectedConfigId: string;
   selectedModelId: string;
+  defaultConfigId: string;
+  defaultModelId: string;
 
   // Actions
   setCurrentConversation: (id: string | null) => void;
   setSelectedAgent: (id: string | null) => void;
   setSelectedModel: (configId: string, modelId: string) => void;
+  setDefaultModel: (configId: string, modelId: string) => void;
 }
 
-export const useSelectionStore = create<SelectionState>((set) => ({
+export const useSelectionStore = create<SelectionState>((set, get) => ({
   currentConversationId: null,
   selectedAgentId: null,
   selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
   selectedModelId: DEFAULT_LOCAL_AI_MODEL_ID,
+  defaultConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+  defaultModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
-  setCurrentConversation: (id) => set({ currentConversationId: id }),
+  setCurrentConversation: (id) => {
+    set({ currentConversationId: id });
+    if (!id) {
+      const { defaultConfigId, defaultModelId } = get();
+      set({
+        selectedConfigId: defaultConfigId,
+        selectedModelId: defaultModelId,
+      });
+      return;
+    }
+
+    void db.conversations.get(id).then((conversation) => {
+      if (get().currentConversationId !== id || !conversation) return;
+      const selection = resolveConversationProviderSelection(conversation, {
+        configId: get().defaultConfigId,
+        modelId: get().defaultModelId,
+      });
+      set({
+        selectedConfigId: selection.configId,
+        selectedModelId: selection.modelId,
+      });
+    });
+  },
   setSelectedAgent: (id) => set({ selectedAgentId: id }),
   setSelectedModel: (configId, modelId) => {
-    set({ selectedConfigId: configId, selectedModelId: modelId });
+    const selection = resolveNativeProviderSelection(configId, modelId);
+    set({
+      selectedConfigId: selection.configId,
+      selectedModelId: selection.modelId,
+    });
+    const conversationId = get().currentConversationId;
+    if (conversationId) {
+      void db.conversations.update(conversationId, {
+        modelId: `${selection.configId}:${selection.modelId}`,
+        activeProviderId: selection.configId,
+        activeModelId: selection.modelId,
+        updatedAt: new Date(),
+      });
+      return;
+    }
+
+    get().setDefaultModel(selection.configId, selection.modelId);
+  },
+  setDefaultModel: (configId, modelId) => {
+    const selection = resolveNativeProviderSelection(configId, modelId);
+    set({
+      defaultConfigId: selection.configId,
+      defaultModelId: selection.modelId,
+      ...(get().currentConversationId
+        ? {}
+        : {
+            selectedConfigId: selection.configId,
+            selectedModelId: selection.modelId,
+          }),
+    });
     void db.settings.put({
-      key: "local-ai-selection",
-      value: { configId, modelId },
+      key: "local-ai-default-selection",
+      value: {
+        configId: selection.configId,
+        modelId: selection.modelId,
+      },
       updatedAt: new Date(),
     });
   },
 }));
 
-void db.settings.get("local-ai-selection").then((record) => {
+void Promise.all([
+  db.settings.get("local-ai-default-selection"),
+  db.settings.get("local-ai-selection"),
+]).then(([currentRecord, legacyRecord]) => {
+  const record = currentRecord ?? legacyRecord;
   const value = record?.value;
   if (
     value &&
@@ -70,9 +137,17 @@ void db.settings.get("local-ai-selection").then((record) => {
     typeof value.modelId === "string" &&
     isLocalAIProviderId(value.configId)
   ) {
+    const hasActiveConversation =
+      useSelectionStore.getState().currentConversationId !== null;
     useSelectionStore.setState({
-      selectedConfigId: value.configId,
-      selectedModelId: value.modelId,
+      defaultConfigId: value.configId,
+      defaultModelId: value.modelId,
+      ...(hasActiveConversation
+        ? {}
+        : {
+            selectedConfigId: value.configId,
+            selectedModelId: value.modelId,
+          }),
     });
   }
 });

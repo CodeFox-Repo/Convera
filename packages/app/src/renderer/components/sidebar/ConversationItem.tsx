@@ -7,10 +7,9 @@ import {
   ContextMenuTrigger,
 } from "@/renderer/components/ui/context-menu";
 import type { Conversation } from "@/renderer/libs/db/database";
-import {
-  updateConversation,
-  deleteConversation,
-} from "@/renderer/libs/db/hooks";
+import { updateConversation } from "@/renderer/libs/db/hooks";
+import { deleteConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
+import { useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import {
   Archive,
@@ -51,6 +50,7 @@ export function ConversationItem({
   const [renameValue, setRenameValue] = useState(conversation.title || "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { currentConversationId, setCurrentConversation } = useSelectionStore();
 
   const isStarred = conversation.metadata?.starred ?? false;
   const isArchived = conversation.metadata?.archived ?? false;
@@ -99,8 +99,15 @@ export function ConversationItem({
 
   const handleDelete = async () => {
     if (showDeleteConfirm) {
-      await deleteConversation(conversation.id);
-      setShowDeleteConfirm(false);
+      try {
+        await deleteConversationWithRuntime(conversation.id, true);
+        if (currentConversationId === conversation.id) {
+          setCurrentConversation(null);
+        }
+        setShowDeleteConfirm(false);
+      } catch (error) {
+        console.error("Failed to delete conversation:", error);
+      }
     } else {
       setShowDeleteConfirm(true);
     }
@@ -180,7 +187,11 @@ export function ConversationItem({
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={handleDelete}>
           <Trash2 size={14} />
-          <span>{showDeleteConfirm ? "Click again to confirm" : "Delete"}</span>
+          <span>
+            {showDeleteConfirm
+              ? "Confirm chat + conversation memory"
+              : "Delete"}
+          </span>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

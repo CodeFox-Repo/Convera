@@ -17,10 +17,11 @@ import {
   useModelConfigStore,
 } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
-import { db, createConversation, updateMessages } from "../db";
+import { db, commitCompletedTurn, createConversation } from "../db";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
 import { useUserInputStore } from "./user-input-store";
+import { selectAppendOperation } from "../local-ai-request";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -161,6 +162,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const prevLoadingRef = useRef(false);
   const currentConversationIdRef = useRef(currentConversationId);
   const activeConversationIdRef = useRef<string | null>(null);
+  const activeTurnIdRef = useRef<string | null>(null);
   const selectedAgentIdRef = useRef(selectedAgent?.id);
 
   // Keep refs in sync
@@ -184,23 +186,50 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           const convId = activeConversationIdRef.current;
           const messages = chatAPI.messages;
+          const completedTurn = chatAPI.lastCompletedTurn;
 
-          if (!convId || !(await db.conversations.get(convId))) {
+          if (
+            !convId ||
+            !completedTurn ||
+            completedTurn.turnId !== activeTurnIdRef.current ||
+            !(await db.conversations.get(convId))
+          ) {
             console.error(
-              "Refusing to save a local AI stream without its originating conversation.",
+              "Refusing to save a local AI stream without its completed turn.",
             );
             return;
           }
 
-          await updateMessages(
-            convId,
-            messages.map((m: Message) => ({
+          const messageSnapshots = messages.map((m: Message) => {
+            const belongsToCompletedTurn =
+              m.id === completedTurn.userMessageId ||
+              m.id === completedTurn.assistantMessageId;
+            const status =
+              completedTurn.finishReason === "aborted"
+                ? "aborted"
+                : completedTurn.finishReason === "error"
+                  ? "failed"
+                  : "completed";
+            return {
               id: m.id,
               role: m.role as "user" | "assistant" | "system" | "tool",
               content:
                 typeof m.content === "string"
                   ? m.content
                   : JSON.stringify(m.content),
+              ...(belongsToCompletedTurn
+                ? {
+                    turnId: completedTurn.turnId,
+                    revision: completedTurn.revision,
+                    providerId: completedTurn.providerId,
+                    modelId: completedTurn.modelId,
+                    status: status as "completed" | "failed" | "aborted",
+                    finishReason:
+                      m.id === completedTurn.assistantMessageId
+                        ? completedTurn.finishReason
+                        : undefined,
+                  }
+                : {}),
               parts: m.parts,
               experimental_attachments: m.experimental_attachments?.map(
                 (a: Attachment) => ({
@@ -209,10 +238,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                   contentType: a.contentType ?? "",
                 }),
               ),
-            })),
-          );
+            };
+          });
+          await commitCompletedTurn(convId, messageSnapshots, {
+            activeRevision: completedTurn.revision,
+            activeProviderId: completedTurn.providerId,
+            activeModelId: completedTurn.modelId ?? DEFAULT_LOCAL_AI_MODEL_ID,
+            modelId: `${completedTurn.providerId}:${
+              completedTurn.modelId ?? DEFAULT_LOCAL_AI_MODEL_ID
+            }`,
+          });
           console.log("💾 Saved messages to conversation:", convId);
           activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
         } catch (error) {
           console.error("Failed to save conversation:", error);
         }
@@ -220,7 +258,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       saveMessages();
     }
-  }, [chatAPI.isLoading, chatAPI.messages, setCurrentConversationId]);
+  }, [
+    chatAPI.isLoading,
+    chatAPI.lastCompletedTurn,
+    chatAPI.messages,
+    setCurrentConversationId,
+  ]);
 
   // Note: Conversation selection from sidebar is now handled automatically
   // through the shared useSelectionStore (Zustand) - no event listeners needed
@@ -353,6 +396,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  const getRuntimeState = useCallback(async (conversationId: string) => {
+    const result =
+      await window.localAI.getConversationRuntimeState(conversationId);
+    if (!result.success) {
+      throw new Error(
+        result.error?.message || "Could not read conversation runtime state.",
+      );
+    }
+    return result.data ?? null;
+  }, []);
+
   const sendMessage = useCallback(
     (messageOrFiles?: string | File[], extraFiles?: File[]) => {
       // Handle overloaded parameters
@@ -425,19 +479,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               title: messageText.slice(0, 50) || "New Conversation",
               agentId: selectedAgent?.id ?? null,
               modelId: `${providerId}:${selectedModelId}`,
+              activeRevision: 0,
+              activeProviderId: providerId,
+              activeModelId: selectedModelId,
             });
             setCurrentConversationId(conversationIdToUse);
             currentConversationIdRef.current = conversationIdToUse;
           }
 
+          const conversation = await db.conversations.get(conversationIdToUse);
+          const runtimeState = await getRuntimeState(conversationIdToUse);
+          const turnId = crypto.randomUUID();
           activeConversationIdRef.current = conversationIdToUse;
+          activeTurnIdRef.current = turnId;
 
-          await chatAPI.send(message, {
+          const accepted = await chatAPI.send(message, {
             providerId,
+            conversationId: conversationIdToUse,
+            turnId,
+            expectedRevision:
+              runtimeState?.revision ?? conversation?.activeRevision ?? 0,
             model:
               selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
                 ? undefined
                 : selectedModelId,
+            operation: selectAppendOperation(
+              runtimeState,
+              providerId,
+              chatAPI.messages.length,
+            ),
             agent: selectedAgent
               ? {
                   id: selectedAgent.id,
@@ -446,9 +516,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               : undefined,
           });
 
-          chatAPI.setInput("");
-          clearAttachments();
+          if (accepted) {
+            chatAPI.setInput("");
+            clearAttachments();
+          } else {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
         } catch (error) {
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
           console.error("Error processing file attachments:", error);
         }
       };
@@ -464,6 +541,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       currentConversationId,
       setCurrentConversationId,
       selectedAgent,
+      getRuntimeState,
     ],
   );
 
@@ -482,65 +560,126 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const editMessage = useCallback(
     (message: Message, newContent: string) => {
-      const messageIndex = chatAPI.messages.findIndex(
-        (m) => m.id === message.id,
-      );
-      if (messageIndex === -1) return;
+      const rebase = async () => {
+        if (!currentConversationId) return;
+        const messageIndex = chatAPI.messages.findIndex(
+          (candidate) => candidate.id === message.id,
+        );
+        if (messageIndex === -1) return;
 
-      const updatedMessages = [...chatAPI.messages];
-      updatedMessages[messageIndex] = {
-        ...updatedMessages[messageIndex],
-        content: newContent,
+        const updatedMessages = [...chatAPI.messages];
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          content: newContent,
+        };
+        if (messageIndex < updatedMessages.length - 1) {
+          updatedMessages.splice(messageIndex + 1);
+        }
+
+        const { selectedConfigId, selectedModelId } =
+          useModelConfigStore.getState();
+        const providerId = resolveLocalAIProviderId(selectedConfigId);
+        const runtimeState = await getRuntimeState(currentConversationId);
+        const conversation = await db.conversations.get(currentConversationId);
+        const turnId = crypto.randomUUID();
+        activeConversationIdRef.current = currentConversationId;
+        activeTurnIdRef.current = turnId;
+        const accepted = await chatAPI.resend(updatedMessages, {
+          providerId,
+          conversationId: currentConversationId,
+          turnId,
+          expectedRevision:
+            runtimeState?.revision ?? conversation?.activeRevision ?? 0,
+          model:
+            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+              ? undefined
+              : selectedModelId,
+          operation: {
+            kind: "rebase",
+            reason: "edit",
+            sourceMessageId: message.id,
+          },
+          agent: selectedAgent
+            ? {
+                id: selectedAgent.id,
+                systemPrompt: selectedAgent.systemPrompt,
+              }
+            : undefined,
+        });
+        if (!accepted) {
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
+        }
       };
 
-      if (messageIndex < updatedMessages.length - 1) {
-        updatedMessages.splice(messageIndex + 1);
-      }
-
-      const { selectedConfigId, selectedModelId } =
-        useModelConfigStore.getState();
-      activeConversationIdRef.current = currentConversationId;
-      void chatAPI.resend(updatedMessages, {
-        providerId: resolveLocalAIProviderId(selectedConfigId),
-        model: selectedModelId,
-        agent: selectedAgent
-          ? {
-              id: selectedAgent.id,
-              systemPrompt: selectedAgent.systemPrompt,
-            }
-          : undefined,
+      void rebase().catch((error) => {
+        activeConversationIdRef.current = null;
+        activeTurnIdRef.current = null;
+        console.error("Failed to edit and rebase conversation:", error);
       });
     },
-    [chatAPI, currentConversationId, selectedAgent],
+    [chatAPI, currentConversationId, getRuntimeState, selectedAgent],
   );
 
   const regenerateMessage = useCallback(() => {
     if (chatAPI.status === "ready" || chatAPI.status === "error") {
-      const nextMessages =
-        chatAPI.messages.at(-1)?.role === "assistant"
-          ? chatAPI.messages.slice(0, -1)
-          : chatAPI.messages;
-      const { selectedConfigId, selectedModelId } =
-        useModelConfigStore.getState();
-      activeConversationIdRef.current = currentConversationId;
-      void chatAPI.resend(nextMessages, {
-        providerId: resolveLocalAIProviderId(selectedConfigId),
-        model: selectedModelId,
-        agent: selectedAgent
-          ? {
-              id: selectedAgent.id,
-              systemPrompt: selectedAgent.systemPrompt,
-            }
-          : undefined,
+      const rebase = async () => {
+        if (!currentConversationId) return;
+        const lastAssistant = chatAPI.messages.at(-1);
+        const nextMessages =
+          lastAssistant?.role === "assistant"
+            ? chatAPI.messages.slice(0, -1)
+            : chatAPI.messages;
+        const { selectedConfigId, selectedModelId } =
+          useModelConfigStore.getState();
+        const providerId = resolveLocalAIProviderId(selectedConfigId);
+        const runtimeState = await getRuntimeState(currentConversationId);
+        const conversation = await db.conversations.get(currentConversationId);
+        const turnId = crypto.randomUUID();
+        activeConversationIdRef.current = currentConversationId;
+        activeTurnIdRef.current = turnId;
+        const accepted = await chatAPI.resend(nextMessages, {
+          providerId,
+          conversationId: currentConversationId,
+          turnId,
+          expectedRevision:
+            runtimeState?.revision ?? conversation?.activeRevision ?? 0,
+          model:
+            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+              ? undefined
+              : selectedModelId,
+          operation: {
+            kind: "rebase",
+            reason: "regenerate",
+            sourceMessageId: lastAssistant?.id,
+          },
+          agent: selectedAgent
+            ? {
+                id: selectedAgent.id,
+                systemPrompt: selectedAgent.systemPrompt,
+              }
+            : undefined,
+        });
+        if (!accepted) {
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
+        }
+      };
+      void rebase().catch((error) => {
+        activeConversationIdRef.current = null;
+        activeTurnIdRef.current = null;
+        console.error("Failed to regenerate conversation:", error);
       });
     }
-  }, [chatAPI, currentConversationId, selectedAgent]);
+  }, [chatAPI, currentConversationId, getRuntimeState, selectedAgent]);
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
     // Clear any pending user inputs
     useUserInputStore.getState().clearAllPending();
     chatAPI.setMessages([]);
+    activeConversationIdRef.current = null;
+    activeTurnIdRef.current = null;
     setSelectedContent(null);
     clearAttachments();
     setCurrentConversationId(null);

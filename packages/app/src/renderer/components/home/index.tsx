@@ -40,7 +40,7 @@ import {
   useSelectionStore,
 } from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
-import { branchFromMessage } from "@/renderer/libs/db/hooks";
+import { branchConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
 
 type ViewType = "chat" | "settings";
 type SettingsTab = "general" | "agents" | "mcp" | "developer";
@@ -101,7 +101,7 @@ export function HomePage() {
     }
 
     try {
-      const newConversationId = await branchFromMessage(
+      const newConversationId = await branchConversationWithRuntime(
         currentConversationId,
         messageIndex,
       );
