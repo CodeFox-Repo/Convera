@@ -4,7 +4,10 @@ import type {
 } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
 import { describe, expect, it, vi } from "vitest";
-import type { LocalAiProviderAdapter } from "../provider-adapter";
+import {
+  resolveLocalModelId,
+  type LocalAiProviderAdapter,
+} from "../provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../provider-descriptors";
 import { LocalAiRuntime, type RuntimeStreamInvoker } from "../runtime";
 import type { LocalAiProviderId, LocalAiProviderStatus } from "../types";
@@ -43,6 +46,18 @@ function request(
 }
 
 describe("LocalAiRuntime", () => {
+  it("maps the renderer default sentinel to the provider default model", () => {
+    expect(resolveLocalModelId(undefined, "provider-default")).toBe(
+      "provider-default",
+    );
+    expect(resolveLocalModelId("default", "provider-default")).toBe(
+      "provider-default",
+    );
+    expect(resolveLocalModelId(" explicit-model ", "provider-default")).toBe(
+      "explicit-model",
+    );
+  });
+
   it("maps internal CLI probes to the shared provider status contract", async () => {
     const runtime = new LocalAiRuntime({
       adapters: [

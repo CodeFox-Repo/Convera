@@ -3,7 +3,10 @@ import type { LanguageModel } from "ai";
 import type { CodexAppServerProvider } from "ai-sdk-provider-codex-cli";
 import type { ZodEffects, ZodTypeAny } from "zod";
 import { probeCliProvider } from "../cli-probe";
-import type { LocalAiProviderAdapter } from "../provider-adapter";
+import {
+  resolveLocalModelId,
+  type LocalAiProviderAdapter,
+} from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
 
 export class CodexCliAdapter implements LocalAiProviderAdapter {
@@ -50,9 +53,12 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
   ): Promise<LanguageModel> {
     await this.ensureProvider(status.executablePath);
 
-    return this.provider!(request.modelId ?? status.defaultModel, {
-      cwd: request.options?.cwd,
-    });
+    return this.provider!(
+      resolveLocalModelId(request.modelId, status.defaultModel),
+      {
+        cwd: request.options?.cwd,
+      },
+    );
   }
 
   async dispose(): Promise<void> {
