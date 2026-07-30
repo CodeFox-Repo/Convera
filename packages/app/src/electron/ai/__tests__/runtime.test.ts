@@ -860,7 +860,15 @@ describe("LocalAiRuntime", () => {
         },
       }),
     ]);
+    let disposed = false;
+    const disposePromise = runtime.dispose().then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect(disposed).toBe(false);
     releaseCompletion?.();
+    await disposePromise;
+    expect(disposed).toBe(true);
   });
 
   it("rotates revision when a turn hook rejects an existing hidden session", async () => {

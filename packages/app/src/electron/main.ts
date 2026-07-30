@@ -34,6 +34,19 @@ import {
 const logger = getLogger("main-process");
 let localAIRuntime: LocalAiRuntime | undefined;
 let memoryCoordinator: MemoryIntegrationCoordinator | undefined;
+let localAICleanup: Promise<void> | undefined;
+let quitAfterCleanup = false;
+
+function cleanupLocalAI(): Promise<void> {
+  if (localAICleanup) return localAICleanup;
+  localAICleanup = (async () => {
+    await localAIRuntime?.dispose();
+    await memoryCoordinator?.dispose();
+  })().catch((error) => {
+    logger.error("Local AI cleanup failed:", error);
+  });
+  return localAICleanup;
+}
 
 function registerGlobalShortcuts() {
   globalShortcut.unregisterAll();
@@ -170,6 +183,15 @@ app.whenReady().then(async () => {
   }
 });
 
+app.on("before-quit", (event) => {
+  if (quitAfterCleanup) return;
+  event.preventDefault();
+  void cleanupLocalAI().finally(() => {
+    quitAfterCleanup = true;
+    app.quit();
+  });
+});
+
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   destroySystemTray();
@@ -178,16 +200,6 @@ app.on("will-quit", () => {
     hub.cleanup();
     console.log("MCP Hub cleaned up");
   }
-  void Promise.allSettled([
-    memoryCoordinator?.dispose(),
-    localAIRuntime?.dispose(),
-  ]).then((results) => {
-    for (const result of results) {
-      if (result.status === "rejected") {
-        logger.error("Local AI cleanup failed:", result.reason);
-      }
-    }
-  });
 });
 
 app.on("window-all-closed", () => {

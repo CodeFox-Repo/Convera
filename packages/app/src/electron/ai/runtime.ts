@@ -342,6 +342,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly getToolGroups: AgentToolGroupProvider;
   private readonly executeTool: AgentToolExecutor;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
+  private readonly detachedHooks = new Set<Promise<void>>();
   private readonly turnHooks: LocalAiTurnHooks;
   private readonly memoryService?: LocalAiMemoryRuntimeService;
   private sessionRepository?: SessionStateRepository;
@@ -860,6 +861,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       pending.reject(new Error("Local AI runtime disposed."));
     }
 
+    await Promise.allSettled([...this.detachedHooks]);
     await Promise.all(
       [...this.adapters.values()].map((adapter) => adapter.dispose()),
     );
@@ -936,9 +938,14 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private runDetachedHook(
     operation: () => Promise<void> | void | undefined,
   ): void {
-    void Promise.resolve()
+    const task = Promise.resolve()
       .then(operation)
-      .catch(() => undefined);
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        this.detachedHooks.delete(task);
+      });
+    this.detachedHooks.add(task);
   }
 
   private getSessionRepository(): SessionStateRepository {
