@@ -26,6 +26,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { app } from "electron";
 import { EventEmitter } from "events";
+import * as fs from "fs";
 import { z } from "zod";
 import * as path from "path";
 import * as os from "os";
@@ -244,6 +245,13 @@ export class MCPConnection extends EventEmitter {
             return typeof entry[1] === "string";
           }),
         );
+        if (this.config.managed && actualCommand === "cua-driver") {
+          actualCommand = this.resolveStdioExecutable(
+            actualCommand,
+            resolvedConfig.cwd || app.getPath("userData"),
+            environment,
+          );
+        }
         const transport = new StdioClientTransport({
           command: actualCommand,
           args: resolvedConfig.args || [],
@@ -273,12 +281,11 @@ export class MCPConnection extends EventEmitter {
       console.log(`MCP server '${this.name}' connected successfully`);
     } catch (error) {
       console.error(`Failed to connect MCP server '${this.name}':`, error);
-      await this.disconnect(
-        error instanceof Error ? error.message : String(error),
-      );
+      const errorMessage = this.connectionErrorMessage(error);
+      await this.disconnect(errorMessage);
 
       const err = new Error(
-        `Failed to connect to "${this.name}" MCP server: ${error}`,
+        `Failed to connect to "${this.name}" MCP server: ${errorMessage}`,
       ) as ConnectionError;
       err.code = "CONNECTION_ERROR";
       err.data = { server: this.name, error: String(error) };
@@ -314,7 +321,9 @@ export class MCPConnection extends EventEmitter {
     this.resourceTemplates = [];
     this.status = this.disabled
       ? ConnectionStatus.DISABLED
-      : ConnectionStatus.DISCONNECTED;
+      : errorMessage
+        ? ConnectionStatus.ERROR
+        : ConnectionStatus.DISCONNECTED;
     this.error = errorMessage || null;
     this.startTime = null;
     this.authorizationUrl = undefined;
@@ -337,7 +346,7 @@ export class MCPConnection extends EventEmitter {
    */
   private handleTransportError(error: Error): void {
     console.debug(`MCP transport error for ${this.name}:`, error.message);
-    this.emit("error", { server: this.name, error });
+    this.emit("connectionError", { server: this.name, error });
   }
 
   /**
@@ -665,7 +674,81 @@ export class MCPConnection extends EventEmitter {
       lastStarted: this.lastStarted || undefined,
       authorizationUrl: this.authorizationUrl,
       isApp: this.config.isApp,
+      managed: this.config.managed,
     };
+  }
+
+  private connectionErrorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      this.config.managed &&
+      (message.includes("ENOENT") || message.includes("not found"))
+    ) {
+      return `Managed Cua MCP is unavailable: ${message} Install Cua Driver from https://cua.ai/docs/how-to-guides/driver/installation or disable the 'cua' server.`;
+    }
+
+    return message;
+  }
+
+  private resolveStdioExecutable(
+    command: string,
+    cwd: string,
+    environment: Record<string, string>,
+  ): string {
+    const hasPathSeparator =
+      command.includes(path.sep) ||
+      (path.sep === "\\" && command.includes("/"));
+    const searchDirectories = hasPathSeparator
+      ? [cwd]
+      : [
+          ...(environment.PATH || environment.Path || "")
+            .split(path.delimiter)
+            .filter(Boolean),
+          ...(command === "cua-driver"
+            ? [
+                path.join(os.homedir(), ".local", "bin"),
+                "/opt/homebrew/bin",
+                "/usr/local/bin",
+              ]
+            : []),
+        ];
+    const extensions =
+      process.platform === "win32" && !path.extname(command)
+        ? (environment.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";")
+        : [""];
+    const candidates = hasPathSeparator
+      ? [
+          path.isAbsolute(command) ? command : path.resolve(cwd, command),
+          ...extensions
+            .filter(Boolean)
+            .map(
+              (extension) =>
+                `${path.isAbsolute(command) ? command : path.resolve(cwd, command)}${extension.toLowerCase()}`,
+            ),
+        ]
+      : searchDirectories.flatMap((directory) =>
+          extensions.map((extension) =>
+            path.join(directory, `${command}${extension.toLowerCase()}`),
+          ),
+        );
+
+    const executable = candidates.find((candidate) => {
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (!executable) {
+      throw new Error(
+        hasPathSeparator
+          ? `executable '${command}' was not found`
+          : `executable '${command}' was not found on PATH`,
+      );
+    }
+
+    return executable;
   }
 
   /**

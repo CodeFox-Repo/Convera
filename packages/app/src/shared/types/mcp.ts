@@ -27,6 +27,7 @@ export interface MCPServerConfig {
   apiKey?: string;
   description?: string;
   isApp?: boolean;
+  managed?: boolean;
 }
 
 export interface MCPConfig {
@@ -84,6 +85,7 @@ export interface ServerInfo {
   lastStarted?: string;
   authorizationUrl?: string;
   isApp?: boolean;
+  managed?: boolean;
 }
 
 export interface ConnectionError extends Error {
