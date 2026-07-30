@@ -10,7 +10,7 @@ export type RendererChatOperation =
   | { kind: "bootstrap" }
   | {
       kind: "rebase";
-      reason: "edit" | "regenerate";
+      reason: "edit" | "regenerate" | "provider-switch";
       sourceMessageId?: string;
     };
 
@@ -53,7 +53,11 @@ export function buildLocalAIChatOperation(
     if (!message || message.role !== "user") {
       throw new Error("An append operation requires a latest user message.");
     }
-    return { kind: "append", message };
+    return {
+      kind: "append",
+      message,
+      recoveryMessages: boundBootstrapMessages(requestMessages),
+    };
   }
   if (requestedOperation.kind === "bootstrap") {
     return {
@@ -87,6 +91,16 @@ export function boundBootstrapMessages(
     role: "system",
     content: BOOTSTRAP_TRUNCATION_MARKER,
   };
+  const latestMessage = messages.at(-1);
+  if (
+    latestMessage &&
+    latestMessage.content.length + marker.content.length >
+      BOOTSTRAP_CHARACTER_LIMIT
+  ) {
+    // The accepted user action is never truncated. If it consumes the entire
+    // bootstrap budget, omit the explanatory marker and all older context.
+    return [latestMessage];
+  }
   let remainingMessages = BOOTSTRAP_MESSAGE_LIMIT - 1;
   let remainingCharacters = BOOTSTRAP_CHARACTER_LIMIT - marker.content.length;
   const systems: LocalAIMessage[] = [];
@@ -133,14 +147,26 @@ export function selectAppendOperation(
   runtimeState: LocalAIConversationRuntimeState | null,
   providerId: string,
   priorVisibleMessageCount: number,
-): Extract<RendererChatOperation, { kind: "append" | "bootstrap" }> {
-  const hasCurrentBinding =
-    runtimeState?.providers.some(
-      (provider) =>
-        provider.providerId === providerId &&
-        !provider.stale &&
-        provider.revision === runtimeState.revision,
-    ) ?? false;
+): Extract<RendererChatOperation, { kind: "append" | "bootstrap" | "rebase" }> {
+  const revisionBinding = runtimeState?.providers.find(
+    (provider) =>
+      provider.providerId === providerId &&
+      provider.revision === runtimeState.revision,
+  );
+  const currentBinding =
+    revisionBinding?.stale === false ? revisionBinding : undefined;
+  const sharedTranscriptMovedToAnotherProvider =
+    runtimeState?.lastCompletedProviderId !== undefined &&
+    runtimeState.lastCompletedProviderId !== providerId;
+  const bindingMissesSharedTranscript =
+    revisionBinding !== undefined &&
+    runtimeState !== null &&
+    revisionBinding.transcriptVersion !== runtimeState.transcriptVersion;
+  if (sharedTranscriptMovedToAnotherProvider || bindingMissesSharedTranscript) {
+    return { kind: "rebase", reason: "provider-switch" };
+  }
+
+  const hasCurrentBinding = currentBinding !== undefined;
   return !hasCurrentBinding && priorVisibleMessageCount > 0
     ? { kind: "bootstrap" }
     : { kind: "append" };

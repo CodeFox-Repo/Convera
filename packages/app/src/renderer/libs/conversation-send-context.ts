@@ -112,3 +112,30 @@ export async function loadConversationSendContext({
     ),
   };
 }
+
+export function buildAuthoritativeEditMessages(
+  messages: RendererMessage[],
+  sourceMessageId: string,
+  content: string,
+): RendererMessage[] | null {
+  const messageIndex = messages.findIndex(
+    (message) => message.id === sourceMessageId,
+  );
+  if (messageIndex === -1) return null;
+  return messages
+    .slice(0, messageIndex + 1)
+    .map((message, index) =>
+      index === messageIndex ? { ...message, content } : message,
+    );
+}
+
+export function buildAuthoritativeRegenerateMessages(
+  messages: RendererMessage[],
+  sourceMessageId: string,
+): RendererMessage[] | null {
+  const lastMessage = messages.at(-1);
+  if (lastMessage?.role !== "assistant" || lastMessage.id !== sourceMessageId) {
+    return null;
+  }
+  return messages.slice(0, -1);
+}

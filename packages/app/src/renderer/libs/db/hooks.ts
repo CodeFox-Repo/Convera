@@ -12,6 +12,8 @@ import {
   type Conversation,
   type Message,
   type ModelConfig,
+  type PendingTurnJournal,
+  type PendingTurnJournalState,
   DEFAULT_AGENT,
 } from "./database";
 import {
@@ -19,6 +21,10 @@ import {
   LOCAL_AI_PROVIDER_NAMES,
   isLocalAIProviderId,
 } from "../local-ai";
+import {
+  assertPendingTurnCanStage,
+  selectPendingTurnMessages,
+} from "../pending-turn-stage";
 
 // ==================== Conversation Hooks ====================
 
@@ -26,34 +32,61 @@ import {
  * Get all conversations (sorted by updatedAt descending)
  */
 export function useConversations() {
-  return useLiveQuery(() =>
-    db.conversations.orderBy("updatedAt").reverse().toArray(),
-  );
+  return useLiveQuery(async () => {
+    const [conversations, deletions] = await Promise.all([
+      db.conversations.orderBy("updatedAt").reverse().toArray(),
+      db.pendingConversationDeletions.toArray(),
+    ]);
+    const hidden = new Set(
+      deletions.map((deletion) => deletion.conversationId),
+    );
+    return conversations.filter((conversation) => !hidden.has(conversation.id));
+  });
 }
 
 /**
  * Get active (non-archived) conversations
  */
 export function useActiveConversations() {
-  return useLiveQuery(() =>
-    db.conversations
-      .orderBy("updatedAt")
-      .reverse()
-      .filter((c) => !c.metadata?.archived)
-      .toArray(),
-  );
+  return useLiveQuery(async () => {
+    const [conversations, deletions] = await Promise.all([
+      db.conversations
+        .orderBy("updatedAt")
+        .reverse()
+        .filter((c) => !c.metadata?.archived)
+        .toArray(),
+      db.pendingConversationDeletions.toArray(),
+    ]);
+    const hidden = new Set(
+      deletions.map((deletion) => deletion.conversationId),
+    );
+    return conversations.filter((conversation) => !hidden.has(conversation.id));
+  });
 }
 
 /**
  * Get archived conversations
  */
 export function useArchivedConversations() {
+  return useLiveQuery(async () => {
+    const [conversations, deletions] = await Promise.all([
+      db.conversations
+        .orderBy("updatedAt")
+        .reverse()
+        .filter((c) => c.metadata?.archived === true)
+        .toArray(),
+      db.pendingConversationDeletions.toArray(),
+    ]);
+    const hidden = new Set(
+      deletions.map((deletion) => deletion.conversationId),
+    );
+    return conversations.filter((conversation) => !hidden.has(conversation.id));
+  });
+}
+
+export function usePendingConversationDeletions() {
   return useLiveQuery(() =>
-    db.conversations
-      .orderBy("updatedAt")
-      .reverse()
-      .filter((c) => c.metadata?.archived === true)
-      .toArray(),
+    db.pendingConversationDeletions.orderBy("updatedAt").reverse().toArray(),
   );
 }
 
@@ -63,30 +96,42 @@ export function useArchivedConversations() {
 export async function getRecentMessagesForSearch(
   limit: number = 1000,
 ): Promise<Message[]> {
-  return db.messages.orderBy("createdAt").reverse().limit(limit).toArray();
+  const [messages, deletions] = await Promise.all([
+    db.messages.orderBy("createdAt").reverse().limit(limit).toArray(),
+    db.pendingConversationDeletions.toArray(),
+  ]);
+  const hidden = new Set(deletions.map((deletion) => deletion.conversationId));
+  return messages.filter((message) => !hidden.has(message.conversationId));
 }
 
 /**
  * Get a single conversation
  */
 export function useConversation(id: string | null) {
-  return useLiveQuery(() => (id ? db.conversations.get(id) : undefined), [id]);
+  return useLiveQuery(async () => {
+    if (!id || (await db.pendingConversationDeletions.get(id))) {
+      return undefined;
+    }
+    return db.conversations.get(id);
+  }, [id]);
 }
 
 /**
  * Get all messages for a conversation (sorted by createdAt)
  */
 export function useMessages(conversationId: string | null) {
-  return useLiveQuery(
-    () =>
-      conversationId
-        ? db.messages
-            .where("conversationId")
-            .equals(conversationId)
-            .sortBy("createdAt")
-        : [],
-    [conversationId],
-  );
+  return useLiveQuery(async () => {
+    if (
+      !conversationId ||
+      (await db.pendingConversationDeletions.get(conversationId))
+    ) {
+      return [];
+    }
+    return db.messages
+      .where("conversationId")
+      .equals(conversationId)
+      .sortBy("createdAt");
+  }, [conversationId]);
 }
 
 // ==================== Conversation Actions ====================
@@ -127,10 +172,21 @@ export async function updateConversation(
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  await db.transaction("rw", [db.conversations, db.messages], async () => {
-    await db.messages.where("conversationId").equals(id).delete();
-    await db.conversations.delete(id);
-  });
+  await db.transaction(
+    "rw",
+    [
+      db.conversations,
+      db.messages,
+      db.pendingTurns,
+      db.pendingConversationDeletions,
+    ],
+    async () => {
+      await db.messages.where("conversationId").equals(id).delete();
+      await db.pendingTurns.where("conversationId").equals(id).delete();
+      await db.pendingConversationDeletions.delete(id);
+      await db.conversations.delete(id);
+    },
+  );
 }
 
 // ==================== Message Actions ====================
@@ -158,9 +214,27 @@ export async function addMessage(
   return id;
 }
 
-type MessageSnapshot = Omit<Message, "conversationId" | "createdAt"> & {
+export type MessageSnapshot = Omit<Message, "conversationId" | "createdAt"> & {
   id: string;
 };
+
+export interface PendingTurnMetadata {
+  turnId: string;
+  requestId: string;
+  revision: number;
+  providerId: string;
+  modelId?: string;
+  operation: "append" | "bootstrap" | "rebase";
+  operationReason?: "edit" | "regenerate" | "provider-switch";
+  sourceMessageId?: string;
+  userMessageId?: string;
+  assistantMessageId: string;
+}
+
+export type PendingTurnRollback = Pick<
+  PendingTurnJournal,
+  "turnId" | "insertedMessageIds" | "previousMessages"
+>;
 
 async function synchronizeMessages(
   conversationId: string,
@@ -240,6 +314,204 @@ export async function commitCompletedTurn(
         ...(conversation.metadata || {}),
         messageCount: messages.length,
       },
+    });
+  });
+}
+
+/**
+ * Durably records the outgoing turn before startChat crosses IPC. A renderer
+ * crash can therefore recover the user's input and an explicit pending
+ * assistant shell instead of silently losing the accepted action.
+ */
+export async function stagePendingTurn(
+  conversationId: string,
+  expectedMessages: MessageSnapshot[],
+  pendingMessages: MessageSnapshot[],
+  turn: PendingTurnMetadata,
+): Promise<PendingTurnRollback> {
+  return db.transaction(
+    "rw",
+    [
+      db.messages,
+      db.conversations,
+      db.pendingTurns,
+      db.pendingConversationDeletions,
+    ],
+    async () => {
+      const conversation = await db.conversations.get(conversationId);
+      if (!conversation) {
+        throw new Error("Conversation disappeared before the turn was staged.");
+      }
+      if (await db.pendingConversationDeletions.get(conversationId)) {
+        throw new Error("Conversation deletion is pending.");
+      }
+      const currentMessages = await db.messages
+        .where("conversationId")
+        .equals(conversationId)
+        .sortBy("createdAt");
+      const existingJournal = await db.pendingTurns
+        .where("conversationId")
+        .equals(conversationId)
+        .first();
+      if (existingJournal) {
+        throw new Error(
+          "Conversation already has an outgoing turn awaiting reconciliation.",
+        );
+      }
+      assertPendingTurnCanStage(currentMessages, expectedMessages);
+      const currentById = new Map(
+        currentMessages.map((message) => [message.id, message]),
+      );
+      const turnMessages = selectPendingTurnMessages(pendingMessages, turn);
+      const previousMessages = turnMessages.flatMap((message) => {
+        const previous = currentById.get(message.id);
+        return previous ? [previous] : [];
+      });
+      const insertedMessageIds = turnMessages
+        .filter((message) => !currentById.has(message.id))
+        .map((message) => message.id);
+      const baseTime = Date.now();
+      await db.messages.bulkPut(
+        turnMessages.map((message, index) => {
+          const previous = currentById.get(message.id);
+          return {
+            ...previous,
+            ...message,
+            conversationId,
+            turnId: turn.turnId,
+            revision: turn.revision,
+            providerId: turn.providerId,
+            modelId: turn.modelId,
+            status: "pending" as const,
+            finishReason: undefined,
+            createdAt: previous?.createdAt ?? new Date(baseTime + index),
+          };
+        }),
+      );
+      const now = new Date();
+      await db.pendingTurns.add({
+        turnId: turn.turnId,
+        requestId: turn.requestId,
+        conversationId,
+        operation: turn.operation,
+        operationReason: turn.operationReason,
+        sourceMessageId: turn.sourceMessageId,
+        providerId: turn.providerId,
+        modelId: turn.modelId,
+        expectedRevision: turn.revision,
+        userMessageId: turn.userMessageId,
+        assistantMessageId: turn.assistantMessageId,
+        desiredMessageIds: pendingMessages.map((message) => message.id),
+        insertedMessageIds,
+        previousMessages,
+        state: "staged",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await db.conversations.update(conversationId, {
+        updatedAt: now,
+        metadata: {
+          ...(conversation.metadata || {}),
+          messageCount: currentMessages.length + insertedMessageIds.length,
+        },
+      });
+      return {
+        turnId: turn.turnId,
+        insertedMessageIds,
+        previousMessages,
+      };
+    },
+  );
+}
+
+export async function rollbackPendingTurn(
+  conversationId: string,
+  turnId: string,
+): Promise<void> {
+  await db.transaction(
+    "rw",
+    [db.messages, db.conversations, db.pendingTurns],
+    async () => {
+      const rollback = await db.pendingTurns.get(turnId);
+      if (!rollback || rollback.conversationId !== conversationId) return;
+      const touchedIds = [
+        ...rollback.insertedMessageIds,
+        ...rollback.previousMessages.map((message) => message.id),
+      ];
+      const current = await db.messages.bulkGet(touchedIds);
+      const stillOwnedIds = new Set(
+        current
+          .filter(
+            (message): message is Message =>
+              message?.conversationId === conversationId &&
+              message.turnId === rollback.turnId &&
+              message.status === "pending",
+          )
+          .map((message) => message.id),
+      );
+      const insertedToDelete = rollback.insertedMessageIds.filter((messageId) =>
+        stillOwnedIds.has(messageId),
+      );
+      if (insertedToDelete.length > 0) {
+        await db.messages.bulkDelete(insertedToDelete);
+      }
+      const previousToRestore = rollback.previousMessages.filter((message) =>
+        stillOwnedIds.has(message.id),
+      );
+      if (previousToRestore.length > 0) {
+        await db.messages.bulkPut(previousToRestore);
+      }
+      const conversation = await db.conversations.get(conversationId);
+      if (conversation) {
+        const messageCount = await db.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .count();
+        await db.conversations.update(conversationId, {
+          updatedAt: new Date(),
+          metadata: {
+            ...(conversation.metadata || {}),
+            messageCount,
+          },
+        });
+      }
+      await db.pendingTurns.delete(turnId);
+    },
+  );
+}
+
+export async function updatePendingTurnJournalState(
+  conversationId: string,
+  turnId: string,
+  state: PendingTurnJournalState,
+): Promise<void> {
+  await db.transaction("rw", db.pendingTurns, async () => {
+    const journal = await db.pendingTurns.get(turnId);
+    if (!journal || journal.conversationId !== conversationId) return;
+    await db.pendingTurns.update(turnId, {
+      state,
+      updatedAt: new Date(),
+    });
+  });
+}
+
+export async function failPendingTurn(
+  conversationId: string,
+  turnId: string,
+  finishReason = "error",
+): Promise<void> {
+  await db.transaction("rw", [db.messages, db.conversations], async () => {
+    await db.messages
+      .where("[conversationId+turnId]")
+      .equals([conversationId, turnId])
+      .modify((message) => {
+        message.status = "failed";
+        if (message.role === "assistant") {
+          message.finishReason = finishReason;
+        }
+      });
+    await db.conversations.update(conversationId, {
+      updatedAt: new Date(),
     });
   });
 }
@@ -468,82 +740,112 @@ export async function branchFromMessage(
   conversationId: string,
   upToMessageIndex: number,
   targetConversationId?: string,
+  targetActiveRevision?: number,
+  publishReservedTarget = false,
+  expectedSourceMessages?: ReadonlyArray<
+    Pick<Message, "id" | "role" | "content">
+  >,
 ): Promise<string> {
-  // Get source conversation and its messages
-  const sourceConv = await db.conversations.get(conversationId);
-  if (!sourceConv) {
-    throw new Error("Source conversation not found");
+  const newConvId = targetConversationId ?? crypto.randomUUID();
+  if (newConvId === conversationId) {
+    throw new Error("A conversation cannot branch onto itself.");
   }
-
-  const sourceMessages = await db.messages
-    .where("conversationId")
-    .equals(conversationId)
-    .sortBy("createdAt");
-
-  if (upToMessageIndex < 0 || upToMessageIndex >= sourceMessages.length) {
-    throw new Error("Invalid message index for branching");
-  }
-
-  // Get messages to copy (up to and including the specified index)
-  const messagesToCopy = sourceMessages.slice(0, upToMessageIndex + 1);
-
-  // Create new conversation with branch metadata
-  const newConvId = await createConversation({
-    id: targetConversationId,
-    title: sourceConv.title ? `${sourceConv.title} (branch)` : "New Branch",
-    agentId: sourceConv.agentId,
-    modelId: sourceConv.modelId,
-    activeRevision: sourceConv.activeRevision,
-    activeProviderId: sourceConv.activeProviderId,
-    activeModelId: sourceConv.activeModelId,
-    systemPrompt: sourceConv.systemPrompt,
-    metadata: {
-      ...sourceConv.metadata,
-      branchedFrom: {
+  return db.transaction(
+    "rw",
+    [db.conversations, db.messages, db.pendingConversationDeletions],
+    async () => {
+      const [sourceConv, sourceDeletion, targetCleanupIntent] =
+        await Promise.all([
+          db.conversations.get(conversationId),
+          db.pendingConversationDeletions.get(conversationId),
+          db.pendingConversationDeletions.get(newConvId),
+        ]);
+      if (!sourceConv) {
+        throw new Error("Source conversation not found");
+      }
+      if (sourceDeletion) {
+        throw new Error("Cannot branch a conversation pending deletion.");
+      }
+      if (
+        publishReservedTarget &&
+        targetCleanupIntent?.operation !== "branch-cleanup"
+      ) {
+        throw new Error("Conversation branch cleanup intent is missing.");
+      }
+      const sourceMessages = await db.messages
+        .where("conversationId")
+        .equals(conversationId)
+        .sortBy("createdAt");
+      if (upToMessageIndex < 0 || upToMessageIndex >= sourceMessages.length) {
+        throw new Error("Invalid message index for branching");
+      }
+      const messagesToCopy = sourceMessages.slice(0, upToMessageIndex + 1);
+      if (
+        expectedSourceMessages &&
+        (messagesToCopy.length !== expectedSourceMessages.length ||
+          messagesToCopy.some((message, index) => {
+            const expected = expectedSourceMessages[index];
+            return (
+              !expected ||
+              message.id !== expected.id ||
+              message.role !== expected.role ||
+              message.content !== expected.content
+            );
+          }))
+      ) {
+        throw new Error(
+          "Source conversation changed while the branch was being created.",
+        );
+      }
+      const now = new Date();
+      const branchedFrom = {
         conversationId,
         messageIndex: upToMessageIndex,
-        createdAt: new Date().toISOString(),
-      },
-    },
-  });
-
-  // Copy messages to new conversation
-  if (messagesToCopy.length > 0) {
-    const baseTime = Date.now();
-    await db.messages.bulkAdd(
-      messagesToCopy.map((msg, index) => ({
-        id: crypto.randomUUID(),
-        conversationId: newConvId,
-        role: msg.role,
-        content: msg.content,
-        turnId: msg.turnId,
-        revision: msg.revision,
-        providerId: msg.providerId,
-        modelId: msg.modelId,
-        status: msg.status,
-        finishReason: msg.finishReason,
-        parts: msg.parts,
-        experimental_attachments: msg.experimental_attachments,
-        createdAt: new Date(baseTime + index),
-      })),
-    );
-
-    // Update message count
-    await db.conversations.update(newConvId, {
-      metadata: {
-        ...sourceConv.metadata,
-        messageCount: messagesToCopy.length,
-        branchedFrom: {
-          conversationId,
-          messageIndex: upToMessageIndex,
-          createdAt: new Date().toISOString(),
+        createdAt: now.toISOString(),
+      };
+      await db.conversations.add({
+        id: newConvId,
+        title: sourceConv.title ? `${sourceConv.title} (branch)` : "New Branch",
+        agentId: sourceConv.agentId,
+        modelId: sourceConv.modelId,
+        activeRevision: targetActiveRevision ?? sourceConv.activeRevision,
+        activeProviderId: sourceConv.activeProviderId,
+        activeModelId: sourceConv.activeModelId,
+        systemPrompt: sourceConv.systemPrompt,
+        metadata: {
+          ...sourceConv.metadata,
+          messageCount: messagesToCopy.length,
+          branchedFrom,
         },
-      },
-    });
-  }
-
-  return newConvId;
+        createdAt: now,
+        updatedAt: now,
+      });
+      const baseTime = Date.now();
+      await db.messages.bulkAdd(
+        messagesToCopy.map((msg, index) => ({
+          id: crypto.randomUUID(),
+          conversationId: newConvId,
+          role: msg.role,
+          content: msg.content,
+          turnId: msg.turnId,
+          revision: msg.revision,
+          providerId: msg.providerId,
+          modelId: msg.modelId,
+          status: msg.status,
+          finishReason: msg.finishReason,
+          parts: msg.parts,
+          experimental_attachments: msg.experimental_attachments,
+          createdAt: new Date(baseTime + index),
+        })),
+      );
+      if (publishReservedTarget) {
+        await db.pendingConversationDeletions.delete(newConvId);
+      }
+      return newConvId;
+    },
+  );
 }
 
-// Auto-initialize
-initializeDatabase().catch(console.error);
+// Auto-initialize. Export the barrier so lifecycle tests and startup consumers
+// can avoid closing the database while this first write is still in flight.
+export const databaseInitialization = initializeDatabase().catch(console.error);

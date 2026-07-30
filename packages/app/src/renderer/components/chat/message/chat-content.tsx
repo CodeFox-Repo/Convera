@@ -17,7 +17,7 @@ interface ChatContentProps {
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   isLoading: boolean;
   onEditMessage: (message: UIMessage, newContent: string) => void;
-  onRegenerateMessage: () => void;
+  onRegenerateMessage: (message: UIMessage) => void;
   onBranchFromMessage: (messageIndex: number) => void;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
@@ -104,12 +104,15 @@ export default function ChatContent({
     [],
   );
 
-  const handleRegenerateWithLoading = useCallback(() => {
-    if (onRegenerateMessage) {
-      setHasReceivedFirstToken(false);
-      onRegenerateMessage();
-    }
-  }, [onRegenerateMessage]);
+  const handleRegenerateWithLoading = useCallback(
+    (message: UIMessage) => {
+      if (onRegenerateMessage) {
+        setHasReceivedFirstToken(false);
+        onRegenerateMessage(message);
+      }
+    },
+    [onRegenerateMessage],
+  );
 
   const handleAcceptModification = useCallback((messageId: string) => {
     setModifiedResponses((prev) => ({
@@ -375,7 +378,7 @@ export default function ChatContent({
           onEditCancel={handleEditCancel}
           onEditContentChange={setEditedContent}
           onCopy={() => handleCopyContent(message.content || "", message.id)}
-          onRegenerate={handleRegenerateWithLoading}
+          onRegenerate={() => handleRegenerateWithLoading(message)}
           onBranch={onBranchFromMessage}
           renderContent={content}
         />

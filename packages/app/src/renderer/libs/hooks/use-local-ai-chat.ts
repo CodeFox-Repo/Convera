@@ -15,6 +15,19 @@ import {
   buildLocalAIChatOperation,
   type RendererChatOperation,
 } from "../local-ai-request";
+import {
+  failPendingTurn,
+  rollbackPendingTurn,
+  stagePendingTurn,
+  updatePendingTurnJournalState,
+  type MessageSnapshot,
+} from "../db/hooks";
+import {
+  completeConversationTurnPersistence,
+  registerConversationTurnPersistence,
+} from "../conversation-turn-persistence";
+import { persistBeforeStartChat } from "../durable-chat-start";
+import { reconcilePendingTurns } from "../conversation-turn-reconciliation";
 
 export interface LocalAIChatOptions {
   providerId: LocalAIProviderId;
@@ -56,12 +69,32 @@ interface UseLocalAIChatResult {
   resend: (
     messages: Message[],
     options: LocalAIChatOptions,
+    durableBaseMessages: Message[],
   ) => Promise<boolean>;
   stop: () => Promise<void>;
 }
 
 function createMessageId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function toMessageSnapshots(messages: Message[]): MessageSnapshot[] {
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role as "user" | "assistant" | "system" | "tool",
+    content:
+      typeof message.content === "string"
+        ? message.content
+        : JSON.stringify(message.content),
+    parts: message.parts,
+    experimental_attachments: message.experimental_attachments?.map(
+      (attachment) => ({
+        url: attachment.url,
+        name: attachment.name ?? "",
+        contentType: attachment.contentType ?? "",
+      }),
+    ),
+  }));
 }
 
 export function useLocalAIChat(): UseLocalAIChatResult {
@@ -165,7 +198,11 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   );
 
   const run = useCallback(
-    async (nextMessages: Message[], options: LocalAIChatOptions) => {
+    async (
+      nextMessages: Message[],
+      options: LocalAIChatOptions,
+      durableBaseMessages: Message[],
+    ) => {
       const localAI = getLocalAI();
       if (!localAI) {
         setError(new Error("Local AI runtime is not available."));
@@ -175,6 +212,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
 
       if (activeRequestIdRef.current) {
         const previousRequestId = activeRequestIdRef.current;
+        const previousTurn = activeTurnRef.current;
         const abortResult = await localAI.abort(previousRequestId);
         if (!abortResult.success) {
           throw new Error(
@@ -186,6 +224,14 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         releaseSubscription();
         activeRequestIdRef.current = undefined;
         await closeUIMessageStream();
+        if (previousTurn) {
+          await failPendingTurn(
+            previousTurn.conversationId,
+            previousTurn.turnId,
+            "aborted",
+          ).catch(() => undefined);
+          completeConversationTurnPersistence(previousTurn.turnId);
+        }
       }
 
       const previousMessages = messagesRef.current;
@@ -211,53 +257,113 @@ export function useLocalAIChat(): UseLocalAIChatResult {
           setError(streamError);
         },
       });
+      const userMessageId =
+        options.operation.kind === "rebase" &&
+        options.operation.reason === "regenerate"
+          ? undefined
+          : nextMessages.at(-1)?.id;
+      const activeTurn = {
+        conversationId: options.conversationId,
+        turnId: options.turnId,
+        providerId: options.providerId,
+        modelId: options.model,
+        expectedRevision: options.expectedRevision,
+        userMessageId,
+        assistantMessageId,
+      };
 
       setError(undefined);
       setLastCompletedTurn(undefined);
       setStatus("submitted");
       setMessages([...nextMessages, assistantMessage]);
       activeRequestIdRef.current = requestId;
-      activeTurnRef.current = {
-        conversationId: options.conversationId,
-        turnId: options.turnId,
-        providerId: options.providerId,
-        modelId: options.model,
-        expectedRevision: options.expectedRevision,
-        userMessageId:
-          options.operation.kind === "rebase" &&
-          options.operation.reason === "regenerate"
-            ? undefined
-            : nextMessages.at(-1)?.id,
-        assistantMessageId,
-      };
+      activeTurnRef.current = activeTurn;
       activeUIMessageStreamRef.current = uiMessageStream;
       unsubscribeRef.current = localAI.onEvent(requestId, (event) => {
         handleEvent(event);
       });
 
+      let staged = false;
+      let crossedIPC = false;
+      let explicitlyRejected = false;
       try {
         const operation = buildLocalAIChatOperation(
           nextMessages,
           options.operation,
         );
-
-        const result = await localAI.startChat({
-          requestId,
-          conversationId: options.conversationId,
-          turnId: options.turnId,
-          expectedRevision: options.expectedRevision,
-          providerId: options.providerId,
-          modelId: options.model,
-          operation,
-          agent: options.agent,
-          options: options.options,
-        });
+        registerConversationTurnPersistence(
+          options.conversationId,
+          options.turnId,
+        );
+        const result = await persistBeforeStartChat(
+          async () => {
+            const priorTurns = await reconcilePendingTurns({
+              conversationId: options.conversationId,
+              preferLiveGrace: true,
+            });
+            const unresolved = priorTurns.find(
+              (turn) => !turn.locallySettled || turn.ackPending,
+            );
+            if (unresolved) {
+              throw (
+                unresolved.error ??
+                new Error(
+                  "The previous conversation turn is still being reconciled.",
+                )
+              );
+            }
+            await stagePendingTurn(
+              options.conversationId,
+              toMessageSnapshots(durableBaseMessages),
+              toMessageSnapshots([...nextMessages, assistantMessage]),
+              {
+                turnId: options.turnId,
+                requestId,
+                revision: options.expectedRevision ?? 0,
+                providerId: options.providerId,
+                modelId: options.model,
+                operation: options.operation.kind,
+                operationReason:
+                  options.operation.kind === "rebase"
+                    ? options.operation.reason
+                    : undefined,
+                sourceMessageId:
+                  options.operation.kind === "rebase"
+                    ? options.operation.sourceMessageId
+                    : undefined,
+                userMessageId,
+                assistantMessageId,
+              },
+            );
+            staged = true;
+          },
+          () => {
+            crossedIPC = true;
+            return localAI.startChat({
+              requestId,
+              conversationId: options.conversationId,
+              turnId: options.turnId,
+              expectedRevision: options.expectedRevision,
+              providerId: options.providerId,
+              modelId: options.model,
+              operation,
+              agent: options.agent,
+              options: options.options,
+            });
+          },
+        );
 
         if (!result.success || !result.accepted) {
+          explicitlyRejected = true;
           throw new Error(
             result.error?.message || "Local AI runtime rejected the chat.",
           );
         }
+        await updatePendingTurnJournalState(
+          options.conversationId,
+          options.turnId,
+          "accepted",
+        ).catch(() => undefined);
         return true;
       } catch (startError) {
         const nextError =
@@ -271,6 +377,19 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         activeTurnRef.current = undefined;
         releaseSubscription();
         await closeUIMessageStream();
+        if (staged && explicitlyRejected) {
+          await rollbackPendingTurn(
+            options.conversationId,
+            options.turnId,
+          ).catch(() => undefined);
+        } else if (staged && crossedIPC) {
+          await updatePendingTurnJournalState(
+            options.conversationId,
+            options.turnId,
+            "transport-uncertain",
+          ).catch(() => undefined);
+        }
+        completeConversationTurnPersistence(options.turnId);
         setMessages(previousMessages);
         return false;
       }
@@ -289,14 +408,18 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         id: createMessageId("user"),
         createdAt: new Date(),
       };
-      return await run([...baseMessages, userMessage], options);
+      return await run([...baseMessages, userMessage], options, baseMessages);
     },
     [run],
   );
 
   const resend = useCallback(
-    async (nextMessages: Message[], options: LocalAIChatOptions) => {
-      return await run(nextMessages, options);
+    async (
+      nextMessages: Message[],
+      options: LocalAIChatOptions,
+      durableBaseMessages: Message[],
+    ) => {
+      return await run(nextMessages, options, durableBaseMessages);
     },
     [run],
   );
@@ -318,11 +441,20 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       // main process no longer owns the request, there will be no event to
       // wait for, so release the local listener here.
       if (!result.data?.aborted) {
+        const activeTurn = activeTurnRef.current;
         useUserInputStore.getState().dismissRequest(requestId);
         activeRequestIdRef.current = undefined;
         activeTurnRef.current = undefined;
         releaseSubscription();
         await closeUIMessageStream();
+        if (activeTurn) {
+          await failPendingTurn(
+            activeTurn.conversationId,
+            activeTurn.turnId,
+            "aborted",
+          ).catch(() => undefined);
+          completeConversationTurnPersistence(activeTurn.turnId);
+        }
         setStatus("ready");
       }
     } catch (abortError) {
@@ -338,6 +470,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   useEffect(
     () => () => {
       const requestId = activeRequestIdRef.current;
+      const activeTurn = activeTurnRef.current;
       const localAI = getLocalAI();
       releaseSubscription();
       activeUIMessageStreamRef.current?.close();
@@ -346,6 +479,17 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       if (requestId && localAI) {
         useUserInputStore.getState().dismissRequest(requestId);
         void localAI.abort(requestId);
+      }
+      if (activeTurn) {
+        void failPendingTurn(
+          activeTurn.conversationId,
+          activeTurn.turnId,
+          "aborted",
+        )
+          .catch(() => undefined)
+          .finally(() => {
+            completeConversationTurnPersistence(activeTurn.turnId);
+          });
       }
     },
     [releaseSubscription],

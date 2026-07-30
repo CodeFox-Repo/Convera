@@ -23,6 +23,7 @@ import {
   resolveConversationProviderSelection,
   resolveNativeProviderSelection,
 } from "../provider-selection";
+import { persistConversationProviderSelection } from "../conversation-provider-persistence";
 
 // Re-export for convenience
 export {
@@ -93,11 +94,14 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     });
     const conversationId = get().currentConversationId;
     if (conversationId) {
-      void db.conversations.update(conversationId, {
-        modelId: `${selection.configId}:${selection.modelId}`,
-        activeProviderId: selection.configId,
-        activeModelId: selection.modelId,
-        updatedAt: new Date(),
+      void persistConversationProviderSelection(
+        conversationId,
+        selection,
+      ).catch((error) => {
+        console.error(
+          "Failed to persist the conversation provider selection:",
+          error,
+        );
       });
       return;
     }

@@ -30,3 +30,13 @@ export async function commitThenFinalize<TCommitted, TFinalized>(
     throw error;
   }
 }
+
+export async function quiesceThenCommitAndFinalize<TCommitted, TFinalized>(
+  quiesce: () => Promise<void>,
+  commit: () => Promise<TCommitted>,
+  finalize: (committed: TCommitted) => Promise<TFinalized>,
+  rollback: (committed: TCommitted) => Promise<void>,
+): Promise<TFinalized> {
+  await quiesce();
+  return commitThenFinalize(commit, finalize, rollback);
+}

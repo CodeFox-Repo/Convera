@@ -11,15 +11,15 @@ import React, {
 } from "react";
 import { useLocalAIChat } from "../hooks/use-local-ai-chat";
 import { useAgentStore } from "./agent-store";
-import { useChatHistory } from "./chat-history-store";
 import {
-  resolveLocalAIProviderId,
-  useModelConfigStore,
-} from "./model-config-store";
+  clearDeletionFailureNotification,
+  notifyDeferredDeletion,
+  useChatHistory,
+} from "./chat-history-store";
+import { resolveLocalAIProviderId } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
 import {
   db,
-  commitCompletedTurn,
   createConversation,
   deleteConversation as deleteConversationFromDexie,
 } from "../db";
@@ -29,10 +29,19 @@ import { useUserInputStore } from "./user-input-store";
 import { selectAppendOperation } from "../local-ai-request";
 import {
   assertConversationSelectionUnchanged,
+  buildAuthoritativeEditMessages,
+  buildAuthoritativeRegenerateMessages,
   loadConversationSendContext,
   type ConversationSelectionToken,
 } from "../conversation-send-context";
 import { resolveNativeProviderSelection } from "../provider-selection";
+import { flushConversationProviderSelection } from "../conversation-provider-persistence";
+import { completeConversationTurnPersistence } from "../conversation-turn-persistence";
+import {
+  reconcilePendingTurn,
+  reconcilePendingTurns,
+} from "../conversation-turn-reconciliation";
+import { replayPendingConversationDeletions } from "../conversation-lifecycle";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -76,7 +85,7 @@ interface ChatContextType {
   sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
-  regenerateMessage: () => void;
+  regenerateMessage: (message: Message) => void;
   resetChat: () => void;
   setSelectedContent: (content: SelectedContent | null) => void;
   rejectSelectedContent: () => void;
@@ -201,6 +210,61 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedAgentIdRef.current = selectedAgent?.id;
   }, [selectedAgent?.id]);
 
+  // Recover a main-process terminal outbox after renderer reload, sender
+  // destruction, or an ambiguous IPC failure. The journal and reconciliation
+  // transactions are idempotent, so multiple windows may safely run this.
+  useEffect(() => {
+    let stopped = false;
+    let running = false;
+    const reconcileOutstandingTurns = async () => {
+      if (stopped || running) return;
+      running = true;
+      try {
+        const activeTurnId = activeTurnIdRef.current;
+        const results = await reconcilePendingTurns({
+          preferLiveGrace: true,
+          excludeTurnIds: activeTurnId ? [activeTurnId] : [],
+        });
+        for (const result of results) {
+          if (!result.locallySettled) continue;
+          completeConversationTurnPersistence(result.turnId);
+          if (activeTurnIdRef.current === result.turnId) {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
+        }
+        const deletionResults = await replayPendingConversationDeletions();
+        for (const result of deletionResults) {
+          if (result.deleted) {
+            clearDeletionFailureNotification(result.conversationId);
+            continue;
+          }
+          if (result.skipped) {
+            if (result.retryable === false && result.error) {
+              notifyDeferredDeletion(result.conversationId, result.error);
+            }
+            continue;
+          }
+          console.error(
+            `Failed to replay deletion for ${result.conversationId}:`,
+            result.error,
+          );
+          notifyDeferredDeletion(result.conversationId, result.error);
+        }
+      } catch (error) {
+        console.error("Failed to reconcile a pending local AI turn:", error);
+      } finally {
+        running = false;
+      }
+    };
+    void reconcileOutstandingTurns();
+    const interval = window.setInterval(reconcileOutstandingTurns, 2_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   // Save messages when loading completes (message finished)
   useEffect(() => {
     const wasLoading = prevLoadingRef.current;
@@ -212,7 +276,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const saveMessages = async () => {
         try {
           const convId = activeConversationIdRef.current;
-          const messages = chatAPI.messages;
           const completedTurn = chatAPI.lastCompletedTurn;
 
           if (
@@ -227,59 +290,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
 
-          const messageSnapshots = messages.map((m: Message) => {
-            const belongsToCompletedTurn =
-              m.id === completedTurn.userMessageId ||
-              m.id === completedTurn.assistantMessageId;
-            const status =
-              completedTurn.finishReason === "aborted"
-                ? "aborted"
-                : completedTurn.finishReason === "error"
-                  ? "failed"
-                  : "completed";
-            return {
-              id: m.id,
-              role: m.role as "user" | "assistant" | "system" | "tool",
-              content:
-                typeof m.content === "string"
-                  ? m.content
-                  : JSON.stringify(m.content),
-              ...(belongsToCompletedTurn
-                ? {
-                    turnId: completedTurn.turnId,
-                    revision: completedTurn.revision,
-                    providerId: completedTurn.providerId,
-                    modelId: completedTurn.modelId,
-                    status: status as "completed" | "failed" | "aborted",
-                    finishReason:
-                      m.id === completedTurn.assistantMessageId
-                        ? completedTurn.finishReason
-                        : undefined,
-                  }
-                : {}),
-              parts: m.parts,
-              experimental_attachments: m.experimental_attachments?.map(
-                (a: Attachment) => ({
-                  url: a.url,
-                  name: a.name ?? "",
-                  contentType: a.contentType ?? "",
-                }),
-              ),
-            };
+          const liveAssistant = chatAPI.messages.find(
+            (message) => message.id === completedTurn.assistantMessageId,
+          );
+          const result = await reconcilePendingTurn(completedTurn.turnId, {
+            liveAssistant: liveAssistant
+              ? {
+                  content: liveAssistant.content,
+                  parts: liveAssistant.parts,
+                  experimental_attachments:
+                    liveAssistant.experimental_attachments?.map(
+                      (attachment) => ({
+                        url: attachment.url,
+                        name: attachment.name ?? "",
+                        contentType: attachment.contentType ?? "",
+                      }),
+                    ),
+                }
+              : undefined,
           });
-          await commitCompletedTurn(convId, messageSnapshots, {
-            activeRevision: completedTurn.revision,
-            activeProviderId: completedTurn.providerId,
-            activeModelId: completedTurn.modelId ?? DEFAULT_LOCAL_AI_MODEL_ID,
-            modelId: `${completedTurn.providerId}:${
-              completedTurn.modelId ?? DEFAULT_LOCAL_AI_MODEL_ID
-            }`,
-          });
-          console.log("💾 Saved messages to conversation:", convId);
-          activeConversationIdRef.current = null;
-          activeTurnIdRef.current = null;
+          if (result.locallySettled) {
+            completeConversationTurnPersistence(completedTurn.turnId);
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+            console.log("💾 Reconciled local AI turn:", completedTurn.turnId);
+          } else {
+            console.warn(
+              "Local AI turn is not terminal in the durable outbox yet:",
+              completedTurn.turnId,
+            );
+          }
         } catch (error) {
-          console.error("Failed to save conversation:", error);
+          // Keep both the in-memory barrier and Dexie journal. The background
+          // reconciler or delete-time reconciliation will retry the commit.
+          console.error(
+            "Failed to persist the completed local AI turn:",
+            error,
+          );
         }
       };
 
@@ -496,6 +543,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
           let selection = requestedSelection;
           let defaultSelection = getDefaultProviderSelection();
+          if (selection.conversationId) {
+            await flushConversationProviderSelection(selection.conversationId);
+            assertConversationSelectionUnchanged(
+              selection,
+              getConversationSelectionToken(),
+            );
+          }
           let sendContext = await loadConversationSendContext({
             selection,
             defaultSelection,
@@ -623,52 +677,68 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const editMessage = useCallback(
     (message: Message, newContent: string) => {
+      const requestedSelection = getConversationSelectionToken();
       const rebase = async () => {
-        if (!currentConversationId) return;
-        const messageIndex = chatAPI.messages.findIndex(
-          (candidate) => candidate.id === message.id,
+        if (!requestedSelection.conversationId) return;
+        await flushConversationProviderSelection(
+          requestedSelection.conversationId,
         );
-        if (messageIndex === -1) return;
-
-        const updatedMessages = [...chatAPI.messages];
-        updatedMessages[messageIndex] = {
-          ...updatedMessages[messageIndex],
-          content: newContent,
-        };
-        if (messageIndex < updatedMessages.length - 1) {
-          updatedMessages.splice(messageIndex + 1);
-        }
-
-        const { selectedConfigId, selectedModelId } =
-          useModelConfigStore.getState();
-        const providerId = resolveLocalAIProviderId(selectedConfigId);
-        const runtimeState = await getRuntimeState(currentConversationId);
-        const conversation = await db.conversations.get(currentConversationId);
-        const turnId = crypto.randomUUID();
-        activeConversationIdRef.current = currentConversationId;
-        activeTurnIdRef.current = turnId;
-        const accepted = await chatAPI.resend(updatedMessages, {
-          providerId,
-          conversationId: currentConversationId,
-          turnId,
-          expectedRevision:
-            runtimeState?.revision ?? conversation?.activeRevision ?? 0,
-          model:
-            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
-              ? undefined
-              : selectedModelId,
-          operation: {
-            kind: "rebase",
-            reason: "edit",
-            sourceMessageId: message.id,
-          },
-          agent: selectedAgent
-            ? {
-                id: selectedAgent.id,
-                systemPrompt: selectedAgent.systemPrompt,
-              }
-            : undefined,
+        assertConversationSelectionUnchanged(
+          requestedSelection,
+          getConversationSelectionToken(),
+        );
+        const sendContext = await loadConversationSendContext({
+          selection: requestedSelection,
+          defaultSelection: getDefaultProviderSelection(),
+          getSelection: getConversationSelectionToken,
         });
+        if (!sendContext) return;
+        const updatedMessages = buildAuthoritativeEditMessages(
+          sendContext.messages,
+          message.id,
+          newContent,
+        );
+        if (!updatedMessages) return;
+
+        const conversationId = requestedSelection.conversationId;
+        const providerId = resolveLocalAIProviderId(
+          sendContext.providerSelection.configId,
+        );
+        const selectedModelId = sendContext.providerSelection.modelId;
+        const runtimeState = await getRuntimeState(conversationId);
+        assertConversationSelectionUnchanged(
+          requestedSelection,
+          getConversationSelectionToken(),
+        );
+        const turnId = crypto.randomUUID();
+        activeConversationIdRef.current = conversationId;
+        activeTurnIdRef.current = turnId;
+        const accepted = await chatAPI.resend(
+          updatedMessages,
+          {
+            providerId,
+            conversationId,
+            turnId,
+            expectedRevision:
+              runtimeState?.revision ?? sendContext.conversation.activeRevision,
+            model:
+              selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                ? undefined
+                : selectedModelId,
+            operation: {
+              kind: "rebase",
+              reason: "edit",
+              sourceMessageId: message.id,
+            },
+            agent: selectedAgent
+              ? {
+                  id: selectedAgent.id,
+                  systemPrompt: selectedAgent.systemPrompt,
+                }
+              : undefined,
+          },
+          sendContext.messages,
+        );
         if (!accepted) {
           activeConversationIdRef.current = null;
           activeTurnIdRef.current = null;
@@ -681,60 +751,87 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Failed to edit and rebase conversation:", error);
       });
     },
-    [chatAPI, currentConversationId, getRuntimeState, selectedAgent],
+    [chatAPI, getRuntimeState, selectedAgent],
   );
 
-  const regenerateMessage = useCallback(() => {
-    if (chatAPI.status === "ready" || chatAPI.status === "error") {
-      const rebase = async () => {
-        if (!currentConversationId) return;
-        const lastAssistant = chatAPI.messages.at(-1);
-        const nextMessages =
-          lastAssistant?.role === "assistant"
-            ? chatAPI.messages.slice(0, -1)
-            : chatAPI.messages;
-        const { selectedConfigId, selectedModelId } =
-          useModelConfigStore.getState();
-        const providerId = resolveLocalAIProviderId(selectedConfigId);
-        const runtimeState = await getRuntimeState(currentConversationId);
-        const conversation = await db.conversations.get(currentConversationId);
-        const turnId = crypto.randomUUID();
-        activeConversationIdRef.current = currentConversationId;
-        activeTurnIdRef.current = turnId;
-        const accepted = await chatAPI.resend(nextMessages, {
-          providerId,
-          conversationId: currentConversationId,
-          turnId,
-          expectedRevision:
-            runtimeState?.revision ?? conversation?.activeRevision ?? 0,
-          model:
-            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
-              ? undefined
-              : selectedModelId,
-          operation: {
-            kind: "rebase",
-            reason: "regenerate",
-            sourceMessageId: lastAssistant?.id,
-          },
-          agent: selectedAgent
-            ? {
-                id: selectedAgent.id,
-                systemPrompt: selectedAgent.systemPrompt,
-              }
-            : undefined,
-        });
-        if (!accepted) {
+  const regenerateMessage = useCallback(
+    (message: Message) => {
+      if (chatAPI.status === "ready" || chatAPI.status === "error") {
+        const requestedSelection = getConversationSelectionToken();
+        const rebase = async () => {
+          if (!requestedSelection.conversationId) return;
+          await flushConversationProviderSelection(
+            requestedSelection.conversationId,
+          );
+          assertConversationSelectionUnchanged(
+            requestedSelection,
+            getConversationSelectionToken(),
+          );
+          const sendContext = await loadConversationSendContext({
+            selection: requestedSelection,
+            defaultSelection: getDefaultProviderSelection(),
+            getSelection: getConversationSelectionToken,
+          });
+          if (!sendContext) return;
+          const nextMessages = buildAuthoritativeRegenerateMessages(
+            sendContext.messages,
+            message.id,
+          );
+          if (!nextMessages) return;
+          const conversationId = requestedSelection.conversationId;
+          const providerId = resolveLocalAIProviderId(
+            sendContext.providerSelection.configId,
+          );
+          const selectedModelId = sendContext.providerSelection.modelId;
+          const runtimeState = await getRuntimeState(conversationId);
+          assertConversationSelectionUnchanged(
+            requestedSelection,
+            getConversationSelectionToken(),
+          );
+          const turnId = crypto.randomUUID();
+          activeConversationIdRef.current = conversationId;
+          activeTurnIdRef.current = turnId;
+          const accepted = await chatAPI.resend(
+            nextMessages,
+            {
+              providerId,
+              conversationId,
+              turnId,
+              expectedRevision:
+                runtimeState?.revision ??
+                sendContext.conversation.activeRevision,
+              model:
+                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                  ? undefined
+                  : selectedModelId,
+              operation: {
+                kind: "rebase",
+                reason: "regenerate",
+                sourceMessageId: message.id,
+              },
+              agent: selectedAgent
+                ? {
+                    id: selectedAgent.id,
+                    systemPrompt: selectedAgent.systemPrompt,
+                  }
+                : undefined,
+            },
+            sendContext.messages,
+          );
+          if (!accepted) {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
+        };
+        void rebase().catch((error) => {
           activeConversationIdRef.current = null;
           activeTurnIdRef.current = null;
-        }
-      };
-      void rebase().catch((error) => {
-        activeConversationIdRef.current = null;
-        activeTurnIdRef.current = null;
-        console.error("Failed to regenerate conversation:", error);
-      });
-    }
-  }, [chatAPI, currentConversationId, getRuntimeState, selectedAgent]);
+          console.error("Failed to regenerate conversation:", error);
+        });
+      }
+    },
+    [chatAPI, getRuntimeState, selectedAgent],
+  );
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");

@@ -10,6 +10,7 @@ import type { Conversation } from "@/renderer/libs/db/database";
 import { updateConversation } from "@/renderer/libs/db/hooks";
 import { deleteConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
+import { notifyDeferredDeletion } from "@/renderer/libs/stores/chat-history-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import {
   Archive,
@@ -107,6 +108,7 @@ export function ConversationItem({
         setShowDeleteConfirm(false);
       } catch (error) {
         console.error("Failed to delete conversation:", error);
+        notifyDeferredDeletion(conversation.id, error);
       }
     } else {
       setShowDeleteConfirm(true);

@@ -7,6 +7,7 @@
 
 import type { Message } from "@/renderer/types/chat";
 import { useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import {
   useConversations,
   useMessages,
@@ -15,8 +16,12 @@ import {
   addMessage,
   updateMessages,
   type Conversation,
+  db,
 } from "../db";
-import { deleteConversationWithRuntime } from "../conversation-lifecycle";
+import {
+  deleteConversationWithRuntime,
+  retryPendingConversationDeletion,
+} from "../conversation-lifecycle";
 import { useSelectionStore } from "../db/ui-state";
 
 // Re-export types for backward compatibility
@@ -49,6 +54,57 @@ function parseModelSelection(modelId?: string) {
     activeModelId:
       modelId && separatorIndex >= 0 ? modelId.slice(separatorIndex + 1) : null,
   };
+}
+
+const reportedDeletionErrors = new Map<string, string>();
+
+function deletionToastId(conversationId: string): string {
+  return `conversation-deletion:${conversationId}`;
+}
+
+export function notifyDeferredDeletion(
+  conversationId: string,
+  error: unknown,
+): void {
+  const message =
+    error instanceof Error ? error.message : "Conversation deletion failed.";
+  if (reportedDeletionErrors.get(conversationId) === message) return;
+  reportedDeletionErrors.set(conversationId, message);
+  const retryable = !(
+    typeof error === "object" &&
+    error !== null &&
+    "retryable" in error &&
+    error.retryable === false
+  );
+  toast.error("Conversation deletion is pending", {
+    id: deletionToastId(conversationId),
+    description: `${message} Convera will retry automatically.`,
+    ...(retryable
+      ? {}
+      : {
+          description: message,
+          duration: Infinity,
+          action: {
+            label: "Retry",
+            onClick: () => {
+              reportedDeletionErrors.delete(conversationId);
+              void retryPendingConversationDeletion(conversationId)
+                .then(() => {
+                  clearDeletionFailureNotification(conversationId);
+                  toast.success("Conversation deleted");
+                })
+                .catch((retryError) => {
+                  notifyDeferredDeletion(conversationId, retryError);
+                });
+            },
+          },
+        }),
+  });
+}
+
+export function clearDeletionFailureNotification(conversationId: string): void {
+  reportedDeletionErrors.delete(conversationId);
+  toast.dismiss(deletionToastId(conversationId));
 }
 
 // ==================== Hooks ====================
@@ -132,9 +188,22 @@ export function useChatHistoryStore() {
     },
 
     deleteConversation: async (id: string) => {
-      await deleteConversationWithRuntime(id, true);
-      if (currentConversationId === id) {
-        setCurrentConversation(null);
+      try {
+        await deleteConversationWithRuntime(id, true);
+      } catch (error) {
+        if (await db.pendingConversationDeletions.get(id)) {
+          notifyDeferredDeletion(id, error);
+        }
+        throw error;
+      } finally {
+        const [intent, conversation] = await Promise.all([
+          db.pendingConversationDeletions.get(id),
+          db.conversations.get(id),
+        ]);
+        if (currentConversationId === id && (intent || !conversation)) {
+          setCurrentConversation(null);
+        }
+        if (!intent) clearDeletionFailureNotification(id);
       }
     },
 
@@ -241,9 +310,27 @@ export function useChatHistory(
 
   const deleteChat = useCallback(
     async (conversationId: string) => {
-      await deleteConversationWithRuntime(conversationId, true);
-      if (currentConversationId === conversationId) {
-        setCurrentConversation(null);
+      try {
+        await deleteConversationWithRuntime(conversationId, true);
+      } catch (error) {
+        if (await db.pendingConversationDeletions.get(conversationId)) {
+          notifyDeferredDeletion(conversationId, error);
+        }
+        throw error;
+      } finally {
+        const [intent, conversation] = await Promise.all([
+          db.pendingConversationDeletions.get(conversationId),
+          db.conversations.get(conversationId),
+        ]);
+        if (
+          currentConversationId === conversationId &&
+          (intent || !conversation)
+        ) {
+          setCurrentConversation(null);
+        }
+        if (!intent) {
+          clearDeletionFailureNotification(conversationId);
+        }
       }
     },
     [currentConversationId, setCurrentConversation],

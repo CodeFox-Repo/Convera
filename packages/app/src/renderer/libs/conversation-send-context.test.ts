@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Conversation, Message } from "./db/database";
 import {
+  buildAuthoritativeEditMessages,
+  buildAuthoritativeRegenerateMessages,
   ConversationSelectionChangedError,
   loadConversationSendContext,
   type ConversationSelectionToken,
@@ -107,5 +109,33 @@ describe("authoritative conversation send context", () => {
         readSnapshot,
       }),
     ).rejects.toBeInstanceOf(ConversationSelectionChangedError);
+  });
+
+  it("rebases edit and regenerate only when the clicked message exists in the authoritative transcript", () => {
+    const messages = [
+      {
+        id: "target-user",
+        role: "user" as const,
+        content: "target history",
+      },
+      {
+        id: "target-assistant",
+        role: "assistant" as const,
+        content: "target answer",
+      },
+    ];
+
+    expect(
+      buildAuthoritativeEditMessages(messages, "target-user", "edited"),
+    ).toEqual([{ id: "target-user", role: "user", content: "edited" }]);
+    expect(
+      buildAuthoritativeRegenerateMessages(messages, "target-assistant"),
+    ).toEqual([messages[0]]);
+    expect(
+      buildAuthoritativeEditMessages(messages, "stale-user", "wrong"),
+    ).toBeNull();
+    expect(
+      buildAuthoritativeRegenerateMessages(messages, "stale-assistant"),
+    ).toBeNull();
   });
 });

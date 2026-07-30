@@ -67,6 +67,56 @@ export interface Message {
   createdAt: Date;
 }
 
+export type PendingTurnJournalState =
+  | "staged"
+  | "accepted"
+  | "transport-uncertain"
+  | "committed-awaiting-ack";
+
+export interface PendingTurnJournal {
+  turnId: string;
+  requestId: string;
+  conversationId: string;
+  operation: "append" | "bootstrap" | "rebase";
+  operationReason?: "edit" | "regenerate" | "provider-switch";
+  sourceMessageId?: string;
+  providerId: string;
+  modelId?: string;
+  expectedRevision?: number;
+  userMessageId?: string;
+  assistantMessageId: string;
+  /**
+   * Ordered final transcript boundary. Message bodies and attachments remain
+   * single-copy in `messages`; edit/regenerate suffix removal happens only
+   * after main reports a terminal completed turn.
+   */
+  desiredMessageIds: string[];
+  insertedMessageIds: string[];
+  previousMessages: Message[];
+  state: PendingTurnJournalState;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PendingConversationDeletionState =
+  | "pending"
+  | "deleting"
+  | "failed";
+
+export interface PendingConversationDeletion {
+  conversationId: string;
+  forgetConversationMemory: boolean;
+  operation?: "deletion" | "branch-cleanup";
+  state: PendingConversationDeletionState;
+  attempts: number;
+  lastError?: string;
+  retryable?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastAttemptAt?: Date;
+  nextAttemptAt?: Date;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -105,6 +155,11 @@ export interface AppSetting {
 export class ConveraDB extends Dexie {
   conversations!: EntityTable<Conversation, "id">;
   messages!: EntityTable<Message, "id">;
+  pendingTurns!: EntityTable<PendingTurnJournal, "turnId">;
+  pendingConversationDeletions!: EntityTable<
+    PendingConversationDeletion,
+    "conversationId"
+  >;
   agents!: EntityTable<Agent, "id">;
   modelConfigs!: EntityTable<ModelConfig, "id">;
   settings!: EntityTable<AppSetting, "key">;
@@ -141,6 +196,47 @@ export class ConveraDB extends Dexie {
           .toCollection()
           .modify(migrateMessageRecordToV2);
       });
+
+    this.version(3)
+      .stores({
+        conversations:
+          "id, agentId, updatedAt, activeProviderId, [metadata.starred]",
+        messages:
+          "id, conversationId, turnId, [conversationId+turnId], createdAt",
+        pendingTurns:
+          "turnId, conversationId, requestId, state, createdAt, [conversationId+state]",
+        agents: "id, name, isBuiltIn, updatedAt",
+        modelConfigs: "id, isDefault",
+        settings: "key",
+      })
+      .upgrade(async (transaction) => {
+        // v2 could persist a pending shell but had no durable reconciliation
+        // journal. Do not let those legacy markers fence a conversation
+        // forever after the v3 upgrade.
+        await transaction
+          .table<Message, string>("messages")
+          .filter((message) => message.status === "pending")
+          .modify((message) => {
+            message.status = "failed";
+            if (message.role === "assistant") {
+              message.finishReason = "interrupted-before-journal";
+            }
+          });
+      });
+
+    this.version(4).stores({
+      conversations:
+        "id, agentId, updatedAt, activeProviderId, [metadata.starred]",
+      messages:
+        "id, conversationId, turnId, [conversationId+turnId], createdAt",
+      pendingTurns:
+        "turnId, conversationId, requestId, state, createdAt, [conversationId+state]",
+      pendingConversationDeletions:
+        "conversationId, state, updatedAt, lastAttemptAt, nextAttemptAt",
+      agents: "id, name, isBuiltIn, updatedAt",
+      modelConfigs: "id, isDefault",
+      settings: "key",
+    });
   }
 }
 

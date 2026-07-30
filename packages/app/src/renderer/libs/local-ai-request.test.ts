@@ -25,10 +25,11 @@ describe("local AI request composition", () => {
     message("user-2", "user", "next"),
   ];
 
-  it("sends only the newest user message for a normal append", () => {
+  it("carries bounded recovery history beside the normal append delta", () => {
     expect(buildLocalAIChatOperation(transcript, { kind: "append" })).toEqual({
       kind: "append",
       message: { id: "user-2", role: "user", content: "next" },
+      recoveryMessages: toLocalAIRequestMessages(transcript),
     });
   });
 
@@ -59,15 +60,45 @@ describe("local AI request composition", () => {
     ).toThrow("latest user message");
   });
 
+  it("never truncates the latest accepted user message for recovery", () => {
+    const latestContent = "x".repeat(BOOTSTRAP_CHARACTER_LIMIT);
+    const operation = buildLocalAIChatOperation(
+      [
+        message("older-user", "user", "older"),
+        message("older-assistant", "assistant", "answer"),
+        message("latest-user", "user", latestContent),
+      ],
+      { kind: "append" },
+    );
+    expect(operation).toEqual({
+      kind: "append",
+      message: {
+        id: "latest-user",
+        role: "user",
+        content: latestContent,
+      },
+      recoveryMessages: [
+        {
+          id: "latest-user",
+          role: "user",
+          content: latestContent,
+        },
+      ],
+    });
+  });
+
   const runtimeState: LocalAIConversationRuntimeState = {
     conversationId: "conversation-1",
     revision: 2,
+    transcriptVersion: 3,
+    lastCompletedProviderId: "codex-cli",
     memoryEpoch: 0,
     memoryVersion: 0,
     providers: [
       {
         providerId: "codex-cli",
         revision: 2,
+        transcriptVersion: 3,
         stale: false,
         updatedAt: "2026-07-31T00:00:00.000Z",
       },
@@ -88,7 +119,8 @@ describe("local AI request composition", () => {
       kind: "append",
     });
     expect(selectAppendOperation(runtimeState, "claude-code", 3)).toEqual({
-      kind: "bootstrap",
+      kind: "rebase",
+      reason: "provider-switch",
     });
   });
 
@@ -116,6 +148,45 @@ describe("local AI request composition", () => {
         3,
       ),
     ).toEqual({ kind: "bootstrap" });
+  });
+
+  it("rebases a provider switch from the bounded shared transcript", () => {
+    expect(selectAppendOperation(runtimeState, "claude-code", 3)).toEqual({
+      kind: "rebase",
+      reason: "provider-switch",
+    });
+    expect(
+      buildLocalAIChatOperation(transcript, {
+        kind: "rebase",
+        reason: "provider-switch",
+      }),
+    ).toEqual({
+      kind: "rebase",
+      reason: "provider-switch",
+      sourceMessageId: undefined,
+      messages: toLocalAIRequestMessages(transcript),
+    });
+  });
+
+  it("rebases a current provider binding that trails shared transcript", () => {
+    for (const stale of [false, true]) {
+      expect(
+        selectAppendOperation(
+          {
+            ...runtimeState,
+            providers: [
+              {
+                ...runtimeState.providers[0],
+                stale,
+                transcriptVersion: runtimeState.transcriptVersion - 1,
+              },
+            ],
+          },
+          "codex-cli",
+          3,
+        ),
+      ).toEqual({ kind: "rebase", reason: "provider-switch" });
+    }
   });
 
   it("bounds bootstrap history newest-first and marks truncation", () => {
@@ -155,6 +226,10 @@ describe("local AI request composition", () => {
       ),
     );
     for (const operation of [
+      buildLocalAIChatOperation(
+        [...characterHeavyTranscript, message("latest-user", "user", "latest")],
+        { kind: "append" },
+      ),
       buildLocalAIChatOperation(characterHeavyTranscript, {
         kind: "bootstrap",
       }),
@@ -162,15 +237,25 @@ describe("local AI request composition", () => {
         kind: "rebase",
         reason: "regenerate",
       }),
+      buildLocalAIChatOperation(characterHeavyTranscript, {
+        kind: "rebase",
+        reason: "provider-switch",
+      }),
     ]) {
-      if (operation.kind === "append") throw new Error("unexpected append");
+      const boundedMessages =
+        operation.kind === "append"
+          ? operation.recoveryMessages
+          : operation.messages;
+      if (!boundedMessages) throw new Error("missing bounded transcript");
       expect(
-        operation.messages.reduce(
+        boundedMessages.reduce(
           (total, runtimeMessage) => total + runtimeMessage.content.length,
           0,
         ),
       ).toBeLessThanOrEqual(BOOTSTRAP_CHARACTER_LIMIT);
-      expect(operation.messages.at(-1)?.id).toBe("large-3");
+      expect(boundedMessages.at(-1)?.id).toBe(
+        operation.kind === "append" ? "latest-user" : "large-3",
+      );
     }
   });
 });
