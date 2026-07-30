@@ -249,6 +249,107 @@ describe("LocalAiRuntime", () => {
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });
 
+  it("does not create a provider model after aborting during status discovery", async () => {
+    const events: LocalAIStreamEvent[] = [];
+    const adapter = fakeAdapter("codex-cli");
+    let finishStatusDiscovery: (() => void) | undefined;
+    vi.mocked(adapter.getStatus).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishStatusDiscovery = () =>
+            resolve({
+              ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
+              available: true,
+              authenticated: true,
+              executablePath: "/test/codex",
+              checkedAt: new Date(0).toISOString(),
+            });
+        }),
+    );
+    const streamInvoker = vi.fn<RuntimeStreamInvoker>();
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      streamInvoker,
+    });
+
+    const chat = runtime.startChat(
+      request({ providerId: "codex-cli" }),
+      (event) => events.push(event),
+    );
+    await vi.waitFor(() => {
+      expect(adapter.getStatus).toHaveBeenCalledOnce();
+    });
+    expect(runtime.abort("request-1")).toBe(true);
+    finishStatusDiscovery?.();
+    await chat;
+
+    expect(adapter.createModel).not.toHaveBeenCalled();
+    expect(streamInvoker).not.toHaveBeenCalled();
+    expect(events.at(-1)).toEqual({
+      type: "finish",
+      requestId: "request-1",
+      finishReason: "aborted",
+    });
+  });
+
+  it("rejects a tool interaction that starts after its request was aborted", async () => {
+    const events: LocalAIStreamEvent[] = [];
+    let toolContext:
+      | Parameters<LocalAiProviderAdapter["createModel"]>[2]
+      | undefined;
+    let continueStream: (() => void) | undefined;
+    const adapter = fakeAdapter("claude-code");
+    vi.mocked(adapter.createModel).mockImplementation(
+      async (_request, _status, context) => {
+        toolContext = context;
+        return {} as LanguageModel;
+      },
+    );
+    const executeTool = vi.fn(async () => ({ written: true }));
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      getToolGroups: () => [
+        {
+          serverName: "external",
+          tools: [
+            {
+              name: "write_value",
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+        },
+      ],
+      executeTool,
+      streamInvoker: () => ({
+        toUIMessageStream: async function* () {
+          yield { type: "start" as const, messageId: "assistant-1" };
+          await new Promise<void>((resolve) => {
+            continueStream = resolve;
+          });
+          await toolContext?.tools[0]?.execute({});
+        },
+      }),
+    });
+
+    const chat = runtime.startChat(request(), (event) => events.push(event));
+    await vi.waitFor(() => {
+      expect(continueStream).toBeTypeOf("function");
+    });
+    expect(runtime.abort("request-1")).toBe(true);
+    continueStream?.();
+    await chat;
+
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "interaction" }),
+    );
+    expect(events.at(-1)).toEqual({
+      type: "finish",
+      requestId: "request-1",
+      finishReason: "aborted",
+    });
+  });
+
   it("pauses an approval-gated tool until the renderer responds", async () => {
     const events: LocalAIStreamEvent[] = [];
     let toolContext:
