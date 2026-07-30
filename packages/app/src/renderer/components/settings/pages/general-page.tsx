@@ -1,5 +1,5 @@
 import { Button } from "@/renderer/components/ui/button";
-import { authClient } from "@/renderer/libs/auth-client";
+import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 import {
@@ -8,7 +8,7 @@ import {
   Loader2,
   Plus,
   RotateCcw,
-  Satellite,
+  Terminal,
   Trash2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -25,7 +25,7 @@ export function GeneralSettingsPage() {
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
   const { modelConfigs, removeModelConfig, subscribeToModelConfigChanges } =
     useModelConfigStore();
-  const { data: session } = authClient.useSession();
+  const { providers, loading: providersLoading } = useLocalAIProviders();
 
   // Settings Store
   const {
@@ -338,25 +338,46 @@ export function GeneralSettingsPage() {
           </div>
 
           <div className="border border-border rounded-lg divide-y divide-border">
-            {/* Foxychat Remote (always shown if logged in) */}
-            {session?.user && (
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center">
-                    <Satellite className="h-4 w-4 text-white" />
+            {providers
+              .filter((provider) => provider.id !== "openai-compatible")
+              .map((provider) => (
+                <div
+                  key={provider.id}
+                  className="flex items-center justify-between p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <Terminal className="h-4 w-4 text-foreground" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-foreground">
+                        {provider.name}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {providersLoading
+                          ? "Checking local CLI..."
+                          : provider.available && provider.authenticated
+                            ? "Installed and authenticated"
+                            : provider.error ||
+                              (provider.available
+                                ? "Authentication required"
+                                : "CLI not installed")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Foxychat</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Remote server (logged in)
-                    </p>
-                  </div>
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      provider.available && provider.authenticated
+                        ? "text-emerald-600 bg-emerald-500/10"
+                        : "text-muted-foreground bg-muted"
+                    }`}
+                  >
+                    {provider.available && provider.authenticated
+                      ? "Ready"
+                      : "Unavailable"}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                  Default
-                </span>
-              </div>
-            )}
+              ))}
 
             {/* Custom Model Configs */}
             {modelConfigs.map((config) => (
@@ -403,7 +424,7 @@ export function GeneralSettingsPage() {
             ))}
 
             {/* Empty state */}
-            {!session?.user && modelConfigs.length === 0 && (
+            {modelConfigs.length === 0 && (
               <div className="p-8 text-center">
                 <Key className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm">
