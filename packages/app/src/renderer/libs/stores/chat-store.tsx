@@ -73,9 +73,6 @@ interface ChatContextType {
 
   // Chat-related actions (previously in app-actions)
   resetChatWindow: () => void;
-  handleVoiceInput: () => void;
-  isVoiceInputActive: boolean;
-
   // MCP Tools methods
   getAvailableTools: () => Promise<void>;
   executeTool: (
@@ -90,12 +87,6 @@ interface ChatContextType {
     toolName: string,
     args: Record<string, unknown>,
   ) => Promise<ToolCallResult>;
-
-  // Speech-to-text state
-  speechState: {
-    isRecording: boolean;
-    error: string | null;
-  };
 }
 
 interface ChatMessage extends Omit<Message, "id"> {
@@ -445,10 +436,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          const { selectedConfigId, selectedModelId, getCurrentConfig } =
+          const { selectedConfigId, selectedModelId } =
             useModelConfigStore.getState();
           const providerId = resolveLocalAIProviderId(selectedConfigId);
-          const currentConfig = await getCurrentConfig();
 
           await chatAPI.send(message, {
             providerId,
@@ -459,15 +449,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                   systemPrompt: selectedAgent.systemPrompt,
                 }
               : undefined,
-            options: {
-              conversationId: conversationIdToUse,
-              customApiSettings: currentConfig
-                ? {
-                    endpoint: currentConfig.endpoint,
-                    apiKey: currentConfig.apiKey,
-                  }
-                : undefined,
-            },
           });
 
           chatAPI.setInput("");
@@ -581,8 +562,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setInput("");
   }, [resetChat, setInput]);
 
-  const handleVoiceInput = useCallback(() => undefined, []);
-
   const contextValue: ChatContextType = {
     messages: chatAPI.messages as UIMessage[],
     input: chatAPI.input,
@@ -606,12 +585,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     removeAttachment,
     clearAttachments,
     resetChatWindow,
-    handleVoiceInput,
-    isVoiceInputActive: false,
-    speechState: {
-      isRecording: false,
-      error: null,
-    },
     availableTools,
     mcpServers,
     toolsLoading,

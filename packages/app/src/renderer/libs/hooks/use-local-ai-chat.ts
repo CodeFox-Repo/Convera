@@ -74,7 +74,11 @@ function applyToolEvent(
     event.state === "output-available"
       ? { ...base, state: "result" as const, result: event.output }
       : event.state === "output-error"
-        ? { ...base, state: "result" as const, result: { error: event.error } }
+        ? {
+            ...base,
+            state: "result" as const,
+            result: { error: event.error?.message },
+          }
         : { ...base, state: "call" as const };
 
   return {
@@ -177,7 +181,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         const result = await localAI.startChat({
           requestId,
           providerId: options.providerId,
-          model: options.model,
+          modelId: options.model,
           messages: toRequestMessages(nextMessages),
           agent: options.agent,
           options: options.options,
@@ -185,7 +189,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
 
         if (!result.success || !result.accepted) {
           throw new Error(
-            result.error || "Local AI runtime rejected the chat.",
+            result.error?.message || "Local AI runtime rejected the chat.",
           );
         }
       } catch (startError) {
