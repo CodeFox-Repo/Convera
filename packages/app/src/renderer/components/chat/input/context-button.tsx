@@ -2,13 +2,12 @@ import {
   SelectedContent,
   useChatContext,
 } from "@/renderer/libs/stores/chat-store";
-import { File, Monitor, Plus, X } from "lucide-react";
+import { File, Monitor, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface ContextButtonsProps {
   selectedContent: SelectedContent | null;
   onRejectSelectedContent: () => void;
-  onAddFile?: () => void;
 }
 
 const FileBadge = ({
@@ -73,7 +72,6 @@ const RemainingFilesBadge = ({ count }: { count: number }) => {
 export function ContextButtons({
   selectedContent,
   onRejectSelectedContent,
-  onAddFile,
 }: ContextButtonsProps) {
   const { attachments, removeAttachment } = useChatContext();
   const MAX_VISIBLE_FILES = 2;
@@ -84,22 +82,12 @@ export function ContextButtons({
   const visibleFiles = attachments.slice(0, MAX_VISIBLE_FILES);
 
   const hasContexts = !!selectedContent || attachments.length > 0;
+  if (!hasContexts) return null;
 
   return (
     <div className="h-7.5 pt-1 overflow-hidden">
       <div className="px-2 w-full overflow-x-auto overflow-y-hidden whitespace-nowrap hide-scrollbar">
         <div className="inline-flex items-center gap-1 h-7">
-          <button
-            className={`h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
-                bg-background/30 text-xs font-medium hover:bg-background/50 transition-colors
-                ${hasContexts ? "px-1 py-1 aspect-square" : "px-3 py-1 max-w-[36ch]"}`}
-            onClick={onAddFile}
-            title="Add context"
-          >
-            <Plus size={14} className="flex-shrink-0" />
-            {!hasContexts && <span className="ml-1">Add context</span>}
-          </button>
-
           {selectedContent && (
             <div
               className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45

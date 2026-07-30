@@ -466,6 +466,8 @@ export class MCPConnection extends EventEmitter {
       logger.info("Connected successfully with Streamable HTTP");
     } catch (httpError) {
       logger.warn("Streamable HTTP failed, trying legacy SSE:", httpError);
+      await this.mcpClient?.close().catch(() => undefined);
+      this.mcpClient = null;
 
       try {
         await this.connectWithSse(resolvedConfig);

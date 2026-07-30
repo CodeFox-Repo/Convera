@@ -1,10 +1,8 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useModelStore } from "@/renderer/libs/stores/model-store";
-import { File } from "lucide-react";
 import React, {
   forwardRef,
-  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -27,9 +25,7 @@ export interface ChatInputRef {
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   ({ placeholder = "Message Convera..." }, ref) => {
     const editorRef = useRef<TiptapEditorRef>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const [editorContent, setEditorContent] = useState("");
-    const [isDragging, setIsDragging] = useState(false);
     const previousInputRef = useRef<string>("");
 
     // Get state and methods from context and stores
@@ -42,8 +38,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       selectedContent,
       rejectSelectedContent,
       resetChatWindow,
-      attachments,
-      addAttachments,
     } = useChatContext();
 
     // Window controls - dispatch events for the main process to handle
@@ -108,81 +102,8 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setEditorContent(content);
     };
 
-    const handleFileUpload = useCallback(() => {
-      fileInputRef.current?.click();
-    }, []);
-
-    const handleFileSelect = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-          addAttachments(Array.from(e.target.files));
-        }
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      },
-      [addAttachments],
-    );
-
-    const handleDragEnter = useCallback((e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    }, []);
-
-    const handleDragOver = useCallback(
-      (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!isDragging) setIsDragging(true);
-      },
-      [isDragging],
-    );
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-    }, []);
-
-    const handleDrop = useCallback(
-      (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          addAttachments(Array.from(e.dataTransfer.files));
-        }
-      },
-      [addAttachments],
-    );
-
-    // Handle clipboard paste for images
-    useEffect(() => {
-      const handlePaste = (e: ClipboardEvent) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].type.indexOf("image") !== -1) {
-            const file = items[i].getAsFile();
-            if (file) {
-              addAttachments(file);
-            }
-          }
-        }
-      };
-
-      document.addEventListener("paste", handlePaste);
-      return () => {
-        document.removeEventListener("paste", handlePaste);
-      };
-    }, [addAttachments]);
-
-    // Handle form submission with files
     const handleSubmit = () => {
-      if (!isLoading && (editorContent.trim() || attachments.length > 0)) {
+      if (!isLoading && editorContent.trim()) {
         sendMessage();
 
         // Clear the input after sending
@@ -195,37 +116,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     };
 
     return (
-      <div
-        className="drag-region h-full flex flex-col"
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
+      <div className="drag-region h-full flex flex-col">
         <div className="h-full w-full flex-1 flex flex-col min-h-0">
-          <div
-            className={`flex-1 flex h-full overflow-auto flex-col rounded-2xl border transition-all duration-200 bg-background ${
-              isDragging
-                ? "border-primary/70 border-2 shadow-lg ring-2 ring-primary/20"
-                : "border-border"
-            }`}
-          >
+          <div className="flex-1 flex h-full overflow-auto flex-col rounded-2xl border border-border transition-all duration-200 bg-background">
             <ContextButtons
               selectedContent={selectedContent || null}
               onRejectSelectedContent={rejectSelectedContent}
-              onAddFile={handleFileUpload}
             />
-
-            {isDragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10 pointer-events-none">
-                <div className="flex flex-col items-center gap-2 animate-pulse">
-                  <File size={32} className="text-primary" />
-                  <p className="text-foreground/70 font-medium">
-                    Drop files here
-                  </p>
-                </div>
-              </div>
-            )}
 
             <div className="drag-region mb-2 w-full flex-1 px-2">
               <TiptapEditor
@@ -246,19 +143,12 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               onSendMessage={handleSubmit}
               triggerHistoryWindow={openHistoryWindow}
               isLoading={isLoading}
-              hasContent={!!editorContent.trim() || attachments.length > 0}
+              hasContent={!!editorContent.trim()}
               selectedModelId={selectedModelId}
               onModelSelect={setSelectedModelId}
             />
           </div>
         </div>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          className="hidden"
-          multiple
-        />
       </div>
     );
   },

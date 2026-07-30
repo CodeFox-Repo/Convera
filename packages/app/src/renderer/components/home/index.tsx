@@ -174,9 +174,14 @@ export function HomePage() {
                     </button>
                     <button
                       onClick={handleNewChat}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                      disabled={isLoading}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="New chat"
-                      title="New Chat"
+                      title={
+                        isLoading
+                          ? "Stop the current response before starting a new chat"
+                          : "New Chat"
+                      }
                     >
                       <Plus size={14} />
                     </button>

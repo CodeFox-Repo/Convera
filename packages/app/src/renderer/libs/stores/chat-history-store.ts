@@ -179,7 +179,7 @@ export function useChatHistory(
   // Update AI SDK messages when messages change
   useEffect(() => {
     if (streamActive) return;
-    if (messages && messages.length > 0) {
+    if (messages) {
       // Filter out "tool" role as AI SDK doesn't support it directly
       const aiMessages: Message[] = messages
         .filter((m) => m.role !== "tool")
