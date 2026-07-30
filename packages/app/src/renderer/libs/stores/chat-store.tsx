@@ -17,11 +17,22 @@ import {
   useModelConfigStore,
 } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
-import { db, commitCompletedTurn, createConversation } from "../db";
+import {
+  db,
+  commitCompletedTurn,
+  createConversation,
+  deleteConversation as deleteConversationFromDexie,
+} from "../db";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
 import { useUserInputStore } from "./user-input-store";
 import { selectAppendOperation } from "../local-ai-request";
+import {
+  assertConversationSelectionUnchanged,
+  loadConversationSendContext,
+  type ConversationSelectionToken,
+} from "../conversation-send-context";
+import { resolveNativeProviderSelection } from "../provider-selection";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -93,6 +104,22 @@ interface ChatContextType {
 
 interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
+}
+
+function getConversationSelectionToken(): ConversationSelectionToken {
+  const state = useSelectionStore.getState();
+  return {
+    conversationId: state.currentConversationId,
+    version: state.conversationSelectionVersion,
+  };
+}
+
+function getDefaultProviderSelection() {
+  const state = useSelectionStore.getState();
+  return resolveNativeProviderSelection(
+    state.defaultConfigId,
+    state.defaultModelId,
+  );
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -430,6 +457,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (!messageText && !selectedContent && filesToSend.length === 0) return;
+      const requestedSelection = getConversationSelectionToken();
 
       // Handle selected content (text only)
       if (selectedContent) {
@@ -466,55 +494,91 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          const { selectedConfigId, selectedModelId } =
-            useModelConfigStore.getState();
-          const providerId = resolveLocalAIProviderId(selectedConfigId);
-          let conversationIdToUse = currentConversationId;
+          let selection = requestedSelection;
+          let defaultSelection = getDefaultProviderSelection();
+          let sendContext = await loadConversationSendContext({
+            selection,
+            defaultSelection,
+            getSelection: getConversationSelectionToken,
+          });
 
-          if (
-            !conversationIdToUse ||
-            !(await db.conversations.get(conversationIdToUse))
-          ) {
-            conversationIdToUse = await createConversation({
+          if (!sendContext) {
+            assertConversationSelectionUnchanged(
+              selection,
+              getConversationSelectionToken(),
+            );
+            const conversationIdToUse = await createConversation({
               title: messageText.slice(0, 50) || "New Conversation",
               agentId: selectedAgent?.id ?? null,
-              modelId: `${providerId}:${selectedModelId}`,
+              modelId: `${defaultSelection.configId}:${defaultSelection.modelId}`,
               activeRevision: 0,
-              activeProviderId: providerId,
-              activeModelId: selectedModelId,
+              activeProviderId: defaultSelection.configId,
+              activeModelId: defaultSelection.modelId,
             });
+            try {
+              assertConversationSelectionUnchanged(
+                selection,
+                getConversationSelectionToken(),
+              );
+            } catch (error) {
+              await deleteConversationFromDexie(conversationIdToUse);
+              throw error;
+            }
             setCurrentConversationId(conversationIdToUse);
             currentConversationIdRef.current = conversationIdToUse;
+            selection = getConversationSelectionToken();
+            defaultSelection = getDefaultProviderSelection();
+            sendContext = await loadConversationSendContext({
+              selection,
+              defaultSelection,
+              getSelection: getConversationSelectionToken,
+            });
           }
 
-          const conversation = await db.conversations.get(conversationIdToUse);
+          if (!sendContext || !selection.conversationId) {
+            throw new Error("Could not load the selected conversation.");
+          }
+          const conversationIdToUse = selection.conversationId;
+          const { conversation, messages: persistedMessages } = sendContext;
+          const providerId = resolveLocalAIProviderId(
+            sendContext.providerSelection.configId,
+          );
+          const selectedModelId = sendContext.providerSelection.modelId;
           const runtimeState = await getRuntimeState(conversationIdToUse);
+          assertConversationSelectionUnchanged(
+            selection,
+            getConversationSelectionToken(),
+          );
           const turnId = crypto.randomUUID();
           activeConversationIdRef.current = conversationIdToUse;
           activeTurnIdRef.current = turnId;
 
-          const accepted = await chatAPI.send(message, {
-            providerId,
-            conversationId: conversationIdToUse,
-            turnId,
-            expectedRevision:
-              runtimeState?.revision ?? conversation?.activeRevision ?? 0,
-            model:
-              selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
-                ? undefined
-                : selectedModelId,
-            operation: selectAppendOperation(
-              runtimeState,
+          const accepted = await chatAPI.send(
+            message,
+            {
               providerId,
-              chatAPI.messages.length,
-            ),
-            agent: selectedAgent
-              ? {
-                  id: selectedAgent.id,
-                  systemPrompt: selectedAgent.systemPrompt,
-                }
-              : undefined,
-          });
+              conversationId: conversationIdToUse,
+              turnId,
+              expectedRevision:
+                runtimeState?.revision ?? conversation.activeRevision,
+              model:
+                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                  ? undefined
+                  : selectedModelId,
+              operation: selectAppendOperation(
+                runtimeState,
+                providerId,
+                persistedMessages.length,
+              ),
+              agent: selectedAgent
+                ? {
+                    id: selectedAgent.id,
+                    systemPrompt: selectedAgent.systemPrompt,
+                  }
+                : undefined,
+            },
+            persistedMessages,
+          );
 
           if (accepted) {
             chatAPI.setInput("");
@@ -526,7 +590,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (error) {
           activeConversationIdRef.current = null;
           activeTurnIdRef.current = null;
-          console.error("Error processing file attachments:", error);
+          console.error("Could not prepare the selected conversation:", error);
         }
       };
 
@@ -538,7 +602,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       attachments,
       clearAttachments,
       fileToAttachment,
-      currentConversationId,
       setCurrentConversationId,
       selectedAgent,
       getRuntimeState,

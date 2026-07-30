@@ -51,6 +51,7 @@ interface UseLocalAIChatResult {
   send: (
     message: Omit<Message, "id">,
     options: LocalAIChatOptions,
+    baseMessages: Message[],
   ) => Promise<boolean>;
   resend: (
     messages: Message[],
@@ -278,15 +279,19 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   );
 
   const send = useCallback(
-    async (message: Omit<Message, "id">, options: LocalAIChatOptions) => {
+    async (
+      message: Omit<Message, "id">,
+      options: LocalAIChatOptions,
+      baseMessages: Message[],
+    ) => {
       const userMessage: Message = {
         ...message,
         id: createMessageId("user"),
         createdAt: new Date(),
       };
-      return await run([...messages, userMessage], options);
+      return await run([...baseMessages, userMessage], options);
     },
-    [messages, run],
+    [run],
   );
 
   const resend = useCallback(

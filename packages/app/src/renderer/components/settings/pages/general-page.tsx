@@ -7,6 +7,11 @@ import {
 } from "@/renderer/libs/local-ai";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import {
+  MAX_MEMORY_BATCH_SIZE,
+  MIN_MEMORY_BATCH_SIZE,
+  isValidMemoryBatchSize,
+} from "@/renderer/libs/memory-settings-constraints";
 import type {
   LocalAIMemorySettings,
   LocalAIMemorySettingsUpdate,
@@ -662,16 +667,14 @@ export function GeneralSettingsPage() {
                 <Input
                   key={memorySettings.batchSize}
                   type="number"
-                  min={1}
-                  max={100}
+                  min={MIN_MEMORY_BATCH_SIZE}
+                  max={MAX_MEMORY_BATCH_SIZE}
                   defaultValue={memorySettings.batchSize}
                   disabled={memorySaving}
                   onBlur={(event) => {
                     const batchSize = Number(event.target.value);
                     if (
-                      Number.isInteger(batchSize) &&
-                      batchSize >= 1 &&
-                      batchSize <= 100 &&
+                      isValidMemoryBatchSize(batchSize) &&
                       batchSize !== memorySettings.batchSize
                     ) {
                       void updateMemoryConfiguration({ batchSize });

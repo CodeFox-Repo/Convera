@@ -35,6 +35,7 @@ export {
 interface SelectionState {
   // Currently selected items
   currentConversationId: string | null;
+  conversationSelectionVersion: number;
   selectedAgentId: string | null;
   selectedConfigId: string;
   selectedModelId: string;
@@ -50,6 +51,7 @@ interface SelectionState {
 
 export const useSelectionStore = create<SelectionState>((set, get) => ({
   currentConversationId: null,
+  conversationSelectionVersion: 0,
   selectedAgentId: null,
   selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
   selectedModelId: DEFAULT_LOCAL_AI_MODEL_ID,
@@ -57,7 +59,10 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
   defaultModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
   setCurrentConversation: (id) => {
-    set({ currentConversationId: id });
+    set((state) => ({
+      currentConversationId: id,
+      conversationSelectionVersion: state.conversationSelectionVersion + 1,
+    }));
     if (!id) {
       const { defaultConfigId, defaultModelId } = get();
       set({
