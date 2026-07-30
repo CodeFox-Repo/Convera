@@ -136,6 +136,10 @@ describe("LocalAiRuntime", () => {
         options: { cwd: "/trusted/workspace" },
       }),
       expect.any(Object),
+      expect.objectContaining({
+        tools: [],
+        requestInteraction: expect.any(Function),
+      }),
     );
     expect(streamOptions?.messages).toEqual([
       { role: "system", content: "Be concise." },
@@ -207,6 +211,92 @@ describe("LocalAiRuntime", () => {
 
     await runtime.dispose();
     expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("pauses an approval-gated tool until the renderer responds", async () => {
+    const events: LocalAIStreamEvent[] = [];
+    let toolContext:
+      | Parameters<LocalAiProviderAdapter["createModel"]>[2]
+      | undefined;
+    const adapter = fakeAdapter("claude-code");
+    vi.mocked(adapter.createModel).mockImplementation(
+      async (_request, _status, context) => {
+        toolContext = context;
+        return {} as LanguageModel;
+      },
+    );
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      getToolGroups: () => [
+        {
+          serverName: "external",
+          tools: [
+            {
+              name: "write_value",
+              description: "Writes a value",
+              inputSchema: {
+                type: "object",
+                properties: { value: { type: "string" } },
+                required: ["value"],
+              },
+            },
+          ],
+        },
+      ],
+      executeTool: vi.fn(async () => ({ written: true })),
+      streamInvoker: () => ({
+        fullStream: (async function* () {
+          const tool = toolContext?.tools[0];
+          if (!tool) throw new Error("Expected tool context");
+          const output = await tool.execute({ value: "ready" });
+          yield {
+            type: "tool-result",
+            toolCallId: "tool-1",
+            toolName: tool.name,
+            output,
+          };
+          yield { type: "finish", finishReason: "stop" };
+        })(),
+      }),
+    });
+
+    const chat = runtime.startChat(request(), (event) => events.push(event));
+    await vi.waitFor(() => {
+      expect(events[0]).toMatchObject({
+        type: "interaction",
+        requestId: "request-1",
+        kind: "approval",
+        name: "external:write_value",
+      });
+    });
+    const interaction = events[0];
+    if (interaction.type !== "interaction") {
+      throw new Error("Expected interaction event");
+    }
+
+    expect(
+      runtime.respondToInteraction(
+        interaction.requestId,
+        interaction.interactionId,
+        { approved: true },
+      ),
+    ).toBe(true);
+    await chat;
+
+    expect(events).toContainEqual({
+      type: "tool",
+      requestId: "request-1",
+      toolCallId: "tool-1",
+      name: "external:write_value",
+      state: "output-available",
+      output: { written: true },
+    });
+    expect(events.at(-1)).toEqual({
+      type: "finish",
+      requestId: "request-1",
+      finishReason: "stop",
+      usage: undefined,
+    });
   });
 
   it("emits a structured error and terminal event for unavailable auth", async () => {

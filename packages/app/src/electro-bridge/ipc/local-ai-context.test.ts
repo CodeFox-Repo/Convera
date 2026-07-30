@@ -86,6 +86,7 @@ function createRuntime(
     })),
     startChat: vi.fn(),
     abort: vi.fn(() => true),
+    respondToInteraction: vi.fn(() => false),
     ...overrides,
   };
 }
@@ -249,6 +250,78 @@ describe("local AI IPC", () => {
       error: { code: "LOCAL_AI_INVALID_REQUEST" },
     });
     expect(runtime.startChat).not.toHaveBeenCalled();
+  });
+
+  it("accepts interaction responses only from the active request owner", async () => {
+    const allowedSender = new FakeWebContents(1);
+    const otherSender = new FakeWebContents(2);
+    const runtime = createRuntime({
+      startChat: vi.fn(() => new Promise<void>(() => undefined)),
+      respondToInteraction: vi.fn(() => true),
+    });
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => allowedSender as never,
+      },
+      ipc as never,
+    );
+    const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
+    const respond = handlers.get(LOCAL_AI_CHANNELS.RESPOND_INTERACTION);
+
+    start?.(createEvent(allowedSender), {
+      requestId: "request-1",
+      providerId: "claude-code",
+      messages: [{ role: "user", content: "hello" }],
+    });
+
+    await expect(
+      respond?.(createEvent(allowedSender), "request-1", "interaction-1", {
+        approved: true,
+      }),
+    ).resolves.toEqual({
+      success: true,
+      data: { accepted: true },
+    });
+    expect(runtime.respondToInteraction).toHaveBeenCalledWith(
+      "request-1",
+      "interaction-1",
+      { approved: true },
+    );
+
+    await expect(
+      respond?.(createEvent(otherSender), "request-1", "interaction-1", {
+        approved: true,
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_FORBIDDEN" },
+    });
+  });
+
+  it("rejects malformed interaction responses", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const respond = handlers.get(LOCAL_AI_CHANNELS.RESPOND_INTERACTION);
+
+    await expect(
+      respond?.(createEvent(sender), "request-1", "interaction-1", {
+        approved: "yes",
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(runtime.respondToInteraction).not.toHaveBeenCalled();
   });
 
   it("aborts active work when its webContents is destroyed", async () => {
