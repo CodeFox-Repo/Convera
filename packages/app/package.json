@@ -28,6 +28,9 @@
     "test:unit": "vitest",
     "test:e2e": "playwright test",
     "test:all": "vitest run && playwright test",
+    "automation": "WDIO_LOG_LEVEL=silent tsx automation/server.ts",
+    "automation:prepare": "electron-forge package && tsx automation/prepare-driver.ts",
+    "automation:typecheck": "tsc --noEmit -p automation/tsconfig.json",
     "chat-server": "ts-node src/server/startServer.ts"
   },
   "author": "Smal1boy <541898146chen@gmail.com>",
@@ -59,6 +62,8 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/ws": "^8.18.1",
+    "@wdio/electron-service": "10.1.0",
+    "@wdio/native-utils": "2.5.0",
     "electron": "34.5.8",
     "electron-devtools-installer": "^4.0.0",
     "electron-playwright-helpers": "^1.7.1",
@@ -74,10 +79,13 @@
     "prettier-plugin-tailwindcss": "^0.6.13",
     "tailwindcss": "^4.0.17",
     "ts-node": "^10.9.2",
+    "tsx": "4.23.1",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
+    "undici": "7.12.0",
     "vite": "^6.2.3",
-    "vitest": "^3.0.8"
+    "vitest": "^3.0.8",
+    "webdriverio": "9.27.1"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.10",
