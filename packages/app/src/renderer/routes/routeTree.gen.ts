@@ -12,19 +12,12 @@
 
 import { Route as rootRoute } from './__root'
 import { Route as IndexImport } from './index'
-import { Route as AuthPathnameImport } from './auth/$pathname'
 
 // Create/Update Routes
 
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const AuthPathnameRoute = AuthPathnameImport.update({
-  id: '/auth/$pathname',
-  path: '/auth/$pathname',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -39,13 +32,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/auth/$pathname': {
-      id: '/auth/$pathname'
-      path: '/auth/$pathname'
-      fullPath: '/auth/$pathname'
-      preLoaderRoute: typeof AuthPathnameImport
-      parentRoute: typeof rootRoute
-    }
   }
 }
 
@@ -53,37 +39,32 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/auth/$pathname': typeof AuthPathnameRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/$pathname'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/$pathname'
-  id: '__root__' | '/' | '/auth/$pathname'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthPathnameRoute: typeof AuthPathnameRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthPathnameRoute: AuthPathnameRoute,
 }
 
 export const routeTree = rootRoute
@@ -96,15 +77,11 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
-        "/auth/$pathname"
+        "/"
       ]
     },
     "/": {
       "filePath": "index.tsx"
-    },
-    "/auth/$pathname": {
-      "filePath": "auth/$pathname.tsx"
     }
   }
 }

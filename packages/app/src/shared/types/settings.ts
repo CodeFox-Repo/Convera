@@ -10,19 +10,12 @@ export interface ModelConfig {
   isDefault?: boolean; // Whether this is the default config
 }
 
-/**
- * Special config ID for Foxychat remote server
- */
-export const FOXYCHAT_CONFIG_ID = "foxychat-remote";
-
 export interface OpenAISettings {
   // Legacy fields (kept for backward compatibility)
   endpoint: string;
   apiKey: string;
   modelId: string;
   supportedModels: string[];
-  useRemoteStore: boolean;
-
   // New model config fields
   modelConfigs?: ModelConfig[];
   selectedConfigId?: string; // Current selected config ID
