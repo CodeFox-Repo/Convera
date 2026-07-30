@@ -358,13 +358,29 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         );
       const toolGroups = await this.getToolGroups();
       controller.signal.throwIfAborted();
+      const nativeMcpServers = Object.fromEntries(
+        toolGroups.flatMap((group) =>
+          group.nativeMcpServer
+            ? [
+                [
+                  group.serverName,
+                  {
+                    ...group.nativeMcpServer,
+                    toolNames: group.tools.map((tool) => tool.name),
+                  },
+                ],
+              ]
+            : [],
+        ),
+      );
       const tools = createAgentToolCatalog({
-        groups: toolGroups,
+        groups: toolGroups.filter((group) => !group.nativeMcpServer),
         executeTool: this.executeTool,
         requestInteraction,
       });
       const model = await adapter.createModel(trustedRequest, probeStatus, {
         tools,
+        nativeMcpServers,
         requestInteraction,
       });
       controller.signal.throwIfAborted();

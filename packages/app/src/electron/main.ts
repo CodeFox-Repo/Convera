@@ -3,7 +3,7 @@ import { app, BrowserWindow, globalShortcut } from "electron";
 import { getLogger, initializeLogger } from "@/electron/logger";
 import {
   callTool,
-  getAllTools,
+  getAgentToolGroups,
   getMCPHub,
   initializeMCPHub,
   mcpToolCall,
@@ -29,7 +29,7 @@ const logger = getLogger("main-process");
 const localAIRuntime = new LocalAiRuntime({
   getToolGroups: async () => {
     await initializeMCPHub();
-    return getAllTools();
+    return getAgentToolGroups();
   },
   executeTool: (serverName, toolName, input) =>
     serverName.toLowerCase() === "builtin"

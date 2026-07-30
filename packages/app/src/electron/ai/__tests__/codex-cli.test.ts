@@ -29,6 +29,7 @@ describe("CodexCliAdapter", () => {
 
     const model = await adapter.createModel(request, status, {
       tools: [],
+      nativeMcpServers: {},
       requestInteraction: async () => ({ approved: false }),
     });
 

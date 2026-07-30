@@ -72,16 +72,38 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
       tools.length > 0
         ? createSdkMcpServer({ name: "convera", tools })
         : undefined;
+    const nativeMcpServers = Object.fromEntries(
+      Object.entries(context.nativeMcpServers).map(([serverName, server]) => [
+        serverName,
+        {
+          type: "stdio" as const,
+          command: server.command,
+          args: server.args,
+          ...(server.env ? { env: server.env } : {}),
+        },
+      ]),
+    );
+    const mcpServers = {
+      ...nativeMcpServers,
+      ...(mcpServer ? { convera: mcpServer } : {}),
+    };
+    const nativeAllowedTools = Object.entries(context.nativeMcpServers).flatMap(
+      ([serverName, server]) =>
+        server.toolNames.map((toolName) => `mcp__${serverName}__${toolName}`),
+    );
 
     return this.provider(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         pathToClaudeCodeExecutable: status.executablePath,
         cwd: request.options?.cwd,
-        mcpServers: mcpServer ? { convera: mcpServer } : undefined,
-        allowedTools: context.tools.map(
-          (definition) => `mcp__convera__${definition.name}`,
-        ),
+        mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
+        allowedTools: [
+          ...context.tools.map(
+            (definition) => `mcp__convera__${definition.name}`,
+          ),
+          ...nativeAllowedTools,
+        ],
       },
     );
   }

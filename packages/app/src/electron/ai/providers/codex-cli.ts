@@ -75,6 +75,22 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
             definitions: context.tools,
           })
         : undefined;
+    const nativeMcpServers = Object.fromEntries(
+      Object.entries(context.nativeMcpServers).map(([serverName, server]) => [
+        serverName,
+        {
+          transport: server.transport,
+          command: server.command,
+          args: server.args,
+          ...(server.cwd ? { cwd: server.cwd } : {}),
+          ...(server.env ? { env: server.env } : {}),
+        },
+      ]),
+    );
+    const mcpServers = {
+      ...nativeMcpServers,
+      ...(mcpServer ? { convera: mcpServer } : {}),
+    };
     const requestApproval = async (
       name: string,
       prompt: string,
@@ -120,7 +136,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         cwd,
-        mcpServers: mcpServer ? { convera: mcpServer } : undefined,
+        mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
         serverRequests,
         approvalPolicy: "on-request",
         sandboxPolicy: {

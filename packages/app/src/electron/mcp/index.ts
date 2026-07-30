@@ -18,9 +18,13 @@ export {
 } from "@/shared/types/mcp";
 
 // Import types for internal use
+import type { AgentToolGroup } from "@/electron/ai/agent-tools";
 import type { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
 import { ConnectionStatus } from "@/shared/types/mcp";
+import { homedir } from "node:os";
+import { delimiter, join } from "node:path";
 import { MCPHub } from "./hub";
+import { resolveManagedStdioExecutable } from "./managed-servers";
 
 // Global hub instance
 let globalHub: MCPHub | null = null;
@@ -31,9 +35,9 @@ let globalHub: MCPHub | null = null;
 export async function initializeMCPHub(configPath?: string): Promise<MCPHub> {
   if (!globalHub) {
     globalHub = new MCPHub(configPath);
+    await globalHub.initialize();
   }
 
-  await globalHub.initialize();
   return globalHub;
 }
 
@@ -128,6 +132,67 @@ export function getAllTools(): Array<{
     }));
 
   return [...serverTools, builtinTools];
+}
+
+/**
+ * Get the tool groups used by local AI providers. Managed stdio servers keep
+ * their native MCP transport so providers consume the original MCP schemas
+ * instead of receiving converted Convera tools.
+ */
+export function getAgentToolGroups(): AgentToolGroup[] {
+  if (!globalHub) {
+    return [];
+  }
+
+  const config = globalHub.getConfig();
+  const serverTools = globalHub
+    .getAllServerStatuses()
+    .filter(
+      (server: ServerInfo) => server.status === ConnectionStatus.CONNECTED,
+    )
+    .map((server: ServerInfo): AgentToolGroup => {
+      const serverConfig = config.mcpServers[server.name];
+      const environment = {
+        ...serverConfig?.env,
+        PATH: [
+          serverConfig?.env?.PATH,
+          process.env.PATH,
+          join(homedir(), ".local", "bin"),
+          "/opt/homebrew/bin",
+          "/usr/local/bin",
+        ]
+          .filter(Boolean)
+          .join(delimiter),
+      };
+      const nativeMcpServer =
+        server.managed && serverConfig?.command
+          ? {
+              transport: "stdio" as const,
+              command: resolveManagedStdioExecutable(
+                serverConfig.command,
+                serverConfig.cwd ?? process.cwd(),
+                environment,
+              ),
+              args: serverConfig.args,
+              cwd: serverConfig.cwd,
+              env: environment,
+            }
+          : undefined;
+
+      return {
+        serverName: server.name,
+        tools: server.capabilities.tools,
+        nativeMcpServer,
+      };
+    });
+
+  return [
+    ...serverTools,
+    {
+      serverName: "builtin",
+      tools: globalHub.getBuiltinToolsDefinition(),
+    },
+  ];
 }
 
 /**

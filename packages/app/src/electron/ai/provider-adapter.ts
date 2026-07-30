@@ -1,6 +1,10 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
-import type { AgentTool, AgentToolInteraction } from "./agent-tools";
+import type {
+  AgentTool,
+  AgentToolInteraction,
+  NativeMcpServer,
+} from "./agent-tools";
 import type { LocalAiProviderId, LocalAiProviderStatus } from "./types";
 
 export function resolveLocalModelId(
@@ -19,6 +23,10 @@ export interface LocalAiProviderAdapter {
     status: LocalAiProviderStatus,
     context: {
       tools: AgentTool[];
+      nativeMcpServers: Record<
+        string,
+        NativeMcpServer & { toolNames: string[] }
+      >;
       requestInteraction(
         interaction: AgentToolInteraction,
       ): Promise<{ approved?: boolean; value?: string }>;

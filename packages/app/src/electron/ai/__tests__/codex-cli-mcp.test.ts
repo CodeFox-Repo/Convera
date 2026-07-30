@@ -36,7 +36,14 @@ function providerSettings() {
     [
       string,
       {
-        mcpServers?: { convera?: unknown };
+        mcpServers?: {
+          convera?: unknown;
+          cua?: {
+            transport: "stdio";
+            command: string;
+            args?: string[];
+          };
+        };
         serverRequests?: {
           onMcpElicitation?: (request: {
             id: number;
@@ -85,6 +92,7 @@ describe("CodexCliAdapter MCP transport", () => {
           execute: vi.fn(async () => "PROBE_OK"),
         },
       ],
+      nativeMcpServers: {},
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
@@ -138,6 +146,7 @@ describe("CodexCliAdapter MCP transport", () => {
           execute: vi.fn(async () => "PROBE_OK"),
         },
       ],
+      nativeMcpServers: {},
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
@@ -155,6 +164,51 @@ describe("CodexCliAdapter MCP transport", () => {
         },
       }),
     ).resolves.toEqual({ action: "accept", content: {} });
+
+    await adapter.dispose();
+  });
+
+  it("passes connected managed MCP servers to Codex without converting their tools", async () => {
+    const adapter = new CodexCliAdapter();
+    const request: LocalAIChatRequest = {
+      requestId: "native-mcp",
+      providerId: "codex-cli",
+      modelId: "gpt-test",
+      messages: [{ role: "user", content: "use cua" }],
+    };
+    const status: LocalAiProviderStatus = {
+      ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
+      available: true,
+      authenticated: true,
+      executablePath: "/test/codex",
+      defaultModel: "gpt-test",
+      models: ["gpt-test"],
+      checkedAt: new Date(0).toISOString(),
+    };
+
+    await adapter.createModel(request, status, {
+      tools: [],
+      nativeMcpServers: {
+        cua: {
+          transport: "stdio",
+          command: "cua-driver",
+          args: ["mcp"],
+          toolNames: ["screenshot"],
+        },
+      },
+      requestInteraction: vi.fn(async () => ({ approved: false })),
+    });
+
+    expect(providerSettings()?.mcpServers).toEqual({
+      cua: {
+        transport: "stdio",
+        command: "cua-driver",
+        args: ["mcp"],
+      },
+    });
+    expect(mocks.tool).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: "cua__screenshot" }),
+    );
 
     await adapter.dispose();
   });

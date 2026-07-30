@@ -1,9 +1,18 @@
 import type { ToolDefinition } from "@/shared/types/mcp";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
 
+export interface NativeMcpServer {
+  transport: "stdio";
+  command: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
 export interface AgentToolGroup {
   serverName: string;
   tools: ToolDefinition[];
+  nativeMcpServer?: NativeMcpServer;
 }
 
 export interface AgentToolInteraction {

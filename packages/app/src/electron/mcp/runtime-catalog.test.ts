@@ -1,17 +1,39 @@
 import type { LanguageModel } from "ai";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LocalAiProviderAdapter } from "../ai/provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../ai/provider-descriptors";
 import { LocalAiRuntime } from "../ai/runtime";
 import { MCPConnection } from "./connection";
-import { cleanupMCPHub, getAllTools, initializeMCPHub } from "./index";
+import { MCPHub } from "./hub";
+import { cleanupMCPHub, getAgentToolGroups, initializeMCPHub } from "./index";
+
+vi.mock("./managed-servers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./managed-servers")>()),
+  resolveManagedStdioExecutable: vi.fn(() => "/test/cua-driver"),
+}));
 
 describe("main-process agent tool catalog", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await cleanupMCPHub();
+  });
+
+  it("does not restart managed MCP connections when the catalog is requested again", async () => {
+    const initialize = vi
+      .spyOn(MCPHub.prototype, "initialize")
+      .mockResolvedValue();
+    const configPath = join(
+      tmpdir(),
+      `convera-mcp-idempotent-${process.pid}.json`,
+    );
+
+    const first = await initializeMCPHub(configPath);
+    const second = await initializeMCPHub(configPath);
+
+    expect(second).toBe(first);
+    expect(initialize).toHaveBeenCalledTimes(1);
   });
 
   it.each(["codex-cli", "claude-code"] as const)(
@@ -63,7 +85,7 @@ describe("main-process agent tool catalog", () => {
         adapters: [adapter],
         getToolGroups: async () => {
           await initializeMCPHub(configPath);
-          return getAllTools();
+          return getAgentToolGroups();
         },
         streamInvoker: () => ({
           toUIMessageStream: async function* () {
@@ -83,13 +105,26 @@ describe("main-process agent tool catalog", () => {
 
       const context = createModel.mock.calls[0]?.[2];
       expect(context?.tools.map((tool) => tool.qualifiedName)).toEqual([
-        "cua:screenshot",
         "builtin:ask_user_input",
         "builtin:execute_command",
         "builtin:web_fetch",
       ]);
+      expect(context?.nativeMcpServers).toMatchObject({
+        cua: {
+          transport: "stdio",
+          command: "/test/cua-driver",
+          args: ["mcp"],
+          toolNames: ["screenshot"],
+        },
+      });
+      expect(context?.nativeMcpServers.cua.env?.PATH).toContain(
+        join(homedir(), ".local", "bin"),
+      );
       expect(context?.tools.map((tool) => tool.qualifiedName)).not.toContain(
         "builtin:computer_control",
+      );
+      expect(context?.tools.map((tool) => tool.qualifiedName)).not.toContain(
+        "cua:screenshot",
       );
 
       await runtime.dispose();

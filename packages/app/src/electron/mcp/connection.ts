@@ -26,13 +26,13 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { app } from "electron";
 import { EventEmitter } from "events";
-import * as fs from "fs";
 import { z } from "zod";
 import * as path from "path";
 import * as os from "os";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getLogger } from "../logger";
+import { resolveManagedStdioExecutable } from "./managed-servers";
 
 const logger = getLogger("MCPConnectionAI");
 // Define proper MCP tool types
@@ -246,7 +246,7 @@ export class MCPConnection extends EventEmitter {
           }),
         );
         if (this.config.managed && actualCommand === "cua-driver") {
-          actualCommand = this.resolveStdioExecutable(
+          actualCommand = resolveManagedStdioExecutable(
             actualCommand,
             resolvedConfig.cwd || app.getPath("userData"),
             environment,
@@ -688,67 +688,6 @@ export class MCPConnection extends EventEmitter {
     }
 
     return message;
-  }
-
-  private resolveStdioExecutable(
-    command: string,
-    cwd: string,
-    environment: Record<string, string>,
-  ): string {
-    const hasPathSeparator =
-      command.includes(path.sep) ||
-      (path.sep === "\\" && command.includes("/"));
-    const searchDirectories = hasPathSeparator
-      ? [cwd]
-      : [
-          ...(environment.PATH || environment.Path || "")
-            .split(path.delimiter)
-            .filter(Boolean),
-          ...(command === "cua-driver"
-            ? [
-                path.join(os.homedir(), ".local", "bin"),
-                "/opt/homebrew/bin",
-                "/usr/local/bin",
-              ]
-            : []),
-        ];
-    const extensions =
-      process.platform === "win32" && !path.extname(command)
-        ? (environment.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";")
-        : [""];
-    const candidates = hasPathSeparator
-      ? [
-          path.isAbsolute(command) ? command : path.resolve(cwd, command),
-          ...extensions
-            .filter(Boolean)
-            .map(
-              (extension) =>
-                `${path.isAbsolute(command) ? command : path.resolve(cwd, command)}${extension.toLowerCase()}`,
-            ),
-        ]
-      : searchDirectories.flatMap((directory) =>
-          extensions.map((extension) =>
-            path.join(directory, `${command}${extension.toLowerCase()}`),
-          ),
-        );
-
-    const executable = candidates.find((candidate) => {
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    if (!executable) {
-      throw new Error(
-        hasPathSeparator
-          ? `executable '${command}' was not found`
-          : `executable '${command}' was not found on PATH`,
-      );
-    }
-
-    return executable;
   }
 
   /**
