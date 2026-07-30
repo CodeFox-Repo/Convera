@@ -20,13 +20,55 @@ export interface SubconsciousJobRepository {
   deleteByScope(scope: MemoryScope): Promise<void>;
 }
 
+export const DEFAULT_MAX_TERMINAL_MEMORY_JOBS = 500;
+
+export interface SubconsciousJobRetentionOptions {
+  maxTerminalJobs?: number;
+}
+
+function retentionLimit(options: SubconsciousJobRetentionOptions): number {
+  const limit = options.maxTerminalJobs ?? DEFAULT_MAX_TERMINAL_MEMORY_JOBS;
+  if (!Number.isInteger(limit) || limit < 0) {
+    throw new RangeError("maxTerminalJobs must be a non-negative integer.");
+  }
+  return limit;
+}
+
+function pruneTerminalJobs(
+  jobs: PersistedSubconsciousJob[],
+  maxTerminalJobs: number,
+): PersistedSubconsciousJob[] {
+  const terminal = jobs
+    .filter(
+      (job) =>
+        job.state.status === "completed" || job.state.status === "skipped",
+    )
+    .sort(
+      (left, right) =>
+        left.updatedAt.localeCompare(right.updatedAt) ||
+        left.createdAt.localeCompare(right.createdAt) ||
+        left.state.id.localeCompare(right.state.id),
+    );
+  const excess = terminal.length - maxTerminalJobs;
+  if (excess <= 0) return jobs;
+  const prunedIds = new Set(
+    terminal.slice(0, excess).map((job) => job.state.id),
+  );
+  return jobs.filter((job) => !prunedIds.has(job.state.id));
+}
+
 export class InMemorySubconsciousJobRepository
   implements SubconsciousJobRepository
 {
   private readonly jobs = new Map<string, PersistedSubconsciousJob>();
+  private readonly maxTerminalJobs: number;
 
-  constructor(initial: PersistedSubconsciousJob[] = []) {
-    for (const job of initial) {
+  constructor(
+    initial: PersistedSubconsciousJob[] = [],
+    options: SubconsciousJobRetentionOptions = {},
+  ) {
+    this.maxTerminalJobs = retentionLimit(options);
+    for (const job of pruneTerminalJobs(initial, this.maxTerminalJobs)) {
       this.jobs.set(job.state.id, structuredClone(job));
     }
   }
@@ -37,6 +79,15 @@ export class InMemorySubconsciousJobRepository
 
   async put(job: PersistedSubconsciousJob): Promise<void> {
     this.jobs.set(job.state.id, structuredClone(job));
+    const retained = pruneTerminalJobs(
+      [...this.jobs.values()],
+      this.maxTerminalJobs,
+    );
+    if (retained.length === this.jobs.size) return;
+    this.jobs.clear();
+    for (const retainedJob of retained) {
+      this.jobs.set(retainedJob.state.id, retainedJob);
+    }
   }
 
   async deleteByScope(scope: MemoryScope): Promise<void> {
@@ -92,9 +143,11 @@ export class JsonSubconsciousJobRepository
 {
   private readonly file: AtomicJsonFile;
   private readonly writes = new SerialTaskQueue();
+  private readonly maxTerminalJobs: number;
 
-  constructor(options: { path: string }) {
+  constructor(options: { path: string } & SubconsciousJobRetentionOptions) {
     this.file = new AtomicJsonFile(options.path);
+    this.maxTerminalJobs = retentionLimit(options);
   }
 
   private async readState(): Promise<{
@@ -110,7 +163,15 @@ export class JsonSubconsciousJobRepository
   }
 
   async list(): Promise<PersistedSubconsciousJob[]> {
-    return structuredClone((await this.readState()).jobs);
+    return this.writes.run(async () => {
+      const state = await this.readState();
+      const jobs = pruneTerminalJobs(state.jobs, this.maxTerminalJobs);
+      if (jobs.length !== state.jobs.length) {
+        state.jobs = jobs;
+        await this.file.write(state);
+      }
+      return structuredClone(jobs);
+    });
   }
 
   async put(job: PersistedSubconsciousJob): Promise<void> {
@@ -124,6 +185,7 @@ export class JsonSubconsciousJobRepository
       );
       if (existing === -1) state.jobs.push(structuredClone(validated));
       else state.jobs[existing] = structuredClone(validated);
+      state.jobs = pruneTerminalJobs(state.jobs, this.maxTerminalJobs);
       await this.file.write(state);
     });
   }
