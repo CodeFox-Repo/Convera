@@ -27,17 +27,18 @@ export const WebFetchRenderer = memo(
       const toolResult = toolInvocation.result;
 
       if (toolResult && typeof toolResult === "object") {
+        const resultObject = toolResult as Record<string, unknown>;
         // Extract status information
-        if (toolResult.status && toolResult.statusText) {
-          status = `${toolResult.status} ${toolResult.statusText}`;
+        if (resultObject.status && resultObject.statusText) {
+          status = `${resultObject.status} ${resultObject.statusText}`;
         }
 
-        if (toolResult.contentType) {
-          contentType = toolResult.contentType;
+        if (resultObject.contentType) {
+          contentType = String(resultObject.contentType);
         }
 
         // Format the result for display
-        if (toolResult.success && toolResult.content) {
+        if (resultObject.success && resultObject.content) {
           // Show successful fetch with content
           const parts: string[] = [];
 
@@ -51,15 +52,15 @@ export const WebFetchRenderer = memo(
 
           parts.push(""); // Empty line
           parts.push("Content:");
-          parts.push(toolResult.content);
+          parts.push(String(resultObject.content));
 
           result = parts.join("\n");
-        } else if (!toolResult.success) {
+        } else if (!resultObject.success) {
           // Show error information
-          result = `Error: ${toolResult.error || toolResult.message || "Failed to fetch"}`;
+          result = `Error: ${resultObject.error || resultObject.message || "Failed to fetch"}`;
         } else {
           // Fallback to message
-          result = toolResult.message || "No content available";
+          result = String(resultObject.message || "No content available");
         }
       } else if (typeof toolResult === "string") {
         result = toolResult;

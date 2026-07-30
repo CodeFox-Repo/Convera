@@ -1,4 +1,4 @@
-import type { Message } from "ai";
+import type { Message } from "@/renderer/types/chat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   LocalAIChatRequest,
@@ -66,7 +66,10 @@ function applyToolEvent(
   const base = {
     toolCallId: event.toolCallId,
     toolName: event.name,
-    args: event.input ?? {},
+    args:
+      event.input && typeof event.input === "object"
+        ? (event.input as Record<string, unknown>)
+        : {},
   };
 
   const next =

@@ -32,7 +32,7 @@ const execAsync = (command: string, options: any) => {
 // Define execute command tool
 export const executeCommand = tool({
   description: "Execute a shell command and return the output",
-  parameters: z.object({
+  inputSchema: z.object({
     command: z.string().describe("The shell command to execute"),
     timeout: z
       .number()

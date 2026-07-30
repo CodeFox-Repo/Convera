@@ -4,6 +4,7 @@ import { useActiveConversations } from "@/renderer/libs/db/hooks";
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { groupConversationsByDate } from "@/renderer/libs/utils/conversation-search-utils";
 import { ConversationItem } from "./ConversationItem";
+import type { Conversation } from "@/renderer/libs/db";
 
 export function ConversationList() {
   const conversations = useActiveConversations();
@@ -50,7 +51,7 @@ export function ConversationList() {
             Starred
           </h3>
           <div className="space-y-0.5">
-            {starredConversations.map((conversation) => (
+            {starredConversations.map((conversation: Conversation) => (
               <ConversationItem
                 key={conversation.id}
                 conversation={conversation}
@@ -69,7 +70,7 @@ export function ConversationList() {
             {group}
           </h3>
           <div className="space-y-0.5">
-            {convs.map((conversation) => (
+            {convs.map((conversation: Conversation) => (
               <ConversationItem
                 key={conversation.id}
                 conversation={conversation}

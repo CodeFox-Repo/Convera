@@ -27,9 +27,10 @@ export const WebSearchRenderer = memo(
 
       if (typeof toolResult === "string") {
         result = toolResult;
-      } else if (typeof toolResult === "object") {
-        if (toolResult.message) {
-          result = toolResult.message as string;
+      } else if (toolResult && typeof toolResult === "object") {
+        const resultObject = toolResult as Record<string, unknown>;
+        if (resultObject.message) {
+          result = String(resultObject.message);
         } else {
           result = JSON.stringify(toolResult, null, 2);
         }

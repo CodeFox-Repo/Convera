@@ -20,10 +20,9 @@ import {
   ServerInfo,
   ToolDefinition,
 } from "@/shared/types/mcp";
-import { experimental_createMCPClient, type Tool } from "ai";
-import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
-// import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { app } from "electron";
 import { EventEmitter } from "events";
@@ -35,11 +34,6 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { getLogger } from "../logger";
 
 const logger = getLogger("MCPConnectionAI");
-// Type for the MCP client instance
-type MCPClientInstance = Awaited<
-  ReturnType<typeof experimental_createMCPClient>
->;
-
 // Define proper MCP tool types
 interface MCPToolProperty {
   type: string;
@@ -72,30 +66,18 @@ interface UnifiedTool {
 }
 
 /**
- * MCPConnection using the ai package's experimental MCP client
- * This implementation leverages the built-in MCP client from the ai package
- * for better integration and maintenance
- *
- * Key differences from the original MCPConnection:
- * 1. Uses experimental_createMCPClient from 'ai' package
- * 2. Supports both stdio (via Experimental_StdioMCPTransport) and SSE transports
- * 3. Currently focused on tool functionality (resources and prompts not yet supported by ai package)
- * 4. Simpler connection management with built-in error handling
- *
- * Note: This is experimental and may change as the ai package's MCP support evolves
+ * MCP connection backed by the official MCP SDK for stdio, Streamable HTTP,
+ * and legacy SSE transports.
  */
 export class MCPConnection extends EventEmitter {
   private name: string;
   private displayName: string;
   private description?: string;
   private config: MCPServerConfig;
-  private client: MCPClientInstance | null = null;
-  private mcpClient: Client | null = null; // Fallback MCP client for Streamable HTTP
+  private mcpClient: Client | null = null;
   private transportType: string;
-  private useAiSdk: boolean = false; // Track which client is being used
 
   private tools: Record<string, UnifiedTool> = {}; // Store unified tools
-  private aiSdkTools: Record<string, Tool<z.ZodTypeAny, unknown>> = {}; // Store AI SDK tools separately
   private mcpTools: MCPToolDefinition[] = []; // Store tools from MCP client
   private toolNames: Set<string> = new Set(); // Cache tool names for quick lookup
   private resources: ResourceDefinition[] = [];
@@ -108,7 +90,6 @@ export class MCPConnection extends EventEmitter {
   private lastStarted: string | null = null;
   private disabled: boolean;
   private authorizationUrl?: string;
-  private sseStatusPollingInterval: NodeJS.Timeout | null = null;
 
   constructor(name: string, config: MCPServerConfig) {
     super();
@@ -132,6 +113,22 @@ export class MCPConnection extends EventEmitter {
     if (config.url) return "http";
     throw new Error(
       `Invalid server configuration for ${this.name}: missing command or url`,
+    );
+  }
+
+  private createMcpClient(): Client {
+    return new Client(
+      {
+        name: "convera-electron",
+        version: app.getVersion(),
+      },
+      {
+        capabilities: {
+          tools: {},
+          prompts: {},
+          resources: {},
+        },
+      },
     );
   }
 
@@ -235,17 +232,22 @@ export class MCPConnection extends EventEmitter {
           }
         }
 
-        const transport = new Experimental_StdioMCPTransport({
-          command: actualCommand,
-          args: resolvedConfig.args || [],
-          env: {
+        const environment = Object.fromEntries(
+          Object.entries({
             ...process.env,
             ELECTRON_APP_PATH: app.getAppPath(),
             ELECTRON_USER_DATA: app.getPath("userData"),
             CONVERA_APP_PATH: app.getAppPath(),
             CONVERA_USER_DATA: app.getPath("userData"),
             ...resolvedConfig.env,
-          },
+          }).filter((entry): entry is [string, string] => {
+            return typeof entry[1] === "string";
+          }),
+        );
+        const transport = new StdioClientTransport({
+          command: actualCommand,
+          args: resolvedConfig.args || [],
+          env: environment,
           cwd: resolvedConfig.cwd || app.getPath("userData"),
         });
 
@@ -254,35 +256,13 @@ export class MCPConnection extends EventEmitter {
         transport.onerror = (error) =>
           this.handleTransportError(error as Error);
 
-        this.client = await experimental_createMCPClient({
-          transport,
-          name: `convera-electron`,
-          onUncaughtError: (error) => {
-            console.error(
-              `Uncaught error in MCP client '${this.name}':`,
-              error,
-            );
-            this.emit("error", { server: this.name, error });
-          },
-        });
-
-        this.useAiSdk = true;
+        this.mcpClient = this.createMcpClient();
+        await this.mcpClient.connect(transport);
       } else {
         // For HTTP/SSE - try Streamable HTTP first, fallback to SSE
         await this.connectWithHttpFallback(resolvedConfig);
       }
 
-      // For SSE connections using AI SDK, status will be updated by polling
-      if (this.useAiSdk && this.transportType !== "stdio") {
-        // SSE connection - status will be updated by polling
-        console.log(
-          `MCP server '${this.name}' SSE connection initiated, polling for status...`,
-        );
-        this.startSseStatusPolling();
-        return;
-      }
-
-      // For other connections, fetch initial capabilities and mark as connected
       await this.updateCapabilities();
 
       // Mark as connected
@@ -310,14 +290,6 @@ export class MCPConnection extends EventEmitter {
    * Disconnect from the MCP server
    */
   async disconnect(errorMessage?: string): Promise<void> {
-    if (this.client) {
-      try {
-        await this.client.close();
-      } catch (error) {
-        console.warn(`Error closing AI SDK client for ${this.name}:`, error);
-      }
-    }
-
     if (this.mcpClient) {
       try {
         await this.mcpClient.close();
@@ -333,11 +305,8 @@ export class MCPConnection extends EventEmitter {
    * Reset connection state
    */
   private resetState(errorMessage?: string): void {
-    this.client = null;
     this.mcpClient = null;
-    this.useAiSdk = false;
     this.tools = {};
-    this.aiSdkTools = {};
     this.mcpTools = [];
     this.toolNames.clear();
     this.resources = [];
@@ -349,12 +318,6 @@ export class MCPConnection extends EventEmitter {
     this.error = errorMessage || null;
     this.startTime = null;
     this.authorizationUrl = undefined;
-
-    // Clear SSE polling interval
-    if (this.sseStatusPollingInterval) {
-      clearInterval(this.sseStatusPollingInterval);
-      this.sseStatusPollingInterval = null;
-    }
   }
 
   /**
@@ -382,19 +345,7 @@ export class MCPConnection extends EventEmitter {
    */
   async updateCapabilities(): Promise<void> {
     try {
-      if (this.useAiSdk && this.client) {
-        // Use AI SDK client
-        const aiTools = await this.client.tools();
-        this.aiSdkTools = aiTools as unknown as Record<
-          string,
-          Tool<z.ZodTypeAny, unknown>
-        >;
-        this.tools = this.convertAiSdkToolsToUnified(
-          aiTools as unknown as Record<string, Tool<z.ZodTypeAny, unknown>>,
-        );
-        this.toolNames = new Set(Object.keys(aiTools));
-      } else if (this.mcpClient) {
-        // Use MCP client and convert tools
+      if (this.mcpClient) {
         const result = await this.mcpClient.listTools();
         this.mcpTools = (result.tools || []) as MCPToolDefinition[];
 
@@ -411,7 +362,6 @@ export class MCPConnection extends EventEmitter {
 
       logger.info(`Updated capabilities for ${this.name}`, {
         toolCount: this.toolNames.size,
-        useAiSdk: this.useAiSdk,
       });
     } catch (error) {
       logger.warn(
@@ -428,7 +378,7 @@ export class MCPConnection extends EventEmitter {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    if (!this.client && !this.mcpClient) {
+    if (!this.mcpClient) {
       throw this.createError(
         "SERVER_NOT_INITIALIZED",
         "Server not initialized",
@@ -513,16 +463,13 @@ export class MCPConnection extends EventEmitter {
     try {
       // First try: Streamable HTTP with MCP client
       await this.connectWithStreamableHttp(resolvedConfig);
-      this.useAiSdk = false;
       logger.info("Connected successfully with Streamable HTTP");
     } catch (httpError) {
-      logger.warn("Streamable HTTP failed, trying SSE with AI SDK:", httpError);
+      logger.warn("Streamable HTTP failed, trying legacy SSE:", httpError);
 
       try {
-        // Second try: SSE with AI SDK
-        await this.connectWithAiSdkSse(resolvedConfig);
-        this.useAiSdk = true;
-        logger.info("Connected successfully with AI SDK SSE");
+        await this.connectWithSse(resolvedConfig);
+        logger.info("Connected successfully with legacy SSE");
       } catch (sseError) {
         logger.error("Both HTTP and SSE failed:", { httpError, sseError });
         throw new Error(
@@ -552,116 +499,33 @@ export class MCPConnection extends EventEmitter {
       },
     );
 
-    this.mcpClient = new Client(
-      {
-        name: "convera-electron",
-        version: "1.0.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-          prompts: {},
-          resources: {},
-        },
-      },
-    );
+    this.mcpClient = this.createMcpClient();
 
     await this.mcpClient.connect(httpTransport);
   }
 
   /**
-   * Connect using AI SDK SSE
+   * Connect using the MCP SDK legacy SSE transport.
    */
-  private async connectWithAiSdkSse(
-    resolvedConfig: MCPServerConfig,
-  ): Promise<void> {
-    this.client = await experimental_createMCPClient({
-      transport: {
-        type: "sse",
-        url: resolvedConfig.url!,
-        headers: {
-          "User-Agent": `Convera/${app.getVersion()} (Electron)`,
-          ...(resolvedConfig.apiKey && {
-            Authorization: `Bearer ${resolvedConfig.apiKey}`,
+  private async connectWithSse(resolvedConfig: MCPServerConfig): Promise<void> {
+    const headers = {
+      "User-Agent": `Convera/${app.getVersion()} (Electron)`,
+      ...(resolvedConfig.apiKey && {
+        Authorization: `Bearer ${resolvedConfig.apiKey}`,
+      }),
+    };
+    const transport = new SSEClientTransport(new URL(resolvedConfig.url!), {
+      eventSourceInit: {
+        fetch: (url, init) =>
+          fetch(url, {
+            ...init,
+            headers: { ...headers, ...init?.headers },
           }),
-        },
       },
-      name: `convera-electron`,
-      onUncaughtError: (error) => {
-        console.error(`Uncaught error in MCP client '${this.name}':`, error);
-        this.emit("error", { server: this.name, error });
-      },
+      requestInit: { headers },
     });
-
-    // Start polling for connection status for SSE connections
-    this.startSseStatusPolling();
-  }
-
-  /**
-   * Start polling for SSE connection status
-   */
-  private startSseStatusPolling(): void {
-    if (this.sseStatusPollingInterval) {
-      clearInterval(this.sseStatusPollingInterval);
-    }
-
-    this.sseStatusPollingInterval = setInterval(async () => {
-      try {
-        if (this.client && this.status === ConnectionStatus.CONNECTING) {
-          // Try to get tools to check if connection is actually ready
-          const tools = await this.client.tools();
-          if (tools && Object.keys(tools).length >= 0) {
-            // Connection is ready, update status
-            this.status = ConnectionStatus.CONNECTED;
-            this.startTime = Date.now();
-            this.error = null;
-
-            // Update capabilities
-            await this.updateCapabilities();
-
-            // Clear polling interval
-            if (this.sseStatusPollingInterval) {
-              clearInterval(this.sseStatusPollingInterval);
-              this.sseStatusPollingInterval = null;
-            }
-
-            console.log(
-              `MCP server '${this.name}' connected successfully via SSE`,
-            );
-          }
-        }
-      } catch (error) {
-        // Still connecting or authorization needed, continue polling
-        console.debug(
-          `SSE connection still in progress for ${this.name}:`,
-          error,
-        );
-      }
-    }, 2000); // Poll every 2 seconds
-  }
-
-  /**
-   * Convert AI SDK tools to unified format
-   */
-  private convertAiSdkToolsToUnified(
-    aiTools: Record<string, Tool<z.ZodTypeAny, unknown>>,
-  ): Record<string, UnifiedTool> {
-    const unifiedTools: Record<string, UnifiedTool> = {};
-
-    for (const [name, tool] of Object.entries(aiTools)) {
-      unifiedTools[name] = {
-        description: tool.description || "",
-        parameters: tool.parameters,
-        execute: async (args: Record<string, unknown>) => {
-          return await tool.execute?.(args, {
-            toolCallId: `${this.name}-${name}-${Date.now()}`,
-            messages: [],
-          });
-        },
-      };
-    }
-
-    return unifiedTools;
+    this.mcpClient = this.createMcpClient();
+    await this.mcpClient.connect(transport);
   }
 
   /**
@@ -765,16 +629,7 @@ export class MCPConnection extends EventEmitter {
    * Convert tools to legacy ToolDefinition format for backward compatibility
    */
   private convertToolsToLegacyFormat(): ToolDefinition[] {
-    if (this.useAiSdk && this.client) {
-      // AI SDK tools
-      return Object.entries(this.tools).map(([name, tool]) => ({
-        name,
-        description: tool.description,
-        inputSchema: this.zodSchemaToJsonSchema(tool.parameters),
-        parameters: this.zodSchemaToJsonSchema(tool.parameters),
-      }));
-    } else if (this.mcpClient && this.mcpTools.length > 0) {
-      // MCP tools
+    if (this.mcpClient && this.mcpTools.length > 0) {
       return this.mcpTools.map((tool) => ({
         name: tool.name,
         description: tool.description,

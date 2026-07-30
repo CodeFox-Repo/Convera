@@ -88,7 +88,7 @@ async function fetchUrl(
 // Define web fetch tool
 export const webFetch = tool({
   description: "Fetch content from a web URL and return the response",
-  parameters: z.object({
+  inputSchema: z.object({
     url: z.string().url().describe("The URL to fetch"),
     timeout: z
       .number()

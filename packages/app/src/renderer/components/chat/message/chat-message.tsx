@@ -1,6 +1,6 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
-import { Attachment, UIMessage } from "ai";
+import type { Attachment, UIMessage } from "@/renderer/types/chat";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
