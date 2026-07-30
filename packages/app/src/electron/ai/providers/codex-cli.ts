@@ -120,6 +120,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
       {
         cwd,
         mcpServers: mcpServer ? { convera: mcpServer } : undefined,
+        rmcpClient: mcpServer ? true : undefined,
         serverRequests,
         approvalPolicy: "on-request",
         sandboxPolicy: {

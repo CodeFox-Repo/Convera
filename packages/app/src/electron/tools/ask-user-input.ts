@@ -8,6 +8,14 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+const inputOption = z.union([
+  z.string(),
+  z.object({
+    label: z.string(),
+    description: z.string().optional(),
+  }),
+]);
+
 /**
  * Ask user input tool
  *
@@ -22,9 +30,11 @@ export const askUserInput = tool({
   inputSchema: z.object({
     question: z.string().describe("The question to ask the user"),
     options: z
-      .array(z.string())
+      .array(inputOption)
       .max(3)
-      .describe("Up to 3 predefined options for the user to choose from"),
+      .describe(
+        "Up to 3 predefined options. Each option may be a plain string or an object with a label and optional description.",
+      ),
   }),
   execute: async ({ question, options }) => {
     // This is a client-side tool - execution happens in renderer process
@@ -33,7 +43,9 @@ export const askUserInput = tool({
     return {
       _clientSideTool: true,
       question,
-      options,
+      options: options.map((option) =>
+        typeof option === "string" ? option : option.label,
+      ),
       message: "Waiting for user input...",
     };
   },
