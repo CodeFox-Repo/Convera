@@ -1,4 +1,5 @@
 import type {
+  LocalAIChatRequest,
   LocalAIRuntimeService,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
@@ -87,6 +88,61 @@ function createRuntime(
     startChat: vi.fn(),
     abort: vi.fn(() => true),
     respondToInteraction: vi.fn(() => false),
+    getConversationRuntimeState: vi.fn(() => null),
+    branchConversation: vi.fn((request) => ({
+      conversationId: request.targetConversationId,
+      revision: 0,
+      memoryEpoch: 0,
+      memoryVersion: 0,
+      providers: [],
+    })),
+    deleteConversation: vi.fn(() => true),
+    resetConversationProviderSession: vi.fn((request) => ({
+      conversationId: request.conversationId,
+      revision: 0,
+      memoryEpoch: 0,
+      memoryVersion: 0,
+      providers: [],
+    })),
+    getMemorySettings: vi.fn(() => ({
+      provider: "off",
+      baseURL: "http://127.0.0.1:8283",
+      apiKeyConfigured: false,
+      subconsciousProvider: "off",
+      schedule: "every-turn",
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    })),
+    updateMemorySettings: vi.fn(() => ({
+      provider: "off",
+      baseURL: "http://127.0.0.1:8283",
+      apiKeyConfigured: false,
+      subconsciousProvider: "off",
+      schedule: "every-turn",
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    })),
+    getMemoryStatus: vi.fn(() => ({
+      health: "disabled",
+      pendingJobs: 0,
+      failedJobs: 0,
+    })),
+    ...overrides,
+  };
+}
+
+function chatRequest(
+  overrides: Partial<LocalAIChatRequest> = {},
+): LocalAIChatRequest {
+  return {
+    requestId: "request-1",
+    conversationId: "conversation-1",
+    turnId: "turn-1",
+    providerId: "codex-cli",
+    operation: {
+      kind: "append",
+      message: { role: "user", content: "hello" },
+    },
     ...overrides,
   };
 }
@@ -172,11 +228,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     const forbidden = start?.(createEvent(otherSender), request);
     expect(forbidden).toMatchObject({
@@ -223,10 +275,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const baseRequest = {
-      requestId: "request-1",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const baseRequest = chatRequest();
 
     expect(
       start?.(createEvent(sender), {
@@ -242,7 +291,10 @@ describe("local AI IPC", () => {
       start?.(createEvent(sender), {
         ...baseRequest,
         providerId: "claude-code",
-        messages: [{ role: "user", content: "x".repeat(200_001) }],
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "x".repeat(200_001) },
+        },
       }),
     ).toMatchObject({
       success: false,
@@ -264,11 +316,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const baseRequest = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const baseRequest = chatRequest();
     const invalidRequests = [
       { ...baseRequest, modelId: { id: "not-a-string" } },
       { ...baseRequest, agent: { systemPrompt: 42 } },
@@ -277,10 +325,13 @@ describe("local AI IPC", () => {
       {
         ...baseRequest,
         agent: { systemPrompt: "x" },
-        messages: Array.from({ length: 5 }, () => ({
-          role: "user",
-          content: "x".repeat(200_000),
-        })),
+        operation: {
+          kind: "bootstrap",
+          messages: Array.from({ length: 6 }, () => ({
+            role: "user",
+            content: "x".repeat(200_000),
+          })),
+        },
       },
     ];
 
@@ -312,11 +363,10 @@ describe("local AI IPC", () => {
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const respond = handlers.get(LOCAL_AI_CHANNELS.RESPOND_INTERACTION);
 
-    start?.(createEvent(allowedSender), {
-      requestId: "request-1",
-      providerId: "claude-code",
-      messages: [{ role: "user", content: "hello" }],
-    });
+    start?.(
+      createEvent(allowedSender),
+      chatRequest({ providerId: "claude-code" }),
+    );
 
     await expect(
       respond?.(createEvent(allowedSender), "request-1", "interaction-1", {
@@ -387,11 +437,7 @@ describe("local AI IPC", () => {
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
 
-    start?.(createEvent(sender), {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    });
+    start?.(createEvent(sender), chatRequest());
     sender.destroy();
 
     expect(runtime.abort).toHaveBeenCalledWith("request-1");
@@ -420,11 +466,7 @@ describe("local AI IPC", () => {
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const abort = handlers.get(LOCAL_AI_CHANNELS.ABORT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,
@@ -468,11 +510,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,

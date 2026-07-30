@@ -35,6 +35,9 @@ importers:
       '@leeoniya/ufuzzy':
         specifier: ^1.0.18
         version: 1.0.18
+      '@letta-ai/letta-client':
+        specifier: 1.12.1
+        version: 1.12.1
       '@modelcontextprotocol/sdk':
         specifier: 1.12.3
         version: 1.12.3
@@ -3448,6 +3451,10 @@ packages:
 
   /@leeoniya/ufuzzy@1.0.18:
     resolution: {integrity: sha512-5D54A86/VaPvJVf7UWJgy+UyhDtstUxq0iQd8UOZ2TG3NjV2oSoa9m4qW3VsotDD6dH2SNHDQwSPq+IAuudnag==}
+    dev: false
+
+  /@letta-ai/letta-client@1.12.1:
+    resolution: {integrity: sha512-rYjXMXpkfssj7VBBX3qCp6mdpNRv6YPNrliYsjkhWoQDqGg3J9bsgIQ28ZhQTddabYxRUIwcdzuaizFx8pvZ7A==}
     dev: false
 
   /@levischuck/tiny-cbor@0.2.11:

@@ -38,11 +38,34 @@ export interface LocalAIMessage {
   content: string;
 }
 
+export type LocalAIChatOperation =
+  | {
+      kind: "append";
+      message: LocalAIMessage;
+    }
+  | {
+      kind: "bootstrap";
+      messages: LocalAIMessage[];
+    }
+  | {
+      kind: "rebase";
+      reason: "edit" | "regenerate";
+      sourceMessageId?: string;
+      messages: LocalAIMessage[];
+    };
+
 export interface LocalAIChatRequest {
   requestId: string;
+  conversationId: string;
+  turnId: string;
+  /**
+   * An optimistic concurrency cursor only. Electron main owns the authoritative
+   * revision and rejects stale renderer work.
+   */
+  expectedRevision?: number;
   providerId: string;
   modelId?: string;
-  messages: LocalAIMessage[];
+  operation: LocalAIChatOperation;
   agent?: {
     id?: string;
     systemPrompt?: string;
@@ -65,6 +88,84 @@ export interface LocalAIUsage {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
+}
+
+export type LocalAIMemoryProvider = "off" | "letta";
+export type LocalAISubconsciousProvider =
+  | "off"
+  | "codex-cli"
+  | "claude-code"
+  | "follow-active";
+export type LocalAIMemorySchedule = "every-turn" | "batch" | "idle";
+
+export interface LocalAIMemorySettings {
+  provider: LocalAIMemoryProvider;
+  baseURL: string;
+  apiKeyConfigured: boolean;
+  subconsciousProvider: LocalAISubconsciousProvider;
+  schedule: LocalAIMemorySchedule;
+  batchSize: number;
+  idleDelayMs: number;
+}
+
+export interface LocalAIMemorySettingsUpdate {
+  provider?: LocalAIMemoryProvider;
+  baseURL?: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+  subconsciousProvider?: LocalAISubconsciousProvider;
+  schedule?: LocalAIMemorySchedule;
+  batchSize?: number;
+  idleDelayMs?: number;
+}
+
+export interface LocalAIProviderBindingState {
+  providerId: string;
+  modelId?: string;
+  revision: number;
+  stale: boolean;
+  updatedAt: string;
+}
+
+export interface LocalAIConversationRuntimeState {
+  conversationId: string;
+  revision: number;
+  memoryEpoch: number;
+  memoryVersion: number;
+  providers: LocalAIProviderBindingState[];
+}
+
+export type LocalAIMemoryHealth =
+  | "disabled"
+  | "healthy"
+  | "degraded"
+  | "offline"
+  | "error";
+
+export interface LocalAIMemoryStatus {
+  health: LocalAIMemoryHealth;
+  detail?: string;
+  memoryVersion?: number;
+  pendingJobs: number;
+  failedJobs: number;
+  lastSuccessfulSyncAt?: string;
+}
+
+export interface LocalAIBranchConversationRequest {
+  sourceConversationId: string;
+  targetConversationId: string;
+  throughMessageId?: string;
+  bootstrapMessages: LocalAIMessage[];
+}
+
+export interface LocalAIDeleteConversationRequest {
+  conversationId: string;
+  forgetConversationMemory: boolean;
+}
+
+export interface LocalAIResetProviderSessionRequest {
+  conversationId: string;
+  providerId: string;
 }
 
 export type LocalAIInteractionKind = "approval" | "input";
@@ -109,6 +210,9 @@ export type LocalAIStreamEvent =
       requestId: string;
       finishReason: LocalAIFinishReason;
       usage?: LocalAIUsage;
+      conversationId?: string;
+      turnId?: string;
+      revision?: number;
     };
 
 export interface LocalAIResult<T> {
@@ -136,6 +240,28 @@ export interface LocalAIRuntimeService {
     interactionId: string,
     response: LocalAIInteractionResponse,
   ): Promise<boolean> | boolean;
+  getConversationRuntimeState(
+    conversationId: string,
+  ):
+    | Promise<LocalAIConversationRuntimeState | null>
+    | LocalAIConversationRuntimeState
+    | null;
+  branchConversation(
+    request: LocalAIBranchConversationRequest,
+  ): Promise<LocalAIConversationRuntimeState> | LocalAIConversationRuntimeState;
+  deleteConversation(
+    request: LocalAIDeleteConversationRequest,
+  ): Promise<boolean> | boolean;
+  resetConversationProviderSession(
+    request: LocalAIResetProviderSessionRequest,
+  ): Promise<LocalAIConversationRuntimeState> | LocalAIConversationRuntimeState;
+  getMemorySettings(): Promise<LocalAIMemorySettings> | LocalAIMemorySettings;
+  updateMemorySettings(
+    update: LocalAIMemorySettingsUpdate,
+  ): Promise<LocalAIMemorySettings> | LocalAIMemorySettings;
+  getMemoryStatus(
+    conversationId?: string,
+  ): Promise<LocalAIMemoryStatus> | LocalAIMemoryStatus;
 }
 
 export interface ILocalAIAPI {
@@ -150,6 +276,25 @@ export interface ILocalAIAPI {
     interactionId: string,
     response: LocalAIInteractionResponse,
   ): Promise<LocalAIResult<{ accepted: boolean }>>;
+  getConversationRuntimeState(
+    conversationId: string,
+  ): Promise<LocalAIResult<LocalAIConversationRuntimeState | null>>;
+  branchConversation(
+    request: LocalAIBranchConversationRequest,
+  ): Promise<LocalAIResult<LocalAIConversationRuntimeState>>;
+  deleteConversation(
+    request: LocalAIDeleteConversationRequest,
+  ): Promise<LocalAIResult<{ deleted: boolean }>>;
+  resetConversationProviderSession(
+    request: LocalAIResetProviderSessionRequest,
+  ): Promise<LocalAIResult<LocalAIConversationRuntimeState>>;
+  getMemorySettings(): Promise<LocalAIResult<LocalAIMemorySettings>>;
+  updateMemorySettings(
+    update: LocalAIMemorySettingsUpdate,
+  ): Promise<LocalAIResult<LocalAIMemorySettings>>;
+  getMemoryStatus(
+    conversationId?: string,
+  ): Promise<LocalAIResult<LocalAIMemoryStatus>>;
   onEvent(
     requestId: string,
     callback: (event: LocalAIStreamEvent) => void,
