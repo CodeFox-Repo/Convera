@@ -1,7 +1,7 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel } from "ai";
 import type { CodexAppServerProvider } from "ai-sdk-provider-codex-cli";
-import { ZodEffects, type ZodTypeAny } from "zod";
+import type { ZodEffects, ZodTypeAny } from "zod";
 import { probeCliProvider } from "../cli-probe";
 import type { LocalAiProviderAdapter } from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
@@ -11,9 +11,37 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
 
   private provider?: CodexAppServerProvider;
   private providerExecutablePath?: string;
+  private modelCatalog?: {
+    defaultModel: string;
+    models: string[];
+  };
 
-  getStatus(): Promise<LocalAiProviderStatus> {
-    return probeCliProvider(this.id);
+  async getStatus(): Promise<LocalAiProviderStatus> {
+    const status = await probeCliProvider(this.id);
+    if (!status.available || !status.authenticated) {
+      return status;
+    }
+
+    try {
+      await this.ensureProvider(status.executablePath);
+      if (!this.modelCatalog) {
+        const catalog = await this.provider!.listModels();
+        const models = catalog.models.map((model) => model.id);
+        const defaultModel = catalog.defaultModel?.id ?? models[0];
+        if (defaultModel && models.length > 0) {
+          this.modelCatalog = { defaultModel, models };
+        }
+      }
+    } catch (error) {
+      return {
+        ...status,
+        detail: `Model discovery failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+
+    return this.modelCatalog ? { ...status, ...this.modelCatalog } : status;
   }
 
   async createModel(
@@ -31,6 +59,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     const provider = this.provider;
     this.provider = undefined;
     this.providerExecutablePath = undefined;
+    this.modelCatalog = undefined;
     await provider?.close();
   }
 
@@ -72,6 +101,10 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
 async function importCodexProviderWithZod3Compatibility(): Promise<
   typeof import("ai-sdk-provider-codex-cli")
 > {
+  // This must be a dynamic ESM import. Electron/Vite may load the provider's
+  // Zod peer through its ESM entry while a static app import resolves CJS;
+  // patching the other module instance would not affect provider evaluation.
+  const { ZodEffects } = await import("zod");
   const prototype = ZodEffects.prototype as typeof ZodEffects.prototype & {
     passthrough?: () => unknown;
   };
