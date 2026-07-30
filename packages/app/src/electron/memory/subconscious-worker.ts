@@ -151,7 +151,10 @@ export class SubconsciousWorker {
   private readonly cancelledScopes = new Set<string>();
   private sequence = 0;
   private drainPromise?: Promise<void>;
+  private stopPromise?: Promise<void>;
   private idleHandle?: unknown;
+  private accepting = true;
+  private stopping = false;
   private disposed = false;
   private readonly ready: Promise<void>;
 
@@ -206,9 +209,9 @@ export class SubconsciousWorker {
 
   async enqueue(turn: CompletedMemoryTurn): Promise<string> {
     await this.ready;
-    if (this.disposed) {
+    if (!this.accepting || this.disposed) {
       throw new MemoryError(
-        "Cannot enqueue memory work after the subconscious worker is disposed.",
+        "Cannot enqueue memory work after the subconscious worker has started stopping.",
         "VALIDATION",
         false,
       );
@@ -247,7 +250,10 @@ export class SubconsciousWorker {
       return;
     }
     if (this.schedule === "batch" && this.queue.length >= this.batchSize) {
-      queueMicrotask(() => void this.startDrain(false));
+      // The threshold is global, while batches remain scope-isolated. Once
+      // reached, drain every currently queued scope so a short tail in a
+      // second scope cannot remain below threshold forever.
+      queueMicrotask(() => void this.startDrain(true));
       return;
     }
     if (this.schedule === "idle") {
@@ -263,6 +269,10 @@ export class SubconsciousWorker {
 
   async flush(): Promise<void> {
     await this.ready;
+    if (this.stopping || this.disposed) {
+      await this.stopPromise;
+      return;
+    }
     if (this.idleHandle !== undefined) {
       this.scheduler.clearTimeout(this.idleHandle);
       this.idleHandle = undefined;
@@ -273,9 +283,12 @@ export class SubconsciousWorker {
   private async startDrain(force: boolean): Promise<void> {
     if (this.drainPromise) {
       await this.drainPromise;
-      if (force && this.queue.length > 0) await this.startDrain(true);
+      if (force && !this.stopping && !this.disposed && this.queue.length > 0) {
+        await this.startDrain(true);
+      }
       return;
     }
+    if (this.stopping || this.disposed) return;
     this.drainPromise = this.drain(force).finally(() => {
       this.drainPromise = undefined;
     });
@@ -283,7 +296,7 @@ export class SubconsciousWorker {
   }
 
   private async drain(force: boolean): Promise<void> {
-    while (!this.disposed && this.queue.length > 0) {
+    while (!this.disposed && !this.stopping && this.queue.length > 0) {
       if (
         !force &&
         this.schedule === "batch" &&
@@ -541,7 +554,26 @@ export class SubconsciousWorker {
     return this.queue.length;
   }
 
+  async stop(): Promise<void> {
+    await this.ready;
+    if (this.stopPromise) return this.stopPromise;
+    this.accepting = false;
+    this.stopping = true;
+    if (this.idleHandle !== undefined) {
+      this.scheduler.clearTimeout(this.idleHandle);
+      this.idleHandle = undefined;
+    }
+    this.stopPromise = (async () => {
+      const activeDrain = this.drainPromise;
+      if (activeDrain) await activeDrain;
+      this.disposed = true;
+    })();
+    return this.stopPromise;
+  }
+
   dispose(): void {
+    this.accepting = false;
+    this.stopping = true;
     this.disposed = true;
     if (this.idleHandle !== undefined) {
       this.scheduler.clearTimeout(this.idleHandle);

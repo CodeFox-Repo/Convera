@@ -91,6 +91,43 @@ describe("SubconsciousWorker", () => {
     worker.dispose();
   });
 
+  it("drains every scope once the global batch threshold is reached", async () => {
+    const store = setup();
+    const secondScope = {
+      kind: "conversation" as const,
+      id: "conversation-2",
+    };
+    const curate = vi.fn(async (input: CuratorInput) => patchFor(input));
+    const worker = new SubconsciousWorker({
+      store,
+      curator: { curate },
+      schedule: "batch",
+      batchSize: 5,
+      retryBaseMs: 0,
+      jobRepository: new InMemorySubconsciousJobRepository(),
+    });
+
+    await worker.enqueue(turn("a-1"));
+    await worker.enqueue(turn("a-2"));
+    await worker.enqueue(turn("a-3"));
+    await worker.enqueue({ ...turn("b-1"), scope: secondScope });
+    await worker.enqueue({ ...turn("b-2"), scope: secondScope });
+
+    await vi.waitFor(() => {
+      expect(worker.pendingCount()).toBe(0);
+      expect(
+        worker
+          .listStates()
+          .filter((state) => state.id.startsWith("memory-job-"))
+          .every((state) => state.status === "completed"),
+      ).toBe(true);
+    });
+    expect(curate).toHaveBeenCalledTimes(2);
+    expect((await store.getSnapshot(scope)).version).toBe(1);
+    expect((await store.getSnapshot(secondScope)).version).toBe(1);
+    worker.dispose();
+  });
+
   it("retries transient curator failures", async () => {
     const store = setup();
     let attempts = 0;
@@ -190,6 +227,50 @@ describe("SubconsciousWorker", () => {
     expect((await store.getSnapshot(scope)).version).toBe(0);
     expect(worker.getState(jobId)?.status).toBe("running");
     expect((await jobs.list())[0]?.state.status).toBe("running");
+  });
+
+  it("stops accepting work but waits for an in-flight store apply to finish", async () => {
+    const store = setup();
+    const originalApplyPatch = store.applyPatch.bind(store);
+    let releaseApply: (() => void) | undefined;
+    let markApplyStarted: (() => void) | undefined;
+    const applyStarted = new Promise<void>((resolve) => {
+      markApplyStarted = resolve;
+    });
+    const applyGate = new Promise<void>((resolve) => {
+      releaseApply = resolve;
+    });
+    vi.spyOn(store, "applyPatch").mockImplementation(async (memoryPatch) => {
+      markApplyStarted?.();
+      await applyGate;
+      return originalApplyPatch(memoryPatch);
+    });
+    const worker = new SubconsciousWorker({
+      store,
+      curator: { curate: async (input) => patchFor(input) },
+      schedule: "every-turn",
+      retryBaseMs: 0,
+      jobRepository: new InMemorySubconsciousJobRepository(),
+    });
+    const jobId = await worker.enqueue(turn("turn-orderly-stop"));
+    await applyStarted;
+
+    let stopped = false;
+    const stopping = worker.stop().then(() => {
+      stopped = true;
+    });
+    await expect(worker.enqueue(turn("turn-too-late"))).rejects.toThrow(
+      /started stopping/,
+    );
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+
+    releaseApply?.();
+    await stopping;
+
+    expect(stopped).toBe(true);
+    expect(worker.getState(jobId)?.status).toBe("completed");
+    expect((await store.getSnapshot(scope)).version).toBe(1);
   });
 
   it("accepts an explicit curator noop without bumping memory version", async () => {
