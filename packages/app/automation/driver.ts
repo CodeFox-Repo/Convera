@@ -547,9 +547,14 @@ export class ConveraDriver {
 
   async click(selector: string, double = false) {
     const element = await this.readyElement(selector, true);
+    const before = await this.inspectElement(selector);
     if (double) await element.doubleClick();
     else await element.click();
-    return this.inspectElement(selector);
+    return {
+      ...before,
+      action: double ? "double_click" : "click",
+      completed: true,
+    };
   }
 
   async hover(selector: string) {
