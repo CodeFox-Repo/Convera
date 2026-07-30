@@ -26,10 +26,7 @@ interface UseLocalAIChatResult {
     message: Omit<Message, "id">,
     options: LocalAIChatOptions,
   ) => Promise<void>;
-  resend: (
-    messages: Message[],
-    options: LocalAIChatOptions,
-  ) => Promise<void>;
+  resend: (messages: Message[], options: LocalAIChatOptions) => Promise<void>;
   stop: () => Promise<void>;
 }
 
@@ -89,8 +86,7 @@ function applyToolEvent(
 export function useLocalAIChat(): UseLocalAIChatResult {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [status, setStatus] =
-    useState<UseLocalAIChatResult["status"]>("ready");
+  const [status, setStatus] = useState<UseLocalAIChatResult["status"]>("ready");
   const [error, setError] = useState<Error>();
   const activeRequestIdRef = useRef<string | undefined>(undefined);
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
@@ -187,8 +183,10 @@ export function useLocalAIChat(): UseLocalAIChatResult {
           options: options.options,
         });
 
-        if (!result.success || !result.data?.accepted) {
-          throw new Error(result.error || "Local AI runtime rejected the chat.");
+        if (!result.success || !result.accepted) {
+          throw new Error(
+            result.error || "Local AI runtime rejected the chat.",
+          );
         }
       } catch (startError) {
         const nextError =
@@ -205,10 +203,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   );
 
   const send = useCallback(
-    async (
-      message: Omit<Message, "id">,
-      options: LocalAIChatOptions,
-    ) => {
+    async (message: Omit<Message, "id">, options: LocalAIChatOptions) => {
       const userMessage: Message = {
         ...message,
         id: createMessageId("user"),

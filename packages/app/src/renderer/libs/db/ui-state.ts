@@ -13,10 +13,16 @@
  */
 
 import { create } from "zustand";
-import { FOXYCHAT_CONFIG_ID, DEFAULT_FOXYCHAT_MODELS } from "./database";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  DEFAULT_LOCAL_AI_PROVIDER_ID,
+} from "../local-ai-contract";
 
 // Re-export for convenience
-export { FOXYCHAT_CONFIG_ID, DEFAULT_FOXYCHAT_MODELS };
+export {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  DEFAULT_LOCAL_AI_PROVIDER_ID,
+} from "../local-ai-contract";
 
 // ==================== Selection State ====================
 
@@ -36,8 +42,8 @@ interface SelectionState {
 export const useSelectionStore = create<SelectionState>((set) => ({
   currentConversationId: null,
   selectedAgentId: null,
-  selectedConfigId: FOXYCHAT_CONFIG_ID,
-  selectedModelId: DEFAULT_FOXYCHAT_MODELS[0],
+  selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+  selectedModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
   setCurrentConversation: (id) => set({ currentConversationId: id }),
   setSelectedAgent: (id) => set({ selectedAgentId: id }),
