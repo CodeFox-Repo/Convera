@@ -81,6 +81,9 @@ export default function ModelSelector() {
 
   // Find current selected model display name
   const selectedDisplayName = useMemo(() => {
+    if (selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID) {
+      return "Auto";
+    }
     return formatModelName(selectedModelId);
   }, [selectedModelId]);
 

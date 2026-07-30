@@ -3,7 +3,10 @@ import type { LanguageModel } from "ai";
 import { createClaudeCode } from "ai-sdk-provider-claude-code";
 import { loadClaudeEnvironment } from "../claude-environment";
 import { probeCliProvider } from "../cli-probe";
-import type { LocalAiProviderAdapter } from "../provider-adapter";
+import {
+  resolveLocalModelId,
+  type LocalAiProviderAdapter,
+} from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
 
 export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
@@ -36,10 +39,13 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
   ): Promise<LanguageModel> {
-    return this.provider(request.modelId ?? status.defaultModel, {
-      pathToClaudeCodeExecutable: status.executablePath,
-      cwd: request.options?.cwd,
-    });
+    return this.provider(
+      resolveLocalModelId(request.modelId, status.defaultModel),
+      {
+        pathToClaudeCodeExecutable: status.executablePath,
+        cwd: request.options?.cwd,
+      },
+    );
   }
 
   async dispose(): Promise<void> {

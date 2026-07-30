@@ -16,6 +16,7 @@ import {
   resolveLocalAIProviderId,
   useModelConfigStore,
 } from "./model-config-store";
+import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
 import { db, createConversation, updateMessages } from "../db";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
@@ -433,7 +434,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
           await chatAPI.send(message, {
             providerId,
-            model: selectedModelId,
+            model:
+              selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                ? undefined
+                : selectedModelId,
             agent: selectedAgent
               ? {
                   id: selectedAgent.id,
