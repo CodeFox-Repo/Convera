@@ -1,75 +1,16 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { Markdown } from "@/renderer/components/common/markdown";
 import { SelectedContent } from "@/renderer/libs/stores/chat-store";
-import type {
-  MessagePart,
-  ToolInvocation,
-  UIMessage,
-} from "@/renderer/types/chat";
-import {
-  getToolName,
-  isToolUIPart,
-  type UIMessage as AISDKUIMessage,
-} from "ai";
+import type { UIMessage } from "@/renderer/types/chat";
+import { getToolName, isToolUIPart } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ModifiedContentBlock from "../selected/modified-content-block";
 import { TOOL_COMPONENTS } from "../tools";
+import type { ToolMessagePart } from "../tools/tool-part";
 import ChatMessage from "./chat-message";
 import ToolCall from "./tool-call";
-
-function normalizeToolArgs(input: unknown): Record<string, unknown> {
-  if (input && typeof input === "object" && !Array.isArray(input)) {
-    return input as Record<string, unknown>;
-  }
-  if (typeof input === "string") {
-    try {
-      const parsed = JSON.parse(input);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      return { input };
-    }
-  }
-  return input === undefined ? {} : { input };
-}
-
-function toToolInvocation(part: MessagePart): ToolInvocation | undefined {
-  if ("toolInvocation" in part) {
-    return part.toolInvocation;
-  }
-
-  const sdkPart = part as AISDKUIMessage["parts"][number];
-  if (!isToolUIPart(sdkPart)) return undefined;
-
-  const completed =
-    sdkPart.state === "output-available" ||
-    sdkPart.state === "output-error" ||
-    sdkPart.state === "output-denied";
-  const result =
-    sdkPart.state === "output-available"
-      ? sdkPart.output
-      : sdkPart.state === "output-error"
-        ? { error: sdkPart.errorText }
-        : sdkPart.state === "output-denied"
-          ? { error: "Tool execution was denied." }
-          : undefined;
-
-  return {
-    toolCallId: sdkPart.toolCallId,
-    toolName: getToolName(sdkPart),
-    args: normalizeToolArgs(sdkPart.input),
-    state:
-      sdkPart.state === "input-streaming"
-        ? "partial-call"
-        : completed
-          ? "result"
-          : "call",
-    ...(completed ? { result } : {}),
-  };
-}
 
 interface ChatContentProps {
   messages: UIMessage[];
@@ -253,62 +194,34 @@ export default function ChatContent({
   );
 
   // Render tool calls with detailed information
-  const renderToolCall = useCallback((part: MessagePart, index: number) => {
-    const toolInvocation = toToolInvocation(part);
-    if (!toolInvocation) return null;
-    const toolName = toolInvocation.toolName || "Tool";
-    const rendererName = toolName.includes(":")
-      ? toolName.slice(toolName.lastIndexOf(":") + 1)
-      : toolName;
+  const renderToolCall = useCallback(
+    (toolPart: ToolMessagePart, index: number) => {
+      const toolName = getToolName(toolPart);
+      const rendererName = toolName.includes(":")
+        ? toolName.slice(toolName.lastIndexOf(":") + 1)
+        : toolName;
 
-    // Check if there's a custom renderer for this tool
-    const CustomRenderer =
-      TOOL_COMPONENTS[rendererName as keyof typeof TOOL_COMPONENTS];
-    if (CustomRenderer) {
+      // Check if there's a custom renderer for this tool
+      const CustomRenderer =
+        TOOL_COMPONENTS[rendererName as keyof typeof TOOL_COMPONENTS];
+      if (CustomRenderer) {
+        return (
+          <CustomRenderer
+            key={`tool-${toolPart.toolCallId || index}`}
+            toolPart={toolPart}
+          />
+        );
+      }
+
       return (
-        <CustomRenderer
-          key={`tool-${toolInvocation.toolCallId || index}`}
-          toolInvocation={toolInvocation}
+        <ToolCall
+          key={`tool-${toolPart.toolCallId || index}`}
+          toolPart={toolPart}
         />
       );
-    }
-
-    // Fallback to generic ToolCall component
-    const args = toolInvocation.args || {};
-    let result = "Pending result...";
-
-    if (toolInvocation.result !== undefined) {
-      if (typeof toolInvocation.result === "string") {
-        result = toolInvocation.result;
-      } else if (
-        toolInvocation.result &&
-        typeof toolInvocation.result === "object"
-      ) {
-        // Try to extract message from result object if it exists
-        const resultObject = toolInvocation.result as Record<string, unknown>;
-        if (resultObject.message) {
-          result = String(resultObject.message);
-        } else {
-          result = JSON.stringify(toolInvocation.result, null, 2);
-        }
-      } else {
-        result = String(toolInvocation.result);
-      }
-    }
-
-    const isCompleted =
-      toolInvocation.state === "result" || !!toolInvocation.result;
-
-    return (
-      <ToolCall
-        key={`tool-${toolInvocation.toolCallId || index}`}
-        tool={toolName}
-        args={args}
-        result={result}
-        isCompleted={isCompleted}
-      />
-    );
-  }, []);
+    },
+    [],
+  );
 
   // Renders tool calls and text content in order
   const renderToolCalls = useCallback(
@@ -327,7 +240,7 @@ export default function ChatContent({
               {renderMessageContent(part.text, message.id, isStreaming)}
             </div>,
           );
-        } else if (toToolInvocation(part)) {
+        } else if (isToolUIPart(part)) {
           contentElements.push(renderToolCall(part, index));
         }
       });

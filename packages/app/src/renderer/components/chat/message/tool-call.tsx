@@ -1,22 +1,27 @@
 import { ChevronDown, ChevronUp, Code, Loader } from "lucide-react";
+import { getToolName } from "ai";
 import React, { useState } from "react";
+import {
+  formatToolOutput,
+  getToolOutput,
+  isToolComplete,
+  normalizeToolInput,
+  type ToolMessagePart,
+} from "../tools/tool-part";
 
 interface ToolCallProps {
-  tool: string;
-  args: Record<string, unknown>;
-  result: string;
-  isCompleted?: boolean;
+  toolPart: ToolMessagePart;
 }
 
 /**
  * Tool Call component to display tool invocations in an expanded/collapsed view
  */
-const ToolCall = ({
-  tool,
-  args,
-  result,
-  isCompleted = false,
-}: ToolCallProps) => {
+const ToolCall = ({ toolPart }: ToolCallProps) => {
+  const tool = getToolName(toolPart);
+  const args = normalizeToolInput(toolPart.input);
+  const isCompleted = isToolComplete(toolPart);
+  const result = formatToolOutput(getToolOutput(toolPart));
+
   // Auto-collapse completed tool calls
   const [isExpanded, setIsExpanded] = useState(!isCompleted);
 
