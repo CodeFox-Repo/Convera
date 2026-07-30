@@ -51,6 +51,46 @@ function configuredElectronVersion() {
   return version;
 }
 
+function numericCapability(capabilities: unknown, name: string) {
+  if (!capabilities || typeof capabilities !== "object") return undefined;
+  const value = (capabilities as Record<string, unknown>)[name];
+  return typeof value === "number" ? value : undefined;
+}
+
+function within<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`Operation timed out after ${timeoutMs}ms.`)),
+      timeoutMs,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
+function forceKill(pid: number | undefined) {
+  if (pid === undefined) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (
+      !error ||
+      typeof error !== "object" ||
+      (error as NodeJS.ErrnoException).code !== "ESRCH"
+    ) {
+      throw error;
+    }
+  }
+}
+
 export type LaunchOptions = {
   binaryPath?: string;
   entryPoint?: string;
@@ -94,6 +134,10 @@ export class AutomationError extends Error {
 
 export class ConveraDriver {
   private browser?: WebdriverIO.Browser;
+  private processIds?: {
+    driver?: number;
+    electron?: number;
+  };
   private launchedWith?: {
     kind: "binary" | "entry-point";
     path: string;
@@ -187,6 +231,13 @@ export class ConveraDriver {
         rootDir: WORKSPACE_ROOT,
       });
       this.browser = browser;
+      this.processIds = {
+        driver: numericCapability(browser.capabilities, "wdio:driverPID"),
+        electron: await browser.electron
+          .execute(() => process.pid)
+          .then((value) => (typeof value === "number" ? value : undefined))
+          .catch(() => undefined),
+      };
       this.launchedWith = {
         kind: binaryPath ? "binary" : "entry-point",
         path: binaryPath ?? entryPoint,
@@ -203,8 +254,7 @@ export class ConveraDriver {
       );
       return this.status();
     } catch (error) {
-      this.browser = undefined;
-      this.launchedWith = undefined;
+      await this.close().catch(() => undefined);
       throw new AutomationError(
         "SESSION_START_FAILED",
         "session",
@@ -220,10 +270,37 @@ export class ConveraDriver {
     if (!this.browser) return { running: false };
 
     const browser = this.browser;
+    const processIds = this.processIds;
     this.browser = undefined;
+    this.processIds = undefined;
     this.launchedWith = undefined;
     try {
-      await cleanupWdioSession(browser);
+      let operationError: unknown;
+      try {
+        await within(
+          browser.electron.execute((electron) => {
+            setTimeout(() => electron.app.quit(), 0);
+            return true;
+          }),
+          2_000,
+        ).catch((error) => {
+          operationError = error;
+        });
+        await within(browser.deleteSession(), 3_000).catch((error) => {
+          operationError ??= error;
+        });
+      } finally {
+        forceKill(processIds?.electron);
+        forceKill(processIds?.driver);
+        await within(cleanupWdioSession(browser), 2_000).catch(() => undefined);
+      }
+      if (
+        operationError &&
+        processIds?.electron === undefined &&
+        processIds?.driver === undefined
+      ) {
+        throw operationError;
+      }
     } catch (error) {
       throw new AutomationError(
         "SESSION_CLOSE_FAILED",
