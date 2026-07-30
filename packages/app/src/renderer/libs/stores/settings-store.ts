@@ -50,7 +50,6 @@ const DEFAULT_OPENAI_SETTINGS: OpenAISettings = {
     "anthropic/claude-3.7-sonnet",
     "openai/o3-mini",
   ],
-  useRemoteStore: false,
 };
 
 async function getDefaultShortcuts(): Promise<ShortcutSettings[]> {
@@ -160,8 +159,6 @@ export function useSettingsStore() {
           }),
         );
         toast.success("Model updated");
-      } else if (field === "useRemoteStore") {
-        toast.success("Remote store setting updated");
       } else {
         toast.success("Settings saved");
       }
