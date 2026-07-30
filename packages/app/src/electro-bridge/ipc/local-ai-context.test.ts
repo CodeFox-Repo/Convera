@@ -173,7 +173,7 @@ describe("local AI IPC", () => {
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const request = {
       requestId: "request-1",
-      providerId: "codex",
+      providerId: "codex-cli",
       messages: [{ role: "user", content: "hello" }],
     };
 
@@ -210,6 +210,47 @@ describe("local AI IPC", () => {
     expect(otherSender.sent).toEqual([]);
   });
 
+  it("rejects unsupported providers and oversized renderer input", () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
+    const baseRequest = {
+      requestId: "request-1",
+      messages: [{ role: "user", content: "hello" }],
+    };
+
+    expect(
+      start?.(createEvent(sender), {
+        ...baseRequest,
+        providerId: "remote-service",
+      }),
+    ).toMatchObject({
+      success: false,
+      accepted: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(
+      start?.(createEvent(sender), {
+        ...baseRequest,
+        providerId: "claude-code",
+        messages: [{ role: "user", content: "x".repeat(200_001) }],
+      }),
+    ).toMatchObject({
+      success: false,
+      accepted: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(runtime.startChat).not.toHaveBeenCalled();
+  });
+
   it("aborts active work when its webContents is destroyed", async () => {
     const sender = new FakeWebContents(1);
     let resolveChat: (() => void) | undefined;
@@ -233,7 +274,7 @@ describe("local AI IPC", () => {
 
     start?.(createEvent(sender), {
       requestId: "request-1",
-      providerId: "codex",
+      providerId: "codex-cli",
       messages: [{ role: "user", content: "hello" }],
     });
     sender.destroy();
@@ -266,7 +307,7 @@ describe("local AI IPC", () => {
     const abort = handlers.get(LOCAL_AI_CHANNELS.ABORT);
     const request = {
       requestId: "request-1",
-      providerId: "codex",
+      providerId: "codex-cli",
       messages: [{ role: "user", content: "hello" }],
     };
 
@@ -314,7 +355,7 @@ describe("local AI IPC", () => {
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const request = {
       requestId: "request-1",
-      providerId: "codex",
+      providerId: "codex-cli",
       messages: [{ role: "user", content: "hello" }],
     };
 
