@@ -88,7 +88,7 @@ describe("CodexCliAdapter MCP transport", () => {
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
-    const mcpServer = mocks.provider.mock.calls[0]?.[1]?.mcpServers?.convera;
+    const mcpServer = providerSettings()?.mcpServers?.convera;
     expect(mcpServer).toEqual(
       expect.objectContaining({
         name: "convera",
