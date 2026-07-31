@@ -35,17 +35,20 @@ export function readWebBridgeConfig(): WebBridgeConfig | null {
   const tokenParam = params.get("token");
   const urlParam = params.get("bridge");
 
-  if (tokenParam) {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, tokenParam);
+  if (tokenParam || urlParam) {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, tokenParam ?? "");
     sessionStorage.setItem(
       URL_STORAGE_KEY,
       urlParam ?? `http://127.0.0.1:${WEB_BRIDGE_DEFAULT_PORT}`,
     );
   }
 
-  const token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-  const url = sessionStorage.getItem(URL_STORAGE_KEY);
-  return token && url ? { url, token } : null;
+  // Tokenless local default: a plain http://localhost:5199/ tab just works.
+  const token = sessionStorage.getItem(TOKEN_STORAGE_KEY) ?? "";
+  const url =
+    sessionStorage.getItem(URL_STORAGE_KEY) ??
+    `http://127.0.0.1:${WEB_BRIDGE_DEFAULT_PORT}`;
+  return { url, token };
 }
 
 /**

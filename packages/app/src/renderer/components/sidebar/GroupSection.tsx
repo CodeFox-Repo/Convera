@@ -120,7 +120,7 @@ export function GroupSection({
   return (
     <div>
       {isRenaming && group ? (
-        <div className="px-2 py-1">
+        <div className="px-1 py-1">
           <InlineNameInput
             placeholder="Group name"
             initialValue={group.name}
@@ -138,7 +138,7 @@ export function GroupSection({
         </ContextMenu>
       )}
 
-      <div className="space-y-0.5">
+      <div className="space-y-0.5 px-1">
         {visibleChannels.map((channel) => (
           <ChannelItem
             key={channel.id}
@@ -149,7 +149,7 @@ export function GroupSection({
           />
         ))}
         {isAddingChannel && (
-          <div className="px-2 py-0.5">
+          <div className="px-1 py-0.5">
             <InlineNameInput
               placeholder="Channel name"
               onSubmit={(name) => {

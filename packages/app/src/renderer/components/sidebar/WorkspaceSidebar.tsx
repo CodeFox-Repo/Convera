@@ -210,7 +210,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         )}
         {activeTab === "chats" &&
           (plainConversations.length > 0 ? (
-            <div className="space-y-0.5">
+            <div className="space-y-0.5 px-1">
               {plainConversations.map((conversation) => (
                 <ConversationItem
                   key={conversation.id}

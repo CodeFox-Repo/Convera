@@ -23,10 +23,6 @@ import {
   type WebBridgeHandle,
 } from "@/electron/web-bridge/server";
 import type { IpcMain } from "electron";
-import { randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { createServer } from "vite";
 
 const RENDERER_PORT = Number(process.env.CONVERA_RENDERER_PORT ?? 5199);
@@ -69,21 +65,8 @@ setupLocalAIIPC(
   recordingIPC,
 );
 
-// A stable dev token: restarting the harness must not strand open tabs.
-const tokenFile = join(tmpdir(), "convera-web-bridge-dev-token");
-let devToken: string | undefined;
-try {
-  devToken = readFileSync(tokenFile, "utf8").trim() || undefined;
-} catch {
-  devToken = undefined;
-}
-if (!devToken) {
-  devToken = randomBytes(24).toString("hex");
-  writeFileSync(tokenFile, devToken);
-}
-
 const bridge = await startWebBridge({
-  token: devToken,
+  requireToken: false,
   rendererURL,
   invoke: (channel, args) =>
     recordingIPC.dispatch(channel, args, createWebBridgeEvent(sender)),

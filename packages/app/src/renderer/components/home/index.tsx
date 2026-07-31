@@ -107,7 +107,7 @@ export function HomePage() {
   // Resizable sidebar: drag the divider; width persists across sessions.
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem("sidebarWidth"));
-    return stored >= 220 && stored <= 480 ? stored : 320;
+    return stored >= 320 && stored <= 480 ? stored : 320;
   });
   const resizingRef = useRef(false);
 
@@ -116,12 +116,12 @@ export function HomePage() {
     resizingRef.current = true;
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const width = Math.min(480, Math.max(220, e.clientX));
+      const width = Math.min(480, Math.max(320, e.clientX));
       setSidebarWidth(width);
     };
     const onUp = (e: MouseEvent) => {
       resizingRef.current = false;
-      const width = Math.min(480, Math.max(220, e.clientX));
+      const width = Math.min(480, Math.max(320, e.clientX));
       localStorage.setItem("sidebarWidth", String(width));
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
@@ -315,7 +315,7 @@ export function HomePage() {
               {/* Drag whitespace area */}
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
-              <div className="relative z-10">
+              <div className="relative z-10 px-1">
                 {activeView === "chat" && (
                   // The identity row IS the settings entry — click it, like
                   // Discord's user pill. No separate menu rows.

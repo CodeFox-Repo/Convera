@@ -71,11 +71,15 @@ export interface WebBridgeOptions {
   /** Renderer dev server URL, used to print a ready-to-open browser link. */
   rendererURL?: string;
   /**
-   * Reuse this token instead of generating one. The dev harness persists it
-   * across restarts so an open tab keeps working; production callers omit it
+   * Reuse this token instead of generating one; production callers omit it
    * and get a fresh random token per launch.
    */
   token?: string;
+  /**
+   * Local dev runs tokenless: it is a localhost app, and the loopback Origin
+   * check already turns away cross-site pages. Electron keeps tokens on.
+   */
+  requireToken?: boolean;
 }
 
 export interface WebBridgeHandle {
@@ -177,13 +181,15 @@ export async function startWebBridge(
     { socket: WebSocket; sender: WebBridgeSender }
   >();
 
+  const requireToken = options.requireToken ?? true;
   const authorize = (
     tokenHeader: string | string[] | undefined,
     origin: string | undefined,
   ): boolean => {
+    if (!isAllowedOrigin(origin)) return false;
+    if (!requireToken) return true;
     const provided = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
-    if (!provided || !tokensMatch(provided, token)) return false;
-    return isAllowedOrigin(origin);
+    return !!provided && tokensMatch(provided, token);
   };
 
   const httpServer = createServer((request, response) => {
@@ -325,8 +331,10 @@ export async function startWebBridge(
   // available". The token never leaves this machine.
   const rendererURL = options.rendererURL ?? "http://localhost:5199/";
   const browserURL = new URL(rendererURL);
-  browserURL.searchParams.set("bridge", url);
-  browserURL.searchParams.set("token", token);
+  if (requireToken) {
+    browserURL.searchParams.set("bridge", url);
+    browserURL.searchParams.set("token", token);
+  }
   console.log(
     `\n  Convera is ready in the browser:\n\n  ${browserURL}\n\n  (bridge on ${url} — the token in that link is what authorizes this tab)\n`,
   );

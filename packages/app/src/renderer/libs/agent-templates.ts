@@ -16,6 +16,7 @@ import {
   type Agent,
 } from "./db";
 import { createAgent, deleteAgent } from "./stores/agent-store";
+import { createChannel } from "./stores/channel-store";
 import { upsertAgentMember } from "./stores/member-store";
 
 export type { AgentTemplate };
@@ -164,6 +165,60 @@ async function upgradeEmojiAvatars(): Promise<void> {
   }
 }
 
+/**
+ * Default channel layout for a fresh workspace — Slack's proven starter shape.
+ * #general has every starter agent as members (ask anything, anyone may be
+ * @-mentioned); the focused rooms carry the matching specialist as their
+ * default responder so a bare message just works.
+ */
+const STARTER_CHANNELS: Array<{
+  name: string;
+  agentTemplateIds: string[];
+  defaultAgentTemplateId: string;
+}> = [
+  {
+    name: "general",
+    agentTemplateIds: ["sage", "patch", "quill"],
+    defaultAgentTemplateId: "sage",
+  },
+  {
+    name: "code-review",
+    agentTemplateIds: ["sage"],
+    defaultAgentTemplateId: "sage",
+  },
+  {
+    name: "debugging",
+    agentTemplateIds: ["patch"],
+    defaultAgentTemplateId: "patch",
+  },
+  {
+    name: "docs",
+    agentTemplateIds: ["quill"],
+    defaultAgentTemplateId: "quill",
+  },
+];
+
+async function seedStarterChannels(): Promise<void> {
+  const agents = await db.agents.toArray();
+  const memberIdForTemplate = (templateId: string): string | null => {
+    const template = AGENT_TEMPLATES.find((t) => t.id === templateId);
+    const agent = template && agents.find((a) => a.name === template.name);
+    return agent ? memberIdForAgent(agent.id) : null;
+  };
+
+  for (const spec of STARTER_CHANNELS) {
+    const agentMemberIds = spec.agentTemplateIds
+      .map(memberIdForTemplate)
+      .filter((id): id is string => id !== null);
+    await createChannel({
+      name: spec.name,
+      groupId: null,
+      memberIds: [LOCAL_HUMAN_MEMBER_ID, ...agentMemberIds],
+      defaultAgentMemberId: memberIdForTemplate(spec.defaultAgentTemplateId),
+    });
+  }
+}
+
 export async function ensureStarterTeam(): Promise<void> {
   await dedupeHiredAgents();
   await upgradeEmojiAvatars();
@@ -188,6 +243,7 @@ export async function ensureStarterTeam(): Promise<void> {
     const template = AGENT_TEMPLATES.find((t) => t.id === id);
     if (template) await hireTemplate(template);
   }
+  await seedStarterChannels();
 }
 
 export async function hireTemplate(template: AgentTemplate): Promise<Agent> {
