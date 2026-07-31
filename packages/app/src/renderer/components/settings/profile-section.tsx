@@ -8,10 +8,7 @@ import {
 } from "@/renderer/libs/stores/member-store";
 import { Loader2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import {
-  fileToAvatarDataUrl,
-  normalizeDisplayName,
-} from "./profile-avatar";
+import { fileToAvatarDataUrl, normalizeDisplayName } from "./profile-avatar";
 
 export function ProfileSection() {
   const member = useMember(LOCAL_HUMAN_MEMBER_ID);
