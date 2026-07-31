@@ -157,7 +157,7 @@ export function InboxPage({
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <Inbox size={28} className="text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              You're all caught up.
+              You&apos;re all caught up.
             </p>
           </div>
         )}

@@ -60,18 +60,20 @@ const recordingIPC = createRecordingIpcMain({
 // through it. Standing up a separate sender here would emit into nothing —
 // which is exactly what happened: replies streamed nowhere and only appeared
 // after a reload re-read the persisted turn.
-let bridge: WebBridgeHandle | undefined;
+// A holder rather than a bare `let`: the closure below reads it after the
+// bridge exists, but nothing reassigns the binding itself.
+const handle: { bridge?: WebBridgeHandle } = {};
 
 setupLocalAIIPC(
   {
     runtime,
     getAllowedWebContents: () =>
-      (bridge?.senders() ?? []).map((sender) => sender as never),
+      (handle.bridge?.senders() ?? []).map((sender) => sender as never),
   },
   recordingIPC,
 );
 
-bridge = await startWebBridge({
+handle.bridge = await startWebBridge({
   requireToken: false,
   rendererURL,
   invoke: (channel, args, sender) =>
@@ -79,7 +81,7 @@ bridge = await startWebBridge({
 });
 
 const shutdown = () => {
-  void Promise.allSettled([bridge?.close(), renderer.close()]).then(() =>
+  void Promise.allSettled([handle.bridge?.close(), renderer.close()]).then(() =>
     process.exit(0),
   );
 };
