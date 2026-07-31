@@ -735,8 +735,14 @@ export function setupLocalAIIPC(
         );
       }
 
+      // A turn started by the Agent Host runs in the main process, so it was
+      // never registered here the way a renderer-initiated chat is. Refusing
+      // those answers left an agent that had called a tool waiting forever —
+      // visible as a colleague stuck at "typing" that never says anything.
+      // The runtime still checks the interaction is real and outstanding, so
+      // an unknown request id is rejected there rather than silently accepted.
       const active = activeRequests.get(requestId);
-      if (!active || active.sender !== event.sender) {
+      if (active && active.sender !== event.sender) {
         return { success: true, data: { accepted: false } };
       }
 

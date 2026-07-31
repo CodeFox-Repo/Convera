@@ -438,6 +438,34 @@ describe("local AI IPC", () => {
     });
   });
 
+  it("accepts an answer to a turn the renderer did not start", async () => {
+    // Agent Host turns are started by the main process, so they were never in
+    // activeRequests. Refusing those answers left an agent that had called a
+    // tool waiting forever — a colleague stuck at "typing" that never speaks.
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime({
+      respondToInteraction: vi.fn(() => true),
+    });
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      { runtime, getAllowedWebContents: () => sender as never },
+      ipc as never,
+    );
+    const respond = handlers.get(LOCAL_AI_CHANNELS.RESPOND_INTERACTION);
+
+    await expect(
+      respond?.(createEvent(sender), "host-request-1", "interaction-9", {
+        value: "{}",
+      }),
+    ).resolves.toEqual({ success: true, data: { accepted: true } });
+    // The runtime remains the judge of whether the interaction is real.
+    expect(runtime.respondToInteraction).toHaveBeenCalledWith(
+      "host-request-1",
+      "interaction-9",
+      { value: "{}" },
+    );
+  });
+
   it("rejects malformed interaction responses", async () => {
     const sender = new FakeWebContents(1);
     const runtime = createRuntime();
