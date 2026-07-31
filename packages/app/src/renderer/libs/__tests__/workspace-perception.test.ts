@@ -224,6 +224,39 @@ describe("read_channel", () => {
     expect(result.channel.truncated).toBe(true);
   });
 
+  it("describes a reply even when its parent is outside the read window", async () => {
+    await db.messages.put({
+      ...message(
+        "latest-reply",
+        "conversation-joined",
+        AGENT,
+        "I will take it.",
+        8,
+      ),
+      replyToMessageId: "m1",
+    });
+
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 1,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.messages).toEqual([
+      expect.objectContaining({
+        id: "latest-reply",
+        replyTo: {
+          messageId: "m1",
+          senderId: HUMAN,
+          senderName: "You",
+          content: "Kickoff is Monday.",
+        },
+      }),
+    ]);
+  });
+
   it("trims a transcript that would overflow the transport budget", async () => {
     const body = "x".repeat(1_900);
     await db.messages.bulkPut(
@@ -253,6 +286,53 @@ describe("read_channel", () => {
 });
 
 describe("send_message", () => {
+  it("passes a valid same-channel reply target to the writer", async () => {
+    const handler = vi.fn(async () => ({
+      ok: true as const,
+      kind: "send_message" as const,
+      messageId: "created-reply",
+    }));
+    registerWorkspaceSendMessage(handler);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      content: "Following up.",
+      replyToMessageId: "m1",
+    });
+
+    expect(result).toMatchObject({ ok: true, messageId: "created-reply" });
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ replyToMessageId: "m1" }),
+    );
+    registerWorkspaceSendMessage(undefined);
+  });
+
+  it("rejects a cross-channel reply target before the writer runs", async () => {
+    const handler = vi.fn(async () => ({
+      ok: true as const,
+      kind: "send_message" as const,
+      messageId: "should-not-exist",
+    }));
+    registerWorkspaceSendMessage(handler);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      content: "Wrong room.",
+      replyToMessageId: "m3",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "REPLY_TARGET_NOT_FOUND" },
+    });
+    expect(handler).not.toHaveBeenCalled();
+    registerWorkspaceSendMessage(undefined);
+  });
+
   it("delegates a write to any channel the agent can see, joined or not", async () => {
     const handler = vi.fn(async () => ({
       ok: true as const,

@@ -111,6 +111,7 @@ function toMessageSnapshots(messages: Message[]): MessageSnapshot[] {
     senderId: message.senderId,
     mentions: message.mentions,
     reactions: message.reactions,
+    replyToMessageId: message.replyToMessageId,
   }));
 }
 
@@ -307,7 +308,9 @@ export function useLocalAIChat(): UseLocalAIChatResult {
             : message;
           setMessages((current) =>
             current.map((candidate) =>
-              candidate.id === assistantMessageId ? stamped : candidate,
+              candidate.id === assistantMessageId
+                ? { ...candidate, ...stamped }
+                : candidate,
             ),
           );
         },

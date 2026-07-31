@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { IAgentHostAPI } from "@/shared/types/agent-host";
 import { installAgentSpeech } from "../agent-speech";
 import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent } from "../db";
 import { resolveWorkspaceQuery } from "../workspace-perception";
@@ -92,6 +93,87 @@ describe("agent speech", () => {
       .equals(conversationId)
       .toArray();
     expect(posted.mentions).toEqual([LOCAL_HUMAN_MEMBER_ID]);
+  });
+
+  it("persists the same-channel message an agent directly replied to", async () => {
+    const { channelId, conversationId } = await seedRoom();
+    await db.messages.add({
+      id: "human-question",
+      conversationId,
+      role: "user",
+      content: "Can you own this?",
+      senderId: LOCAL_HUMAN_MEMBER_ID,
+      status: "completed",
+      createdAt: new Date(),
+    });
+
+    const result = await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "Yes, I have it.",
+      replyToMessageId: "human-question",
+    });
+
+    if (!result.ok || result.kind !== "send_message") throw new Error("bad");
+    expect(await db.messages.get(result.messageId)).toMatchObject({
+      senderId: sageMemberId,
+      replyToMessageId: "human-question",
+      content: "Yes, I have it.",
+    });
+  });
+
+  it("durably hands an agent mention to the next colleague", async () => {
+    const patchMemberId = memberIdForAgent("a-patch");
+    const { channelId, conversationId } = await seedRoom();
+    await db.members.put({
+      id: patchMemberId,
+      workspaceId: "personal",
+      kind: "agent",
+      name: "Patch",
+      avatar: null,
+      agentId: "a-patch",
+      status: "idle",
+    });
+    const channel = await db.channels.get(channelId);
+    await db.channels.update(channelId, {
+      memberIds: [...channel!.memberIds, patchMemberId],
+    });
+    await db.messages.add({
+      id: "human-trigger",
+      conversationId,
+      role: "user",
+      content: "Please coordinate",
+      senderId: LOCAL_HUMAN_MEMBER_ID,
+      createdAt: new Date(1),
+    });
+    const enqueue = vi.fn(async () => ({ success: true, jobs: [] }));
+    Object.assign(globalThis, {
+      window: { agentHost: { enqueue } as unknown as IAgentHostAPI },
+    });
+
+    await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "@Patch please take the implementation",
+      agentHost: {
+        jobId: "job-sage",
+        triggerMessageId: "human-trigger",
+        contextMessageIds: ["human-trigger"],
+        chain: { hops: 0, invoked: [sageMemberId] },
+      },
+    });
+
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        triggerMessageId: expect.any(String),
+        mode: "direct",
+        offeredAgentMemberIds: [patchMemberId],
+        targets: [{ agentId: "a-patch", memberId: patchMemberId }],
+        chain: { hops: 1, invoked: [sageMemberId, patchMemberId] },
+      }),
+    );
   });
 
   it("leaves no trace when the agent says nothing", async () => {

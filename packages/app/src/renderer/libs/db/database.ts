@@ -72,6 +72,8 @@ export interface Message {
   mentions?: string[];
   /** emoji -> Member.id[] who reacted. Optional field, no index needed. */
   reactions?: Record<string, string[]>;
+  /** Message.id this row directly replies to. Always belongs to this conversation. */
+  replyToMessageId?: string;
   parts?: unknown[];
   experimental_attachments?: Array<{
     url: string;

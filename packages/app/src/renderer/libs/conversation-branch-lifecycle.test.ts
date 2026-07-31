@@ -6,7 +6,7 @@ import {
   replayPendingConversationDeletion,
 } from "./conversation-lifecycle";
 import { db, type Conversation } from "./db/database";
-import { databaseInitialization } from "./db/hooks";
+import { branchFromMessage, databaseInitialization } from "./db/hooks";
 
 const sourceConversationId = "branch-source";
 const createdAt = new Date("2026-07-31T00:00:00.000Z");
@@ -78,6 +78,33 @@ afterAll(async () => {
 });
 
 describe("conversation branch lifecycle", () => {
+  it("remaps reply references to the copied message ids", async () => {
+    await seedSource();
+    await db.messages.add({
+      id: "source-reply",
+      conversationId: sourceConversationId,
+      role: "assistant",
+      content: "copied reply",
+      senderId: "agent:fizz",
+      replyToMessageId: "source-user",
+      status: "completed",
+      createdAt: new Date(createdAt.getTime() + 1),
+    });
+
+    const branchId = await branchFromMessage(sourceConversationId, 1);
+    const copied = await db.messages
+      .where("conversationId")
+      .equals(branchId)
+      .sortBy("createdAt");
+
+    expect(copied).toHaveLength(2);
+    expect(copied[0].id).not.toBe("source-user");
+    expect(copied[1]).toMatchObject({
+      content: "copied reply",
+      replyToMessageId: copied[0].id,
+    });
+  });
+
   it("persists cleanup intent before main and atomically publishes the local branch", async () => {
     await seedSource();
     let targetConversationId: string | undefined;

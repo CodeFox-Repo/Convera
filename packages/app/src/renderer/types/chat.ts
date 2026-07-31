@@ -23,6 +23,8 @@ export interface UIMessage {
   mentions?: string[];
   /** emoji -> Member.id[] who reacted. Only set on persisted messages. */
   reactions?: Record<string, string[]>;
+  /** Message.id this row directly replies to. */
+  replyToMessageId?: string;
   createdAt?: Date;
   parts?: MessagePart[];
   experimental_attachments?: Attachment[];

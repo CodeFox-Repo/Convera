@@ -115,6 +115,70 @@ describe("projectFor", () => {
     ]);
   });
 
+  it("makes a direct reply and its quoted parent explicit to the agent", () => {
+    const replied: ProjectableMessage[] = [
+      ...transcript,
+      {
+        id: "4",
+        senderId: maya.id,
+        role: "user",
+        content: "Can you expand that?",
+        replyToMessageId: "2",
+      },
+    ];
+
+    const projected = projectFor(honey.id, replied, members);
+    expect(projected.at(-1)).toEqual({
+      role: "user",
+      content:
+        'Maya Chen: [Replying to Fizz (2): "three-beat plan"]\nCan you expand that?',
+    });
+  });
+
+  it("keeps reply context when the quoted parent is dropped by the budget", () => {
+    const replied: ProjectableMessage[] = [
+      {
+        id: "parent",
+        senderId: fizz.id,
+        role: "assistant",
+        content: `important premise ${"x".repeat(1_000)}`,
+      },
+      {
+        id: "reply",
+        senderId: maya.id,
+        role: "user",
+        content: "Please act on this.",
+        replyToMessageId: "parent",
+      },
+    ];
+
+    const projected = projectFor(honey.id, replied, members, { maxChars: 350 });
+    expect(projected).toHaveLength(1);
+    expect(projected[0].content).toContain("Replying to Fizz (parent)");
+    expect(projected[0].content).toContain("important premise");
+    expect(projected[0].content).toContain("Please act on this.");
+  });
+
+  it("marks a dangling reply without inventing its author or contents", () => {
+    const projected = projectFor(
+      fizz.id,
+      [
+        {
+          id: "reply",
+          senderId: maya.id,
+          role: "user",
+          content: "Still relevant?",
+          replyToMessageId: "gone",
+        },
+      ],
+      members,
+    );
+
+    expect(projected[0].content).toBe(
+      "Maya Chen: [Replying to unavailable message (gone)]\nStill relevant?",
+    );
+  });
+
   it("truncates oldest first but keeps system messages", () => {
     const long: ProjectableMessage[] = [
       { id: "s", role: "system", content: "SYSTEM" },

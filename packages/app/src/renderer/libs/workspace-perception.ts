@@ -24,6 +24,7 @@ import {
   WORKSPACE_MESSAGE_LIMIT_MAX,
   WORKSPACE_QUERY_INTERACTION,
   WORKSPACE_QUERY_RESULT_BUDGET,
+  WORKSPACE_REPLY_EXCERPT_MAX,
 } from "@/shared/types/workspace-perception";
 import type { Channel, Member } from "@/shared/types/workspace";
 import { db, type Message } from "./db";
@@ -83,15 +84,34 @@ function senderName(
 function toChannelMessage(
   message: Message,
   members: Map<string, Member>,
+  messagesById: Map<string, Message>,
 ): WorkspaceChannelMessage {
   const content =
     message.content.length > WORKSPACE_MESSAGE_CONTENT_MAX
       ? `${message.content.slice(0, WORKSPACE_MESSAGE_CONTENT_MAX)}…`
       : message.content;
+  const parent = message.replyToMessageId
+    ? messagesById.get(message.replyToMessageId)
+    : undefined;
+  const parentSender = parent ? senderName(parent, members) : undefined;
+  const parentContent = parent?.content.replace(/\s+/g, " ").trim();
+  const replyTo = message.replyToMessageId
+    ? {
+        messageId: message.replyToMessageId,
+        senderId: parentSender?.senderId ?? null,
+        senderName: parentSender?.senderName ?? null,
+        content: parentContent
+          ? parentContent.length > WORKSPACE_REPLY_EXCERPT_MAX
+            ? `${parentContent.slice(0, WORKSPACE_REPLY_EXCERPT_MAX)}…`
+            : parentContent
+          : null,
+      }
+    : undefined;
   return {
     id: message.id,
     ...senderName(message, members),
     content,
+    ...(replyTo ? { replyTo } : {}),
     createdAt: new Date(message.createdAt).toISOString(),
   };
 }
@@ -160,10 +180,13 @@ async function readChannel(
   const ordered = transcript
     .filter((message) => message.role !== "system")
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const messagesById = new Map(ordered.map((message) => [message.id, message]));
   const window = ordered.slice(
     -Math.min(Math.max(limit, 1), WORKSPACE_MESSAGE_LIMIT_MAX),
   );
-  const messages = window.map((message) => toChannelMessage(message, members));
+  const messages = window.map((message) =>
+    toChannelMessage(message, members, messagesById),
+  );
   let truncated = window.length < ordered.length;
 
   const view = (): WorkspaceChannelView => ({
@@ -208,6 +231,23 @@ async function sendMessage(
   const channel = await db.channels.get(query.channelId);
   if (!channel || !canViewChannel(query.viewerMemberId, channel)) {
     return notFound(query.channelId);
+  }
+  if (query.replyToMessageId) {
+    const target = await db.messages.get(query.replyToMessageId);
+    if (
+      !target ||
+      target.conversationId !== channel.conversationId ||
+      (target.role !== "user" && target.role !== "assistant")
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "REPLY_TARGET_NOT_FOUND",
+          message:
+            "The message being replied to is not available in that channel.",
+        },
+      };
+    }
   }
   if (!sendMessageHandler) {
     return {

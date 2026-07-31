@@ -128,6 +128,36 @@ describe("routeMessage", () => {
     expect(open.invoke).toEqual([fizz.id, honey.id, bean.id]);
   });
 
+  it("addresses the agent whose message a human replied to", () => {
+    const reply = routeMessage({
+      message: { senderId: maya.id, content: "Could you expand that?" },
+      members,
+      replyToSenderId: fizz.id,
+      openFloor: true,
+    });
+    expect(reply.invoke).toEqual([fizz.id]);
+  });
+
+  it("lets an explicit mention override the replied-to agent", () => {
+    const reply = routeMessage({
+      message: { senderId: maya.id, content: "@Honey could you take this?" },
+      members,
+      replyToSenderId: fizz.id,
+      openFloor: true,
+    });
+    expect(reply.invoke).toEqual([honey.id]);
+  });
+
+  it("keeps the floor open when the replied-to sender is not an agent", () => {
+    const reply = routeMessage({
+      message: { senderId: maya.id, content: "Following up" },
+      members,
+      replyToSenderId: maya.id,
+      openFloor: true,
+    });
+    expect(reply.invoke).toEqual([fizz.id, honey.id, bean.id]);
+  });
+
   it("keeps a named mention exclusive even with the floor open", () => {
     const addressed = routeMessage({
       message: { senderId: maya.id, content: "@Honey can you look at this" },
