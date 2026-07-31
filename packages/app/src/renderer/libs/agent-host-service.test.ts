@@ -14,6 +14,7 @@ import {
   RendererAgentHostService,
   submitHumanChannelMessage,
 } from "./agent-host-service";
+import { reconcilePendingTurn } from "./conversation-turn-reconciliation";
 
 const fizzAgent: Agent = {
   id: "fizz",
@@ -136,6 +137,26 @@ describe("RendererAgentHostService channel tools", () => {
             success: true,
             data: null,
           })),
+          getTurnRuntimeState: vi.fn(
+            async (request: { conversationId: string; turnId: string }) => ({
+              success: true,
+              data: {
+                ...request,
+                requestId: "request",
+                providerId: "claude-code",
+                revision: 1,
+                status: "completed",
+                startedAt: new Date().toISOString(),
+                completedAt: new Date().toISOString(),
+                finishReason: "stop",
+                assistantText: "Done",
+              },
+            }),
+          ),
+          acknowledgeTurnPersistence: vi.fn(async () => ({
+            success: true,
+            data: { acknowledged: true },
+          })),
         } as unknown as ILocalAIAPI,
       },
     });
@@ -212,6 +233,7 @@ describe("RendererAgentHostService channel tools", () => {
 
   it("injects the actor identity and dispatches callback mentions", async () => {
     const service = new RendererAgentHostService();
+    const prepared = await service.prepareTurn(job);
     const result = await service.executeChannelTool(job, "send_message", {
       content: "Progress is ready. @Honey please verify.",
     });
@@ -230,6 +252,9 @@ describe("RendererAgentHostService channel tools", () => {
         agentMemberIds: [honey.id],
       }),
     );
+    expect(
+      (await db.pendingTurns.get(prepared.request.turnId))?.desiredMessageIds,
+    ).toContain(posted?.id);
 
     const repeated = await service.executeChannelTool(job, "send_message", {
       content: "@Honey again",
@@ -239,6 +264,14 @@ describe("RendererAgentHostService channel tools", () => {
         .mentionedAgentMemberIds,
     ).toEqual([]);
     expect(enqueue).toHaveBeenCalledTimes(1);
+
+    await reconcilePendingTurn(prepared.request.turnId, {
+      liveAssistant: { content: "Done", senderId: fizz.id },
+    });
+    expect(await db.messages.get(posted!.id)).toMatchObject({
+      content: "Progress is ready. @Honey please verify.",
+      senderId: fizz.id,
+    });
   });
 
   it("refuses to edit another member's message", async () => {

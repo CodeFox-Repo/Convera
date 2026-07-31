@@ -111,19 +111,40 @@ async function appendMessage(
   message: Omit<Message, "conversationId" | "createdAt"> & {
     createdAt?: Date;
   },
+  pendingTurnId?: string,
 ): Promise<Message> {
   const persisted: Message = {
     ...message,
     conversationId,
     createdAt: message.createdAt ?? new Date(),
   };
-  await db.transaction("rw", [db.messages, db.conversations], async () => {
-    if (!(await db.conversations.get(conversationId))) {
-      throw new Error("The channel conversation no longer exists.");
-    }
-    await db.messages.add(persisted);
-    await db.conversations.update(conversationId, { updatedAt: new Date() });
-  });
+  await db.transaction(
+    "rw",
+    [db.messages, db.conversations, db.pendingTurns],
+    async () => {
+      if (!(await db.conversations.get(conversationId))) {
+        throw new Error("The channel conversation no longer exists.");
+      }
+      if (pendingTurnId) {
+        const journal = await db.pendingTurns.get(pendingTurnId);
+        if (
+          !journal ||
+          journal.conversationId !== conversationId ||
+          journal.state === "committed-awaiting-ack"
+        ) {
+          throw new Error(
+            "The channel tool turn is no longer accepting messages.",
+          );
+        }
+        await db.pendingTurns.update(pendingTurnId, {
+          desiredMessageIds: [...journal.desiredMessageIds, persisted.id],
+          updatedAt: new Date(),
+        });
+      }
+      await db.messages.add(persisted);
+      await db.conversations.update(conversationId, { updatedAt: new Date() });
+    },
+  );
   return persisted;
 }
 
@@ -539,6 +560,10 @@ export class RendererAgentHostService {
           "The background agent failed.",
       );
     }
+    // The pending assistant shell is created before channel:send_message tool
+    // calls. Move the completed reply behind those durable progress/handoff
+    // messages so the channel reads in the order the agent produced it.
+    await db.messages.update(assistant.id, { createdAt: new Date() });
     const { members } = await channelMembers(job);
     const routed = routeMessage({
       message: {
@@ -610,13 +635,21 @@ export class RendererAgentHostService {
         const content =
           typeof input.content === "string" ? input.content.trim() : "";
         if (!content) throw new Error("Channel message content is required.");
-        const message = await appendMessage(job.conversationId, {
-          id: `agent-message_${crypto.randomUUID()}`,
-          role: "assistant",
-          content,
-          senderId: job.agentMemberId,
-          mentions: parseMentions(content, members),
-        });
+        const pendingTurnId = job.turnId ?? this.active.get(job.id)?.turnId;
+        if (!pendingTurnId) {
+          throw new Error("The channel tool turn is no longer active.");
+        }
+        const message = await appendMessage(
+          job.conversationId,
+          {
+            id: `agent-message_${crypto.randomUUID()}`,
+            role: "assistant",
+            content,
+            senderId: job.agentMemberId,
+            mentions: parseMentions(content, members),
+          },
+          pendingTurnId,
+        );
         const routed = routeMessage({
           message: { senderId: job.agentMemberId, content },
           members,
