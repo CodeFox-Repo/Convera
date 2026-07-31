@@ -141,7 +141,11 @@ export async function dedupeHiredAgents(): Promise<void> {
     const liveAgentIds = new Set((await db.agents.toArray()).map((a) => a.id));
     const members = await db.members.toArray();
     for (const member of members) {
-      if (member.kind === "agent" && member.agentId && !liveAgentIds.has(member.agentId)) {
+      if (
+        member.kind === "agent" &&
+        member.agentId &&
+        !liveAgentIds.has(member.agentId)
+      ) {
         await db.members.delete(member.id);
       }
     }

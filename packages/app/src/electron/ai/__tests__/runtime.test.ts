@@ -659,14 +659,14 @@ describe("LocalAiRuntime", () => {
             await toolContext?.tools[0]?.execute({
               command: "cat /etc/passwd",
             });
+            yield { type: "finish" as const, finishReason: "stop" as const };
           },
         }),
         sessionRepository: new InMemorySessionStateRepository(),
       });
 
-      await runtime.startChat(
-        request({ providerId }),
-        (event) => events.push(event),
+      await runtime.startChat(request({ providerId }), (event) =>
+        events.push(event),
       );
 
       expect(executeTool).not.toHaveBeenCalled();
