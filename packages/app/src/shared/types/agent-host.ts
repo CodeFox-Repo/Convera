@@ -3,10 +3,13 @@ import type { LocalAIChatRequest, LocalAIStreamEvent } from "./local-ai";
 export type AgentHostJobStatus =
   | "queued"
   | "running"
+  | "paused"
   | "completed"
   | "failed"
   | "cancelled"
   | "interrupted";
+
+export type AgentHostChannelKind = "channel" | "dm";
 
 export interface AgentHostChain {
   /** Agent-authored channel messages since the originating human message. */
@@ -26,6 +29,7 @@ export interface AgentHostTarget {
 
 export interface AgentHostDispatch {
   channelId: string;
+  channelKind: AgentHostChannelKind;
   conversationId: string;
   triggerMessageId: string;
   /** Exact transcript boundary shared by everyone offered this message. */
@@ -40,7 +44,10 @@ export interface AgentHostDispatch {
 
 export interface AgentHostJob {
   id: string;
+  taskId: string;
+  parentJobId?: string;
   channelId: string;
+  channelKind: AgentHostChannelKind;
   conversationId: string;
   triggerMessageId: string;
   contextMessageIds: string[];
@@ -49,6 +56,7 @@ export interface AgentHostJob {
   agentId: string;
   agentMemberId: string;
   chain: AgentHostChain;
+  controlInstructions: string[];
   status: AgentHostJobStatus;
   attempts: number;
   requestId?: string;
@@ -59,6 +67,27 @@ export interface AgentHostJob {
   startedAt?: string;
   completedAt?: string;
 }
+
+export interface AgentHostTaskSummary {
+  id: string;
+  channelId: string;
+  channelKind: AgentHostChannelKind;
+  conversationId: string;
+  triggerMessageId: string;
+  agentId: string;
+  agentMemberId: string;
+  currentJobId: string;
+  status: AgentHostJobStatus;
+  runCount: number;
+  controlInstructions: string[];
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+export type AgentHostTaskAction = "pause" | "resume" | "cancel";
 
 export interface PreparedAgentHostTurn {
   request: LocalAIChatRequest;
@@ -98,6 +127,19 @@ export interface IAgentHostAPI {
     jobs?: AgentHostJob[];
     error?: string;
   }>;
+  listTasks(agentMemberId?: string): Promise<{
+    success: boolean;
+    tasks?: AgentHostTaskSummary[];
+    error?: string;
+  }>;
+  controlTask(
+    taskId: string,
+    action: AgentHostTaskAction,
+  ): Promise<{ success: boolean; changed?: boolean; error?: string }>;
+  redirectTask(
+    taskId: string,
+    instruction: string,
+  ): Promise<{ success: boolean; job?: AgentHostJob; error?: string }>;
   cancel(
     jobId: string,
   ): Promise<{ success: boolean; cancelled?: boolean; error?: string }>;

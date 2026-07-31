@@ -94,6 +94,7 @@ export function installAgentSpeech(): void {
           });
           await dispatchAgentHostOffers({
             channelId: channel.id,
+            channelKind: channel.kind,
             conversationId: channel.conversationId,
             triggerMessageId: messageId,
             contextMessageIds: [

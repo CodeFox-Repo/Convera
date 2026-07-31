@@ -89,6 +89,11 @@ export interface LocalAIChatRequest {
     memberId?: string;
     systemPrompt?: string;
   };
+  agentHost?: {
+    jobId: string;
+    taskId: string;
+    channelKind: "channel" | "dm";
+  };
   options?: {
     temperature?: number;
     maxOutputTokens?: number;

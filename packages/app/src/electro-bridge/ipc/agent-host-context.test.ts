@@ -45,6 +45,7 @@ function mainIPC() {
 
 const dispatch: AgentHostDispatch = {
   channelId: "channel",
+  channelKind: "channel",
   conversationId: "conversation",
   triggerMessageId: "message",
   contextMessageIds: ["message"],
@@ -128,5 +129,48 @@ describe("Agent Host IPC", () => {
     ).toMatchObject({ success: false });
     expect(host.enqueue).not.toHaveBeenCalled();
     expect(bridge.respond).not.toHaveBeenCalled();
+  });
+
+  it("routes task controls through validated IPC methods", async () => {
+    const sender = new FakeWebContents();
+    const host = {
+      listTasks: vi.fn(async () => [{ id: "task-1" }]),
+      pauseTask: vi.fn(async () => true),
+      resumeTask: vi.fn(async () => true),
+      cancelTask: vi.fn(async () => true),
+      redirectTask: vi.fn(async () => ({ id: "job-2" })),
+    } as unknown as AgentHost;
+    const { handlers, ipc } = mainIPC();
+    setupAgentHostIPC(
+      { host, getAllowedWebContents: () => sender as never },
+      ipc as never,
+    );
+
+    expect(
+      await handlers.get(AGENT_HOST_CHANNELS.LIST_TASKS)?.(
+        event(sender),
+        "agent:fizz" as never,
+      ),
+    ).toEqual({ success: true, tasks: [{ id: "task-1" }] });
+    expect(
+      await handlers.get(AGENT_HOST_CHANNELS.CONTROL_TASK)?.(
+        event(sender),
+        "task-1" as never,
+        "pause" as never,
+      ),
+    ).toEqual({ success: true, changed: true });
+    expect(
+      await handlers.get(AGENT_HOST_CHANNELS.REDIRECT_TASK)?.(
+        event(sender),
+        "task-1" as never,
+        "Show the diff first" as never,
+      ),
+    ).toEqual({ success: true, job: { id: "job-2" } });
+    expect(host.listTasks).toHaveBeenCalledWith("agent:fizz");
+    expect(host.pauseTask).toHaveBeenCalledWith("task-1");
+    expect(host.redirectTask).toHaveBeenCalledWith(
+      "task-1",
+      "Show the diff first",
+    );
   });
 });

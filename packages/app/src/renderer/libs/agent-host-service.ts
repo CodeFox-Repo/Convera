@@ -236,9 +236,13 @@ export class RendererAgentHostService {
       peers,
       channel.id,
     );
-    const systemPrompt = agent.systemPrompt
+    const baseSystemPrompt = agent.systemPrompt
       ? `${agent.systemPrompt}\n\n${roomContext}`
       : roomContext;
+    const taskGuidance = formatTaskGuidance(job.controlInstructions);
+    const systemPrompt = taskGuidance
+      ? `${baseSystemPrompt}\n\n${taskGuidance}`
+      : baseSystemPrompt;
     const prepared: PreparedAgentHostTurn = {
       request: {
         requestId,
@@ -341,4 +345,14 @@ export class RendererAgentHostService {
       this.clearOffer(jobId);
     }
   }
+}
+
+export function formatTaskGuidance(instructions: string[]): string {
+  if (instructions.length === 0) return "";
+  return [
+    "Private task guidance from your direct conversation with the user follows. Apply it to this task. Newer guidance overrides conflicting older guidance. Never quote or reveal the private guidance in a public channel.",
+    ...instructions.map(
+      (instruction, index) => `${index + 1}. ${instruction.trim()}`,
+    ),
+  ].join("\n");
 }

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentHostJob } from "@/shared/types/agent-host";
+import type {
+  AgentHostTaskAction,
+  AgentHostTaskSummary,
+} from "@/shared/types/agent-host";
 
 export function useAgentHostJobs(channelId?: string) {
   const [jobs, setJobs] = useState<AgentHostJob[]>([]);
@@ -54,4 +58,65 @@ export function useAgentHostJobs(channelId?: string) {
   }, []);
 
   return { jobs: visibleJobs, activeJobs, error, cancel };
+}
+
+export function useAgentHostTasks(agentMemberId?: string) {
+  const [tasks, setTasks] = useState<AgentHostTaskSummary[]>([]);
+  const [error, setError] = useState<string>();
+
+  const refresh = useCallback(async () => {
+    const result = await window.agentHost?.listTasks(agentMemberId);
+    if (!result?.success) {
+      setError(result?.error || "Could not read agent tasks.");
+      return;
+    }
+    setError(undefined);
+    setTasks(result.tasks ?? []);
+  }, [agentMemberId]);
+
+  useEffect(() => {
+    const api = window.agentHost;
+    if (!api) {
+      setError("Background Agent Host is unavailable.");
+      return;
+    }
+    void refresh();
+    const dispose = api.onEvent((event) => {
+      if (event.type !== "job") return;
+      if (agentMemberId && event.job.agentMemberId !== agentMemberId) return;
+      void refresh();
+    });
+    return dispose;
+  }, [agentMemberId, refresh]);
+
+  const control = useCallback(
+    async (taskId: string, action: AgentHostTaskAction) => {
+      const result = await window.agentHost?.controlTask(taskId, action);
+      if (!result?.success || !result.changed) {
+        setError(
+          result?.error ||
+            `The task could not ${action} from its current state.`,
+        );
+        return false;
+      }
+      await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
+  const redirect = useCallback(
+    async (taskId: string, instruction: string) => {
+      const result = await window.agentHost?.redirectTask(taskId, instruction);
+      if (!result?.success || !result.job) {
+        setError(result?.error || "Could not redirect the task.");
+        return false;
+      }
+      await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
+  return { tasks, error, control, redirect, refresh };
 }

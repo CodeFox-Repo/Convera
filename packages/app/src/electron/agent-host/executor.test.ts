@@ -9,7 +9,9 @@ import { LocalAiAgentHostExecutor } from "./executor";
 
 const job: AgentHostJob = {
   id: "job",
+  taskId: "job",
   channelId: "channel",
+  channelKind: "channel",
   conversationId: "trusted-conversation",
   triggerMessageId: "message",
   contextMessageIds: ["message"],
@@ -18,6 +20,7 @@ const job: AgentHostJob = {
   agentId: "trusted",
   agentMemberId: "agent:trusted",
   chain: { hops: 0, invoked: ["agent:trusted"] },
+  controlInstructions: [],
   status: "running",
   attempts: 1,
   createdAt: new Date().toISOString(),
@@ -66,6 +69,11 @@ describe("LocalAiAgentHostExecutor", () => {
       expect.objectContaining({
         conversationId: "trusted-conversation",
         concurrent: true,
+        agentHost: {
+          jobId: "job",
+          taskId: "job",
+          channelKind: "channel",
+        },
         agent: { id: "trusted", memberId: "agent:trusted" },
       }),
       expect.any(Function),

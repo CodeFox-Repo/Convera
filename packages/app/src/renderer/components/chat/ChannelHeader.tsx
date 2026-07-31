@@ -96,12 +96,12 @@ export function ChannelHeader({
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           )}
-          aria-label="Inspect agent context"
+          aria-label="Open agent work"
           aria-expanded={contextOpen}
-          title="Context available to this agent"
+          title="Work, controls, and context"
         >
           <Brain size={13} />
-          Context
+          Work
         </button>
       )}
       <button

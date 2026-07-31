@@ -23,6 +23,7 @@ function dispatch(
 ): AgentHostDispatch {
   return {
     channelId: `channel:${conversationId}`,
+    channelKind: "channel",
     conversationId,
     triggerMessageId,
     contextMessageIds: [triggerMessageId],
@@ -39,7 +40,9 @@ function dispatch(
 function storedJob(status: AgentHostJob["status"]): AgentHostJob {
   return {
     id: "stored",
+    taskId: "stored",
     channelId: "channel:c1",
+    channelKind: "channel",
     conversationId: "c1",
     triggerMessageId: "message:c1",
     contextMessageIds: ["message:c1"],
@@ -48,6 +51,7 @@ function storedJob(status: AgentHostJob["status"]): AgentHostJob {
     agentId: "a",
     agentMemberId: "agent:a",
     chain: { hops: 0, invoked: ["agent:a"] },
+    controlInstructions: [],
     status,
     attempts: 1,
     createdAt: new Date().toISOString(),
@@ -166,5 +170,131 @@ describe("AgentHost", () => {
       expect.objectContaining({ agentMemberId: "agent:a" }),
     );
     expect((await host.listJobs())[0].status).toBe("cancelled");
+  });
+
+  it("pauses and resumes one task without changing its stable identity", async () => {
+    const gates = [deferred<void>(), deferred<void>()];
+    const execute = vi.fn(() => gates[execute.mock.calls.length - 1].promise);
+    const cancel = vi.fn(async () => {
+      gates[0].resolve();
+      return true;
+    });
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute, cancel },
+      createId: () => "task-1",
+    });
+    const [job] = await host.enqueue(dispatch("c1"));
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+    expect(await host.pauseTask(job.taskId)).toBe(true);
+    expect((await host.listTasks())[0]).toMatchObject({
+      id: "task-1",
+      status: "paused",
+      runCount: 1,
+    });
+    expect(await host.resumeTask(job.taskId)).toBe(true);
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+    expect((await host.listTasks())[0].id).toBe("task-1");
+    gates[1].resolve();
+  });
+
+  it("keeps a running task live when its provider refuses to pause", async () => {
+    const gate = deferred<void>();
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: {
+        execute: () => gate.promise,
+        cancel: async () => false,
+      },
+      createId: () => "task-1",
+    });
+    const [job] = await host.enqueue(dispatch("c1"));
+    await vi.waitFor(async () =>
+      expect((await host.listTasks())[0].status).toBe("running"),
+    );
+
+    expect(await host.pauseTask(job.taskId)).toBe(false);
+    expect((await host.listTasks())[0].status).toBe("running");
+    gate.resolve();
+    await vi.waitFor(async () =>
+      expect((await host.listTasks())[0].status).toBe("completed"),
+    );
+  });
+
+  it("redirects a task into a replacement run with private guidance", async () => {
+    const ids = ["z-original", "a-replacement"];
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute: async () => undefined },
+      startPaused: true,
+      createId: () => ids.shift() as string,
+    });
+    const [original] = await host.enqueue(dispatch("c1"));
+    const replacement = await host.redirectTask(
+      original.taskId,
+      "Show me the diff before opening a PR.",
+    );
+
+    expect(replacement).toMatchObject({
+      id: "a-replacement",
+      taskId: "z-original",
+      parentJobId: "z-original",
+      status: "queued",
+      controlInstructions: ["Show me the diff before opening a PR."],
+    });
+    expect(await host.listTasks()).toEqual([
+      expect.objectContaining({
+        id: "z-original",
+        currentJobId: "a-replacement",
+        runCount: 2,
+        status: "queued",
+      }),
+    ]);
+    expect(
+      (await host.listJobs()).find((entry) => entry.id === "z-original"),
+    ).toMatchObject({ status: "cancelled" });
+  });
+
+  it("serializes simultaneous redirects into one replacement chain", async () => {
+    const ids = ["original", "replacement-1", "replacement-2"];
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute: async () => undefined },
+      startPaused: true,
+      createId: () => ids.shift() as string,
+    });
+    const [original] = await host.enqueue(dispatch("c1"));
+
+    await Promise.all([
+      host.redirectTask(original.taskId, "First guidance"),
+      host.redirectTask(original.taskId, "Second guidance"),
+    ]);
+
+    expect(await host.listTasks()).toEqual([
+      expect.objectContaining({
+        currentJobId: "replacement-2",
+        runCount: 3,
+        controlInstructions: ["First guidance", "Second guidance"],
+      }),
+    ]);
+    expect(
+      (await host.listJobs()).find((job) => job.id === "replacement-2"),
+    ).toMatchObject({ parentJobId: "replacement-1" });
+  });
+
+  it("does not let one agent control another agent's task", async () => {
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute: async () => undefined },
+      startPaused: true,
+      createId: () => "task-a",
+    });
+    const [job] = await host.enqueue(dispatch("c1", ["agent:a"]));
+
+    expect(await host.pauseTask(job.taskId, "agent:b")).toBe(false);
+    await expect(
+      host.redirectTask(job.taskId, "Change direction", "agent:b"),
+    ).rejects.toThrow("not found for this agent");
   });
 });

@@ -958,6 +958,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               ];
               void dispatchAgentHostOffers({
                 channelId: channel.id,
+                channelKind: channel.kind,
                 conversationId: channel.conversationId,
                 triggerMessageId: persisted.id,
                 contextMessageIds,
