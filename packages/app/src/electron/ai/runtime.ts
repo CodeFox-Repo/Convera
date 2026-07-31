@@ -18,7 +18,7 @@ import type {
   LocalAITurnRuntimeStateRequest,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
-import { SANDBOX_LAYOUT, type AgentSandbox } from "@/shared/types/workspace";
+import type { AgentSandbox } from "@/shared/types/workspace";
 import {
   streamText,
   type LanguageModel,
@@ -27,7 +27,6 @@ import {
   type UIMessageChunk,
 } from "ai";
 import { createHash, randomUUID } from "node:crypto";
-import { join } from "node:path";
 import {
   createAgentToolCatalog,
   type AgentTool,
@@ -447,7 +446,10 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     this.workingDirectory = options.workingDirectory ?? process.cwd();
     this.sandbox = options.sandbox ?? {
       root: this.workingDirectory,
-      writableRoots: [join(this.workingDirectory, SANDBOX_LAYOUT.workspace)],
+      // A standalone runtime receives an existing trusted working directory.
+      // Electron Main supplies its own resolver that creates and narrows each
+      // agent to a dedicated workspace.
+      writableRoots: [this.workingDirectory],
       networkAccess: false,
     };
     this.resolveSandbox = options.resolveSandbox ?? (() => this.sandbox);

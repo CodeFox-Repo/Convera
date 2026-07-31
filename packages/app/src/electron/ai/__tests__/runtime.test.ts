@@ -212,7 +212,7 @@ describe("LocalAiRuntime", () => {
 
     expect(adapter.prepareRun).toHaveBeenCalledWith(
       expect.objectContaining({
-        options: { cwd: "/trusted/workspace/workspace" },
+        options: { cwd: "/trusted/workspace" },
       }),
       expect.any(Object),
       expect.objectContaining({
@@ -220,7 +220,7 @@ describe("LocalAiRuntime", () => {
         requestInteraction: expect.any(Function),
         sandbox: {
           root: "/trusted/workspace",
-          writableRoots: ["/trusted/workspace/workspace"],
+          writableRoots: ["/trusted/workspace"],
           networkAccess: false,
         },
       }),
