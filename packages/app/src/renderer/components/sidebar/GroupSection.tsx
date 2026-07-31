@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,6 +16,7 @@ import {
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { ChannelItem } from "./ChannelItem";
 import { InlineNameInput } from "./InlineNameInput";
+import type { ChannelDrag } from "./use-channel-drag";
 
 interface GroupSectionProps {
   /** null renders the implicit "Ungrouped" section. */
@@ -25,6 +26,10 @@ interface GroupSectionProps {
   currentConversationId: string | null;
   isChannelUnread: (channel: Channel) => boolean;
   onSelectChannel: (channel: Channel) => void;
+  drag?: ChannelDrag;
+  /** Hide the header when the sidebar has only the implicit section. */
+  showHeader?: boolean;
+  onNewGroup?: () => void;
   /** Legacy conversations, rendered under the ungrouped section. */
   children?: React.ReactNode;
 }
@@ -36,6 +41,9 @@ export function GroupSection({
   currentConversationId,
   isChannelUnread,
   onSelectChannel,
+  drag,
+  showHeader = true,
+  onNewGroup,
   children,
 }: GroupSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -93,6 +101,12 @@ export function GroupSection({
         <Plus size={14} />
         <span>New channel</span>
       </ContextMenuItem>
+      {onNewGroup && (
+        <ContextMenuItem onClick={onNewGroup}>
+          <FolderPlus size={14} />
+          <span>New group</span>
+        </ContextMenuItem>
+      )}
       {group && (
         <>
           <ContextMenuItem onClick={() => setIsRenaming(true)}>
@@ -117,6 +131,8 @@ export function GroupSection({
     </>
   );
 
+  const groupDrop = drag?.groupHandlers(group?.id ?? null);
+
   return (
     <div>
       {isRenaming && group ? (
@@ -132,36 +148,54 @@ export function GroupSection({
           />
         </div>
       ) : (
-        <ContextMenu>
-          <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
-          <ContextMenuContent>{contextItems}</ContextMenuContent>
-        </ContextMenu>
+        showHeader && (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
+            <ContextMenuContent>{contextItems}</ContextMenuContent>
+          </ContextMenu>
+        )
       )}
 
-      <div className="space-y-0.5 px-1">
-        {visibleChannels.map((channel) => (
-          <ChannelItem
-            key={channel.id}
-            channel={channel}
-            isActive={currentConversationId === channel.conversationId}
-            isUnread={isChannelUnread(channel)}
-            onSelect={() => onSelectChannel(channel)}
-          />
-        ))}
-        {isAddingChannel && (
-          <div className="px-1 py-0.5">
-            <InlineNameInput
-              placeholder="Channel name"
-              onSubmit={(name) => {
-                void createChannel({ name, groupId: group?.id ?? null });
-                setIsAddingChannel(false);
-              }}
-              onCancel={() => setIsAddingChannel(false)}
-            />
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={cn(
+              "space-y-0.5 rounded-md px-1 py-0.5 transition-colors",
+              drag?.hoveredGroupId === (group?.id ?? null) &&
+                "bg-sidebar-accent",
+            )}
+            onDragOver={groupDrop?.onDragOver}
+            onDrop={groupDrop?.onDrop}
+          >
+            {visibleChannels.map((channel) => (
+              <ChannelItem
+                key={channel.id}
+                channel={channel}
+                isActive={currentConversationId === channel.conversationId}
+                isUnread={isChannelUnread(channel)}
+                onSelect={() => onSelectChannel(channel)}
+                dropEdge={drag?.dropEdgeFor(channel.id) ?? null}
+                isDragging={drag?.draggingId === channel.id}
+                {...(drag?.itemHandlers(channel) ?? {})}
+              />
+            ))}
+            {isAddingChannel && (
+              <div className="px-1 py-0.5">
+                <InlineNameInput
+                  placeholder="Channel name"
+                  onSubmit={(name) => {
+                    void createChannel({ name, groupId: group?.id ?? null });
+                    setIsAddingChannel(false);
+                  }}
+                  onCancel={() => setIsAddingChannel(false)}
+                />
+              </div>
+            )}
+            {!collapsed && children}
           </div>
-        )}
-        {!collapsed && children}
-      </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>{contextItems}</ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }

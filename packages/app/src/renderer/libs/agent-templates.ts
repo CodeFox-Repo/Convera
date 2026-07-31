@@ -177,6 +177,13 @@ const STARTER_CHANNELS: Array<{
   defaultAgentTemplateId: string;
 }> = [
   {
+    // The onboarding hall: project intros and direction land here, and every
+    // agent carries it as shared org context into every other room.
+    name: "announcements",
+    agentTemplateIds: ["sage", "patch", "quill"],
+    defaultAgentTemplateId: "sage",
+  },
+  {
     name: "general",
     agentTemplateIds: ["sage", "patch", "quill"],
     defaultAgentTemplateId: "sage",
@@ -200,6 +207,9 @@ const STARTER_CHANNELS: Array<{
 
 async function seedStarterChannels(): Promise<void> {
   const agents = await db.agents.toArray();
+  const existingNames = new Set(
+    (await db.channels.toArray()).map((channel) => channel.name),
+  );
   const memberIdForTemplate = (templateId: string): string | null => {
     const template = AGENT_TEMPLATES.find((t) => t.id === templateId);
     const agent = template && agents.find((a) => a.name === template.name);
@@ -207,6 +217,7 @@ async function seedStarterChannels(): Promise<void> {
   };
 
   for (const spec of STARTER_CHANNELS) {
+    if (existingNames.has(spec.name)) continue;
     const agentMemberIds = spec.agentTemplateIds
       .map(memberIdForTemplate)
       .filter((id): id is string => id !== null);
@@ -219,29 +230,38 @@ async function seedStarterChannels(): Promise<void> {
   }
 }
 
+/**
+ * Bump when the starter layout changes so existing workspaces pick it up. The
+ * seed itself is idempotent (hire skips existing names, channels skip existing
+ * names), so a re-run only ever fills in what is missing.
+ */
+const STARTER_TEAM_VERSION = 2;
+
 export async function ensureStarterTeam(): Promise<void> {
   await dedupeHiredAgents();
   await upgradeEmojiAvatars();
-  // Claim the seed flag atomically first: StrictMode double-invokes effects,
-  // and two concurrent runs would otherwise both see an empty roster.
+  // Claim the version atomically first: StrictMode double-invokes effects, and
+  // two concurrent runs would otherwise both see an empty roster.
   const claimed = await db.transaction("rw", db.settings, async () => {
     const existing = await db.settings.get("starterTeamSeeded");
-    if (existing) return false;
+    if (existing && existing.value === STARTER_TEAM_VERSION) return false;
     await db.settings.put({
       key: "starterTeamSeeded",
-      value: true,
+      value: STARTER_TEAM_VERSION,
       updatedAt: new Date(),
     });
     return true;
   });
   if (!claimed) return;
 
-  const hired = await db.agents.filter((agent) => !agent.isBuiltIn).count();
-  if (hired > 0) return;
-
+  const hiredNames = new Set(
+    (await db.agents.filter((agent) => !agent.isBuiltIn).toArray()).map(
+      (agent) => agent.name,
+    ),
+  );
   for (const id of STARTER_TEMPLATE_IDS) {
     const template = AGENT_TEMPLATES.find((t) => t.id === id);
-    if (template) await hireTemplate(template);
+    if (template && !hiredNames.has(template.name)) await hireTemplate(template);
   }
   await seedStarterChannels();
 }

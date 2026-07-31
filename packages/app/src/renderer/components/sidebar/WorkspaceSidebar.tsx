@@ -19,6 +19,8 @@ import { cn } from "@/renderer/libs/utils/tailwind";
 import { ConversationItem } from "./ConversationItem";
 import { GroupSection } from "./GroupSection";
 import { InlineNameInput } from "./InlineNameInput";
+import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
+import { useChannelDrag } from "./use-channel-drag";
 
 const SECTION_LABEL =
   "text-xs font-medium uppercase tracking-wide text-muted-foreground";
@@ -29,7 +31,11 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const conversations = useActiveConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
   const { lastSeen, markSeen } = useUnreadStore();
-  const [activeTab, setActiveTab] = useState<"teams" | "chats">("teams");
+  const {
+    sidebarTab: activeTab,
+    setSidebarTab: setActiveTab,
+    setView,
+  } = useWorkspaceUI();
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [isAddingFirstChannel, setIsAddingFirstChannel] = useState(false);
 
@@ -48,7 +54,13 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const select = (conversationId: string) => {
     markSeen(conversationId);
     setCurrentConversation(conversationId);
+    // Picking a room means you want to be in it: the content pane may be
+    // showing Agents or Inbox, and selecting without switching left the click
+    // looking dead.
+    setView("chat");
   };
+
+  const drag = useChannelDrag(channels ?? []);
 
   const channelsByGroup = useMemo(() => {
     const byGroup = new Map<string | null, Channel[]>();
@@ -58,7 +70,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
       else byGroup.set(channel.groupId, [channel]);
     }
     for (const list of byGroup.values()) {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     }
     return byGroup;
   }, [channels]);
@@ -108,26 +120,19 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto space-y-2"
+        onContextMenu={(event) => {
+          // Right-click on empty sidebar space is the create affordance, so a
+          // workspace with no groups still has a way to make one.
+          if (event.target !== event.currentTarget || activeTab !== "teams")
+            return;
+          event.preventDefault();
+          setIsAddingGroup(true);
+        }}
+      >
         {activeTab === "teams" && (
           <>
-            <div
-              className={cn(
-                "group flex items-center justify-between px-2",
-                !(groups?.length || hasChannels) && "hidden",
-              )}
-            >
-              <span className={SECTION_LABEL}>Groups</span>
-              <button
-                onClick={() => setIsAddingGroup(true)}
-                aria-label="New group"
-                title="New group"
-                className="p-1 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-sidebar-foreground transition-opacity pointer-events-auto"
-              >
-                <Plus size={12} />
-              </button>
-            </div>
-
             {isAddingGroup && (
               <div className="px-2">
                 <InlineNameInput
@@ -141,6 +146,23 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
               </div>
             )}
 
+            {/* Ungrouped first: with no groups it is the whole sidebar, and a
+                lone heading over every channel is just noise. Real groups
+                below always show their name — that is what a group is. */}
+            {(channelsByGroup.get(null)?.length ?? 0) > 0 && (
+              <GroupSection
+                group={null}
+                label="Channels"
+                channels={channelsByGroup.get(null) ?? []}
+                currentConversationId={currentConversationId}
+                isChannelUnread={isChannelUnread}
+                onSelectChannel={selectChannel}
+                drag={drag}
+                showHeader={(groups?.length ?? 0) > 0}
+                onNewGroup={() => setIsAddingGroup(true)}
+              />
+            )}
+
             {(groups ?? []).map((group) => (
               <GroupSection
                 key={group.id}
@@ -150,19 +172,10 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
                 currentConversationId={currentConversationId}
                 isChannelUnread={isChannelUnread}
                 onSelectChannel={selectChannel}
+                drag={drag}
+                onNewGroup={() => setIsAddingGroup(true)}
               />
             ))}
-
-            {(channelsByGroup.get(null)?.length ?? 0) > 0 && (
-              <GroupSection
-                group={null}
-                label="Ungrouped"
-                channels={channelsByGroup.get(null) ?? []}
-                currentConversationId={currentConversationId}
-                isChannelUnread={isChannelUnread}
-                onSelectChannel={selectChannel}
-              />
-            )}
 
             {!hasChannels &&
               (isAddingFirstChannel ? (
@@ -196,16 +209,8 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         )}
 
         {activeTab === "chats" && (
-          <div className="group flex items-center justify-between px-2">
+          <div className="px-2">
             <span className={SECTION_LABEL}>Recent</span>
-            <button
-              onClick={onNewChat}
-              aria-label="New chat"
-              title="New chat"
-              className="p-1 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-sidebar-foreground transition-opacity pointer-events-auto"
-            >
-              <Plus size={12} />
-            </button>
           </div>
         )}
         {activeTab === "chats" &&
@@ -242,6 +247,20 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
             </div>
           ))}
       </div>
+
+      {/* A persistent full-width New chat button: the primary action of the
+          Chats tab should not be a hover-only icon. */}
+      {activeTab === "chats" && plainConversations.length > 0 && (
+        <div className="px-1 pb-1 pt-2">
+          <button
+            onClick={onNewChat}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-sidebar-accent px-2.5 py-2 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-hover transition-colors pointer-events-auto"
+          >
+            <Plus size={12} />
+            <span>New chat</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
