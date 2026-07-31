@@ -47,9 +47,16 @@ export function ChannelHeader({
 }: ChannelHeaderProps) {
   const allMembers = useMembers();
   const { jobs, activeJobs, error: hostError } = useAgentHostJobs(channel.id);
+  // Only failures from work triggered in this conversation. A channel that was
+  // rebuilt keeps its id but gets a new conversation, so jobs from the previous
+  // life are stale rather than something the user can act on.
   const latestFailure = [...jobs]
     .reverse()
-    .find((job) => job.status === "failed" || job.status === "interrupted");
+    .find(
+      (job) =>
+        job.conversationId === channel.conversationId &&
+        (job.status === "failed" || job.status === "interrupted"),
+    );
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {

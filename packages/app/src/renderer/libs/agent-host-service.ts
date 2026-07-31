@@ -62,6 +62,11 @@ function toProjectable(messages: Message[]) {
   }));
 }
 
+/** A job whose workspace is gone: discard it rather than surfacing an error. */
+export class StaleAgentHostJobError extends Error {
+  readonly stale = true;
+}
+
 async function loadOffer(job: AgentHostJob): Promise<{
   channel: Channel;
   members: Member[];
@@ -71,7 +76,14 @@ async function loadOffer(job: AgentHostJob): Promise<{
 }> {
   const channel = await db.channels.get(job.channelId);
   if (!channel || channel.conversationId !== job.conversationId) {
-    throw new Error("The Agent Host job does not belong to this channel.");
+    // Jobs are durable in the main process while channels live in the
+    // renderer's Dexie, so wiping local state strands work that names a room
+    // this profile no longer has. That is not a failure anyone can act on —
+    // and reporting it hangs a red banner on whichever channel happens to be
+    // open, which has nothing to do with it.
+    throw new StaleAgentHostJobError(
+      "The Agent Host job names a channel this workspace no longer has.",
+    );
   }
   if (!channel.memberIds.includes(job.agentMemberId)) {
     throw new Error("The agent is no longer a member of this channel.");

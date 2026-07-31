@@ -501,10 +501,15 @@ export class AgentHost {
       await this.finish(job, "completed");
     } catch (error) {
       if (job.status === "running" && !this.pausing.has(job.id)) {
+        const message =
+          error instanceof Error ? error.message : "Agent work failed.";
+        // Jobs outlive the renderer's database, so wiping local state strands
+        // work naming a room this profile no longer has. Cancel it rather than
+        // failing it: there is nothing to retry and nothing to report.
         await this.finish(
           job,
-          "failed",
-          error instanceof Error ? error.message : "Agent work failed.",
+          message.includes("no longer has") ? "cancelled" : "failed",
+          message,
         );
       }
     } finally {
