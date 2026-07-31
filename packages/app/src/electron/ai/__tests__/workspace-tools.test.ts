@@ -214,9 +214,13 @@ describe("withWorkspacePerception", () => {
     );
 
     expect(prepared?.systemContext).toBe("persona");
-    expect(prepared?.additionalTools?.map((tool) => tool.qualifiedName)).toEqual(
-      ["memory:status", "workspace:list_channels", "workspace:read_channel"],
-    );
+    expect(
+      prepared?.additionalTools?.map((tool) => tool.qualifiedName),
+    ).toEqual([
+      "memory:status",
+      "workspace:list_channels",
+      "workspace:read_channel",
+    ]);
   });
 
   it("gives no eyes to a turn with no member identity", async () => {

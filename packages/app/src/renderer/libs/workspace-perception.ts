@@ -145,7 +145,10 @@ async function readChannel(
   const [groups, memberRows, transcript] = await Promise.all([
     db.groups.toArray(),
     db.members.bulkGet(channel.memberIds),
-    db.messages.where("conversationId").equals(channel.conversationId).toArray(),
+    db.messages
+      .where("conversationId")
+      .equals(channel.conversationId)
+      .toArray(),
   ]);
   const members = new Map(
     memberRows
