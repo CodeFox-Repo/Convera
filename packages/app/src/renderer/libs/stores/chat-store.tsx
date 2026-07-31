@@ -20,6 +20,7 @@ import {
 import { resolveLocalAIProviderId } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
 import {
+  addMessage,
   db,
   createConversation,
   deleteConversation as deleteConversationFromDexie,
@@ -32,6 +33,7 @@ import {
   type OfferedPeer,
 } from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
+import { dispatchOpenFloor } from "../open-floor-dispatch";
 import { parseMentions } from "../mention-parser";
 import {
   LOCAL_HUMAN_MEMBER_ID,
@@ -82,6 +84,7 @@ function buildResponderPrompt(
   channelName = "chat",
   mayPass = false,
   alsoOffered: OfferedPeer[] = [],
+  channelId?: string,
 ): string {
   const self = members.find((member) => member.id === responderMemberId);
   if (!self) return agent.systemPrompt;
@@ -92,6 +95,7 @@ function buildResponderPrompt(
     members,
     mayPass,
     alsoOffered,
+    channelId,
   );
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
 }
@@ -459,6 +463,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             ),
           },
           responderId: nextResponderId,
+          speaksViaTool: offeredMessages !== undefined,
           requestMessages:
             offeredMessages ??
             projectFor(
@@ -559,20 +564,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       saveMessages().then(async (settled) => {
         if (!settled) return;
-        // An agent that passed said nothing; drop the placeholder rather than
-        // showing "[pass]" in the room. Persisted first so the durable turn
-        // stays consistent, then removed.
+        // A turn that produced no visible text left a shell behind. That
+        // covers both the explicit pass token and — now that speaking is a
+        // tool call — an agent whose words went out through `send_message`
+        // and whose turn output is therefore empty. Either way an empty
+        // bubble is not a thing anyone said, so it does not belong in the
+        // room. Persisted first so the durable turn stays consistent.
         const assistantId = chatAPI.lastCompletedTurn?.assistantMessageId;
-        const passed = chatAPI.messages.find(
-          (message) =>
-            message.id === assistantId &&
-            typeof message.content === "string" &&
-            isPass(message.content),
-        );
-        if (passed) {
-          await db.messages.delete(passed.id);
+        const silent = chatAPI.messages.find((message) => {
+          if (message.id !== assistantId) return false;
+          if (typeof message.content !== "string") return false;
+          return !message.content.trim() || isPass(message.content);
+        });
+        if (silent) {
+          await db.messages.delete(silent.id);
           chatAPI.setMessages(
-            chatAPI.messages.filter((message) => message.id !== passed.id),
+            chatAPI.messages.filter((message) => message.id !== silent.id),
           );
         }
         void runRelay();
@@ -915,6 +922,76 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 offered: offeredPeers,
               }
             : null;
+          // Open floor: everyone offered the message runs at once. They reserve
+          // no rows and speak through `send_message`, so there is nothing for
+          // them to queue behind — a room where three people were asked does
+          // not make them answer in series.
+          if (openFloor && routed.invoke.length > 0) {
+            const offer = openFloorOfferRef.current;
+            const turns = (
+              await Promise.all(
+                routed.invoke.map(async (id) => {
+                  const member = members.find((m) => m.id === id);
+                  const dbAgent = member?.agentId
+                    ? await db.agents.get(member.agentId)
+                    : undefined;
+                  if (!dbAgent || !offer) return undefined;
+                  return {
+                    memberId: id,
+                    agentId: dbAgent.id,
+                    conversationId: conversationIdToUse,
+                    providerId: dbAgent.providerId
+                      ? resolveLocalAIProviderId(dbAgent.providerId)
+                      : providerId,
+                    modelId:
+                      (dbAgent.modelId ?? selectedModelId) ===
+                      DEFAULT_LOCAL_AI_MODEL_ID
+                        ? undefined
+                        : (dbAgent.modelId ?? selectedModelId),
+                    systemPrompt: buildResponderPrompt(
+                      dbAgent,
+                      id,
+                      channelMembers,
+                      channelForSend?.name,
+                      true,
+                      offeredPeers,
+                      channelForSend?.id,
+                    ),
+                    requestMessages: offer.requestMessages.get(id) ?? [],
+                  };
+                }),
+              )
+            ).filter((turn): turn is NonNullable<typeof turn> => !!turn);
+
+            if (turns.length > 0) {
+              // `chatAPI.send` normally persists the human's message on the way
+              // to running a turn; this path does not use it, so the message is
+              // written here or it would never reach the room.
+              const userMessageId = await addMessage(conversationIdToUse, {
+                role: "user",
+                content: messageText,
+                senderId: LOCAL_HUMAN_MEMBER_ID,
+                mentions: mentionedMemberIds,
+                status: "completed",
+              });
+              chatAPI.setMessages([
+                ...persistedMessages,
+                {
+                  id: userMessageId,
+                  role: "user",
+                  content: messageText,
+                  senderId: LOCAL_HUMAN_MEMBER_ID,
+                  createdAt: new Date(),
+                },
+              ]);
+              chatAPI.setInput("");
+              clearAttachments();
+              pendingInvokesRef.current = [];
+              void dispatchOpenFloor(turns);
+              return;
+            }
+          }
+
           const responderMember = members.find(
             (member) => member.id === firstResponder,
           );
@@ -972,6 +1049,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                   }
                 : undefined,
               responderId: responderMemberId,
+              // Open floor: the agent speaks with `send_message`, so no reply
+              // row is reserved and staying quiet leaves no trace.
+              speaksViaTool: openFloor,
               requestMessages: responderMemberId
                 ? (openFloorOfferRef.current?.requestMessages.get(
                     responderMemberId,

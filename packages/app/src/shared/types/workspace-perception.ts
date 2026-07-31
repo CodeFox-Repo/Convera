@@ -9,6 +9,16 @@
  */
 
 /** Interaction `name` carrying a workspace query. */
+/** Tool name that means "an agent is composing a message" — drives the typing indicator. */
+export const WORKSPACE_SEND_MESSAGE_TOOL = "send_message";
+
+/** Workspace tools are how an agent perceives and speaks; neither is transcript content. */
+export const WORKSPACE_TOOL_NAMES = new Set([
+  "list_channels",
+  "read_channel",
+  WORKSPACE_SEND_MESSAGE_TOOL,
+]);
+
 export const WORKSPACE_QUERY_INTERACTION = "workspace:query";
 
 /**

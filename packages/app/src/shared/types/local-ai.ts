@@ -75,6 +75,13 @@ export interface LocalAIChatRequest {
   providerId: string;
   modelId?: string;
   operation: LocalAIChatOperation;
+  /**
+   * The turn writes nothing into the shared transcript itself — whatever it
+   * says arrives through a tool. Such turns do not contend for the
+   * conversation's revision, so colleagues offered the same message can think
+   * at the same time instead of queueing behind one another.
+   */
+  concurrent?: boolean;
   agent?: {
     /** Stable agent entity id. */
     id?: string;

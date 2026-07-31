@@ -149,6 +149,18 @@ function missingProviderStatus(providerId: string): LocalAIProviderStatus {
   };
 }
 
+/**
+ * What a turn must not overlap with. Concurrent turns speak through tools and
+ * own only their own provider session, which is already keyed by actor.
+ */
+function sessionKey(
+  request: Pick<LocalAIChatRequest, "conversationId" | "agent" | "concurrent">,
+): string {
+  return request.concurrent
+    ? `${request.conversationId}\0${resolveLocalAiActorId(request)}`
+    : request.conversationId;
+}
+
 export function resolveLocalAiActorId(
   request: Pick<LocalAIChatRequest, "agent">,
 ): string {
@@ -624,7 +636,10 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     let durableHookArmed = false;
     try {
       await this.memorySettingsBarrier;
-      await this.sessionExecutor.run(request.conversationId, async () => {
+      // A turn that reserves no transcript row has nothing to race over, so it
+      // serializes per actor rather than per conversation: two agents offered
+      // the same message run at once, while one agent's own turns still queue.
+      await this.sessionExecutor.run(sessionKey(request), async () => {
         const repository = this.getSessionRepository();
         await this.replayDurableTurnHooksForConversation(
           request.conversationId,

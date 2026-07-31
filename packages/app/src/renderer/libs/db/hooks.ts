@@ -351,16 +351,24 @@ export async function stagePendingTurn(
         .where("conversationId")
         .equals(conversationId)
         .sortBy("createdAt");
-      const existingJournal = await db.pendingTurns
+      // A turn that reserves no row writes nothing anyone else could clobber,
+      // so several colleagues may be in flight at once. Turns that DO reserve
+      // one still take the conversation exclusively.
+      const journals = await db.pendingTurns
         .where("conversationId")
         .equals(conversationId)
-        .first();
-      if (existingJournal) {
+        .toArray();
+      const blocking = turn.assistantMessageId
+        ? journals[0]
+        : journals.find((journal) => journal.assistantMessageId);
+      if (blocking) {
         throw new Error(
           "Conversation already has an outgoing turn awaiting reconciliation.",
         );
       }
-      assertPendingTurnCanStage(currentMessages, expectedMessages);
+      if (turn.assistantMessageId) {
+        assertPendingTurnCanStage(currentMessages, expectedMessages);
+      }
       const currentById = new Map(
         currentMessages.map((message) => [message.id, message]),
       );

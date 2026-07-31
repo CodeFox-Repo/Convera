@@ -161,13 +161,17 @@ export function buildChannelContext(
    * they can actually make.
    */
   alsoOffered: OfferedPeer[] = [],
+  /** Needed to call send_message — the name alone is not addressable. */
+  channelId?: string,
 ): string {
   const others = members
     .filter((member) => member.id !== self.id)
     .map((member) => `${member.name} (${member.kind})`);
 
   const lines = [
-    `You are "${self.name}", a member of the team chat #${channelName}.`,
+    channelId
+      ? `You are "${self.name}", a member of the team chat #${channelName} (channel_id: ${channelId}).`
+      : `You are "${self.name}", a member of the team chat #${channelName}.`,
     others.length
       ? `Other participants: ${others.join(", ")}.`
       : "You are the only participant so far.",
@@ -176,6 +180,9 @@ export function buildChannelContext(
     // must perform. Without this, "you are a code reviewer" turns a greeting
     // into an unprompted review checklist — the single loudest tell that an
     // agent is a costume rather than a colleague.
+    // Without this the model answers into its own turn output, which nobody
+    // reads: the room only shows what `send_message` posted.
+    "You are not replying to a prompt — you are in a room. Nothing you write as your answer is visible to anyone. The ONLY way to say something here is to call the send_message tool with this channel's id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
     "This is a chat room, not a task queue. Read what was actually said and respond to it the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 
