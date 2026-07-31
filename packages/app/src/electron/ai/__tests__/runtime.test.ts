@@ -28,6 +28,7 @@ function fakeAdapter(
 
   return {
     id,
+    enforcesSandbox: false,
     getStatus: vi.fn(async () => status),
     createModel: vi.fn(async () => ({}) as LanguageModel),
     dispose: vi.fn(async () => undefined),
@@ -141,6 +142,11 @@ describe("LocalAiRuntime", () => {
       expect.objectContaining({
         tools: [],
         requestInteraction: expect.any(Function),
+        sandbox: {
+          root: "/trusted/workspace",
+          writableRoots: ["/trusted/workspace/workspace"],
+          networkAccess: false,
+        },
       }),
     );
     expect(streamOptions?.messages).toEqual([

@@ -17,12 +17,47 @@ import {
   useModelConfigStore,
 } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
+import { buildChannelContext, projectFor } from "../agent-projection";
+import { routeMessage, type ChainState } from "../agent-routing";
+import { parseMentions } from "../mention-parser";
 import { db, createConversation, updateMessages } from "../db";
+import {
+  LOCAL_HUMAN_MEMBER_ID,
+  memberIdForAgent,
+  type Agent as DBAgent,
+} from "../db/database";
+import type { Member } from "@/shared/types/workspace";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
 import { useUserInputStore } from "./user-input-store";
 
 export type ChatViewMode = "compact" | "expanded";
+
+function toProjectable(messages: UIMessage[]) {
+  return messages.map((m) => ({
+    id: m.id,
+    senderId: m.senderId,
+    role: m.role as "user" | "assistant" | "system",
+    content:
+      typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+  }));
+}
+
+/**
+ * The responding agent's own prompt plus its place in the conversation.
+ * Without the channel context it reads the "Name: " prefixes as body text.
+ */
+function buildResponderPrompt(
+  agent: Pick<DBAgent, "id" | "name" | "systemPrompt">,
+  responderMemberId: string | undefined,
+  members: Member[],
+): string {
+  const self = members.find((member) => member.id === responderMemberId);
+  if (!self) return agent.systemPrompt;
+
+  const context = buildChannelContext(self, "chat", members);
+  return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
+}
 
 // Selected content structure
 export interface SelectedContent {
@@ -162,6 +197,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const currentConversationIdRef = useRef(currentConversationId);
   const activeConversationIdRef = useRef<string | null>(null);
   const selectedAgentIdRef = useRef(selectedAgent?.id);
+  // Relay state for agent→agent mentions; reset by each human message.
+  const chainRef = useRef<ChainState | null>(null);
+  // Agents still owed a turn from a multi-mention or an agent's own mentions.
+  const pendingInvokesRef = useRef<string[]>([]);
+  const relayActiveRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -171,6 +211,73 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     selectedAgentIdRef.current = selectedAgent?.id;
   }, [selectedAgent?.id]);
+
+  /**
+   * Agent→agent relay: when a finished reply mentions other agents (or a
+   * multi-mention left agents queued), invoke the next one. `routeMessage`'s
+   * chain state enforces the 3-hop cap and once-per-chain rule, so two agents
+   * mentioning each other terminates instead of ping-ponging forever.
+   */
+  const runRelay = useCallback(async () => {
+    if (relayActiveRef.current) return;
+
+    const lastMessage = chatAPI.messages.at(-1);
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+    const lastSenderId = lastMessage.senderId;
+    if (!lastSenderId || !lastSenderId.startsWith("agent:")) return;
+
+    const members = await db.members.toArray();
+    const routed = routeMessage({
+      message: {
+        senderId: lastSenderId,
+        content:
+          typeof lastMessage.content === "string" ? lastMessage.content : "",
+      },
+      members,
+      defaultAgentMemberId: null, // relays follow explicit mentions only
+      chain: chainRef.current,
+    });
+    chainRef.current = routed.chain;
+
+    const next = [...pendingInvokesRef.current, ...routed.invoke].filter(
+      (id, index, ids) => ids.indexOf(id) === index,
+    );
+    const [nextResponderId, ...rest] = next;
+    pendingInvokesRef.current = rest;
+    if (!nextResponderId) return;
+
+    const nextMember = members.find((m) => m.id === nextResponderId);
+    if (!nextMember?.agentId) return;
+    const agent = await db.agents.get(nextMember.agentId);
+    if (!agent) return;
+
+    const { selectedConfigId, selectedModelId } =
+      useModelConfigStore.getState();
+
+    relayActiveRef.current = true;
+    try {
+      activeConversationIdRef.current = currentConversationIdRef.current;
+      await chatAPI.resend(chatAPI.messages, {
+        providerId: resolveLocalAIProviderId(selectedConfigId),
+        model:
+          selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+            ? undefined
+            : selectedModelId,
+        agent: {
+          id: agent.id,
+          systemPrompt: buildResponderPrompt(agent, nextResponderId, members),
+        },
+        responderId: nextResponderId,
+        requestMessages: projectFor(
+          nextResponderId,
+          toProjectable(chatAPI.messages),
+          members,
+        ),
+      });
+    } finally {
+      relayActiveRef.current = false;
+    }
+  }, [chatAPI]);
 
   // Save messages when loading completes (message finished)
   useEffect(() => {
@@ -201,6 +308,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 typeof m.content === "string"
                   ? m.content
                   : JSON.stringify(m.content),
+              senderId: m.senderId,
+              reactions: m.reactions,
               parts: m.parts,
               experimental_attachments: m.experimental_attachments?.map(
                 (a: Attachment) => ({
@@ -218,9 +327,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
-      saveMessages();
+      saveMessages().then(() => {
+        void runRelay();
+      });
     }
-  }, [chatAPI.isLoading, chatAPI.messages, setCurrentConversationId]);
+  }, [chatAPI.isLoading, chatAPI.messages, setCurrentConversationId, runRelay]);
 
   // Note: Conversation selection from sidebar is now handled automatically
   // through the shared useSelectionStore (Zustand) - no event listeners needed
@@ -392,6 +503,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const message: ChatMessage = {
         role: "user",
         content: messageText,
+        senderId: LOCAL_HUMAN_MEMBER_ID,
       };
 
       const sendMessageWithAttachments = async () => {
@@ -432,17 +544,62 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
           activeConversationIdRef.current = conversationIdToUse;
 
+          const members = await db.members.toArray();
+          parseMentions(messageText, members); // validates mention syntax early
+
+          // Routing owns responder choice AND the relay chain bookkeeping —
+          // a human message resets the chain, mentions pick the responder,
+          // and the selected agent stays the no-mention default.
+          const routed = routeMessage({
+            message: { senderId: LOCAL_HUMAN_MEMBER_ID, content: messageText },
+            members,
+            defaultAgentMemberId: selectedAgent
+              ? memberIdForAgent(selectedAgent.id)
+              : null,
+            chain: null,
+          });
+          chainRef.current = routed.chain;
+          const [firstResponder, ...queued] = routed.invoke;
+          pendingInvokesRef.current = queued;
+
+          const responderMember = members.find((m) => m.id === firstResponder);
+          const responder = responderMember?.agentId
+            ? ((await db.agents.get(responderMember.agentId)) ?? selectedAgent)
+            : selectedAgent;
+          const responderMemberId = responder
+            ? memberIdForAgent(responder.id)
+            : undefined;
+
           await chatAPI.send(message, {
             providerId,
             model:
               selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
                 ? undefined
                 : selectedModelId,
-            agent: selectedAgent
+            agent: responder
               ? {
-                  id: selectedAgent.id,
-                  systemPrompt: selectedAgent.systemPrompt,
+                  id: responder.id,
+                  systemPrompt: buildResponderPrompt(
+                    responder,
+                    responderMemberId,
+                    members,
+                  ),
                 }
+              : undefined,
+            responderId: responderMemberId,
+            requestMessages: responderMemberId
+              ? projectFor(
+                  responderMemberId,
+                  [
+                    ...toProjectable(chatAPI.messages),
+                    {
+                      senderId: LOCAL_HUMAN_MEMBER_ID,
+                      role: "user" as const,
+                      content: messageText,
+                    },
+                  ],
+                  members,
+                )
               : undefined,
           });
 

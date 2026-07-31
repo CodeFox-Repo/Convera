@@ -190,6 +190,36 @@ export async function updateMessages(
   });
 }
 
+/**
+ * Adds `memberId` to `emoji`'s reactors, or removes it if already there. The
+ * emoji key disappears once nobody holds it, so an empty object never renders
+ * a chip with a count of zero. No-ops on messages that are not persisted yet.
+ */
+export async function toggleReaction(
+  messageId: string,
+  emoji: string,
+  memberId: string,
+): Promise<void> {
+  await db.transaction("rw", db.messages, async () => {
+    const message = await db.messages.get(messageId);
+    if (!message) return;
+
+    const reactions = { ...(message.reactions ?? {}) };
+    const reactors = reactions[emoji] ?? [];
+    const next = reactors.includes(memberId)
+      ? reactors.filter((id) => id !== memberId)
+      : [...reactors, memberId];
+
+    if (next.length === 0) {
+      delete reactions[emoji];
+    } else {
+      reactions[emoji] = next;
+    }
+
+    await db.messages.update(messageId, { reactions });
+  });
+}
+
 // ==================== Agent Hooks ====================
 
 /**

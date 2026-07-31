@@ -15,6 +15,9 @@ import { createCodexMcpServer } from "./codex-mcp-server";
 
 export class CodexCliAdapter implements LocalAiProviderAdapter {
   readonly id = "codex-cli" as const;
+  // Codex applies `sandboxPolicy` with the platform's own mechanism, so an
+  // escape fails in the kernel rather than in our path checks.
+  readonly enforcesSandbox = true;
 
   private provider?: CodexAppServerProvider;
   private providerExecutablePath?: string;
@@ -114,7 +117,13 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           ? { action: "accept", content: {} }
           : { action: "decline", content: null },
     };
-    const cwd = request.options?.cwd;
+    const sandbox = context.sandbox;
+    // `workspaceWrite` makes cwd writable on top of `writableRoots`, so cwd has
+    // to be a writable root — pointing it at `sandbox.root` would silently widen
+    // writes to the whole cage.
+    const cwd = sandbox
+      ? (sandbox.writableRoots[0] ?? sandbox.root)
+      : request.options?.cwd;
 
     return this.provider!(
       resolveLocalModelId(request.modelId, status.defaultModel),
@@ -125,8 +134,8 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
         approvalPolicy: "on-request",
         sandboxPolicy: {
           type: "workspaceWrite",
-          writableRoots: cwd ? [cwd] : [],
-          networkAccess: false,
+          writableRoots: sandbox ? sandbox.writableRoots : cwd ? [cwd] : [],
+          networkAccess: sandbox?.networkAccess ?? false,
         },
       },
     );

@@ -131,6 +131,10 @@ export function useChatHistoryStore() {
             typeof m.content === "string"
               ? m.content
               : JSON.stringify(m.content),
+          senderId: m.senderId,
+          // updateMessages rewrites every row, so reactions must ride along or
+          // a save would silently drop them.
+          reactions: m.reactions,
           parts: m.parts,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
@@ -187,6 +191,8 @@ export function useChatHistory(
           id: m.id,
           role: m.role as "user" | "assistant" | "system" | "data",
           content: m.content,
+          senderId: m.senderId,
+          reactions: m.reactions,
           parts: m.parts as Message["parts"],
           experimental_attachments:
             m.experimental_attachments as Message["experimental_attachments"],

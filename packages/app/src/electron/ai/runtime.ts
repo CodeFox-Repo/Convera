@@ -9,6 +9,7 @@ import type {
   LocalAIStreamEvent,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
+import { SANDBOX_LAYOUT, type AgentSandbox } from "@/shared/types/workspace";
 import {
   streamText,
   type LanguageModel,
@@ -16,6 +17,7 @@ import {
   type UIMessageChunk,
 } from "ai";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import {
   createAgentToolCatalog,
   type AgentTool,
@@ -199,6 +201,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly activeRequests = new Map<string, AbortController>();
   private readonly streamInvoker: RuntimeStreamInvoker;
   private readonly workingDirectory: string;
+  private readonly sandbox: AgentSandbox;
   private readonly getToolGroups: AgentToolGroupProvider;
   private readonly executeTool: AgentToolExecutor;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
@@ -208,6 +211,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       adapters?: LocalAiProviderAdapter[];
       streamInvoker?: RuntimeStreamInvoker;
       workingDirectory?: string;
+      sandbox?: AgentSandbox;
       getToolGroups?: AgentToolGroupProvider;
       executeTool?: AgentToolExecutor;
     } = {},
@@ -218,6 +222,11 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
     this.workingDirectory = options.workingDirectory ?? process.cwd();
+    this.sandbox = options.sandbox ?? {
+      root: this.workingDirectory,
+      writableRoots: [join(this.workingDirectory, SANDBOX_LAYOUT.workspace)],
+      networkAccess: false,
+    };
     this.getToolGroups = options.getToolGroups ?? (() => []);
     this.executeTool =
       options.executeTool ??
@@ -341,7 +350,8 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       }
 
       // Renderer input must not expand filesystem scope. Main chooses a single
-      // trusted working directory when constructing the runtime.
+      // trusted working directory when constructing the runtime, and that
+      // directory is also the sandbox handed to the adapter.
       const trustedRequest: LocalAIChatRequest = {
         ...request,
         options: {
@@ -366,6 +376,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       const model = await adapter.createModel(trustedRequest, probeStatus, {
         tools,
         requestInteraction,
+        sandbox: this.sandbox,
       });
       controller.signal.throwIfAborted();
       const result = this.streamInvoker({

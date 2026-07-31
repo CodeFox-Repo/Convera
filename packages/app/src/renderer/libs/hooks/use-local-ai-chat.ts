@@ -16,6 +16,14 @@ export interface LocalAIChatOptions {
   model?: string;
   agent?: LocalAIChatRequest["agent"];
   options?: LocalAIChatRequest["options"];
+  /**
+   * What the provider receives, when it differs from what the UI shows.
+   * Multi-agent channels send each agent its own projection of the shared
+   * transcript (see agent-projection.ts) while the UI keeps the full one.
+   */
+  requestMessages?: LocalAIChatRequest["messages"];
+  /** Member id stamped on the streamed assistant message. */
+  responderId?: string;
 }
 
 interface UseLocalAIChatResult {
@@ -36,6 +44,18 @@ interface UseLocalAIChatResult {
 
 function createMessageId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
+}
+
+/**
+ * The cause differs by host: in a browser the bridge is simply not wired up
+ * (fixable from the URL), under Electron the runtime genuinely failed to load.
+ */
+function unavailableRuntimeError(): Error {
+  return new Error(
+    window.electronAPI
+      ? "Local AI runtime is not available. Restart Convera, and check that the Claude Code or Codex CLI is installed."
+      : "Not connected to Convera. Open the link printed by `CONVERA_WEB_BRIDGE=1 pnpm start` — this page needs the token it contains.",
+  );
 }
 
 function toRequestMessages(messages: Message[]) {
@@ -105,7 +125,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       if (event.type === "interaction") {
         const localAI = getLocalAI();
         if (!localAI) {
-          setError(new Error("Local AI runtime is not available."));
+          setError(unavailableRuntimeError());
           setStatus("error");
           return;
         }
@@ -149,7 +169,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
     async (nextMessages: Message[], options: LocalAIChatOptions) => {
       const localAI = getLocalAI();
       if (!localAI) {
-        setError(new Error("Local AI runtime is not available."));
+        setError(unavailableRuntimeError());
         setStatus("error");
         return;
       }
@@ -175,15 +195,19 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         id: assistantMessageId,
         role: "assistant",
         content: "",
+        ...(options.responderId ? { senderId: options.responderId } : {}),
         createdAt: new Date(),
       };
       const uiMessageStream = createLocalAIUIMessageStream({
         messageId: assistantMessageId,
         createdAt: assistantMessage.createdAt!,
         onMessage: (message) => {
+          const stamped = options.responderId
+            ? { ...message, senderId: options.responderId }
+            : message;
           setMessages((current) =>
             current.map((candidate) =>
-              candidate.id === assistantMessageId ? message : candidate,
+              candidate.id === assistantMessageId ? stamped : candidate,
             ),
           );
         },
@@ -207,7 +231,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
           requestId,
           providerId: options.providerId,
           modelId: options.model,
-          messages: toRequestMessages(nextMessages),
+          messages: options.requestMessages ?? toRequestMessages(nextMessages),
           agent: options.agent,
           options: options.options,
         });
