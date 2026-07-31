@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { LocalAITurnRuntimeState } from "@/shared/types/local-ai";
+import { LOCAL_AI_PROVIDER_IDS, type LocalAiProviderId } from "../types";
 import {
   LOCAL_AI_RUNTIME_STATE_SCHEMA_VERSION,
   SessionStateError,
@@ -171,7 +172,11 @@ function bindingMatches(
 
 const identifierSchema = z.string().trim().min(1).max(4_096);
 const timestampSchema = z.string().datetime();
-const providerIdSchema = z.enum(["codex-cli", "claude-code"]);
+// Derived, never re-listed: a second hardcoded copy silently invalidates every
+// state file the moment a provider is added.
+const providerIdSchema: z.ZodType<LocalAiProviderId> = z.enum(
+  LOCAL_AI_PROVIDER_IDS,
+);
 const rebaseReasonSchema = z.enum(["edit", "regenerate", "provider-switch"]);
 const memoryCursorSchema = z
   .object({

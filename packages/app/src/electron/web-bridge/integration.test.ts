@@ -33,6 +33,9 @@ import {
 } from "@/shared/web-bridge/protocol";
 
 let bridge: WebBridgeHandle | undefined;
+/** Set by the "defer" request so a test can emit after a reconnect. */
+let deferredEmit: ((event: LocalAIStreamEvent) => void) | undefined;
+let resolveDeferred: (() => void) | undefined;
 
 afterEach(async () => {
   await bridge?.close();
@@ -108,6 +111,18 @@ describe("web bridge end to end", () => {
       startChat: async (request, emit) => {
         if (
           request.operation.kind === "append" &&
+          request.operation.message.content === "defer"
+        ) {
+          // Stay in flight: the turn must still be open when the socket
+          // reconnects, which is the case the assertion below covers.
+          deferredEmit = emit;
+          await new Promise<void>((resolve) => {
+            resolveDeferred = resolve;
+          });
+          return;
+        }
+        if (
+          request.operation.kind === "append" &&
           request.operation.message.content === "hang"
         ) {
           await new Promise<void>(() => undefined);
@@ -180,6 +195,9 @@ describe("web bridge end to end", () => {
     );
 
     bridge = await startWebBridge({
+      // Long enough for a reconnect to win, short enough that the
+      // abandon assertions below do not stall the suite.
+      reconnectGraceMs: 250,
       port: 45921,
       invoke: (channel, args, sender) =>
         recordingIPC.dispatch(channel, args, createWebBridgeEvent(sender)),
@@ -279,6 +297,50 @@ describe("web bridge end to end", () => {
         "lease-for-conversation-lease",
       );
     });
+
+    // Regression: a reconnect used to destroy the sender the running request
+    // was tracked against, so every later event — including the `finish` that
+    // clears the loading state — was dropped, and the reply only appeared
+    // after a reload read the persisted turn back from disk.
+    const reconnectId = "integration-client-reconnect";
+    const wsURL = `${bridge.url.replace(/^http/, "ws")}/ipc/events?token=${bridge.token}&client=${reconnectId}`;
+    const before = new WebSocket(wsURL);
+    await new Promise((resolve) => before.on("open", resolve));
+    const apiBefore = createLocalAIAPI(
+      createBrowserIPC(bridge, before, reconnectId),
+    );
+    await apiBefore.startChat({
+      requestId: "req-reconnect",
+      conversationId: "conversation-reconnect",
+      turnId: "turn-reconnect",
+      providerId: "claude-code",
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "defer" },
+      },
+    });
+    await vi.waitFor(() => expect(deferredEmit).toBeDefined());
+
+    // Same tab, new socket — what an HMR reload or a resumed laptop does.
+    before.close();
+    const after = new WebSocket(wsURL);
+    await new Promise((resolve) => after.on("open", resolve));
+    const resumed: LocalAIStreamEvent[] = [];
+    const unsubscribeResumed = createLocalAIAPI(
+      createBrowserIPC(bridge, after, reconnectId),
+    ).onEvent("req-reconnect", (event) => resumed.push(event));
+
+    deferredEmit?.({
+      type: "finish",
+      requestId: "req-reconnect",
+      finishReason: "stop",
+    });
+    await vi.waitFor(() =>
+      expect(resumed.some((event) => event.type === "finish")).toBe(true),
+    );
+    unsubscribeResumed();
+    resolveDeferred?.();
+    after.close();
 
     unsubscribeLeak();
     unsubscribe2();

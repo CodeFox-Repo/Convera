@@ -55,9 +55,24 @@ export class WebBridgeSender extends EventEmitter {
   private destroyed = false;
 
   constructor(
-    private readonly emit_: (channel: string, payload: unknown) => void,
+    private emit_: (channel: string, payload: unknown) => void,
   ) {
     super();
+  }
+
+  /**
+   * Point this sender at a freshly reconnected socket.
+   *
+   * A browser tab keeps its identity across a dropped WebSocket (HMR, sleep, a
+   * flaky network), but an in-flight turn was tracked against *this* sender
+   * object. Destroying it on reconnect made every later event — including the
+   * `finish` that clears the loading state — get dropped as "sender gone", so
+   * the reply streamed into nothing and the bubble stayed on "..." until a
+   * reload read the already-persisted turn from disk.
+   */
+  rebind(emit: (channel: string, payload: unknown) => void) {
+    if (this.destroyed) return;
+    this.emit_ = emit;
   }
 
   isDestroyed() {
