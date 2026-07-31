@@ -15,6 +15,7 @@ import type {
   LocalAIStreamEvent,
   LocalAITurnRuntimeStateRequest,
 } from "@/shared/types/local-ai";
+import { isLocalAIMemoryProvider } from "@/shared/types/local-ai";
 import {
   contextBridge,
   ipcMain,
@@ -76,7 +77,6 @@ const MAX_REQUEST_CHARS = 1_000_000;
 const MAX_INTERACTION_RESPONSE_CHARS = 20_000;
 const MAX_METADATA_CHARS = 512;
 const MAX_CWD_CHARS = 4_096;
-const MAX_SECRET_CHARS = 8_192;
 const MAX_OUTPUT_TOKENS = 1_000_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -349,9 +349,6 @@ function validateMemorySettingsUpdate(
 
   const allowedKeys = new Set([
     "provider",
-    "baseURL",
-    "apiKey",
-    "clearApiKey",
     "subconsciousProvider",
     "schedule",
     "batchSize",
@@ -361,12 +358,8 @@ function validateMemorySettingsUpdate(
 
   return (
     (update.provider === undefined ||
-      update.provider === "off" ||
-      update.provider === "letta") &&
-    isOptionalString(update.baseURL, MAX_CWD_CHARS) &&
-    isOptionalString(update.apiKey, MAX_SECRET_CHARS) &&
-    (update.clearApiKey === undefined ||
-      typeof update.clearApiKey === "boolean") &&
+      (typeof update.provider === "string" &&
+        isLocalAIMemoryProvider(update.provider))) &&
     (update.subconsciousProvider === undefined ||
       update.subconsciousProvider === "off" ||
       update.subconsciousProvider === "codex-cli" ||

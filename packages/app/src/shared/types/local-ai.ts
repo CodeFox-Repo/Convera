@@ -99,7 +99,14 @@ export interface LocalAIUsage {
   totalTokens?: number;
 }
 
-export type LocalAIMemoryProvider = "off" | "letta";
+export const LOCAL_AI_MEMORY_PROVIDERS = ["off", "local"] as const;
+export type LocalAIMemoryProvider = (typeof LOCAL_AI_MEMORY_PROVIDERS)[number];
+
+export function isLocalAIMemoryProvider(
+  value: string,
+): value is LocalAIMemoryProvider {
+  return LOCAL_AI_MEMORY_PROVIDERS.some((provider) => provider === value);
+}
 export type LocalAISubconsciousProvider =
   | "off"
   | "codex-cli"
@@ -109,8 +116,6 @@ export type LocalAIMemorySchedule = "every-turn" | "batch" | "idle";
 
 export interface LocalAIMemorySettings {
   provider: LocalAIMemoryProvider;
-  baseURL: string;
-  apiKeyConfigured: boolean;
   subconsciousProvider: LocalAISubconsciousProvider;
   schedule: LocalAIMemorySchedule;
   batchSize: number;
@@ -119,9 +124,6 @@ export interface LocalAIMemorySettings {
 
 export interface LocalAIMemorySettingsUpdate {
   provider?: LocalAIMemoryProvider;
-  baseURL?: string;
-  apiKey?: string;
-  clearApiKey?: boolean;
   subconsciousProvider?: LocalAISubconsciousProvider;
   schedule?: LocalAIMemorySchedule;
   batchSize?: number;

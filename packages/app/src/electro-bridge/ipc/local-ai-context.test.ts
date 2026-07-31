@@ -112,8 +112,6 @@ function createRuntime(
     })),
     getMemorySettings: vi.fn(() => ({
       provider: "off" as const,
-      baseURL: "http://127.0.0.1:8283",
-      apiKeyConfigured: false,
       subconsciousProvider: "off" as const,
       schedule: "every-turn" as const,
       batchSize: 5,
@@ -121,8 +119,6 @@ function createRuntime(
     })),
     updateMemorySettings: vi.fn(() => ({
       provider: "off" as const,
-      baseURL: "http://127.0.0.1:8283",
-      apiKeyConfigured: false,
       subconsciousProvider: "off" as const,
       schedule: "every-turn" as const,
       batchSize: 5,
@@ -822,9 +818,7 @@ describe("local AI IPC", () => {
     );
     const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
     const validUpdate = {
-      provider: "letta",
-      baseURL: "http://127.0.0.1:8283",
-      apiKey: "secret",
+      provider: "local",
       subconsciousProvider: "follow-active",
       schedule: "batch",
       batchSize: 5,
@@ -846,6 +840,66 @@ describe("local AI IPC", () => {
       error: { code: "LOCAL_AI_INVALID_REQUEST" },
     });
     expect(runtime.updateMemorySettings).toHaveBeenCalledOnce();
+  });
+
+  it("accepts local and paused memory providers", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+
+    await expect(
+      update?.(createEvent(sender), { provider: "local" }),
+    ).resolves.toMatchObject({ success: true });
+    await expect(
+      update?.(createEvent(sender), { provider: "off" }),
+    ).resolves.toMatchObject({ success: true });
+
+    expect(runtime.updateMemorySettings).toHaveBeenNthCalledWith(1, {
+      provider: "local",
+    });
+    expect(runtime.updateMemorySettings).toHaveBeenNthCalledWith(2, {
+      provider: "off",
+    });
+    expect(runtime.getMemorySettings).not.toHaveBeenCalled();
+  });
+
+  it("rejects the removed Letta provider and connection fields", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+
+    await expect(
+      update?.(createEvent(sender), { apiKey: "must-not-leak" }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    await expect(
+      update?.(createEvent(sender), {
+        provider: "letta",
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+
+    expect(runtime.updateMemorySettings).not.toHaveBeenCalled();
   });
 
   it("serializes Error fields without crossing the process boundary", () => {

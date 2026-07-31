@@ -18,14 +18,24 @@ import type {
   LocalAIMemoryStatus,
 } from "@/shared/types/local-ai";
 import {
-  Check,
-  Database,
-  Loader2,
-  RotateCcw,
-  Save,
-  Terminal,
-} from "lucide-react";
+  LOCAL_AI_MEMORY_PROVIDERS,
+  isLocalAIMemoryProvider,
+} from "@/shared/types/local-ai";
+import { Check, Database, Loader2, RotateCcw, Terminal } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+
+export const MEMORY_PROVIDER_OPTIONS = LOCAL_AI_MEMORY_PROVIDERS.map(
+  (value) => ({
+    value,
+    label: value === "off" ? "Off" : "Local",
+  }),
+);
+
+export function createMemoryProviderUpdate(
+  value: string,
+): LocalAIMemorySettingsUpdate | null {
+  return isLocalAIMemoryProvider(value) ? { provider: value } : null;
+}
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
@@ -42,8 +52,6 @@ export function GeneralSettingsPage() {
   const [memoryStatus, setMemoryStatus] = useState<LocalAIMemoryStatus | null>(
     null,
   );
-  const [memoryBaseURL, setMemoryBaseURL] = useState("");
-  const [memoryApiKey, setMemoryApiKey] = useState("");
   const [memorySaving, setMemorySaving] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
 
@@ -89,7 +97,6 @@ export function GeneralSettingsPage() {
         );
       }
       setMemorySettings(settingsResult.data);
-      setMemoryBaseURL(settingsResult.data.baseURL);
       if (!statusResult.success || !statusResult.data) {
         throw new Error(
           statusResult.error?.message || "Could not load memory status.",
@@ -121,8 +128,6 @@ export function GeneralSettingsPage() {
           );
         }
         setMemorySettings(result.data);
-        setMemoryBaseURL(result.data.baseURL);
-        setMemoryApiKey("");
         const statusResult = await window.localAI.getMemoryStatus();
         if (statusResult.success && statusResult.data) {
           setMemoryStatus(statusResult.data);
@@ -490,8 +495,8 @@ export function GeneralSettingsPage() {
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Letta stores durable memory. A separate local Codex or Claude
-              session curates completed turns without blocking the reply.
+              Store memory locally. A separate Codex or Claude session can
+              curate completed turns without blocking the reply.
             </p>
           </div>
 
@@ -502,109 +507,29 @@ export function GeneralSettingsPage() {
                   Memory provider
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Disable memory or connect Convera to Letta.
+                  Off pauses memory without deleting it. Local keeps memory on
+                  this device.
                 </p>
               </div>
               <select
                 aria-label="Memory provider"
                 value={memorySettings?.provider ?? "off"}
                 disabled={!memorySettings || memorySaving}
-                onChange={(event) =>
-                  void updateMemoryConfiguration({
-                    provider: event.target.value as "off" | "letta",
-                  })
-                }
+                onChange={(event) => {
+                  const update = createMemoryProviderUpdate(event.target.value);
+                  if (update) {
+                    void updateMemoryConfiguration(update);
+                  }
+                }}
                 className="min-w-36 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
               >
-                <option value="off">Off</option>
-                <option value="letta">Letta</option>
+                {MEMORY_PROVIDER_OPTIONS.map((provider) => (
+                  <option key={provider.value} value={provider.value}>
+                    {provider.label}
+                  </option>
+                ))}
               </select>
             </label>
-
-            <div className="space-y-3 p-4">
-              <div>
-                <label
-                  htmlFor="letta-base-url"
-                  className="font-medium text-foreground"
-                >
-                  Letta endpoint
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Local or hosted Letta server URL.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  id="letta-base-url"
-                  value={memoryBaseURL}
-                  disabled={memorySaving}
-                  onChange={(event) => setMemoryBaseURL(event.target.value)}
-                  placeholder="http://127.0.0.1:8283"
-                  className="bg-transparent"
-                />
-                <Button
-                  variant="outline"
-                  disabled={
-                    memorySaving ||
-                    !memorySettings ||
-                    memoryBaseURL === memorySettings.baseURL
-                  }
-                  onClick={() =>
-                    void updateMemoryConfiguration({ baseURL: memoryBaseURL })
-                  }
-                >
-                  <Save className="h-4 w-4" />
-                  Save
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-3 p-4">
-              <div>
-                <span className="font-medium text-foreground">
-                  Letta credential
-                </span>
-                <p className="text-xs text-muted-foreground">
-                  Sent directly to Electron main and never stored in Dexie.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  value={memoryApiKey}
-                  disabled={memorySaving}
-                  onChange={(event) => setMemoryApiKey(event.target.value)}
-                  placeholder={
-                    memorySettings?.apiKeyConfigured
-                      ? "Credential configured"
-                      : "API key"
-                  }
-                  className="bg-transparent"
-                />
-                <Button
-                  variant="outline"
-                  disabled={memorySaving || !memoryApiKey.trim()}
-                  onClick={() =>
-                    void updateMemoryConfiguration({
-                      apiKey: memoryApiKey.trim(),
-                    })
-                  }
-                >
-                  Save
-                </Button>
-                {memorySettings?.apiKeyConfigured && (
-                  <Button
-                    variant="outline"
-                    disabled={memorySaving}
-                    onClick={() =>
-                      void updateMemoryConfiguration({ clearApiKey: true })
-                    }
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
 
             <label className="flex items-center justify-between gap-4 p-4">
               <div>
