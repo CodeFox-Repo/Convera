@@ -23,6 +23,9 @@ describe("Electron memory integration", () => {
     });
 
     await coordinator.updateMemorySettings({
+      provider: "local",
+    });
+    await coordinator.updateMemorySettings({
       provider: "off",
     });
 
@@ -37,9 +40,9 @@ describe("Electron memory integration", () => {
       provider: "off",
     });
     expect(await sessions.getConversation("conversation-1")).toMatchObject({
-      revision: 1,
+      revision: 2,
       memoryVersion: 0,
-      memoryEpoch: 3,
+      memoryEpoch: 4,
     });
   });
 
