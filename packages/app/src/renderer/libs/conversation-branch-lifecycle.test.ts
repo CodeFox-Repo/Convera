@@ -56,6 +56,9 @@ async function seedSource(): Promise<void> {
     conversationId: sourceConversationId,
     role: "user",
     content: "branch here",
+    senderId: "me",
+    mentions: ["agent:fizz"],
+    reactions: { "👍": ["me"] },
     status: "completed",
     createdAt,
   });
@@ -122,8 +125,12 @@ describe("conversation branch lifecycle", () => {
       },
     });
     expect(
-      await db.messages.where("conversationId").equals(branchId).toArray(),
-    ).toHaveLength(1);
+      await db.messages.where("conversationId").equals(branchId).first(),
+    ).toMatchObject({
+      senderId: "me",
+      mentions: ["agent:fizz"],
+      reactions: { "👍": ["me"] },
+    });
     expect(await db.pendingConversationDeletions.get(branchId)).toBeUndefined();
   });
 

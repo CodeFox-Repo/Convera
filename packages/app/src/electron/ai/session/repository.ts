@@ -148,14 +148,22 @@ function cloneState<T>(value: T): T {
   return structuredClone(value);
 }
 
+export const DEFAULT_LOCAL_AI_ACTOR_ID = "actor:default";
+
+function normalizedActorId(actorId: string | undefined): string {
+  return actorId?.trim() || DEFAULT_LOCAL_AI_ACTOR_ID;
+}
+
 function bindingMatches(
   binding: ProviderSessionBinding,
   conversationId: string,
   providerId: string,
   revision: number,
+  actorId?: string,
 ): boolean {
   return (
     binding.conversationId === conversationId &&
+    normalizedActorId(binding.actorId) === normalizedActorId(actorId) &&
     binding.providerId === providerId &&
     binding.revision === revision
   );
@@ -206,6 +214,7 @@ const durableMemoryTurnHookPayloadSchema = z
     sourceId: identifierSchema.optional(),
     turnId: identifierSchema,
     conversationId: identifierSchema,
+    actorId: identifierSchema.optional(),
     revision: z.number().int().min(0),
     providerId: providerIdSchema,
     scopes: z.array(durableMemoryScopeSchema).min(1).max(3),
@@ -236,6 +245,7 @@ const durableTurnHookSchema = z
 const bindingSchema = z
   .object({
     conversationId: identifierSchema,
+    actorId: identifierSchema.optional(),
     providerId: providerIdSchema,
     revision: z.number().int().min(0),
     transcriptVersion: z.number().int().min(0),
@@ -244,6 +254,7 @@ const bindingSchema = z
     modelId: z.string().min(1).max(4_096).optional(),
     stale: z.boolean(),
     memoryCursors: z.record(identifierSchema, memoryCursorSchema).optional(),
+    contextFingerprint: identifierSchema.optional(),
     updatedAt: timestampSchema,
   })
   .strict();
@@ -252,6 +263,7 @@ const turnSchema = z
     turnId: identifierSchema,
     requestId: identifierSchema,
     conversationId: identifierSchema,
+    actorId: identifierSchema.optional(),
     providerId: providerIdSchema,
     revision: z.number().int().min(0),
     operation: z.enum(["append", "bootstrap", "rebase"]),
@@ -378,7 +390,7 @@ function assertState(value: unknown): asserts value is LocalAiRuntimeState {
   const uniqueBindings = new Set(
     state.bindings.map(
       (binding) =>
-        `${binding.conversationId}\0${binding.providerId}\0${binding.revision}`,
+        `${binding.conversationId}\0${normalizedActorId(binding.actorId)}\0${binding.providerId}\0${binding.revision}`,
     ),
   );
   const structurallyConsistent =
@@ -482,12 +494,14 @@ function beginTurn(
       input.conversationId,
       input.providerId,
       conversation.revision,
+      input.actorId,
     ),
   );
   const currentRevisionIsUncertain = state.turns.some(
     (turn) =>
       turn.conversationId === input.conversationId &&
       turn.providerId === input.providerId &&
+      normalizedActorId(turn.actorId) === normalizedActorId(input.actorId) &&
       turn.revision === conversation.revision &&
       turn.status === "uncertain",
   );
@@ -545,6 +559,7 @@ function beginTurn(
       input.conversationId,
       input.providerId,
       conversation.revision,
+      input.actorId,
     ),
   );
 
@@ -552,6 +567,7 @@ function beginTurn(
     turnId: input.turnId,
     requestId: input.requestId,
     conversationId: input.conversationId,
+    actorId: normalizedActorId(input.actorId),
     providerId: input.providerId,
     revision: conversation.revision,
     operation: input.operation,
@@ -570,9 +586,10 @@ function invalidateBinding(
   providerId: string,
   revision: number,
   now: string,
+  actorId?: string,
 ): void {
   const binding = state.bindings.find((candidate) =>
-    bindingMatches(candidate, conversationId, providerId, revision),
+    bindingMatches(candidate, conversationId, providerId, revision, actorId),
   );
   if (!binding) return;
   binding.stale = true;
@@ -702,6 +719,7 @@ function completeTurn(
       turn.conversationId,
       turn.providerId,
       turn.revision,
+      turn.actorId,
     ),
   );
   const existingBinding =
@@ -718,6 +736,7 @@ function completeTurn(
   const transcriptVersion = conversation.transcriptVersion + 1;
   const binding: ProviderSessionBinding = {
     conversationId: turn.conversationId,
+    actorId: normalizedActorId(turn.actorId),
     providerId: turn.providerId,
     revision: turn.revision,
     nativeSessionId,
@@ -728,6 +747,7 @@ function completeTurn(
     memoryCursors: cloneState(
       input.memoryCursors ?? existingBinding?.memoryCursors ?? {},
     ),
+    contextFingerprint: input.contextFingerprint,
     updatedAt: now,
   };
   if (bindingIndex === -1) {
@@ -780,6 +800,7 @@ function failTurn(
       turn.providerId,
       turn.revision,
       now,
+      turn.actorId,
     );
   }
   makeTurnHookPending(state, turnId, "failed", now);
@@ -888,9 +909,17 @@ abstract class SerializedSessionStateRepository
     conversationId: string,
     providerId: ProviderSessionBinding["providerId"],
     revision: number,
+    actorId?: string,
   ): Promise<void> {
     return this.transact((state, now) =>
-      invalidateBinding(state, conversationId, providerId, revision, now),
+      invalidateBinding(
+        state,
+        conversationId,
+        providerId,
+        revision,
+        now,
+        actorId,
+      ),
     );
   }
 
@@ -1130,11 +1159,10 @@ abstract class SerializedSessionStateRepository
       if (!conversation) return;
       state.bindings = state.bindings.filter(
         (binding) =>
-          !bindingMatches(
-            binding,
-            conversationId,
-            providerId,
-            conversation.revision,
+          !(
+            binding.conversationId === conversationId &&
+            binding.providerId === providerId &&
+            binding.revision === conversation.revision
           ),
       );
       state.turns = state.turns.filter(
@@ -1419,6 +1447,7 @@ export class JsonSessionStateRepository extends SerializedSessionStateRepository
           turn.providerId,
           turn.revision,
           interruptedAt,
+          turn.actorId,
         );
       }
       makeTurnHookPending(state, turn.turnId, "failed", interruptedAt);
@@ -1498,6 +1527,7 @@ export class InMemorySessionStateRepository extends SerializedSessionStateReposi
           turn.providerId,
           turn.revision,
           interruptedAt,
+          turn.actorId,
         );
       }
     }

@@ -75,7 +75,10 @@ export interface LocalAIChatRequest {
   modelId?: string;
   operation: LocalAIChatOperation;
   agent?: {
+    /** Stable agent entity id. */
     id?: string;
+    /** Stable channel participant id used to isolate native sessions. */
+    memberId?: string;
     systemPrompt?: string;
   };
   options?: {
@@ -131,6 +134,7 @@ export interface LocalAIMemorySettingsUpdate {
 }
 
 export interface LocalAIProviderBindingState {
+  actorId: string;
   providerId: string;
   modelId?: string;
   revision: number;

@@ -27,6 +27,7 @@ function turn(id: string): CompletedMemoryTurn {
   return {
     turnId: id,
     sourceId: "source:a",
+    actorId: "agent:fizz",
     scope,
     userContent: "Remember the selected architecture.",
     assistantContent:
@@ -53,6 +54,13 @@ function patchFor(input: CuratorInput) {
     turnId: input.expectedPatchTurnId,
     provenance: {
       actor: "subconscious" as const,
+      sourceActorIds: [
+        ...new Set(
+          input.turns
+            .map((value) => value.actorId)
+            .filter((actorId): actorId is string => Boolean(actorId)),
+        ),
+      ],
       turnId: input.expectedPatchTurnId,
       timestamp,
     },
@@ -295,6 +303,32 @@ describe("SubconsciousWorker", () => {
     expect(worker.getState(jobId)).toMatchObject({
       status: "skipped",
       reason: "The turn contains no durable information.",
+    });
+    expect((await store.getSnapshot(scope)).version).toBe(0);
+    worker.dispose();
+  });
+
+  it("rejects a curator patch that drops the completed turn actor", async () => {
+    const store = setup();
+    const worker = new SubconsciousWorker({
+      store,
+      curator: {
+        curate: async (input) => {
+          const patch = patchFor(input);
+          patch.provenance.sourceActorIds = [];
+          return patch;
+        },
+      },
+      schedule: "every-turn",
+      retryBaseMs: 0,
+      jobRepository: new InMemorySubconsciousJobRepository(),
+    });
+    const jobId = await worker.enqueue(turn("turn-wrong-actor"));
+    await worker.flush();
+
+    expect(worker.getState(jobId)).toMatchObject({
+      status: "failed",
+      error: expect.stringContaining("source actor identities"),
     });
     expect((await store.getSnapshot(scope)).version).toBe(0);
     worker.dispose();

@@ -103,7 +103,7 @@ export default function ModelSelector() {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          className="w-[320px] bg-popover border border-border rounded-xl shadow-lg z-50"
+          className="w-[320px] bg-popover border border-border rounded-xl shadow-lg z-50 text-popover-foreground"
           side="bottom"
           align="start"
           sideOffset={8}

@@ -11,7 +11,12 @@ import {
   type LocalAiProviderAdapter,
 } from "../provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../provider-descriptors";
-import { LocalAiRuntime, type RuntimeStreamInvoker } from "../runtime";
+import {
+  fingerprintAgentContext,
+  LocalAiRuntime,
+  resolveLocalAiActorId,
+  type RuntimeStreamInvoker,
+} from "../runtime";
 import { InMemorySessionStateRepository } from "../session/repository";
 import type { LocalAiProviderId, LocalAiProviderStatus } from "../types";
 
@@ -31,6 +36,7 @@ function fakeAdapter(
 
   return {
     id,
+    enforcesSandbox: false,
     getStatus: vi.fn(async () => status),
     prepareRun: vi.fn(async () => ({
       model: {} as LanguageModel,
@@ -71,6 +77,50 @@ const enabledMemorySettings: LocalAIMemorySettings = {
 };
 
 describe("LocalAiRuntime", () => {
+  it("derives stable actor identity from the responder member", () => {
+    expect(
+      resolveLocalAiActorId({
+        agent: { id: "fizz", memberId: "agent:fizz" },
+      }),
+    ).toBe("agent:fizz");
+    expect(resolveLocalAiActorId({ agent: { id: "fizz" } })).toBe("agent:fizz");
+  });
+
+  it("fingerprints prompt and the main-owned sandbox policy", () => {
+    const request = {
+      agent: {
+        id: "fizz",
+        memberId: "agent:fizz",
+        systemPrompt: "Be concise.",
+      },
+    };
+    const sandbox = {
+      root: "/agents/fizz",
+      writableRoots: ["/agents/fizz/workspace"],
+      networkAccess: false,
+    };
+    const fingerprint = fingerprintAgentContext(request, sandbox);
+
+    expect(fingerprintAgentContext(request, sandbox)).toBe(fingerprint);
+    expect(
+      fingerprintAgentContext(
+        {
+          agent: {
+            ...request.agent,
+            systemPrompt: "Be expansive.",
+          },
+        },
+        sandbox,
+      ),
+    ).not.toBe(fingerprint);
+    expect(
+      fingerprintAgentContext(request, {
+        ...sandbox,
+        networkAccess: true,
+      }),
+    ).not.toBe(fingerprint);
+  });
+
   it("maps the renderer default sentinel to the provider default model", () => {
     expect(resolveLocalModelId(undefined, "provider-default")).toBe(
       "provider-default",
@@ -162,12 +212,17 @@ describe("LocalAiRuntime", () => {
 
     expect(adapter.prepareRun).toHaveBeenCalledWith(
       expect.objectContaining({
-        options: { cwd: "/trusted/workspace" },
+        options: { cwd: "/trusted/workspace/workspace" },
       }),
       expect.any(Object),
       expect.objectContaining({
         tools: [],
         requestInteraction: expect.any(Function),
+        sandbox: {
+          root: "/trusted/workspace",
+          writableRoots: ["/trusted/workspace/workspace"],
+          networkAccess: false,
+        },
       }),
     );
     expect(streamOptions?.messages).toEqual([
@@ -482,12 +537,12 @@ describe("LocalAiRuntime", () => {
           serverName: "external",
           tools: [
             {
-              name: "write_value",
-              description: "Writes a value",
+              name: "write_file",
+              description: "Writes a file",
               inputSchema: {
                 type: "object",
-                properties: { value: { type: "string" } },
-                required: ["value"],
+                properties: { path: { type: "string" } },
+                required: ["path"],
               },
             },
           ],
@@ -498,12 +553,12 @@ describe("LocalAiRuntime", () => {
         toUIMessageStream: async function* () {
           const tool = toolContext?.tools[0];
           if (!tool) throw new Error("Expected tool context");
-          const output = await tool.execute({ value: "ready" });
+          const output = await tool.execute({ path: "workspace/ready.txt" });
           yield {
             type: "tool-input-available" as const,
             toolCallId: "tool-1",
             toolName: tool.name,
-            input: { value: "ready" },
+            input: { path: "workspace/ready.txt" },
             dynamic: true,
           };
           yield {
@@ -524,7 +579,7 @@ describe("LocalAiRuntime", () => {
         type: "interaction",
         requestId: "request-1",
         kind: "approval",
-        name: "external:write_value",
+        name: "external:write_file",
       });
     });
     const interaction = events[0];
@@ -547,8 +602,8 @@ describe("LocalAiRuntime", () => {
       chunk: {
         type: "tool-input-available",
         toolCallId: "tool-1",
-        toolName: "external:write_value",
-        input: { value: "ready" },
+        toolName: "external:write_file",
+        input: { path: "workspace/ready.txt" },
         dynamic: true,
       },
     });
@@ -562,6 +617,71 @@ describe("LocalAiRuntime", () => {
       revision: 0,
     });
   });
+
+  it.each(["claude-code", "codex-cli"] as const)(
+    "fails closed before executing an opaque MCP tool for %s",
+    async (providerId) => {
+      const events: LocalAIStreamEvent[] = [];
+      let toolContext:
+        | Parameters<LocalAiProviderAdapter["prepareRun"]>[2]
+        | undefined;
+      const adapter = fakeAdapter(providerId);
+      vi.mocked(adapter.prepareRun).mockImplementation(
+        async (_request, _status, context) => {
+          toolContext = context;
+          return {
+            model: {} as LanguageModel,
+            getNativeSessionId: () => "claude-session",
+          };
+        },
+      );
+      const executeTool = vi.fn(async () => ({ ok: true }));
+      const runtime = new LocalAiRuntime({
+        adapters: [adapter],
+        getToolGroups: () => [
+          {
+            serverName: "external",
+            tools: [
+              {
+                name: "execute",
+                inputSchema: {
+                  type: "object",
+                  properties: { command: { type: "string" } },
+                  required: ["command"],
+                },
+              },
+            ],
+          },
+        ],
+        executeTool,
+        streamInvoker: () => ({
+          toUIMessageStream: async function* () {
+            await toolContext?.tools[0]?.execute({
+              command: "cat /etc/passwd",
+            });
+          },
+        }),
+        sessionRepository: new InMemorySessionStateRepository(),
+      });
+
+      await runtime.startChat(
+        request({ providerId }),
+        (event) => events.push(event),
+      );
+
+      expect(executeTool).not.toHaveBeenCalled();
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "error",
+          error: expect.objectContaining({
+            message: expect.stringContaining(
+              "exposes no canonicalizable filesystem boundary",
+            ),
+          }),
+        }),
+      );
+    },
+  );
 
   it("commits provider metadata and resumes with only the append delta", async () => {
     const repository = new InMemorySessionStateRepository();
@@ -626,6 +746,26 @@ describe("LocalAiRuntime", () => {
       }),
       () => undefined,
     );
+    await runtime.startChat(
+      request({
+        requestId: "request-3",
+        turnId: "turn-3",
+        expectedRevision: 0,
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "third" },
+          recoveryMessages: [
+            { role: "user", content: "first" },
+            { role: "assistant", content: "first response" },
+            { role: "user", content: "second" },
+            { role: "assistant", content: "second response" },
+            { role: "user", content: "third" },
+          ],
+        },
+        agent: { systemPrompt: "changed system" },
+      }),
+      () => undefined,
+    );
 
     expect(streamInvoker.mock.calls[0]?.[0].messages).toEqual([
       { role: "system", content: "system" },
@@ -638,8 +778,20 @@ describe("LocalAiRuntime", () => {
     expect(
       vi.mocked(adapter.prepareRun).mock.calls[1]?.[2].session,
     ).toMatchObject({ nativeSessionId: "session-1" });
+    expect(streamInvoker.mock.calls[2]?.[0].messages).toEqual([
+      { role: "system", content: "changed system" },
+      { role: "user", content: "first" },
+      { role: "assistant", content: "first response" },
+      { role: "user", content: "second" },
+      { role: "assistant", content: "second response" },
+      { role: "user", content: "third" },
+    ]);
+    expect(
+      vi.mocked(adapter.prepareRun).mock.calls[2]?.[2].session,
+    ).toBeUndefined();
     expect(await repository.getBindings("conversation-1")).toEqual([
       expect.objectContaining({ nativeSessionId: "session-2", revision: 0 }),
+      expect.objectContaining({ nativeSessionId: "session-3", revision: 1 }),
     ]);
   });
 

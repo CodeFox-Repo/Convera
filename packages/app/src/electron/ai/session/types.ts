@@ -17,6 +17,8 @@ export type ProviderMemoryCursors = Record<string, ProviderMemoryCursor>;
 
 export interface ProviderSessionBinding {
   conversationId: string;
+  /** Stable channel actor. Missing only on pre-multi-agent state. */
+  actorId?: string;
   providerId: LocalAiProviderId;
   revision: number;
   nativeSessionId: string;
@@ -25,6 +27,8 @@ export interface ProviderSessionBinding {
   stale: boolean;
   transcriptVersion: number;
   memoryCursors?: ProviderMemoryCursors;
+  /** Prompt + sandbox fingerprint that created this native session. */
+  contextFingerprint?: string;
   updatedAt: string;
 }
 
@@ -40,6 +44,8 @@ export interface SessionTurnRecord {
   turnId: string;
   requestId: string;
   conversationId: string;
+  /** Stable channel actor. Missing only on pre-multi-agent state. */
+  actorId?: string;
   providerId: LocalAiProviderId;
   revision: number;
   operation: LocalAIChatOperation["kind"];
@@ -101,6 +107,8 @@ export interface DurableMemoryTurnHookPayload {
   sourceId?: string;
   turnId: string;
   conversationId: string;
+  /** Stable channel actor. Missing only on legacy durable hooks. */
+  actorId?: string;
   revision: number;
   providerId: LocalAiProviderId;
   scopes: DurableMemoryScope[];
@@ -155,6 +163,7 @@ export interface BeginSessionTurnInput {
   turnId: string;
   requestId: string;
   conversationId: string;
+  actorId?: string;
   providerId: LocalAiProviderId;
   operation: LocalAIChatOperation["kind"];
   operationReason?: LocalAIRebaseReason;
@@ -176,6 +185,7 @@ export interface CompleteSessionTurnInput {
   assistantText?: string;
   memoryCursors?: ProviderMemoryCursors;
   assistantHookContent?: string;
+  contextFingerprint?: string;
 }
 
 export interface SessionStateRepository {
@@ -193,6 +203,7 @@ export interface SessionStateRepository {
     conversationId: string,
     providerId: LocalAiProviderId,
     revision: number,
+    actorId?: string,
   ): Promise<void>;
   setConversationMemoryState(
     conversationId: string,

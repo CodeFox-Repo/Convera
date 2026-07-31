@@ -322,6 +322,14 @@ describe("local AI IPC", () => {
     const invalidRequests = [
       { ...baseRequest, modelId: { id: "not-a-string" } },
       { ...baseRequest, agent: { systemPrompt: 42 } },
+      {
+        ...baseRequest,
+        agent: { id: "fizz", memberId: "agent:honey" },
+      },
+      {
+        ...baseRequest,
+        agent: { id: "../fizz", memberId: "agent:../fizz" },
+      },
       { ...baseRequest, options: { temperature: Number.NaN } },
       { ...baseRequest, options: { maxOutputTokens: 0 } },
       {

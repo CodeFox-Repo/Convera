@@ -220,6 +220,11 @@ export function useChatHistoryStore() {
             typeof m.content === "string"
               ? m.content
               : JSON.stringify(m.content),
+          senderId: m.senderId,
+          mentions: m.mentions,
+          // updateMessages rewrites every row, so reactions must ride along or
+          // a save would silently drop them.
+          reactions: m.reactions,
           parts: m.parts,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
@@ -240,6 +245,9 @@ export function useChatHistoryStore() {
           typeof message.content === "string"
             ? message.content
             : JSON.stringify(message.content),
+        senderId: message.senderId,
+        mentions: message.mentions,
+        reactions: message.reactions,
         parts: message.parts,
         experimental_attachments: message.experimental_attachments?.map(
           (a) => ({
@@ -276,6 +284,9 @@ export function useChatHistory(
           id: m.id,
           role: m.role as "user" | "assistant" | "system" | "data",
           content: m.content,
+          senderId: m.senderId,
+          mentions: m.mentions,
+          reactions: m.reactions,
           parts: m.parts as Message["parts"],
           experimental_attachments:
             m.experimental_attachments as Message["experimental_attachments"],

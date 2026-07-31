@@ -16,6 +16,25 @@ import type { LocalAiProviderStatus } from "../types";
 
 export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
   readonly id = "claude-code" as const;
+  /**
+   * False on purpose. Checked in @anthropic-ai/claude-agent-sdk 0.1.77 and
+   * ai-sdk-provider-claude-code 3.1.0:
+   *
+   * - `sandbox: SandboxSettings` is real and OS-level (seatbelt on macOS,
+   *   bubblewrap on Linux), but it only wraps Bash subprocesses. The built-in
+   *   file tools run inside the CLI and are governed by the permission prompt,
+   *   not the kernel.
+   * - Its writable set is not settable from SDK options: `SandboxSettings` has
+   *   no filesystem key, and the CLI derives allowed writes from cwd plus
+   *   `permissions.allow` rules in on-disk settings, which `settingSources: []`
+   *   deliberately does not load.
+   * - It self-disables when its ripgrep dependency check fails, silently.
+   *
+   * `additionalDirectories` and `allowedTools` widen access rather than cage it.
+   * So the settings below are defence in depth, and `resolveInSandbox` remains
+   * the boundary that actually has to hold.
+   */
+  readonly enforcesSandbox = false;
 
   private readonly provider = createClaudeCode({
     defaultSettings: {
@@ -75,11 +94,17 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         ? createSdkMcpServer({ name: "convera", tools })
         : undefined;
 
+    const fallbackRoot = request.options?.cwd ?? process.cwd();
+    const sandbox = context.sandbox ?? {
+      root: fallbackRoot,
+      writableRoots: [fallbackRoot],
+      networkAccess: false,
+    };
     const model = this.provider(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         pathToClaudeCodeExecutable: status.executablePath,
-        cwd: request.options?.cwd,
+        cwd: sandbox.writableRoots[0] ?? sandbox.root,
         resume: context.session?.nativeSessionId,
         mcpServers: textOnly
           ? {}
@@ -102,7 +127,9 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
                 interrupt: true,
               }),
             }
-          : {}),
+          : !sandbox.networkAccess
+            ? { sandbox: { enabled: true, network: { allowedDomains: [] } } }
+            : {}),
       },
     );
     return {

@@ -86,6 +86,17 @@ function metadataString(
   return typeof value === "string" ? value : undefined;
 }
 
+function metadataStrings(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string,
+): string[] | undefined {
+  const value = metadata?.[key];
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === "string")
+    ? value
+    : undefined;
+}
+
 function provenanceFromBlock(
   block: BackendBlockRecord,
   now: () => Date,
@@ -100,6 +111,8 @@ function provenanceFromBlock(
       actor === "system"
         ? actor
         : "system",
+    actorId: metadataString(metadata, "converaActorId"),
+    sourceActorIds: metadataStrings(metadata, "converaSourceActorIds"),
     turnId: metadataString(metadata, "converaTurnId") ?? "unknown",
     timestamp: metadataString(metadata, "converaTimestamp") ?? toIso(now),
     providerId: metadataString(metadata, "converaProviderId"),
@@ -118,6 +131,8 @@ function blockMetadata(
     converaScopeId: scope.id,
     converaVersion: version,
     converaActor: provenance.actor,
+    converaActorId: provenance.actorId,
+    converaSourceActorIds: provenance.sourceActorIds,
     converaTurnId: provenance.turnId,
     converaTimestamp: provenance.timestamp,
     converaProviderId: provenance.providerId,

@@ -125,6 +125,7 @@ export interface CreateMemoryToolsOptions {
   allowedScopes?: MemoryScope[];
   turnId: string;
   actor?: MemoryActor;
+  actorId?: string;
   providerId?: string;
   now?: () => Date;
   requestApproval(
@@ -191,6 +192,7 @@ export function createMemoryTools(options: CreateMemoryToolsOptions) {
       turnId: mutationTurnId,
       provenance: {
         actor: options.actor ?? ("primary-agent" as const),
+        actorId: options.actorId,
         turnId: mutationTurnId,
         timestamp: now().toISOString(),
         providerId: options.providerId,

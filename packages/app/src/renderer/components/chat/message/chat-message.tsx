@@ -65,7 +65,11 @@ export interface ChatMessageProps {
 }
 
 // Attachment preview component - simplified for file display above content
-const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
+export const AttachmentPreview = ({
+  attachment,
+}: {
+  attachment: Attachment;
+}) => {
   const isImage = attachment.contentType?.startsWith("image/");
   const [showPreview, setShowPreview] = useState(false);
   const imageRef = useRef<HTMLDivElement>(null);
@@ -188,7 +192,7 @@ const AttachmentPreview = ({ attachment }: { attachment: Attachment }) => {
 };
 
 // Simple timestamp formatter
-const formatTimestamp = (timestamp?: string | number | Date) => {
+export const formatTimestamp = (timestamp?: string | number | Date) => {
   if (!timestamp) return "";
   const date = new Date(timestamp);
   const now = new Date();

@@ -1,5 +1,4 @@
 import type {
-  ILocalAIAPI,
   LocalAIBranchConversationRequest,
   LocalAIChatRequest,
   LocalAIDeleteConversationRequest,
@@ -16,40 +15,22 @@ import type {
   LocalAITurnRuntimeStateRequest,
 } from "@/shared/types/local-ai";
 import { isLocalAIMemoryProvider } from "@/shared/types/local-ai";
+import { createLocalAIAPI, LOCAL_AI_CHANNELS } from "./local-ai-api";
 import {
   contextBridge,
   ipcMain,
   ipcRenderer,
   type IpcMain,
   type IpcMainInvokeEvent,
-  type IpcRenderer,
   type WebContents,
 } from "electron";
 
-export const LOCAL_AI_CHANNELS = {
-  LIST_PROVIDERS: "local-ai:list-providers",
-  GET_PROVIDER_STATUS: "local-ai:get-provider-status",
-  START_CHAT: "local-ai:start-chat",
-  ABORT: "local-ai:abort",
-  RESPOND_INTERACTION: "local-ai:respond-interaction",
-  GET_CONVERSATION_RUNTIME_STATE: "local-ai:get-conversation-runtime-state",
-  GET_TURN_RUNTIME_STATE: "local-ai:get-turn-runtime-state",
-  ACKNOWLEDGE_TURN_PERSISTENCE: "local-ai:acknowledge-turn-persistence",
-  QUIESCE_CONVERSATION: "local-ai:quiesce-conversation",
-  RESUME_CONVERSATION: "local-ai:resume-conversation",
-  BRANCH_CONVERSATION: "local-ai:branch-conversation",
-  DELETE_CONVERSATION: "local-ai:delete-conversation",
-  RESET_CONVERSATION_PROVIDER_SESSION:
-    "local-ai:reset-conversation-provider-session",
-  GET_MEMORY_SETTINGS: "local-ai:get-memory-settings",
-  UPDATE_MEMORY_SETTINGS: "local-ai:update-memory-settings",
-  GET_MEMORY_STATUS: "local-ai:get-memory-status",
-  EVENT: "local-ai:event",
-} as const;
+export { createLocalAIAPI, LOCAL_AI_CHANNELS } from "./local-ai-api";
 
 export interface LocalAIIPCOptions {
   runtime?: LocalAIRuntimeService;
-  getAllowedWebContents: () => WebContents | null;
+  /** The renderer, plus any web bridge sender standing in for a browser tab. */
+  getAllowedWebContents: () => WebContents | WebContents[] | null;
 }
 
 interface ActiveRequest {
@@ -190,13 +171,18 @@ export function serializeLocalAIError(
 
 export function isAllowedLocalAISender(
   event: IpcMainInvokeEvent,
-  allowedWebContents: WebContents | null,
+  allowedWebContents: WebContents | WebContents[] | null,
 ): boolean {
+  if (!allowedWebContents || event.sender.isDestroyed()) return false;
+
+  const allowed = Array.isArray(allowedWebContents)
+    ? allowedWebContents
+    : [allowedWebContents];
+
   if (
-    !allowedWebContents ||
-    allowedWebContents.isDestroyed() ||
-    event.sender.isDestroyed() ||
-    event.sender !== allowedWebContents
+    !allowed.some(
+      (candidate) => candidate === event.sender && !candidate.isDestroyed(),
+    )
   ) {
     return false;
   }
@@ -232,7 +218,25 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
 
   if (request.agent !== undefined) {
     if (!isRecord(request.agent)) return false;
-    if (!isOptionalString(request.agent.id, MAX_METADATA_CHARS)) return false;
+    if (
+      request.agent.id !== undefined &&
+      !isValidIdentifier(request.agent.id)
+    ) {
+      return false;
+    }
+    if (
+      request.agent.memberId !== undefined &&
+      !isValidIdentifier(request.agent.memberId)
+    ) {
+      return false;
+    }
+    if (
+      request.agent.memberId !== undefined &&
+      (request.agent.id === undefined ||
+        request.agent.memberId !== `agent:${request.agent.id}`)
+    ) {
+      return false;
+    }
     if (!isOptionalString(request.agent.systemPrompt, MAX_MESSAGE_CHARS)) {
       return false;
     }
@@ -1152,70 +1156,6 @@ export function setupLocalAIIPC(
       sender.removeListener("destroyed", onDestroyed);
     });
     senderRequests.clear();
-  };
-}
-
-export function createLocalAIAPI(
-  rendererIPC: Pick<IpcRenderer, "invoke" | "on" | "removeListener">,
-): ILocalAIAPI {
-  return {
-    listProviders: () => rendererIPC.invoke(LOCAL_AI_CHANNELS.LIST_PROVIDERS),
-    getProviderStatus: (providerId) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_PROVIDER_STATUS, providerId),
-    startChat: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.START_CHAT, request),
-    abort: (requestId) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.ABORT, requestId),
-    respondToInteraction: (requestId, interactionId, response) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.RESPOND_INTERACTION,
-        requestId,
-        interactionId,
-        response,
-      ),
-    getConversationRuntimeState: (conversationId) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.GET_CONVERSATION_RUNTIME_STATE,
-        conversationId,
-      ),
-    getTurnRuntimeState: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_TURN_RUNTIME_STATE, request),
-    acknowledgeTurnPersistence: (request) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.ACKNOWLEDGE_TURN_PERSISTENCE,
-        request,
-      ),
-    quiesceConversation: (conversationId) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION,
-        conversationId,
-      ),
-    resumeConversation: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.RESUME_CONVERSATION, request),
-    branchConversation: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.BRANCH_CONVERSATION, request),
-    deleteConversation: (request) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.DELETE_CONVERSATION, request),
-    resetConversationProviderSession: (request) =>
-      rendererIPC.invoke(
-        LOCAL_AI_CHANNELS.RESET_CONVERSATION_PROVIDER_SESSION,
-        request,
-      ),
-    getMemorySettings: () =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_MEMORY_SETTINGS),
-    updateMemorySettings: (update) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS, update),
-    getMemoryStatus: (conversationId) =>
-      rendererIPC.invoke(LOCAL_AI_CHANNELS.GET_MEMORY_STATUS, conversationId),
-    onEvent: (requestId, callback) => {
-      const handler = (_event: unknown, event: LocalAIStreamEvent) => {
-        if (event.requestId === requestId) callback(event);
-      };
-      rendererIPC.on(LOCAL_AI_CHANNELS.EVENT, handler);
-      return () => {
-        rendererIPC.removeListener(LOCAL_AI_CHANNELS.EVENT, handler);
-      };
-    },
   };
 }
 

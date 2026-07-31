@@ -322,6 +322,9 @@ describe("durable turn reconciliation", () => {
     const result = await reconcilePendingTurn("turn-1", {
       liveAssistant: {
         content: "complete live answer",
+        senderId: "agent:fizz",
+        mentions: ["agent:honey"],
+        reactions: { "👍": ["me"] },
         parts,
       },
     });
@@ -330,6 +333,9 @@ describe("durable turn reconciliation", () => {
     expect(localAI.acknowledgeTurnPersistence).toHaveBeenCalledOnce();
     expect(await db.messages.get("assistant-2")).toMatchObject({
       content: "complete live answer",
+      senderId: "agent:fizz",
+      mentions: ["agent:honey"],
+      reactions: { "👍": ["me"] },
       parts,
       status: "completed",
       finishReason: "stop",

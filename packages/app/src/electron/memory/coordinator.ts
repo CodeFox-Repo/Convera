@@ -74,12 +74,14 @@ export interface MemoryIntegrationCoordinatorOptions {
   ) => Promise<void> | void;
   onMemoryContextChanged?: () => Promise<void> | void;
   onMemoryScopeForgotten?: (scope: MemoryScope) => Promise<void> | void;
+  workerStopTimeoutMs?: number;
   now?: () => Date;
 }
 
 export interface PrepareMemoryTurnInput {
   turnId: string;
   conversationId: string;
+  actorId?: string;
   providerId: string;
   revision: number;
   workingDirectory?: string;
@@ -115,6 +117,8 @@ export interface MemoryTurnContextToken {
   sourceId?: string;
   turnId: string;
   conversationId: string;
+  /** Stable channel actor. Missing only on legacy durable work. */
+  actorId?: string;
   revision: number;
   scopes: MemoryScope[];
 }
@@ -200,6 +204,7 @@ export class MemoryIntegrationCoordinator
   private readonly onConversationMemoryObserved?: MemoryIntegrationCoordinatorOptions["onConversationMemoryObserved"];
   private readonly onMemoryContextChanged?: MemoryIntegrationCoordinatorOptions["onMemoryContextChanged"];
   private readonly onMemoryScopeForgotten?: MemoryIntegrationCoordinatorOptions["onMemoryScopeForgotten"];
+  private readonly workerStopTimeoutMs: number;
   private runtime?: MemoryRuntime;
   private worker?: SubconsciousWorker;
   private readonly curators = new Map<
@@ -230,6 +235,10 @@ export class MemoryIntegrationCoordinator
     this.onConversationMemoryObserved = options.onConversationMemoryObserved;
     this.onMemoryContextChanged = options.onMemoryContextChanged;
     this.onMemoryScopeForgotten = options.onMemoryScopeForgotten;
+    this.workerStopTimeoutMs = Math.max(
+      options.workerStopTimeoutMs ?? 5_000,
+      1,
+    );
   }
 
   private scopes(input: MemoryScopeResolverInput): MemoryScope[] {
@@ -384,6 +393,7 @@ export class MemoryIntegrationCoordinator
       activeScope,
       allowedScopes: scopes,
       turnId: input.turnId,
+      actorId: input.actorId,
       providerId: input.providerId,
       candidateSink: this.candidates,
       requestApproval: async (request) => ({
@@ -402,6 +412,7 @@ export class MemoryIntegrationCoordinator
         sourceId,
         turnId: input.turnId,
         conversationId: input.conversationId,
+        actorId: input.actorId,
         revision: input.revision,
         scopes,
       },
@@ -461,6 +472,7 @@ export class MemoryIntegrationCoordinator
         turnId: `${input.turnId}:${scope.kind}`,
         sourceId,
         conversationId: input.token.conversationId,
+        actorId: input.token.actorId,
         candidateTurnId: input.turnId,
         scope,
         userContent: input.userContent,
@@ -486,6 +498,7 @@ export class MemoryIntegrationCoordinator
     const prepared = await this.prepareTurn({
       turnId: input.request.turnId,
       conversationId: input.request.conversationId,
+      actorId: input.prepared.turn.actorId,
       providerId: input.request.providerId,
       revision: input.prepared.turn.revision,
       workingDirectory: input.request.options?.cwd,
@@ -529,6 +542,7 @@ export class MemoryIntegrationCoordinator
       sourceId: input.contextToken.sourceId,
       turnId: input.request.turnId,
       conversationId: input.request.conversationId,
+      actorId: input.contextToken.actorId,
       revision: input.prepared.turn.revision,
       providerId: durableProviderId,
       scopes: input.contextToken.scopes,
@@ -562,6 +576,7 @@ export class MemoryIntegrationCoordinator
         sourceId: hook.payload.sourceId,
         turnId: hook.payload.turnId,
         conversationId: hook.payload.conversationId,
+        actorId: hook.payload.actorId,
         revision: hook.payload.revision,
         scopes: hook.payload.scopes,
       },
@@ -600,12 +615,11 @@ export class MemoryIntegrationCoordinator
       };
       const contextSourceChanged =
         previous.provider !== (update.provider ?? previous.provider);
-      await this.stopWorker(false);
+      await this.shutdownWorkerAndCurators(false);
       await this.runtime?.store.quiesce();
       this.generation += 1;
       this.runtime = undefined;
       this.runtimeGeneration = -1;
-      await this.disposeCurators();
       if (contextSourceChanged) {
         await this.onMemoryContextChanged?.();
       }
@@ -775,12 +789,7 @@ export class MemoryIntegrationCoordinator
       id: request.conversationId,
     };
     const indexedMemory = await this.indexes.get(scope);
-    const worker = this.worker;
-    this.worker = undefined;
-    if (worker) {
-      await worker.cancelScope(scope);
-      await worker.stop();
-    }
+    await this.shutdownWorkerAndCurators(false);
     await Promise.all([
       this.candidates.deleteByScope(scope),
       this.jobs.deleteByScope(scope),
@@ -817,12 +826,11 @@ export class MemoryIntegrationCoordinator
 
   async dispose(): Promise<void> {
     await this.lifecycle.run(async () => {
-      await this.stopWorker(false);
+      await this.shutdownWorkerAndCurators(false);
       await this.runtime?.store.quiesce();
       this.generation += 1;
       this.runtime = undefined;
       this.runtimeGeneration = -1;
-      await this.disposeCurators();
     });
   }
 
@@ -836,19 +844,62 @@ export class MemoryIntegrationCoordinator
     });
   }
 
-  private async stopWorker(flush: boolean): Promise<void> {
+  private beginWorkerStop(
+    flush: boolean,
+  ): { worker: SubconsciousWorker; stopped: Promise<void> } | undefined {
     const worker = this.worker;
     this.worker = undefined;
-    if (!worker) return;
-    if (flush) await worker.flush().catch(() => undefined);
-    await worker.stop();
+    if (!worker) return undefined;
+    const stopped = flush
+      ? worker
+          .flush()
+          .catch(() => undefined)
+          .then(() => worker.requestStop())
+      : worker.requestStop();
+    return { worker, stopped };
+  }
+
+  private cancelCurators(): void {
+    for (const curator of this.curators.values()) {
+      void Promise.resolve(curator.cancel?.()).catch(() => {
+        // Cancellation is best-effort; shutdown remains time-bounded below.
+      });
+    }
+  }
+
+  private async waitBounded(promise: Promise<unknown>): Promise<boolean> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const completed = await Promise.race([
+      promise.then(
+        () => true,
+        () => true,
+      ),
+      new Promise<false>((resolve) => {
+        timeout = setTimeout(() => resolve(false), this.workerStopTimeoutMs);
+      }),
+    ]);
+    if (timeout) clearTimeout(timeout);
+    return completed;
+  }
+
+  private async shutdownWorkerAndCurators(flush: boolean): Promise<void> {
+    const pending = this.beginWorkerStop(flush);
+    // Abort the native provider turn before waiting for the worker that is
+    // blocked on it. Reversing this order deadlocks settings changes and quit.
+    this.cancelCurators();
+    if (pending && !(await this.waitBounded(pending.stopped))) {
+      pending.worker.dispose();
+    }
+    await this.disposeCurators();
   }
 
   private async disposeCurators(): Promise<void> {
     const curators = [...this.curators.values()];
     this.curators.clear();
-    await Promise.allSettled(
-      curators.map((curator) => Promise.resolve(curator.dispose?.())),
+    await this.waitBounded(
+      Promise.allSettled(
+        curators.map((curator) => Promise.resolve(curator.dispose?.())),
+      ),
     );
   }
 }

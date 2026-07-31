@@ -46,8 +46,10 @@ export function toLocalAIRequestMessages(
 export function buildLocalAIChatOperation(
   messages: Message[],
   requestedOperation: RendererChatOperation,
+  projectedMessages?: LocalAIMessage[],
 ): LocalAIChatOperation {
-  const requestMessages = toLocalAIRequestMessages(messages);
+  const requestMessages =
+    projectedMessages ?? toLocalAIRequestMessages(messages);
   if (requestedOperation.kind === "append") {
     const message = requestMessages.at(-1);
     if (!message || message.role !== "user") {
@@ -146,10 +148,12 @@ export function boundBootstrapMessages(
 export function selectAppendOperation(
   runtimeState: LocalAIConversationRuntimeState | null,
   providerId: string,
+  actorId: string,
   priorVisibleMessageCount: number,
 ): Extract<RendererChatOperation, { kind: "append" | "bootstrap" | "rebase" }> {
   const revisionBinding = runtimeState?.providers.find(
     (provider) =>
+      provider.actorId === actorId &&
       provider.providerId === providerId &&
       provider.revision === runtimeState.revision,
   );

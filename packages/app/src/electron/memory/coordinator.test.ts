@@ -26,11 +26,15 @@ import { JsonLocalMemoryBackend } from "./local-memory-backend";
 const timestamp = "2026-07-31T00:00:00.000Z";
 
 function setup(
-  callbacks: Pick<
-    ConstructorParameters<typeof MemoryIntegrationCoordinator>[0],
-    | "onConversationMemoryObserved"
-    | "onMemoryContextChanged"
-    | "onMemoryScopeForgotten"
+  callbacks: Partial<
+    Pick<
+      ConstructorParameters<typeof MemoryIntegrationCoordinator>[0],
+      | "onConversationMemoryObserved"
+      | "onMemoryContextChanged"
+      | "onMemoryScopeForgotten"
+      | "workerStopTimeoutMs"
+      | "curatorFactory"
+    >
   > = {},
 ) {
   const settings = new MemorySettingsRepository(
@@ -71,10 +75,15 @@ function setup(
   };
 }
 
-function prepare(coordinator: MemoryIntegrationCoordinator, turnId: string) {
+function prepare(
+  coordinator: MemoryIntegrationCoordinator,
+  turnId: string,
+  actorId = "agent:fizz",
+) {
   return coordinator.prepareTurn({
     turnId,
     conversationId: "conversation-1",
+    actorId,
     providerId: "codex-cli",
     revision: 0,
     workingDirectory: "/workspace",
@@ -118,6 +127,7 @@ describe("MemoryIntegrationCoordinator", () => {
     expect(prepared.contextToken).toMatchObject({
       sourceId: await settings.getSourceId(),
       conversationId: "conversation-1",
+      actorId: "agent:fizz",
       scopes: [
         { kind: "user", id: "local-user" },
         { kind: "workspace", id: "/workspace" },
@@ -197,6 +207,9 @@ describe("MemoryIntegrationCoordinator", () => {
       kind: "conversation",
       id: "conversation-1",
     });
+    expect(curate.mock.calls[0]?.[0].turns[0]).toMatchObject({
+      actorId: "agent:fizz",
+    });
 
     await candidates.enqueue({
       id: "turn-2:memory:1",
@@ -256,6 +269,7 @@ describe("MemoryIntegrationCoordinator", () => {
         sourceId: prepared.contextToken!.sourceId,
         turnId: "turn-terminal-time",
         conversationId: "conversation-1",
+        actorId: "agent:fizz",
         revision: 0,
         providerId: "codex-cli",
         scopes: prepared.contextToken!.scopes,
@@ -269,7 +283,10 @@ describe("MemoryIntegrationCoordinator", () => {
       updatedAt: "2026-07-31T03:00:00.000Z",
     });
 
-    expect((await jobs.list())[0]?.turn.completedAt).toBe(terminalAt);
+    expect((await jobs.list())[0]?.turn).toMatchObject({
+      actorId: "agent:fizz",
+      completedAt: terminalAt,
+    });
   });
 
   it("retains durable curation while memory is disabled and resumes after settings repair", async () => {
@@ -903,6 +920,93 @@ describe("MemoryIntegrationCoordinator", () => {
     expect(resumed.contextToken?.sourceId).toBe(sourceId);
     expect(resumed.systemContext).toContain("Keep this while memory is off.");
     expect(backend.blocks.size).toBe(1);
+  });
+
+  it("cancels an active curator before waiting for the worker to stop", async () => {
+    let started!: () => void;
+    let release!: () => void;
+    const curatorStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const providerReleased = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const order: string[] = [];
+    const { coordinator, settings } = setup({
+      workerStopTimeoutMs: 50,
+      curatorFactory: {
+        create: async () => ({
+          curate: async () => {
+            started();
+            await providerReleased;
+            return { action: "noop" as const, reason: "Cancelled." };
+          },
+          cancel: () => {
+            order.push("cancel");
+            release();
+          },
+          dispose: () => {
+            order.push("dispose");
+          },
+        }),
+      },
+    });
+    await settings.update({ provider: "local", curator: "codex-cli" });
+    const prepared = await prepare(coordinator, "turn-cancel-curator");
+    await coordinator.completeTurn({
+      token: prepared.contextToken!,
+      turnId: "turn-cancel-curator",
+      providerId: "codex-cli",
+      userContent: "Remember this.",
+      assistantContent: "Okay.",
+    });
+    await curatorStarted;
+
+    await coordinator.updateMemorySettings({ provider: "off" });
+
+    expect(order).toEqual(["cancel", "dispose"]);
+  });
+
+  it("bounds shutdown when a curator ignores cancellation", async () => {
+    let started!: () => void;
+    const curatorStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const never = new Promise<never>(() => undefined);
+    const cancel = vi.fn();
+    const { coordinator, settings } = setup({
+      workerStopTimeoutMs: 5,
+      curatorFactory: {
+        create: async () => ({
+          curate: async () => {
+            started();
+            return never;
+          },
+          cancel,
+          dispose: () => never,
+        }),
+      },
+    });
+    await settings.update({ provider: "local", curator: "codex-cli" });
+    const prepared = await prepare(coordinator, "turn-hung-curator");
+    await coordinator.completeTurn({
+      token: prepared.contextToken!,
+      turnId: "turn-hung-curator",
+      providerId: "codex-cli",
+      userContent: "Remember this.",
+      assistantContent: "Okay.",
+    });
+    await curatorStarted;
+
+    await expect(
+      Promise.race([
+        coordinator.updateMemorySettings({ provider: "off" }),
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(() => reject(new Error("shutdown remained hung")), 250),
+        ),
+      ]),
+    ).resolves.toMatchObject({ provider: "off" });
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("replays deletion after response loss without forgetting an empty tombstone twice", async () => {

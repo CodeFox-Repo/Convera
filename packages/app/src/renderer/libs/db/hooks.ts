@@ -15,6 +15,8 @@ import {
   type PendingTurnJournal,
   type PendingTurnJournalState,
   DEFAULT_AGENT,
+  memberForAgent,
+  memberIdForAgent,
 } from "./database";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
@@ -516,6 +518,36 @@ export async function failPendingTurn(
   });
 }
 
+/**
+ * Adds `memberId` to `emoji`'s reactors, or removes it if already there. The
+ * emoji key disappears once nobody holds it, so an empty object never renders
+ * a chip with a count of zero. No-ops on messages that are not persisted yet.
+ */
+export async function toggleReaction(
+  messageId: string,
+  emoji: string,
+  memberId: string,
+): Promise<void> {
+  await db.transaction("rw", db.messages, async () => {
+    const message = await db.messages.get(messageId);
+    if (!message) return;
+
+    const reactions = { ...(message.reactions ?? {}) };
+    const reactors = reactions[emoji] ?? [];
+    const next = reactors.includes(memberId)
+      ? reactors.filter((id) => id !== memberId)
+      : [...reactors, memberId];
+
+    if (next.length === 0) {
+      delete reactions[emoji];
+    } else {
+      reactions[emoji] = next;
+    }
+
+    await db.messages.update(messageId, { reactions });
+  });
+}
+
 // ==================== Agent Hooks ====================
 
 /**
@@ -550,6 +582,21 @@ export function useAgent(id: string | null) {
 
 // ==================== Agent Actions ====================
 
+async function syncAgentMember(agent: Pick<Agent, "id" | "name">) {
+  const member = memberForAgent(agent);
+  const existing = await db.members.get(member.id);
+  if (!existing) {
+    await db.members.put(member);
+    return;
+  }
+  await db.members.update(member.id, {
+    workspaceId: member.workspaceId,
+    kind: member.kind,
+    name: member.name,
+    agentId: member.agentId,
+  });
+}
+
 export async function createAgent(
   data: Omit<
     Agent,
@@ -559,13 +606,17 @@ export async function createAgent(
   const id = crypto.randomUUID();
   const now = new Date();
 
-  await db.agents.add({
+  const agent: Agent = {
     ...data,
     id,
     isBuiltIn: false,
     predefined: false,
     createdAt: now,
     updatedAt: now,
+  };
+  await db.transaction("rw", [db.agents, db.members], async () => {
+    await db.agents.add(agent);
+    await syncAgentMember(agent);
   });
 
   return id;
@@ -579,9 +630,15 @@ export async function updateAgent(
     // Cannot update built-in agent
     return;
   }
-  await db.agents.update(id, {
-    ...updates,
-    updatedAt: new Date(),
+  await db.transaction("rw", [db.agents, db.members], async () => {
+    await db.agents.update(id, {
+      ...updates,
+      updatedAt: new Date(),
+    });
+    const agent = await db.agents.get(id);
+    if (agent) {
+      await syncAgentMember(agent);
+    }
   });
 }
 
@@ -590,7 +647,10 @@ export async function deleteAgent(id: string): Promise<void> {
     // Cannot delete built-in agent
     return;
   }
-  await db.agents.delete(id);
+  await db.transaction("rw", [db.agents, db.members], async () => {
+    await db.agents.delete(id);
+    await db.members.delete(memberIdForAgent(id));
+  });
 }
 
 // ==================== Model Config Hooks ====================
@@ -719,10 +779,14 @@ export function useAvailableModels(): GroupedModel[] {
  * Initialize database, ensuring default agent exists
  */
 export async function initializeDatabase(): Promise<void> {
-  const defaultAgent = await db.agents.get(DEFAULT_AGENT.id);
-  if (!defaultAgent) {
-    await db.agents.add(DEFAULT_AGENT);
-  }
+  await db.transaction("rw", [db.agents, db.members], async () => {
+    const defaultAgent = await db.agents.get(DEFAULT_AGENT.id);
+    const agent = defaultAgent ?? DEFAULT_AGENT;
+    if (!defaultAgent) {
+      await db.agents.add(agent);
+    }
+    await syncAgentMember(agent);
+  });
 }
 
 // ==================== Branching Actions ====================
@@ -827,6 +891,9 @@ export async function branchFromMessage(
           conversationId: newConvId,
           role: msg.role,
           content: msg.content,
+          senderId: msg.senderId,
+          mentions: msg.mentions,
+          reactions: msg.reactions,
           turnId: msg.turnId,
           revision: msg.revision,
           providerId: msg.providerId,

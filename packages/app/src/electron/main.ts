@@ -1,4 +1,6 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
+import { createHash } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
@@ -22,6 +24,15 @@ import {
   ListenerOptions,
   registerListeners,
 } from "@/electro-bridge/ipc/listeners-register";
+import {
+  createWebBridgeEvent,
+  createRecordingIpcMain,
+} from "@/electron/web-bridge/dispatch";
+import {
+  isWebBridgeEnabled,
+  startWebBridge,
+  type WebBridgeHandle,
+} from "@/electron/web-bridge/server";
 import { createSystemTray, destroySystemTray } from "./tray";
 import {
   createMainWindow,
@@ -34,17 +45,23 @@ import {
 const logger = getLogger("main-process");
 let localAIRuntime: LocalAiRuntime | undefined;
 let memoryCoordinator: MemoryIntegrationCoordinator | undefined;
+let webBridge: WebBridgeHandle | undefined;
 let localAICleanup: Promise<void> | undefined;
 let quitAfterCleanup = false;
 
 function cleanupLocalAI(): Promise<void> {
   if (localAICleanup) return localAICleanup;
   localAICleanup = (async () => {
-    await localAIRuntime?.dispose();
-    await memoryCoordinator?.dispose();
-  })().catch((error) => {
-    logger.error("Local AI cleanup failed:", error);
-  });
+    await webBridge?.close().catch((error) => {
+      logger.error("Web bridge cleanup failed:", error);
+    });
+    await localAIRuntime?.dispose().catch((error) => {
+      logger.error("Local AI runtime cleanup failed:", error);
+    });
+    await memoryCoordinator?.dispose().catch((error) => {
+      logger.error("Memory coordinator cleanup failed:", error);
+    });
+  })();
   return localAICleanup;
 }
 
@@ -123,6 +140,30 @@ app.whenReady().then(async () => {
       sessionRepository,
       turnHooks: memoryCoordinator,
       memoryService: memoryCoordinator,
+      resolveSandbox: async (request) => {
+        const agentId = request.agent?.id?.trim();
+        if (!agentId) {
+          const root = process.cwd();
+          return {
+            root,
+            writableRoots: [root],
+            networkAccess: false,
+          };
+        }
+
+        // Hash the IPC identity before using it in a path. The main process,
+        // not renderer-provided cwd, chooses this filesystem scope so an actor
+        // cannot widen its own sandbox.
+        const storageId = createHash("sha256").update(agentId).digest("hex");
+        const root = join(userDataPath, "agents", storageId);
+        const workspace = join(root, "workspace");
+        await mkdir(workspace, { recursive: true });
+        return {
+          root,
+          writableRoots: [workspace],
+          networkAccess: false,
+        };
+      },
       getToolGroups: async () => {
         await initializeMCPHub();
         return getAllTools();
@@ -153,15 +194,30 @@ app.whenReady().then(async () => {
       mainWindow.focus();
     }
 
+    const recordingIPC = isWebBridgeEnabled()
+      ? createRecordingIpcMain(ipcMain)
+      : undefined;
+
     // Set up options for the new unified listener system
     const listenerOptions: ListenerOptions = {
       mainWindow: () => getMainWindow(),
       registerGlobalShortcuts,
       localAIRuntime,
+      ipc: recordingIPC,
+      extraLocalAISenders: () =>
+        (webBridge?.senders() ?? []).map((sender) => sender as never),
     };
 
     logger.debug("Registering IPC listeners");
     registerListeners(listenerOptions);
+
+    if (recordingIPC) {
+      webBridge = await startWebBridge({
+        rendererURL: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
+        invoke: (channel, args, sender) =>
+          recordingIPC.dispatch(channel, args, createWebBridgeEvent(sender)),
+      });
+    }
 
     app.on("activate", () => {
       const mainWin = getMainWindow();

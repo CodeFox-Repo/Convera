@@ -17,6 +17,12 @@ export interface UIMessage {
   id: string;
   role: "system" | "user" | "assistant" | "data";
   content: string;
+  /** Member.id of the speaker; absent on history written before member identity. */
+  senderId?: string;
+  /** Member ids explicitly mentioned by this message. */
+  mentions?: string[];
+  /** emoji -> Member.id[] who reacted. Only set on persisted messages. */
+  reactions?: Record<string, string[]>;
   createdAt?: Date;
   parts?: MessagePart[];
   experimental_attachments?: Attachment[];

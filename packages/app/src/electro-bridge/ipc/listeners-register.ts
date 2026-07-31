@@ -2,7 +2,13 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode } from "@/shared/types/electron";
 import type { LocalAIRuntimeService } from "@/shared/types/local-ai";
-import { BrowserWindow, ipcMain, IpcRenderer } from "electron";
+import {
+  BrowserWindow,
+  ipcMain,
+  IpcRenderer,
+  type IpcMain,
+  type WebContents,
+} from "electron";
 import { getAppIcon, getPlatform } from "./active-app-context";
 import { CHANNELS, IPCServer, methodChannelMap } from "./channels";
 import { setupEnvIPC } from "./env-context";
@@ -91,6 +97,10 @@ export interface ListenerOptions {
   mainWindow?: () => BrowserWindow | null;
   registerGlobalShortcuts?: () => void;
   localAIRuntime?: LocalAIRuntimeService;
+  /** Extra senders (currently the web bridge) allowed to drive local AI. */
+  extraLocalAISenders?: () => WebContents[];
+  /** Registration target; the web bridge swaps in a recording proxy. */
+  ipc?: Pick<IpcMain, "handle" | "removeHandler">;
 }
 
 /**
@@ -230,16 +240,22 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
 
 // Register all IPC listeners for main process
 export function registerListeners(options: ListenerOptions = {}) {
-  setupMCPIPC();
+  const ipc = options.ipc ?? ipcMain;
+  setupMCPIPC(ipc);
   setupLoggerIPC();
   setupElectronAPIIPC(options);
   setupEnvIPC();
-  setupLocalAIIPC({
-    runtime: options.localAIRuntime,
-    getAllowedWebContents: () => {
-      const window = options.mainWindow?.();
-      return window && !window.isDestroyed() ? window.webContents : null;
+  setupLocalAIIPC(
+    {
+      runtime: options.localAIRuntime,
+      getAllowedWebContents: () => {
+        const window = options.mainWindow?.();
+        const renderer =
+          window && !window.isDestroyed() ? [window.webContents] : [];
+        return [...renderer, ...(options.extraLocalAISenders?.() ?? [])];
+      },
     },
-  });
+    ipc,
+  );
   console.log("All IPC listeners registered successfully");
 }

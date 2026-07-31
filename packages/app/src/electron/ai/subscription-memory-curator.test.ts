@@ -34,6 +34,7 @@ function input(providerIds: string[] = ["codex-cli"]): CuratorInput {
     },
     turns: providerIds.map((providerId, index) => ({
       turnId: `source-turn-${index + 1}`,
+      actorId: `agent:member-${index + 1}`,
       scope,
       userContent: `user ${index + 1}`,
       assistantContent: `assistant ${index + 1}`,
@@ -55,6 +56,13 @@ function patchFor(value: CuratorInput, providerId = "codex-cli"): MemoryPatch {
       turnId: value.expectedPatchTurnId,
       timestamp,
       providerId,
+      sourceActorIds: [
+        ...new Set(
+          value.turns
+            .map((turn) => turn.actorId)
+            .filter((actorId): actorId is string => Boolean(actorId)),
+        ),
+      ],
     },
     operations: [
       {
@@ -68,6 +76,7 @@ function patchFor(value: CuratorInput, providerId = "codex-cli"): MemoryPatch {
 
 class FakeRuntime implements SubscriptionMemoryRuntime {
   readonly requests: LocalAIChatRequest[] = [];
+  readonly abort = vi.fn(() => true);
   readonly executionPolicy;
 
   constructor(
@@ -112,6 +121,34 @@ function successfulRuntime(
 }
 
 describe("RestrictedMemoryCurator", () => {
+  it("aborts an active provider request when cancellation is requested", async () => {
+    let release: (() => void) | undefined;
+    const runtime = new FakeRuntime(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    runtime.abort.mockImplementation(() => {
+      release?.();
+      return true;
+    });
+    const curator = new RestrictedMemoryCurator({
+      provider: "codex-cli",
+      runtime,
+      idFactory: () => "cancel-test",
+    });
+
+    const pending = curator.curate(input());
+    await vi.waitFor(() => expect(runtime.requests).toHaveLength(1));
+    curator.cancel();
+
+    await expect(pending).rejects.toThrow("must finish with stop");
+    expect(runtime.abort).toHaveBeenCalledWith(
+      "memory-curator-request:cancel-test",
+    );
+  });
+
   it("rejects an injected runtime that is not host-enforced text-only", () => {
     expect(
       () =>
@@ -193,6 +230,8 @@ describe("RestrictedMemoryCurator", () => {
     expect(request.operation.message.content).toContain('"snapshot"');
     expect(request.operation.message.content).toContain('"turns"');
     expect(request.operation.message.content).toContain('"candidates"');
+    expect(request.operation.message.content).toContain('"sourceActorIds": [');
+    expect(request.operation.message.content).toContain('"agent:member-1"');
   });
 
   it("accepts a single fenced json object", async () => {

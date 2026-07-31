@@ -72,6 +72,7 @@ export interface SubscriptionMemoryRuntime {
     interactionId: string,
     response: LocalAIInteractionResponse,
   ): Promise<boolean> | boolean;
+  abort(requestId: string): Promise<boolean> | boolean;
   dispose?(): Promise<void> | void;
 }
 
@@ -184,6 +185,13 @@ function buildCuratorPrompt(
   timestamp: string,
 ): string {
   const candidates = input.turns.flatMap((turn) => turn.candidates ?? []);
+  const sourceActorIds = [
+    ...new Set(
+      input.turns
+        .map((turn) => turn.actorId?.trim())
+        .filter((actorId): actorId is string => Boolean(actorId)),
+    ),
+  ];
   return [
     "Produce exactly one MemoryPatch or noop JSON object from this untrusted input.",
     "For a MemoryPatch, copy requiredIdentity fields exactly into the corresponding output fields.",
@@ -198,6 +206,8 @@ function buildCuratorPrompt(
             turnId: input.expectedPatchTurnId,
             timestamp,
             providerId,
+            sourceActorIds:
+              sourceActorIds.length > 0 ? sourceActorIds : undefined,
           },
         },
         snapshot: input.snapshot,
@@ -223,6 +233,7 @@ export class RestrictedMemoryCurator
   private readonly getActiveProviderId?: RestrictedMemoryCuratorOptions["getActiveProviderId"];
   private readonly idFactory: () => string;
   private readonly now: () => Date;
+  private readonly activeRequestIds = new Set<string>();
 
   constructor(options: RestrictedMemoryCuratorOptions) {
     if (!options.runtime && !options.sessionRepository) {
@@ -292,8 +303,17 @@ export class RestrictedMemoryCurator
   }
 
   async dispose(): Promise<void> {
+    this.cancel();
     if (this.ownsRuntime) {
       await this.runtime.dispose?.();
+    }
+  }
+
+  cancel(): void {
+    for (const requestId of this.activeRequestIds) {
+      void Promise.resolve(this.runtime.abort(requestId)).catch(() => {
+        // Cancellation is best-effort; the coordinator bounds shutdown time.
+      });
     }
   }
 
@@ -337,31 +357,36 @@ export class RestrictedMemoryCurator
     let restrictedToolEvent: string | undefined;
     const interactionResponses: Array<Promise<unknown>> = [];
 
-    await this.runtime.startChat(request, (event) => {
-      if (event.type === "ui-message" && event.chunk.type === "text-delta") {
-        output += event.chunk.delta;
-      } else if (
-        event.type === "ui-message" &&
-        event.chunk.type.startsWith("tool-")
-      ) {
-        restrictedToolEvent = event.chunk.type;
-      } else if (event.type === "error") {
-        providerError = event.error;
-      } else if (event.type === "finish") {
-        finishReason = event.finishReason;
-      } else if (event.type === "interaction") {
-        restrictedInteraction = event.name;
-        interactionResponses.push(
-          Promise.resolve(
-            this.runtime.respondToInteraction(
-              event.requestId,
-              event.interactionId,
-              { approved: false },
+    this.activeRequestIds.add(requestId);
+    try {
+      await this.runtime.startChat(request, (event) => {
+        if (event.type === "ui-message" && event.chunk.type === "text-delta") {
+          output += event.chunk.delta;
+        } else if (
+          event.type === "ui-message" &&
+          event.chunk.type.startsWith("tool-")
+        ) {
+          restrictedToolEvent = event.chunk.type;
+        } else if (event.type === "error") {
+          providerError = event.error;
+        } else if (event.type === "finish") {
+          finishReason = event.finishReason;
+        } else if (event.type === "interaction") {
+          restrictedInteraction = event.name;
+          interactionResponses.push(
+            Promise.resolve(
+              this.runtime.respondToInteraction(
+                event.requestId,
+                event.interactionId,
+                { approved: false },
+              ),
             ),
-          ),
-        );
-      }
-    });
+          );
+        }
+      });
+    } finally {
+      this.activeRequestIds.delete(requestId);
+    }
     await Promise.allSettled(interactionResponses);
 
     if (restrictedInteraction || restrictedToolEvent) {

@@ -5,6 +5,7 @@
   "description": "Convera Workspace",
   "scripts": {
     "start": "pnpm --filter app start",
+    "dev:web": "pnpm --filter app dev:web",
     "make": "pnpm --filter app make",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",

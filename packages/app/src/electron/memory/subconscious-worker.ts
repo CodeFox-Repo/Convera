@@ -25,6 +25,8 @@ export interface CompletedMemoryTurn {
    */
   sourceId?: string;
   conversationId?: string;
+  /** Stable channel actor that produced this completed turn. */
+  actorId?: string;
   candidateTurnId?: string;
   scope: MemoryScope;
   userContent: string;
@@ -55,6 +57,7 @@ export interface CuratorInput {
  */
 export interface RestrictedMemoryCurator {
   curate(input: CuratorInput): Promise<unknown>;
+  cancel?(): Promise<void> | void;
   dispose?(): Promise<void> | void;
 }
 
@@ -393,7 +396,7 @@ export class SubconsciousWorker {
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
-      if (this.disposed) return;
+      if (this.stopping || this.disposed) return;
       aggregate.attempts = attempt;
       try {
         const snapshot = await this.store.getSnapshot(first.turn.scope);
@@ -469,6 +472,28 @@ export class SubconsciousWorker {
             false,
           );
         }
+        const expectedSourceActorIds = [
+          ...new Set(
+            batch
+              .map((queued) => queued.turn.actorId?.trim())
+              .filter((actorId): actorId is string => Boolean(actorId)),
+          ),
+        ].sort();
+        const actualSourceActorIds = [
+          ...(patch.provenance.sourceActorIds ?? []),
+        ].sort();
+        if (
+          expectedSourceActorIds.length !== actualSourceActorIds.length ||
+          expectedSourceActorIds.some(
+            (actorId, index) => actorId !== actualSourceActorIds[index],
+          )
+        ) {
+          throw new MemoryError(
+            "Curator patches must preserve the exact source actor identities.",
+            "VALIDATION",
+            false,
+          );
+        }
         const result = await this.store.applyPatch(patch);
         if (result.status === "conflict") {
           throw new MemoryError(result.message, "CONFLICT", true);
@@ -488,7 +513,7 @@ export class SubconsciousWorker {
         }
         return;
       } catch (error) {
-        if (this.disposed) return;
+        if (this.stopping || this.disposed) return;
         if (this.cancelledScopes.has(memoryScopeKey(first.turn.scope))) {
           await this.skipBatch(
             batch,
@@ -604,8 +629,7 @@ export class SubconsciousWorker {
     return this.queue.length;
   }
 
-  async stop(): Promise<void> {
-    await this.ready;
+  requestStop(): Promise<void> {
     if (this.stopPromise) return this.stopPromise;
     this.accepting = false;
     this.stopping = true;
@@ -613,12 +637,16 @@ export class SubconsciousWorker {
       this.scheduler.clearTimeout(this.idleHandle);
       this.idleHandle = undefined;
     }
-    this.stopPromise = (async () => {
+    this.stopPromise = this.ready.then(async () => {
       const activeDrain = this.drainPromise;
       if (activeDrain) await activeDrain;
       this.disposed = true;
-    })();
+    });
     return this.stopPromise;
+  }
+
+  stop(): Promise<void> {
+    return this.requestStop();
   }
 
   dispose(): void {

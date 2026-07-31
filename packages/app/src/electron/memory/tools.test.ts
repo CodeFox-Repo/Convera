@@ -32,6 +32,7 @@ function setup(approved: boolean) {
     sourceId,
     activeScope: scope,
     turnId: "turn-main",
+    actorId: "agent:fizz",
     candidateSink: candidates,
     requestApproval,
     now: () => new Date("2026-07-31T00:00:00.000Z"),
@@ -56,8 +57,14 @@ describe("memory tools", () => {
     expect(learn).toMatchObject({ ok: true, status: "queued" });
     expect(correct).toMatchObject({ ok: true, status: "queued" });
     expect(await candidates.listByTurn("turn-main", sourceId)).toEqual([
-      expect.objectContaining({ sourceId }),
-      expect.objectContaining({ sourceId }),
+      expect.objectContaining({
+        sourceId,
+        provenance: expect.objectContaining({ actorId: "agent:fizz" }),
+      }),
+      expect.objectContaining({
+        sourceId,
+        provenance: expect.objectContaining({ actorId: "agent:fizz" }),
+      }),
     ]);
     expect((await store.getSnapshot(scope)).version).toBe(0);
     expect(backend.blocks.size).toBe(0);

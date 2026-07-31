@@ -1,8 +1,11 @@
 import TiptapEditor, { TiptapEditorRef } from "@/renderer/components/editor";
+import { activeMentionQuery } from "@/renderer/libs/mention-parser";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
-import { useModelStore } from "@/renderer/libs/stores/model-store";
+import { useMembers } from "@/renderer/libs/stores/member-store";
+import type { Member } from "@/shared/types/workspace";
 import React, {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -10,9 +13,14 @@ import React, {
 } from "react";
 import { ChatInputButtons } from "./chat-input-button";
 import { ContextButtons } from "./context-button";
+import MentionAutocomplete, {
+  MentionAutocompleteRef,
+} from "./mention-autocomplete";
 
 interface ChatInputProps {
   placeholder?: string;
+  /** "channel" hides the bot picker — members reply on their own judgment. */
+  variant?: "chat" | "channel";
 }
 
 export interface ChatInputRef {
@@ -23,10 +31,19 @@ export interface ChatInputRef {
 }
 
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  ({ placeholder = "Message Convera..." }, ref) => {
+  ({ placeholder = "Message...", variant = "chat" }, ref) => {
     const editorRef = useRef<TiptapEditorRef>(null);
     const [editorContent, setEditorContent] = useState("");
     const previousInputRef = useRef<string>("");
+
+    const members = useMembers() ?? [];
+    const membersRef = useRef(members);
+    membersRef.current = members;
+    const autocompleteRef = useRef<MentionAutocompleteRef>(null);
+    const [mention, setMention] = useState<{
+      start: number;
+      query: string;
+    } | null>(null);
 
     // Get state and methods from context and stores
     const {
@@ -37,18 +54,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       stopGeneration,
       selectedContent,
       rejectSelectedContent,
-      resetChatWindow,
     } = useChatContext();
-
-    // Window controls - dispatch events for the main process to handle
-    const openSettings = () => {
-      window.dispatchEvent(new CustomEvent("open-settings-window"));
-    };
-    const openHistoryWindow = () => {
-      window.dispatchEvent(new CustomEvent("open-history-window"));
-    };
-
-    const { selectedModelId, setSelectedModelId } = useModelStore();
 
     // Watch for speech input changes and update editor directly
     useEffect(() => {
@@ -102,6 +108,34 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setEditorContent(content);
     };
 
+    const handleCaretChange = useCallback((caret: number, text: string) => {
+      setMention(activeMentionQuery(text, caret, membersRef.current));
+    }, []);
+
+    const handleMentionSelect = useCallback(
+      (member: Member) => {
+        if (!mention || !editorRef.current) return;
+        const text = editorRef.current.getText();
+        // Replace from the `@` through the caret query with the full name.
+        const next =
+          text.slice(0, mention.start) +
+          `@${member.name} ` +
+          text.slice(mention.start + 1 + mention.query.length);
+        editorRef.current.clearContent();
+        editorRef.current.insertContent(next);
+        setInput(next);
+        setEditorContent(next);
+        setMention(null);
+      },
+      [mention, setInput],
+    );
+
+    // onUpdate propagates the new text back through handleEditorChange.
+    const insertAtCaret = useCallback((text: string) => {
+      editorRef.current?.focus();
+      editorRef.current?.insertContent(text);
+    }, []);
+
     const handleSubmit = () => {
       if (!isLoading && editorContent.trim()) {
         sendMessage();
@@ -118,13 +152,26 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <div className="drag-region h-full flex flex-col">
         <div className="h-full w-full flex-1 flex flex-col min-h-0">
-          <div className="flex-1 flex h-full overflow-auto flex-col rounded-2xl border border-border transition-all duration-200 bg-background">
+          {/* No overflow clipping here: the editor scrolls itself, and the
+              mention popup floats above the box. */}
+          <div className="flex-1 flex h-full flex-col rounded-xl border border-border transition-all duration-200 bg-background">
             <ContextButtons
               selectedContent={selectedContent || null}
               onRejectSelectedContent={rejectSelectedContent}
             />
 
-            <div className="drag-region mb-2 w-full flex-1 px-2">
+            <div className="drag-region relative w-full flex-1 px-1 pt-1">
+              {mention !== null && (
+                <div className="absolute bottom-full left-2 z-50 mb-1 w-64">
+                  <MentionAutocomplete
+                    ref={autocompleteRef}
+                    members={members}
+                    query={mention.query}
+                    onSelect={handleMentionSelect}
+                    onClose={() => setMention(null)}
+                  />
+                </div>
+              )}
               <TiptapEditor
                 ref={editorRef}
                 content={editorContent || input}
@@ -133,19 +180,21 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 disabled={isLoading}
                 onSubmit={handleSubmit}
                 autoFocus={true}
+                onCaretChange={handleCaretChange}
+                onKeyDownCapture={(event) =>
+                  autocompleteRef.current?.handleKeyDown(event) ?? false
+                }
               />
             </div>
 
             <ChatInputButtons
-              onReset={resetChatWindow}
-              onOpenSettings={openSettings}
+              variant={variant}
               onStopGeneration={stopGeneration}
               onSendMessage={handleSubmit}
-              triggerHistoryWindow={openHistoryWindow}
+              onMention={() => insertAtCaret("@")}
+              onInsertText={insertAtCaret}
               isLoading={isLoading}
               hasContent={!!editorContent.trim()}
-              selectedModelId={selectedModelId}
-              onModelSelect={setSelectedModelId}
             />
           </div>
         </div>

@@ -8,6 +8,7 @@
   "scripts": {
     "start": "NODE_ENV=production-development electron-forge start",
     "dev:start": "NODE_ENV=development electron-forge start",
+    "dev:web": "tsx scripts/web-bridge-dev.mts",
     "package": "electron-forge package",
     "package:robotjs": "electron-forge package && ./scripts/post-package-robotjs.sh",
     "package:sign": "ENABLE_CODE_SIGNING=true pnpm run package:robotjs && ./scripts/apple-sign.sh",
@@ -72,7 +73,7 @@
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-compiler": "^19.0.0-beta-714736e-20250131",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "fake-indexeddb": "^6.2.4",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^16.0.0",
     "jsdom": "^26.0.0",
     "prettier": "^3.5.3",

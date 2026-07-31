@@ -22,6 +22,10 @@ export type MemoryActor = "primary-agent" | "subconscious" | "user" | "system";
 
 export interface MemoryProvenance {
   actor: MemoryActor;
+  /** Concrete channel actor that directly requested this memory mutation. */
+  actorId?: string;
+  /** Channel actors whose completed turns supplied a subconscious patch. */
+  sourceActorIds?: string[];
   turnId: string;
   timestamp: string;
   providerId?: string;
@@ -30,6 +34,8 @@ export interface MemoryProvenance {
 
 export const memoryProvenanceSchema = z.object({
   actor: z.enum(["primary-agent", "subconscious", "user", "system"]),
+  actorId: z.string().trim().min(1).max(256).optional(),
+  sourceActorIds: z.array(z.string().trim().min(1).max(256)).max(64).optional(),
   turnId: z.string().trim().min(1).max(256),
   timestamp: z.string().datetime(),
   providerId: z.string().trim().min(1).max(128).optional(),

@@ -161,6 +161,49 @@ void Promise.all([
   }
 });
 
+// ==================== Unread State ====================
+
+const LAST_SEEN_KEY = "conversation-last-seen";
+
+function loadLastSeen(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(LAST_SEEN_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface UnreadState {
+  /** conversationId -> epoch ms of the last time the user looked at it. */
+  lastSeen: Record<string, number>;
+  markSeen: (conversationId: string) => void;
+}
+
+/**
+ * A conversation with no entry counts as seen: every existing conversation
+ * predates this store, and opening the app to an all-bold sidebar is noise.
+ */
+export const useUnreadStore = create<UnreadState>((set, get) => ({
+  lastSeen: loadLastSeen(),
+  markSeen: (conversationId) => {
+    const lastSeen = { ...get().lastSeen, [conversationId]: Date.now() };
+    set({ lastSeen });
+    localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));
+  },
+}));
+
+export function isUnread(
+  lastSeen: Record<string, number>,
+  conversationId: string,
+  updatedAt: Date | undefined,
+): boolean {
+  const seenAt = lastSeen[conversationId];
+  return seenAt !== undefined && updatedAt !== undefined
+    ? updatedAt.getTime() > seenAt
+    : false;
+}
+
 // ==================== Chat UI State ====================
 
 interface ChatUIState {

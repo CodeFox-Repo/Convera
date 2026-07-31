@@ -18,6 +18,9 @@ export interface TurnReconciliationResult {
 
 export interface LiveAssistantSnapshot {
   content: string;
+  senderId?: string;
+  mentions?: string[];
+  reactions?: Message["reactions"];
   parts?: unknown[];
   experimental_attachments?: Message["experimental_attachments"];
 }
@@ -209,6 +212,9 @@ async function finalizeFailedTurn(
           if (message.id === journal.assistantMessageId) {
             if (liveAssistant) {
               message.content = liveAssistant.content;
+              message.senderId = liveAssistant.senderId ?? message.senderId;
+              message.mentions = liveAssistant.mentions ?? message.mentions;
+              message.reactions = liveAssistant.reactions ?? message.reactions;
               message.parts = liveAssistant.parts;
               message.experimental_attachments =
                 liveAssistant.experimental_attachments;

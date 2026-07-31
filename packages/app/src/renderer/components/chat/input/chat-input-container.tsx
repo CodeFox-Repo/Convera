@@ -6,6 +6,12 @@ import { useHasPendingInput } from "@/renderer/libs/stores/user-input-store";
 
 interface ChatInputContainerProps {
   placeholder?: string;
+  /**
+   * "chat": 1:1 with a picked bot — the toolbar shows who you're talking to.
+   * "channel": a room — agents are members who decide themselves whether to
+   * reply, so the input is just a message box. Mention with @ to address one.
+   */
+  variant?: "chat" | "channel";
 }
 
 /**
@@ -13,7 +19,7 @@ interface ChatInputContainerProps {
  * Shows overlay when there's a pending user input request, otherwise shows ChatInput.
  */
 const ChatInputContainer = forwardRef<ChatInputRef, ChatInputContainerProps>(
-  ({ placeholder = "Message Convera..." }, ref) => {
+  ({ placeholder = "Message...", variant = "chat" }, ref) => {
     const hasPendingInput = useHasPendingInput();
 
     // Show overlay when waiting for user input, otherwise show normal chat input
@@ -21,7 +27,7 @@ const ChatInputContainer = forwardRef<ChatInputRef, ChatInputContainerProps>(
       return <AskUserInputOverlay />;
     }
 
-    return <ChatInput ref={ref} placeholder={placeholder} />;
+    return <ChatInput ref={ref} placeholder={placeholder} variant={variant} />;
   },
 );
 

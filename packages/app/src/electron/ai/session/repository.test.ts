@@ -38,6 +38,66 @@ afterEach(async () => {
 });
 
 describe("SessionStateRepository", () => {
+  it("isolates native sessions for actors sharing a conversation and provider", async () => {
+    const repository = new InMemorySessionStateRepository();
+    const fizz = await repository.beginTurn({
+      turnId: "fizz-1",
+      requestId: "request-fizz-1",
+      conversationId: "channel",
+      actorId: "agent:fizz",
+      providerId: "codex-cli",
+      operation: "bootstrap",
+    });
+    expect(fizz.binding).toBeUndefined();
+    await repository.completeTurn({
+      turnId: fizz.turn.turnId,
+      nativeSessionId: "thread-fizz",
+      cwd: "/agents/fizz/workspace",
+      contextFingerprint: "fingerprint-fizz",
+    });
+
+    await expect(
+      repository.beginTurn({
+        turnId: "honey-append",
+        requestId: "request-honey-append",
+        conversationId: "channel",
+        actorId: "agent:honey",
+        providerId: "codex-cli",
+        operation: "append",
+      }),
+    ).rejects.toMatchObject({ code: "LOCAL_AI_PROVIDER_REBASE_REQUIRED" });
+
+    const honey = await repository.beginTurn({
+      turnId: "honey-rebase",
+      requestId: "request-honey-rebase",
+      conversationId: "channel",
+      actorId: "agent:honey",
+      providerId: "codex-cli",
+      operation: "rebase",
+    });
+    expect(honey.binding).toBeUndefined();
+    await repository.completeTurn({
+      turnId: honey.turn.turnId,
+      nativeSessionId: "thread-honey",
+      cwd: "/agents/honey/workspace",
+      contextFingerprint: "fingerprint-honey",
+    });
+
+    const bindings = await repository.getBindings("channel");
+    expect(bindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actorId: "agent:fizz",
+          nativeSessionId: "thread-fizz",
+        }),
+        expect.objectContaining({
+          actorId: "agent:honey",
+          nativeSessionId: "thread-honey",
+        }),
+      ]),
+    );
+  });
+
   it("owns revisions and binds sessions by conversation, provider, and revision", async () => {
     const repository = new InMemorySessionStateRepository({
       clock: () => new Date("2026-07-31T00:00:00.000Z"),

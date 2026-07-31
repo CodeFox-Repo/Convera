@@ -74,6 +74,28 @@ describe("LocalMemoryStore", () => {
     expect([...backend.archivePassages.values()][0]?.size).toBe(1);
   });
 
+  it("round-trips concrete and source actor provenance through local blocks", async () => {
+    const { store } = setup();
+    await store.applyPatch(
+      patch({
+        provenance: {
+          actor: "subconscious",
+          sourceActorIds: ["agent:fizz", "agent:honey"],
+          turnId: "turn-actors",
+          timestamp: now().toISOString(),
+        },
+        turnId: "turn-actors",
+      }),
+    );
+
+    expect(
+      (await store.getSnapshot(scope)).blocks[0]?.provenance,
+    ).toMatchObject({
+      actor: "subconscious",
+      sourceActorIds: ["agent:fizz", "agent:honey"],
+    });
+  });
+
   it("rejects stale base versions without mutating local memory", async () => {
     const { backend, store } = setup();
     await store.applyPatch(patch());

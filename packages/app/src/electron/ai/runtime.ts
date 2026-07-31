@@ -18,6 +18,7 @@ import type {
   LocalAITurnRuntimeStateRequest,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
+import { SANDBOX_LAYOUT, type AgentSandbox } from "@/shared/types/workspace";
 import {
   streamText,
   type LanguageModel,
@@ -25,7 +26,8 @@ import {
   type ProviderMetadata,
   type UIMessageChunk,
 } from "ai";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { join } from "node:path";
 import {
   createAgentToolCatalog,
   type AgentTool,
@@ -41,6 +43,7 @@ import { ClaudeCodeAdapter } from "./providers/claude-code";
 import { CodexCliAdapter } from "./providers/codex-cli";
 import {
   defaultSessionStatePath,
+  DEFAULT_LOCAL_AI_ACTOR_ID,
   JsonSessionStateRepository,
 } from "./session/repository";
 import { KeyedSerialExecutor } from "./session/serial-executor";
@@ -91,6 +94,10 @@ export type AgentToolExecutor = (
   input: Record<string, unknown>,
 ) => Promise<unknown>;
 
+export type AgentSandboxResolver = (
+  request: LocalAIChatRequest,
+) => AgentSandbox | Promise<AgentSandbox>;
+
 const defaultStreamInvoker: RuntimeStreamInvoker = (options) =>
   streamText(
     options as Parameters<typeof streamText>[0],
@@ -134,6 +141,34 @@ function missingProviderStatus(providerId: string): LocalAIProviderStatus {
     availability: "unavailable",
     detail: `Unknown local AI provider: ${providerId}`,
   };
+}
+
+export function resolveLocalAiActorId(
+  request: Pick<LocalAIChatRequest, "agent">,
+): string {
+  const memberId = request.agent?.memberId?.trim();
+  if (memberId) return memberId;
+  const agentId = request.agent?.id?.trim();
+  return agentId ? `agent:${agentId}` : DEFAULT_LOCAL_AI_ACTOR_ID;
+}
+
+export function fingerprintAgentContext(
+  request: Pick<LocalAIChatRequest, "agent">,
+  sandbox: AgentSandbox,
+): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        actorId: resolveLocalAiActorId(request),
+        systemPrompt: request.agent?.systemPrompt?.trim() ?? "",
+        sandbox: {
+          root: sandbox.root,
+          writableRoots: [...sandbox.writableRoots].sort(),
+          networkAccess: sandbox.networkAccess,
+        },
+      }),
+    )
+    .digest("hex");
 }
 
 export function serializeLocalAiError(
@@ -369,6 +404,8 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly inFlightChats = new Set<Promise<void>>();
   private readonly streamInvoker: RuntimeStreamInvoker;
   private readonly workingDirectory: string;
+  private readonly sandbox: AgentSandbox;
+  private readonly resolveSandbox: AgentSandboxResolver;
   private readonly getToolGroups: AgentToolGroupProvider;
   private readonly executeTool: AgentToolExecutor;
   private readonly pendingInteractions = new Map<string, PendingInteraction>();
@@ -391,6 +428,8 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       adapters?: LocalAiProviderAdapter[];
       streamInvoker?: RuntimeStreamInvoker;
       workingDirectory?: string;
+      sandbox?: AgentSandbox;
+      resolveSandbox?: AgentSandboxResolver;
       getToolGroups?: AgentToolGroupProvider;
       executeTool?: AgentToolExecutor;
       sessionRepository?: SessionStateRepository;
@@ -406,6 +445,12 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
     this.workingDirectory = options.workingDirectory ?? process.cwd();
+    this.sandbox = options.sandbox ?? {
+      root: this.workingDirectory,
+      writableRoots: [join(this.workingDirectory, SANDBOX_LAYOUT.workspace)],
+      networkAccess: false,
+    };
+    this.resolveSandbox = options.resolveSandbox ?? (() => this.sandbox);
     this.getToolGroups = options.getToolGroups ?? (() => []);
     this.sessionRepository = options.sessionRepository;
     this.turnHooks = options.turnHooks ?? {};
@@ -579,6 +624,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           turnId: request.turnId,
           requestId: request.requestId,
           conversationId: request.conversationId,
+          actorId: resolveLocalAiActorId(request),
           providerId,
           operation: request.operation.kind,
           operationReason:
@@ -605,11 +651,15 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           );
         }
 
+        const sandbox = await this.resolveSandbox(request);
+        const trustedWorkingDirectory =
+          sandbox.writableRoots[0] ?? sandbox.root;
+        const contextFingerprint = fingerprintAgentContext(request, sandbox);
         const trustedRequest: LocalAIChatRequest = {
           ...request,
           options: {
             ...request.options,
-            cwd: this.workingDirectory,
+            cwd: trustedWorkingDirectory,
           },
         };
         const requestInteraction = (interaction: AgentToolInteraction) =>
@@ -625,7 +675,13 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           requestInteraction,
         });
         controller.signal.throwIfAborted();
-        if (turnContext?.forceNewSession && prepared.binding) {
+        const boundContextChanged =
+          prepared.binding !== undefined &&
+          prepared.binding.contextFingerprint !== contextFingerprint;
+        if (
+          (turnContext?.forceNewSession || boundContextChanged) &&
+          prepared.binding
+        ) {
           if (
             request.operation.kind === "append" &&
             !request.operation.recoveryMessages
@@ -655,7 +711,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
             : undefined;
         if (
           resumableBinding &&
-          resumableBinding.cwd !== this.workingDirectory
+          resumableBinding.cwd !== trustedWorkingDirectory
         ) {
           throw Object.assign(
             new Error(
@@ -681,6 +737,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
                   groups: await this.getToolGroups(),
                   executeTool: this.executeTool,
                   requestInteraction,
+                  sandbox,
                 }),
                 turnContext?.additionalTools ?? [],
               );
@@ -689,6 +746,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           session: resumableBinding,
           tools,
           executionPolicy: this.executionPolicy,
+          sandbox,
           requestInteraction,
         });
         controller.signal.throwIfAborted();
@@ -735,12 +793,13 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         const binding = await repository.completeTurn({
           turnId: request.turnId,
           nativeSessionId,
-          cwd: this.workingDirectory,
+          cwd: trustedWorkingDirectory,
           modelId: request.modelId,
           finishReason: forwarded.finishReason,
           assistantText: forwarded.assistantText,
           assistantHookContent: forwarded.assistantText,
           memoryCursors: turnContext?.memoryCursors,
+          contextFingerprint,
         });
         if (forwarded.finishChunk) {
           emit({
@@ -869,6 +928,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       providers: bindings
         .filter((binding) => binding.revision === conversation.revision)
         .map((binding) => ({
+          actorId: binding.actorId ?? DEFAULT_LOCAL_AI_ACTOR_ID,
           providerId: binding.providerId,
           modelId: binding.modelId,
           revision: binding.revision,
@@ -998,6 +1058,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           providers: bindings
             .filter((binding) => binding.revision === conversation.revision)
             .map((binding) => ({
+              actorId: binding.actorId ?? DEFAULT_LOCAL_AI_ACTOR_ID,
               providerId: binding.providerId,
               modelId: binding.modelId,
               revision: binding.revision,

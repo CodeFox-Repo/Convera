@@ -54,6 +54,16 @@ describe("local AI request composition", () => {
     });
   });
 
+  it("uses an actor-specific projection for provider operations", () => {
+    const projected = [
+      { role: "user" as const, content: "Honey: Can you review this?" },
+      { role: "assistant" as const, content: "I will review it." },
+    ];
+    expect(
+      buildLocalAIChatOperation(transcript, { kind: "bootstrap" }, projected),
+    ).toEqual({ kind: "bootstrap", messages: projected });
+  });
+
   it("rejects append when the latest runtime message is not a user turn", () => {
     expect(() =>
       buildLocalAIChatOperation(transcript.slice(0, 2), { kind: "append" }),
@@ -96,6 +106,7 @@ describe("local AI request composition", () => {
     memoryVersion: 0,
     providers: [
       {
+        actorId: "agent:fizz",
         providerId: "codex-cli",
         revision: 2,
         transcriptVersion: 3,
@@ -106,27 +117,31 @@ describe("local AI request composition", () => {
   };
 
   it("bootstraps a legacy transcript without main runtime state", () => {
-    expect(selectAppendOperation(null, "codex-cli", 3)).toEqual({
+    expect(selectAppendOperation(null, "codex-cli", "agent:fizz", 3)).toEqual({
       kind: "bootstrap",
     });
-    expect(selectAppendOperation(null, "codex-cli", 0)).toEqual({
+    expect(selectAppendOperation(null, "codex-cli", "agent:fizz", 0)).toEqual({
       kind: "append",
     });
   });
 
   it("appends only when the selected provider has a current binding", () => {
-    expect(selectAppendOperation(runtimeState, "codex-cli", 3)).toEqual({
-      kind: "append",
-    });
-    expect(selectAppendOperation(runtimeState, "claude-code", 3)).toEqual({
-      kind: "rebase",
-      reason: "provider-switch",
-    });
+    expect(
+      selectAppendOperation(runtimeState, "codex-cli", "agent:fizz", 3),
+    ).toEqual({ kind: "append" });
+    expect(
+      selectAppendOperation(runtimeState, "claude-code", "agent:fizz", 3),
+    ).toEqual({ kind: "rebase", reason: "provider-switch" });
   });
 
   it("bootstraps branch and reset states whose bindings are absent or stale", () => {
     expect(
-      selectAppendOperation({ ...runtimeState, providers: [] }, "codex-cli", 3),
+      selectAppendOperation(
+        { ...runtimeState, providers: [] },
+        "codex-cli",
+        "agent:fizz",
+        3,
+      ),
     ).toEqual({ kind: "bootstrap" });
     expect(
       selectAppendOperation(
@@ -135,6 +150,7 @@ describe("local AI request composition", () => {
           providers: [{ ...runtimeState.providers[0], stale: true }],
         },
         "codex-cli",
+        "agent:fizz",
         3,
       ),
     ).toEqual({ kind: "bootstrap" });
@@ -145,16 +161,16 @@ describe("local AI request composition", () => {
           providers: [{ ...runtimeState.providers[0], revision: 1 }],
         },
         "codex-cli",
+        "agent:fizz",
         3,
       ),
     ).toEqual({ kind: "bootstrap" });
   });
 
   it("rebases a provider switch from the bounded shared transcript", () => {
-    expect(selectAppendOperation(runtimeState, "claude-code", 3)).toEqual({
-      kind: "rebase",
-      reason: "provider-switch",
-    });
+    expect(
+      selectAppendOperation(runtimeState, "claude-code", "agent:fizz", 3),
+    ).toEqual({ kind: "rebase", reason: "provider-switch" });
     expect(
       buildLocalAIChatOperation(transcript, {
         kind: "rebase",
@@ -183,10 +199,39 @@ describe("local AI request composition", () => {
             ],
           },
           "codex-cli",
+          "agent:fizz",
           3,
         ),
       ).toEqual({ kind: "rebase", reason: "provider-switch" });
     }
+  });
+
+  it("isolates A to B to A turns by actor as the shared transcript advances", () => {
+    expect(
+      selectAppendOperation(runtimeState, "codex-cli", "agent:fizz", 3),
+    ).toEqual({ kind: "append" });
+    expect(
+      selectAppendOperation(runtimeState, "codex-cli", "agent:honey", 3),
+    ).toEqual({ kind: "bootstrap" });
+
+    const afterHoney: LocalAIConversationRuntimeState = {
+      ...runtimeState,
+      transcriptVersion: 4,
+      providers: [
+        runtimeState.providers[0],
+        {
+          actorId: "agent:honey",
+          providerId: "codex-cli",
+          revision: 2,
+          transcriptVersion: 4,
+          stale: false,
+          updatedAt: "2026-07-31T00:01:00.000Z",
+        },
+      ],
+    };
+    expect(
+      selectAppendOperation(afterHoney, "codex-cli", "agent:fizz", 4),
+    ).toEqual({ kind: "rebase", reason: "provider-switch" });
   });
 
   it("bounds bootstrap history newest-first and marks truncation", () => {

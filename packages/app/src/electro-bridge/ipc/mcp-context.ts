@@ -1,13 +1,16 @@
+import { contextBridge, ipcMain, ipcRenderer, type IpcMain } from "electron";
 import type { MCPServerConfig } from "@/shared/types/mcp";
-import { contextBridge, ipcMain, ipcRenderer } from "electron";
+import { createMcpAPI } from "./mcp-api";
 import { getAllTools, getMCPHub } from "../../electron/mcp";
 
 /**
  * Setup MCP IPC handlers in main process
  */
-export function setupMCPIPC() {
+export function setupMCPIPC(
+  mainIPC: Pick<IpcMain, "handle" | "removeHandler"> = ipcMain,
+) {
   // Get all server statuses including builtin tools
-  ipcMain.handle("mcp:getServers", async () => {
+  mainIPC.handle("mcp:getServers", async () => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -22,7 +25,7 @@ export function setupMCPIPC() {
   });
 
   // Get all tools in simplified format for chat functionality
-  ipcMain.handle("mcp:getAllTools", async () => {
+  mainIPC.handle("mcp:getAllTools", async () => {
     try {
       const tools = getAllTools();
       return { success: true, data: tools };
@@ -32,7 +35,7 @@ export function setupMCPIPC() {
   });
 
   // Start specific server
-  ipcMain.handle("mcp:startServer", async (_, serverId: string) => {
+  mainIPC.handle("mcp:startServer", async (_, serverId: string) => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -47,7 +50,7 @@ export function setupMCPIPC() {
   });
 
   // Stop specific server
-  ipcMain.handle("mcp:stopServer", async (_, serverId: string) => {
+  mainIPC.handle("mcp:stopServer", async (_, serverId: string) => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -62,7 +65,7 @@ export function setupMCPIPC() {
   });
 
   // Get server configurations
-  ipcMain.handle("mcp:getConfigurations", async () => {
+  mainIPC.handle("mcp:getConfigurations", async () => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -77,7 +80,7 @@ export function setupMCPIPC() {
   });
 
   // Update server configuration
-  ipcMain.handle(
+  mainIPC.handle(
     "mcp:updateServer",
     async (_, serverId: string, config: MCPServerConfig) => {
       try {
@@ -95,7 +98,7 @@ export function setupMCPIPC() {
   );
 
   // Add new server (manual configuration)
-  ipcMain.handle(
+  mainIPC.handle(
     "mcp:addServer",
     async (_, serverId: string, config: MCPServerConfig) => {
       try {
@@ -113,7 +116,7 @@ export function setupMCPIPC() {
   );
 
   // Remove server
-  ipcMain.handle("mcp:removeServer", async (_, serverId: string) => {
+  mainIPC.handle("mcp:removeServer", async (_, serverId: string) => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -128,7 +131,7 @@ export function setupMCPIPC() {
   });
 
   // Call tool on server
-  ipcMain.handle(
+  mainIPC.handle(
     "mcp:callTool",
     async (
       _,
@@ -151,7 +154,7 @@ export function setupMCPIPC() {
   );
 
   // Simplified tool call - finds first server with the tool
-  ipcMain.handle(
+  mainIPC.handle(
     "mcp:mcpToolCall",
     async (_, toolName: string, args: Record<string, unknown>) => {
       try {
@@ -169,7 +172,7 @@ export function setupMCPIPC() {
   );
 
   // Get all tools that don't require input parameters
-  ipcMain.handle("mcp:getAllNonInputParamTool", async () => {
+  mainIPC.handle("mcp:getAllNonInputParamTool", async () => {
     try {
       const hub = getMCPHub();
       if (!hub) {
@@ -190,28 +193,5 @@ export function setupMCPIPC() {
  * Expose MCP context to renderer process
  */
 export function exposeMCPContext() {
-  contextBridge.exposeInMainWorld("mcpAPI", {
-    getServers: () => ipcRenderer.invoke("mcp:getServers"),
-    getAllTools: () => ipcRenderer.invoke("mcp:getAllTools"),
-    startServer: (serverId: string) =>
-      ipcRenderer.invoke("mcp:startServer", serverId),
-    stopServer: (serverId: string) =>
-      ipcRenderer.invoke("mcp:stopServer", serverId),
-    getConfigurations: () => ipcRenderer.invoke("mcp:getConfigurations"),
-    addServer: (serverId: string, config: MCPServerConfig) =>
-      ipcRenderer.invoke("mcp:addServer", serverId, config),
-    updateServer: (serverId: string, config: MCPServerConfig) =>
-      ipcRenderer.invoke("mcp:updateServer", serverId, config),
-    removeServer: (serverId: string) =>
-      ipcRenderer.invoke("mcp:removeServer", serverId),
-    callTool: (
-      serverId: string,
-      toolName: string,
-      args: Record<string, unknown>,
-    ) => ipcRenderer.invoke("mcp:callTool", serverId, toolName, args),
-    mcpToolCall: (toolName: string, args: Record<string, unknown>) =>
-      ipcRenderer.invoke("mcp:mcpToolCall", toolName, args),
-    getAllNonInputParamTool: () =>
-      ipcRenderer.invoke("mcp:getAllNonInputParamTool"),
-  });
+  contextBridge.exposeInMainWorld("mcpAPI", createMcpAPI(ipcRenderer));
 }
