@@ -30,6 +30,7 @@ export const WORKSPACE_QUERY_RESULT_BUDGET = 18_000;
 export const WORKSPACE_MESSAGE_LIMIT_DEFAULT = 30;
 export const WORKSPACE_MESSAGE_LIMIT_MAX = 100;
 export const WORKSPACE_MESSAGE_CONTENT_MAX = 2_000;
+export const WORKSPACE_REPLY_EXCERPT_MAX = 280;
 
 export interface WorkspaceListChannelsQuery {
   kind: "list_channels";
@@ -54,6 +55,15 @@ export interface WorkspaceSendMessageQuery {
   viewerMemberId: string;
   channelId: string;
   content: string;
+  /** Existing message in the destination channel this directly answers. */
+  replyToMessageId?: string;
+  /** Renderer-owned lifecycle context; never accepted from a model tool input. */
+  agentHost?: {
+    jobId: string;
+    triggerMessageId: string;
+    contextMessageIds: string[];
+    chain: { hops: number; invoked: string[] };
+  };
 }
 
 export type WorkspaceQuery =
@@ -86,6 +96,13 @@ export interface WorkspaceChannelMessage {
   senderId: string | null;
   senderName: string;
   content: string;
+  replyTo?: {
+    messageId: string;
+    /** Null when the referenced row or its sender is no longer available. */
+    senderId: string | null;
+    senderName: string | null;
+    content: string | null;
+  };
   createdAt: string;
 }
 

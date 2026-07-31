@@ -25,6 +25,7 @@ interface ChatContentProps {
   isLoading: boolean;
   onEditMessage: (message: UIMessage, newContent: string) => void;
   onRegenerateMessage: (message: UIMessage) => void;
+  onReplyToMessage: (message: UIMessage) => void;
   onBranchFromMessage: (messageIndex: number) => void;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
@@ -40,6 +41,7 @@ export default function ChatContent({
   isLoading,
   onEditMessage,
   onRegenerateMessage,
+  onReplyToMessage,
   onBranchFromMessage,
   showReactions,
 }: ChatContentProps) {
@@ -347,6 +349,9 @@ export default function ChatContent({
   // Note: This hook must be called before any conditional returns
   const renderMessages = useCallback(() => {
     const membersById = new Map((members ?? []).map((m) => [m.id, m]));
+    const messagesById = new Map(
+      messages.map((message) => [message.id, message]),
+    );
 
     return messages.map((message, index) => {
       const isLastMessage = index === messages.length - 1;
@@ -354,6 +359,7 @@ export default function ChatContent({
       // Without senderId, role is the identity — two consecutive assistant
       // rows are the same speaker, same as two consecutive user rows.
       const isGrouped =
+        !message.replyToMessageId &&
         !!previous &&
         (message.senderId
           ? previous.senderId === message.senderId
@@ -363,6 +369,26 @@ export default function ChatContent({
       );
       const isEditing = editingMessageId === message.id;
       const isCopied = copiedMessageId === message.id ? true : false;
+      const replyParent = message.replyToMessageId
+        ? messagesById.get(message.replyToMessageId)
+        : undefined;
+      const replySender = replyParent?.senderId
+        ? membersById.get(replyParent.senderId)
+        : undefined;
+      const replyTarget = replyParent
+        ? {
+            id: replyParent.id,
+            senderName: resolveSenderName({
+              senderName: replySender?.name,
+              isUser: replyParent.role === "user",
+              agentName,
+            }),
+            content:
+              typeof replyParent.content === "string"
+                ? replyParent.content
+                : "",
+          }
+        : null;
 
       // Extract selected content for user messages
       let selectedContent: SelectedContent | null = null;
@@ -414,7 +440,16 @@ export default function ChatContent({
           onEditContentChange={setEditedContent}
           onCopy={() => handleCopyContent(message.content || "", message.id)}
           onRegenerate={() => handleRegenerateWithLoading(message)}
+          onReply={() => onReplyToMessage(message)}
           onBranch={onBranchFromMessage}
+          replyTarget={replyTarget}
+          onOpenReplyTarget={() => {
+            if (!replyTarget) return;
+            const target = document.querySelector<HTMLElement>(
+              `[data-message-id="${CSS.escape(replyTarget.id)}"]`,
+            );
+            target?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
           renderContent={content}
         />
       );
@@ -434,6 +469,7 @@ export default function ChatContent({
     handleCopyContent,
     handleRegenerateWithLoading,
     onBranchFromMessage,
+    onReplyToMessage,
     renderToolCalls,
     renderMessageContent,
     isLoading,

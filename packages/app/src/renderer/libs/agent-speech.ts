@@ -2,6 +2,9 @@ import { addMessage, db, type Channel } from "./db";
 import { registerWorkspaceSendMessage } from "./workspace-perception";
 import type { WorkspaceQueryResult } from "@/shared/types/workspace-perception";
 import { parseMentions } from "./mention-parser";
+import { routeMessage } from "./agent-routing";
+import { dispatchAgentHostOffers } from "./agent-host-service";
+import type { Member } from "@/shared/types/workspace";
 
 /**
  * Speaking, as an agent does it.
@@ -20,6 +23,7 @@ async function speak(
   channel: Channel,
   senderId: string,
   content: string,
+  replyToMessageId?: string,
 ): Promise<string> {
   const members = await db.members.toArray();
   return addMessage(channel.conversationId, {
@@ -29,6 +33,7 @@ async function speak(
     // Parsed here rather than trusted from the model: a mention is what routes
     // the next turn, so it has to reflect the text that was actually posted.
     mentions: parseMentions(content, members),
+    ...(replyToMessageId ? { replyToMessageId } : {}),
     status: "completed",
   });
 }
@@ -44,6 +49,8 @@ export function installAgentSpeech(): void {
       viewerMemberId,
       channelId,
       content,
+      replyToMessageId,
+      agentHost,
     }): Promise<WorkspaceQueryResult> => {
       const channel = await db.channels.get(channelId);
       if (!channel) {
@@ -55,10 +62,55 @@ export function installAgentSpeech(): void {
           },
         };
       }
+      const messageId = await speak(
+        channel,
+        viewerMemberId,
+        content,
+        replyToMessageId,
+      );
+      if (agentHost) {
+        const memberRows = await db.members.bulkGet(channel.memberIds);
+        const members = memberRows.filter(
+          (member): member is Member => member !== undefined,
+        );
+        const routed = routeMessage({
+          message: { senderId: viewerMemberId, content },
+          members,
+          replyToSenderId: replyToMessageId
+            ? (await db.messages.get(replyToMessageId))?.senderId
+            : undefined,
+          defaultAgentMemberId: null,
+          openFloor: false,
+          chain: agentHost.chain,
+        });
+        if (routed.invoke.length > 0) {
+          const targets = routed.invoke.flatMap((memberId) => {
+            const member = members.find(
+              (candidate) => candidate.id === memberId,
+            );
+            return member?.agentId
+              ? [{ agentId: member.agentId, memberId }]
+              : [];
+          });
+          await dispatchAgentHostOffers({
+            channelId: channel.id,
+            conversationId: channel.conversationId,
+            triggerMessageId: messageId,
+            contextMessageIds: [
+              ...agentHost.contextMessageIds.slice(-499),
+              messageId,
+            ],
+            mode: "direct",
+            offeredAgentMemberIds: routed.invoke,
+            targets,
+            chain: routed.chain,
+          });
+        }
+      }
       return {
         ok: true,
         kind: "send_message",
-        messageId: await speak(channel, viewerMemberId, content),
+        messageId,
       };
     },
   );

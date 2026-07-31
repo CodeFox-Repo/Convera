@@ -65,6 +65,15 @@ const sendMessageSchema = z.object({
     .min(1)
     .max(WORKSPACE_MESSAGE_CONTENT_MAX)
     .describe("What to say, as you would type it into the channel."),
+  reply_to_message_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .optional()
+    .describe(
+      "Message id from read_channel when this message directly answers it.",
+    ),
 });
 
 const DESCRIPTIONS = {
@@ -73,7 +82,7 @@ const DESCRIPTIONS = {
   read_channel:
     "Read one channel's roster and its most recent messages. Use it to catch up on a room — including a visible room you have not joined — before answering or deciding what to remember. Returns oldest-first messages and flags when older history was cut.",
   send_message:
-    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
+    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. When answering a particular message returned by read_channel, pass its id as reply_to_message_id. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
 } as const;
 
 function schemaOf(shape: ZodRawShape): Record<string, unknown> {
@@ -212,6 +221,9 @@ export function createWorkspacePerceptionTools(
           viewerMemberId: options.viewerMemberId,
           channelId: input.channel_id as string,
           content: input.content as string,
+          ...(input.reply_to_message_id
+            ? { replyToMessageId: input.reply_to_message_id as string }
+            : {}),
         }),
     ),
     perceptionTool(

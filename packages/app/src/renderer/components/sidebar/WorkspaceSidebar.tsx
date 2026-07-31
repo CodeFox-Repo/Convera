@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Plus, Settings as SettingsIcon } from "lucide-react";
+import { MessageCircle, Plus, Settings as SettingsIcon } from "lucide-react";
 import { useActiveConversations } from "@/renderer/libs/db/hooks";
 import {
   isUnread,
@@ -13,10 +13,13 @@ import {
   useGroups,
   type Channel,
 } from "@/renderer/libs/stores/channel-store";
-import { useMember } from "@/renderer/libs/stores/member-store";
+import { useMember, useMembers } from "@/renderer/libs/stores/member-store";
 import { LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db";
+import { ensureAgentDM } from "@/renderer/libs/agent-dm";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { ConversationItem } from "./ConversationItem";
+import { ChannelItem } from "./ChannelItem";
 import { GroupSection } from "./GroupSection";
 import { InlineNameInput } from "./InlineNameInput";
 import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
@@ -28,6 +31,7 @@ const SECTION_LABEL =
 export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const groups = useGroups();
   const channels = useChannels();
+  const members = useMembers();
   const conversations = useActiveConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
   const { lastSeen, markSeen } = useUnreadStore();
@@ -38,6 +42,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   } = useWorkspaceUI();
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [isAddingFirstChannel, setIsAddingFirstChannel] = useState(false);
+  const [isStartingDM, setIsStartingDM] = useState(false);
 
   const conversationById = useMemo(
     () => new Map((conversations ?? []).map((c) => [c.id, c])),
@@ -60,11 +65,32 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
     setView("chat");
   };
 
-  const drag = useChannelDrag(channels ?? []);
+  const teamChannels = useMemo(
+    () => (channels ?? []).filter((channel) => channel.kind === "channel"),
+    [channels],
+  );
+  const directMessages = useMemo(
+    () =>
+      (channels ?? [])
+        .filter((channel) => channel.kind === "dm")
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    [channels],
+  );
+  const agentsWithoutDM = useMemo(() => {
+    const existing = new Set(
+      directMessages.flatMap((channel) => channel.memberIds),
+    );
+    return (members ?? []).filter(
+      (member) =>
+        member.kind === "agent" && !!member.agentId && !existing.has(member.id),
+    );
+  }, [directMessages, members]);
+
+  const drag = useChannelDrag(teamChannels);
 
   const channelsByGroup = useMemo(() => {
     const byGroup = new Map<string | null, Channel[]>();
-    for (const channel of channels ?? []) {
+    for (const channel of teamChannels) {
       const list = byGroup.get(channel.groupId);
       if (list) list.push(channel);
       else byGroup.set(channel.groupId, [channel]);
@@ -73,7 +99,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
       list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     }
     return byGroup;
-  }, [channels]);
+  }, [teamChannels]);
 
   // Conversations nobody's channel points at: 1:1 chats, listed under CHATS.
   const plainConversations = useMemo(() => {
@@ -82,13 +108,13 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   }, [conversations, channels]);
 
   const selectChannel = (channel: Channel) => select(channel.conversationId);
-  const hasChannels = (channels?.length ?? 0) > 0;
+  const hasChannels = teamChannels.length > 0;
 
   // Unread indicators on the INACTIVE tab, so nothing gets lost while hidden.
-  const teamsHaveUnread = (channels ?? []).some(isChannelUnread);
-  const chatsHaveUnread = plainConversations.some((c) =>
-    isUnread(lastSeen, c.id, c.updatedAt),
-  );
+  const teamsHaveUnread = teamChannels.some(isChannelUnread);
+  const chatsHaveUnread =
+    directMessages.some(isChannelUnread) ||
+    plainConversations.some((c) => isUnread(lastSeen, c.id, c.updatedAt));
 
   return (
     <div className="flex h-full flex-col">
@@ -209,7 +235,74 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         )}
 
         {activeTab === "chats" && (
-          <div className="px-2">
+          <div className="space-y-1 px-1">
+            <div className="flex items-center px-1">
+              <span className={`${SECTION_LABEL} flex-1`}>Direct messages</span>
+              <button
+                type="button"
+                onClick={() => setIsStartingDM((open) => !open)}
+                className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                title="Message an agent"
+                aria-label="Message an agent"
+                aria-expanded={isStartingDM}
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+
+            {isStartingDM && (
+              <div className="rounded-lg bg-sidebar-accent p-1">
+                {agentsWithoutDM.length > 0 ? (
+                  agentsWithoutDM.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors pointer-events-auto hover:bg-sidebar-hover"
+                      onClick={() => {
+                        if (!member.agentId) return;
+                        void ensureAgentDM(member.agentId).then((dm) => {
+                          setIsStartingDM(false);
+                          select(dm.conversationId);
+                        });
+                      }}
+                    >
+                      <MemberAvatar member={member} className="size-6" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {member.name}
+                      </span>
+                      <MessageCircle
+                        size={13}
+                        className="text-muted-foreground"
+                      />
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+                    {directMessages.length > 0
+                      ? "Every agent already has a direct message."
+                      : "Hire an agent before starting a direct message."}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {directMessages.length > 0 && (
+              <div className="space-y-0.5">
+                {directMessages.map((channel) => (
+                  <ChannelItem
+                    key={channel.id}
+                    channel={channel}
+                    isActive={currentConversationId === channel.conversationId}
+                    isUnread={isChannelUnread(channel)}
+                    onSelect={() => selectChannel(channel)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab === "chats" && plainConversations.length > 0 && (
+          <div className="px-2 pt-2">
             <span className={SECTION_LABEL}>Recent</span>
           </div>
         )}

@@ -893,15 +893,23 @@ export async function branchFromMessage(
         updatedAt: now,
       });
       const baseTime = Date.now();
+      const copiedMessageIds = new Map(
+        messagesToCopy.map((message) => [message.id, crypto.randomUUID()]),
+      );
       await db.messages.bulkAdd(
         messagesToCopy.map((msg, index) => ({
-          id: crypto.randomUUID(),
+          id: copiedMessageIds.get(msg.id)!,
           conversationId: newConvId,
           role: msg.role,
           content: msg.content,
           senderId: msg.senderId,
           mentions: msg.mentions,
           reactions: msg.reactions,
+          ...(msg.replyToMessageId && copiedMessageIds.has(msg.replyToMessageId)
+            ? {
+                replyToMessageId: copiedMessageIds.get(msg.replyToMessageId),
+              }
+            : {}),
           turnId: msg.turnId,
           revision: msg.revision,
           providerId: msg.providerId,

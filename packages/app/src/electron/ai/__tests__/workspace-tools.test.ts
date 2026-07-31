@@ -47,6 +47,15 @@ function fakeRenderer(visibleChannelIds: string[]) {
           }),
         };
       }
+      if (query.kind === "send_message") {
+        return {
+          value: JSON.stringify({
+            ok: true,
+            kind: "send_message",
+            messageId: "posted-1",
+          }),
+        };
+      }
       return {
         value: JSON.stringify({
           ok: true,
@@ -88,6 +97,30 @@ describe("workspace perception tools", () => {
         viewerMemberId: "agent:fizz",
         channelId: "joined",
         limit: 30,
+      },
+    ]);
+  });
+
+  it("passes an optional reply target through the native send_message tool", async () => {
+    const renderer = fakeRenderer(["joined"]);
+    const tools = createWorkspacePerceptionTools({
+      viewerMemberId: "agent:fizz",
+      requestInteraction: renderer.requestInteraction,
+    });
+
+    await byName(tools, "send_message").execute({
+      channel_id: "joined",
+      content: "Following up.",
+      reply_to_message_id: "message-7",
+    });
+
+    expect(renderer.queries).toEqual([
+      {
+        kind: "send_message",
+        viewerMemberId: "agent:fizz",
+        channelId: "joined",
+        content: "Following up.",
+        replyToMessageId: "message-7",
       },
     ]);
   });

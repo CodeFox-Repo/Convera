@@ -65,10 +65,12 @@ export function createWebBridgeIPC(config: WebBridgeConfig): RendererIPCLike {
   // to the bridge — orphaning the sender an in-flight turn is streaming to, so
   // the reply lands nowhere until a manual refresh re-reads it from disk.
   const clientId = ((): string => {
-    const stored = sessionStorage.getItem(CLIENT_ID_KEY);
+    const storage =
+      typeof sessionStorage === "undefined" ? null : sessionStorage;
+    const stored = storage?.getItem(CLIENT_ID_KEY);
     if (stored) return stored;
     const created = globalThis.crypto.randomUUID();
-    sessionStorage.setItem(CLIENT_ID_KEY, created);
+    storage?.setItem(CLIENT_ID_KEY, created);
     return created;
   })();
   let socket: WebSocket | null = null;

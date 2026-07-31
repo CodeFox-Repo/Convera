@@ -111,6 +111,7 @@ function toMessageSnapshots(messages: Message[]): MessageSnapshot[] {
     senderId: message.senderId,
     mentions: message.mentions,
     reactions: message.reactions,
+    replyToMessageId: message.replyToMessageId,
   }));
 }
 
@@ -161,12 +162,14 @@ export function useLocalAIChat(): UseLocalAIChatResult {
 
   // Who the active request speaks as, so a tool-call signal can be attributed.
   const activeResponderIdRef = useRef<string | undefined>(undefined);
+  const activeConversationIdRef = useRef<string | undefined>(undefined);
 
   /** Any exit from a request retires its indicator, including a failed one. */
   const clearTyping = useCallback(() => {
     const requestId = activeRequestIdRef.current;
     if (requestId) useTypingStore.getState().stopTyping(requestId);
     activeResponderIdRef.current = undefined;
+    activeConversationIdRef.current = undefined;
   }, []);
 
   const handleEvent = useCallback(
@@ -182,11 +185,16 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         if (
           chunk.type === "tool-input-start" &&
           chunk.toolName?.endsWith(WORKSPACE_SEND_MESSAGE_TOOL) &&
-          activeResponderIdRef.current
+          activeResponderIdRef.current &&
+          activeConversationIdRef.current
         ) {
           useTypingStore
             .getState()
-            .startTyping(event.requestId, activeResponderIdRef.current);
+            .startTyping(
+              event.requestId,
+              activeResponderIdRef.current,
+              activeConversationIdRef.current,
+            );
         }
         activeUIMessageStreamRef.current?.push(event.chunk);
         return;
@@ -307,7 +315,9 @@ export function useLocalAIChat(): UseLocalAIChatResult {
             : message;
           setMessages((current) =>
             current.map((candidate) =>
-              candidate.id === assistantMessageId ? stamped : candidate,
+              candidate.id === assistantMessageId
+                ? { ...candidate, ...stamped }
+                : candidate,
             ),
           );
         },
@@ -342,6 +352,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       );
       activeRequestIdRef.current = requestId;
       activeResponderIdRef.current = options.responderId;
+      activeConversationIdRef.current = options.conversationId;
       activeTurnRef.current = activeTurn;
       activeUIMessageStreamRef.current = uiMessageStream;
       unsubscribeRef.current = localAI.onEvent(requestId, (event) => {

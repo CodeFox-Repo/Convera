@@ -14,6 +14,8 @@ import {
 } from "@/renderer/libs/stores/channel-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { InlineNameInput } from "./InlineNameInput";
+import { useMember } from "@/renderer/libs/stores/member-store";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 
 interface ChannelItemProps {
   channel: Channel;
@@ -44,6 +46,9 @@ export function ChannelItem({
   const [isRenaming, setIsRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const Icon = channel.isPrivate ? Lock : Hash;
+  const directMessageAgent = useMember(
+    channel.kind === "dm" ? channel.defaultAgentMemberId : null,
+  );
 
   if (isRenaming) {
     return (
@@ -61,53 +66,61 @@ export function ChannelItem({
     );
   }
 
+  const item = (
+    <div
+      className={cn("relative", isDragging && "opacity-40")}
+      draggable={channel.kind !== "dm"}
+      onDragStart={channel.kind === "dm" ? undefined : onDragStart}
+      onDragOver={channel.kind === "dm" ? undefined : onDragOver}
+      onDrop={channel.kind === "dm" ? undefined : onDrop}
+      onDragEnd={channel.kind === "dm" ? undefined : onDragEnd}
+    >
+      {dropEdge && channel.kind !== "dm" && (
+        <span
+          className={cn(
+            "pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary",
+            dropEdge === "above" ? "-top-px" : "-bottom-px",
+          )}
+        />
+      )}
+      {isUnread && !isActive && (
+        <span className="absolute left-0 top-1/2 h-3 w-1 -translate-x-1 -translate-y-1/2 rounded-full bg-primary" />
+      )}
+      <button
+        onClick={onSelect}
+        className={cn(
+          "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-left pointer-events-auto transition-colors",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "hover:bg-sidebar-hover hover:text-sidebar-foreground",
+          !isActive &&
+            (isUnread ? "text-sidebar-foreground" : "text-muted-foreground"),
+        )}
+      >
+        {channel.kind === "dm" ? (
+          <MemberAvatar member={directMessageAgent} className="size-5" />
+        ) : (
+          <Icon size={13} className="flex-shrink-0 text-muted-foreground" />
+        )}
+        <span
+          className={cn(
+            "flex-1 min-w-0 truncate text-sm",
+            isUnread && !isActive && "font-semibold",
+          )}
+        >
+          {directMessageAgent?.name ?? channel.name}
+        </span>
+      </button>
+    </div>
+  );
+
+  // A durable DM is reopened from its agent identity. Generic channel rename
+  // and delete actions would make that stable relationship look disposable.
+  if (channel.kind === "dm") return item;
+
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          className={cn("relative", isDragging && "opacity-40")}
-          draggable
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-          onDragEnd={onDragEnd}
-        >
-          {dropEdge && (
-            <span
-              className={cn(
-                "pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary",
-                dropEdge === "above" ? "-top-px" : "-bottom-px",
-              )}
-            />
-          )}
-          {isUnread && !isActive && (
-            <span className="absolute left-0 top-1/2 h-3 w-1 -translate-x-1 -translate-y-1/2 rounded-full bg-primary" />
-          )}
-          <button
-            onClick={onSelect}
-            className={cn(
-              "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-left pointer-events-auto transition-colors",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "hover:bg-sidebar-hover hover:text-sidebar-foreground",
-              !isActive &&
-                (isUnread
-                  ? "text-sidebar-foreground"
-                  : "text-muted-foreground"),
-            )}
-          >
-            <Icon size={13} className="flex-shrink-0 text-muted-foreground" />
-            <span
-              className={cn(
-                "flex-1 min-w-0 truncate text-sm",
-                isUnread && !isActive && "font-semibold",
-              )}
-            >
-              {channel.name}
-            </span>
-          </button>
-        </div>
-      </ContextMenuTrigger>
+      <ContextMenuTrigger asChild>{item}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={() => setIsRenaming(true)}>
           <Pencil size={14} />

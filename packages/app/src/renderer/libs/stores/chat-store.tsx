@@ -1,5 +1,4 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
-import type { LocalAIMessage } from "@/shared/types/local-ai";
 import { AppSettings } from "@/shared/types/settings";
 import type { Attachment, Message, UIMessage } from "@/renderer/types/chat";
 import React, {
@@ -29,11 +28,9 @@ import {
   buildChannelContext,
   isPass,
   projectFor,
-  projectOpenFloor,
   type OfferedPeer,
 } from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
-import { dispatchOpenFloor } from "../open-floor-dispatch";
 import { parseMentions } from "../mention-parser";
 import {
   LOCAL_HUMAN_MEMBER_ID,
@@ -60,6 +57,7 @@ import {
   reconcilePendingTurns,
 } from "../conversation-turn-reconciliation";
 import { replayPendingConversationDeletions } from "../conversation-lifecycle";
+import { dispatchAgentHostOffers } from "../agent-host-service";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -67,6 +65,7 @@ function toProjectable(messages: UIMessage[]) {
   return messages.map((m) => ({
     id: m.id,
     senderId: m.senderId,
+    replyToMessageId: m.replyToMessageId,
     role: m.role as "user" | "assistant" | "system",
     content:
       typeof m.content === "string" ? m.content : JSON.stringify(m.content),
@@ -108,13 +107,6 @@ function buildResponderPrompt(
  * carried too so each offer's prompt names the same participants and repeats
  * the same permission to pass.
  */
-interface OpenFloorOffer {
-  requestMessages: Map<string, LocalAIMessage[]>;
-  room: Member[];
-  /** Everyone this batch went to, so each knows it was not asked alone. */
-  offered: OfferedPeer[];
-}
-
 // Selected content structure
 export interface SelectedContent {
   text?: string;
@@ -136,6 +128,7 @@ interface ChatContextType {
   error: Error | undefined;
   selectedContent: SelectedContent | null;
   attachments: File[];
+  replyTargetId: string | null;
 
   // View mode management
   viewMode: ChatViewMode;
@@ -152,6 +145,7 @@ interface ChatContextType {
   toolsError: string | null;
 
   setInput: (input: string) => void;
+  setReplyTarget: (messageId: string | null) => void;
   sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
@@ -210,6 +204,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedContent, setSelectedContent] =
     useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
 
   // Use shared Zustand store for conversation ID to sync with sidebar selection
@@ -224,6 +219,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       "🔗 Frontend: currentConversationId changed to:",
       currentConversationId,
     );
+  }, [currentConversationId]);
+
+  useEffect(() => {
+    setReplyTargetId(null);
   }, [currentConversationId]);
 
   // MCP Tools state - moved from separate store for simplicity
@@ -278,7 +277,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // opened, plus the prompt each offered agent was to answer it with. Turns
   // commit one at a time, so without this the second agent would read the
   // first one's answer and agree with it instead of judging the question.
-  const openFloorOfferRef = useRef<OpenFloorOffer | null>(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -378,9 +376,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     // offered, not the transcript its colleagues have since written into. A
     // mention chain is the opposite case: being named *is* a reply to what was
     // just said, so it reads live.
-    const offer = openFloorOfferRef.current;
-    const offeredMessages = offer?.requestMessages.get(nextResponderId);
-    if (!pendingInvokesRef.current.length) openFloorOfferRef.current = null;
+    const offeredMessages = undefined;
 
     const nextMember = members.find((m) => m.id === nextResponderId);
     if (!nextMember?.agentId) return;
@@ -456,10 +452,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             systemPrompt: buildResponderPrompt(
               agent,
               nextResponderId,
-              offeredMessages ? (offer?.room ?? members) : members,
+              members,
               relayChannel?.name,
               offeredMessages !== undefined,
-              offer?.offered ?? [],
+              [],
             ),
           },
           responderId: nextResponderId,
@@ -759,6 +755,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!messageText && !selectedContent && filesToSend.length === 0) return;
       const requestedSelection = getConversationSelectionToken();
+      const requestedReplyTargetId = replyTargetId;
 
       // Handle selected content (text only)
       if (selectedContent) {
@@ -776,6 +773,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         role: "user",
         content: messageText,
         senderId: LOCAL_HUMAN_MEMBER_ID,
+        replyToMessageId: requestedReplyTargetId ?? undefined,
       };
 
       const sendMessageWithAttachments = async () => {
@@ -849,6 +847,131 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           const conversationIdToUse = selection.conversationId;
           const { conversation, messages: persistedMessages } = sendContext;
+          if (
+            requestedReplyTargetId &&
+            !persistedMessages.some(
+              (persisted) => persisted.id === requestedReplyTargetId,
+            )
+          ) {
+            throw new Error(
+              "The message you were replying to is no longer in this conversation.",
+            );
+          }
+          const channel = await db.channels
+            .where("conversationId")
+            .equals(conversationIdToUse)
+            .first();
+          if (channel) {
+            const memberRows = await db.members.bulkGet(channel.memberIds);
+            const channelMembers = memberRows.filter(
+              (member): member is Member => member !== undefined,
+            );
+            const mentionedMemberIds = parseMentions(
+              messageText,
+              channelMembers,
+            );
+            const replyParent = requestedReplyTargetId
+              ? persistedMessages.find(
+                  (persisted) => persisted.id === requestedReplyTargetId,
+                )
+              : undefined;
+            const routed = routeMessage({
+              message: {
+                senderId: LOCAL_HUMAN_MEMBER_ID,
+                content: messageText,
+              },
+              members: channelMembers,
+              replyToSenderId: replyParent?.senderId,
+              defaultAgentMemberId:
+                channel.kind === "dm" ? channel.defaultAgentMemberId : null,
+              openFloor: channel.kind === "channel",
+              chain: null,
+            });
+            const persistedId = await addMessage(conversationIdToUse, {
+              role: "user",
+              content: messageText,
+              senderId: LOCAL_HUMAN_MEMBER_ID,
+              mentions: mentionedMemberIds,
+              replyToMessageId: requestedReplyTargetId ?? undefined,
+              status: "completed",
+              experimental_attachments: message.experimental_attachments?.map(
+                (attachment) => ({
+                  url: attachment.url,
+                  name: attachment.name ?? "",
+                  contentType: attachment.contentType ?? "",
+                }),
+              ),
+            });
+            const persisted = await db.messages.get(persistedId);
+            if (!persisted) {
+              throw new Error("The channel message could not be persisted.");
+            }
+            chatAPI.setMessages([
+              ...persistedMessages,
+              {
+                id: persisted.id,
+                role: "user",
+                content: persisted.content,
+                senderId: persisted.senderId,
+                mentions: persisted.mentions,
+                replyToMessageId: persisted.replyToMessageId,
+                experimental_attachments: message.experimental_attachments,
+                createdAt: persisted.createdAt,
+              },
+            ]);
+            chatAPI.setInput("");
+            clearAttachments();
+            setReplyTargetId(null);
+
+            if (routed.invoke.length > 0) {
+              const targets = routed.invoke.flatMap((memberId) => {
+                const member = channelMembers.find(
+                  (candidate) => candidate.id === memberId,
+                );
+                return member?.agentId
+                  ? [{ agentId: member.agentId, memberId }]
+                  : [];
+              });
+              const directReplyToAgent =
+                replyParent?.senderId &&
+                channelMembers.some(
+                  (member) =>
+                    member.id === replyParent.senderId &&
+                    member.kind === "agent",
+                );
+              const mode =
+                channel.kind === "channel" &&
+                mentionedMemberIds.length === 0 &&
+                !directReplyToAgent
+                  ? "open-floor"
+                  : "direct";
+              const recentContextIds = persistedMessages
+                .slice(requestedReplyTargetId ? -498 : -499)
+                .map((persistedMessage) => persistedMessage.id);
+              const contextMessageIds = [
+                ...(requestedReplyTargetId &&
+                !recentContextIds.includes(requestedReplyTargetId)
+                  ? [requestedReplyTargetId]
+                  : []),
+                ...recentContextIds,
+                persisted.id,
+              ];
+              void dispatchAgentHostOffers({
+                channelId: channel.id,
+                conversationId: channel.conversationId,
+                triggerMessageId: persisted.id,
+                contextMessageIds,
+                mode,
+                offeredAgentMemberIds: routed.invoke,
+                targets,
+                chain: routed.chain,
+              }).catch((error) => {
+                console.error("Could not enqueue durable agent offers:", error);
+              });
+            }
+            return;
+          }
+
           const providerId = resolveLocalAIProviderId(
             sendContext.providerSelection.configId,
           );
@@ -856,146 +979,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const members = await db.members.toArray();
           const mentionedMemberIds = parseMentions(messageText, members);
           message.mentions = mentionedMemberIds;
-          const channelForSend = await db.channels
-            .where("conversationId")
-            .equals(conversationIdToUse)
-            .first();
-          // In a channel the floor is open — everyone in the room is offered
-          // the turn and passes if they have nothing to say. A plain 1:1 chat
-          // has one counterpart, who always answers.
-          const channelMembers = channelForSend
-            ? members.filter((member) =>
-                channelForSend.memberIds.includes(member.id),
-              )
-            : members;
+          // Workspace channels returned above after handing collaboration
+          // semantics to the durable Host. Reaching here means this is a
+          // legacy/plain 1:1 conversation with one selected responder.
+          const channelMembers = members;
           const routed = routeMessage({
             message: {
               senderId: LOCAL_HUMAN_MEMBER_ID,
               content: messageText,
             },
             members: channelMembers,
-            defaultAgentMemberId: channelForSend
-              ? null
-              : selectedAgent
-                ? memberIdForAgent(selectedAgent.id)
-                : null,
-            openFloor: !!channelForSend,
+            defaultAgentMemberId: selectedAgent
+              ? memberIdForAgent(selectedAgent.id)
+              : null,
+            openFloor: false,
             chain: null,
           });
+
           chainRef.current = routed.chain;
           const [firstResponder, ...queued] = routed.invoke;
           pendingInvokesRef.current = queued;
-          // Everyone offered the floor judges the room as it stands *now* —
-          // before any of them has answered. Projected once, up front, so the
-          // colleague that commits second is not reading the first one's reply.
-          const openFloor = !!channelForSend && mentionedMemberIds.length === 0;
-          const offeredPeers: OfferedPeer[] = openFloor
-            ? await Promise.all(
-                routed.invoke.map(async (id) => {
-                  const peer = members.find((member) => member.id === id);
-                  const peerAgent = peer?.agentId
-                    ? await db.agents.get(peer.agentId)
-                    : undefined;
-                  return {
-                    id,
-                    name: peer?.name ?? "A colleague",
-                    description: peerAgent?.description || undefined,
-                  };
-                }),
-              )
-            : [];
-          openFloorOfferRef.current = openFloor
-            ? {
-                requestMessages: projectOpenFloor(
-                  routed.invoke,
-                  [
-                    ...toProjectable(persistedMessages),
-                    {
-                      senderId: LOCAL_HUMAN_MEMBER_ID,
-                      role: "user",
-                      content: messageText,
-                    },
-                  ],
-                  members,
-                ),
-                room: channelMembers,
-                offered: offeredPeers,
-              }
-            : null;
-          // Open floor: everyone offered the message runs at once. They reserve
-          // no rows and speak through `send_message`, so there is nothing for
-          // them to queue behind — a room where three people were asked does
-          // not make them answer in series.
-          if (openFloor && routed.invoke.length > 0) {
-            const offer = openFloorOfferRef.current;
-            const turns = (
-              await Promise.all(
-                routed.invoke.map(async (id) => {
-                  const member = members.find((m) => m.id === id);
-                  const dbAgent = member?.agentId
-                    ? await db.agents.get(member.agentId)
-                    : undefined;
-                  if (!dbAgent || !offer) return undefined;
-                  return {
-                    memberId: id,
-                    agentId: dbAgent.id,
-                    conversationId: conversationIdToUse,
-                    providerId: dbAgent.providerId
-                      ? resolveLocalAIProviderId(dbAgent.providerId)
-                      : providerId,
-                    modelId:
-                      (dbAgent.modelId ?? selectedModelId) ===
-                      DEFAULT_LOCAL_AI_MODEL_ID
-                        ? undefined
-                        : (dbAgent.modelId ?? selectedModelId),
-                    systemPrompt: buildResponderPrompt(
-                      dbAgent,
-                      id,
-                      channelMembers,
-                      channelForSend?.name,
-                      true,
-                      offeredPeers,
-                      channelForSend?.id,
-                    ),
-                    requestMessages: offer.requestMessages.get(id) ?? [],
-                  };
-                }),
-              )
-            ).filter((turn): turn is NonNullable<typeof turn> => !!turn);
-
-            if (turns.length > 0) {
-              // `chatAPI.send` normally persists the human's message on the way
-              // to running a turn; this path does not use it, so the message is
-              // written here or it would never reach the room.
-              const userMessageId = await addMessage(conversationIdToUse, {
-                role: "user",
-                content: messageText,
-                senderId: LOCAL_HUMAN_MEMBER_ID,
-                mentions: mentionedMemberIds,
-                status: "completed",
-              });
-              chatAPI.setMessages([
-                ...persistedMessages,
-                {
-                  id: userMessageId,
-                  role: "user",
-                  content: messageText,
-                  senderId: LOCAL_HUMAN_MEMBER_ID,
-                  createdAt: new Date(),
-                },
-              ]);
-              chatAPI.setInput("");
-              clearAttachments();
-              pendingInvokesRef.current = [];
-              void dispatchOpenFloor(turns).then((results) => {
-                const failed = results.filter((r) => r.error);
-                if (failed.length) {
-                  console.error("Open floor turns failed:", failed);
-                }
-              });
-              return;
-            }
-          }
+          const openFloor = false;
+          const offeredPeers: OfferedPeer[] = [];
 
           const responderMember = members.find(
             (member) => member.id === firstResponder,
@@ -1047,7 +1052,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       responder,
                       responderMemberId,
                       channelMembers,
-                      channelForSend?.name,
+                      undefined,
                       openFloor,
                       offeredPeers,
                     ),
@@ -1058,10 +1063,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               // row is reserved and staying quiet leaves no trace.
               speaksViaTool: openFloor,
               requestMessages: responderMemberId
-                ? (openFloorOfferRef.current?.requestMessages.get(
-                    responderMemberId,
-                  ) ??
-                  projectFor(
+                ? projectFor(
                     responderMemberId,
                     [
                       ...toProjectable(persistedMessages),
@@ -1072,7 +1074,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       },
                     ],
                     members,
-                  ))
+                  )
                 : undefined,
             },
             persistedMessages,
@@ -1081,6 +1083,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           if (accepted) {
             chatAPI.setInput("");
             clearAttachments();
+            setReplyTargetId(null);
           } else {
             activeConversationIdRef.current = null;
             activeTurnIdRef.current = null;
@@ -1099,6 +1102,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedContent,
       attachments,
       clearAttachments,
+      replyTargetId,
       fileToAttachment,
       setCurrentConversationId,
       selectedAgent,
@@ -1319,8 +1323,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     activeConversationIdRef.current = null;
     activeTurnIdRef.current = null;
     pendingInvokesRef.current = [];
-    openFloorOfferRef.current = null;
     setSelectedContent(null);
+    setReplyTargetId(null);
     clearAttachments();
     setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
@@ -1349,7 +1353,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setViewMode,
     toggleViewMode,
     currentConversationId,
+    replyTargetId,
     setInput,
+    setReplyTarget: setReplyTargetId,
     sendMessage,
     stopGeneration,
     editMessage,

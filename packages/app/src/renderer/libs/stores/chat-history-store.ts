@@ -225,6 +225,7 @@ export function useChatHistoryStore() {
           // updateMessages rewrites every row, so reactions must ride along or
           // a save would silently drop them.
           reactions: m.reactions,
+          replyToMessageId: m.replyToMessageId,
           parts: m.parts,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
@@ -248,6 +249,7 @@ export function useChatHistoryStore() {
         senderId: message.senderId,
         mentions: message.mentions,
         reactions: message.reactions,
+        replyToMessageId: message.replyToMessageId,
         parts: message.parts,
         experimental_attachments: message.experimental_attachments?.map(
           (a) => ({
@@ -287,6 +289,7 @@ export function useChatHistory(
           senderId: m.senderId,
           mentions: m.mentions,
           reactions: m.reactions,
+          replyToMessageId: m.replyToMessageId,
           parts: m.parts as Message["parts"],
           experimental_attachments:
             m.experimental_attachments as Message["experimental_attachments"],

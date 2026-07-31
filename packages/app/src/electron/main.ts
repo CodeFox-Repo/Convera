@@ -18,6 +18,10 @@ import {
   createElectronMemoryIntegration,
   type MemoryIntegrationCoordinator,
 } from "@/electron/memory";
+import { AgentHost } from "@/electron/agent-host/host";
+import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
+import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
+import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -46,6 +50,9 @@ import {
 const logger = getLogger("main-process");
 let localAIRuntime: LocalAiRuntime | undefined;
 let memoryCoordinator: MemoryIntegrationCoordinator | undefined;
+let agentHost: AgentHost | undefined;
+let agentHostBridge: AgentHostRendererBridge | undefined;
+let unsubscribeAgentHost: (() => void) | undefined;
 let webBridge: WebBridgeHandle | undefined;
 let localAICleanup: Promise<void> | undefined;
 let quitAfterCleanup = false;
@@ -53,6 +60,11 @@ let quitAfterCleanup = false;
 function cleanupLocalAI(): Promise<void> {
   if (localAICleanup) return localAICleanup;
   localAICleanup = (async () => {
+    await agentHost?.dispose().catch((error) => {
+      logger.error("Agent Host cleanup failed:", error);
+    });
+    unsubscribeAgentHost?.();
+    agentHostBridge?.dispose();
     await webBridge?.close().catch((error) => {
       logger.error("Web bridge cleanup failed:", error);
     });
@@ -132,6 +144,9 @@ app.whenReady().then(async () => {
     const sessionRepository = new JsonSessionStateRepository({
       path: join(userDataPath, "local-ai-runtime-state.json"),
     });
+    agentHostBridge = new AgentHostRendererBridge(
+      () => getMainWindow()?.webContents,
+    );
     memoryCoordinator = createElectronMemoryIntegration({
       userDataPath,
       workingDirectory: process.cwd(),
@@ -174,6 +189,17 @@ app.whenReady().then(async () => {
           ? mcpToolCall(toolName, input)
           : callTool(serverName, toolName, input),
     });
+    agentHost = new AgentHost({
+      repository: new JsonAgentHostJobRepository({
+        path: join(userDataPath, "agent-host-jobs.json"),
+      }),
+      executor: new LocalAiAgentHostExecutor(localAIRuntime, agentHostBridge),
+      startPaused: true,
+    });
+    unsubscribeAgentHost = agentHost.subscribe((event) =>
+      agentHostBridge?.emit(event),
+    );
+    await agentHost.initialize();
 
     // Initialize MCP Hub asynchronously but don't block startup
     initializeMCPHub()
@@ -204,6 +230,8 @@ app.whenReady().then(async () => {
       mainWindow: () => getMainWindow(),
       registerGlobalShortcuts,
       localAIRuntime,
+      agentHost,
+      agentHostBridge,
       ipc: recordingIPC,
       extraLocalAISenders: () =>
         (webBridge?.senders() ?? []).map((sender) => sender as never),

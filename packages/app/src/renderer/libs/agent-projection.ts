@@ -19,6 +19,7 @@ export interface ProjectableMessage {
   senderId?: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
+  replyToMessageId?: string;
 }
 
 export interface ProjectOptions {
@@ -27,6 +28,7 @@ export interface ProjectOptions {
 }
 
 const DEFAULT_MAX_CHARS = 400_000;
+const REPLY_EXCERPT_MAX_CHARS = 240;
 
 function speakerName(
   message: ProjectableMessage,
@@ -39,6 +41,35 @@ function speakerName(
   return members.get(message.senderId)?.name;
 }
 
+function replyContext(
+  message: ProjectableMessage,
+  messagesById: Map<string, ProjectableMessage>,
+  members: Map<string, Member>,
+): string | undefined {
+  if (!message.replyToMessageId) return undefined;
+  const parent = messagesById.get(message.replyToMessageId);
+  if (!parent) {
+    return `[Replying to unavailable message (${message.replyToMessageId})]`;
+  }
+
+  const author = speakerName(parent, members) ?? "Assistant";
+  const normalized = parent.content.replace(/\s+/g, " ").trim();
+  const excerpt =
+    normalized.length > REPLY_EXCERPT_MAX_CHARS
+      ? `${normalized.slice(0, REPLY_EXCERPT_MAX_CHARS)}…`
+      : normalized || "(no text)";
+  return `[Replying to ${author} (${message.replyToMessageId}): ${JSON.stringify(excerpt)}]`;
+}
+
+function projectedContent(
+  message: ProjectableMessage,
+  messagesById: Map<string, ProjectableMessage>,
+  members: Map<string, Member>,
+): string {
+  const context = replyContext(message, messagesById, members);
+  return context ? `${context}\n${message.content}` : message.content;
+}
+
 export function projectFor(
   targetMemberId: string,
   messages: ProjectableMessage[],
@@ -46,6 +77,10 @@ export function projectFor(
   options: ProjectOptions = {},
 ): LocalAIMessage[] {
   const byId = new Map(members.map((member) => [member.id, member]));
+  const messagesById = new Map<string, ProjectableMessage>();
+  for (const message of messages) {
+    if (message.id) messagesById.set(message.id, message);
+  }
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
 
   const projected: LocalAIMessage[] = [];
@@ -62,16 +97,17 @@ export function projectFor(
     const isSelf = message.senderId
       ? message.senderId === targetMemberId
       : message.role === "assistant";
+    const content = projectedContent(message, messagesById, byId);
 
     if (isSelf) {
-      projected.push({ role: "assistant", content: message.content });
+      projected.push({ role: "assistant", content });
       continue;
     }
 
     const name = speakerName(message, byId);
     projected.push({
       role: "user",
-      content: name ? `${name}: ${message.content}` : message.content,
+      content: name ? `${name}: ${content}` : content,
     });
   }
 

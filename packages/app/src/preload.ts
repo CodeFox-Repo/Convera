@@ -5,6 +5,7 @@ import { createElectronAPI } from "./electro-bridge/ipc/listeners-register";
 import { exposeLoggerContext } from "./electro-bridge/ipc/logger-context";
 import { exposeLocalAIContext } from "./electro-bridge/ipc/local-ai-context";
 import { exposeMCPContext } from "./electro-bridge/ipc/mcp-context";
+import { createAgentHostAPI } from "./electro-bridge/ipc/agent-host-api";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
 // expose electronAPI to renderer process
@@ -35,6 +36,7 @@ exposeEnvContext();
 
 // Expose local AI API to renderer process
 exposeLocalAIContext();
+contextBridge.exposeInMainWorld("agentHost", createAgentHostAPI(ipcRenderer));
 
 // Expose Platform API to renderer process
 contextBridge.exposeInMainWorld("platformAPI", {

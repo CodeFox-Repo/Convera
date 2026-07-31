@@ -3,6 +3,8 @@ import { activeMentionQuery } from "@/renderer/libs/mention-parser";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { useMembers } from "@/renderer/libs/stores/member-store";
 import type { Member } from "@/shared/types/workspace";
+import { resolveSenderName } from "@/renderer/libs/chat-labels";
+import { X } from "lucide-react";
 import React, {
   forwardRef,
   useCallback,
@@ -54,7 +56,22 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       stopGeneration,
       selectedContent,
       rejectSelectedContent,
+      messages,
+      replyTargetId,
+      setReplyTarget,
     } = useChatContext();
+    const replyTarget = replyTargetId
+      ? messages.find((message) => message.id === replyTargetId)
+      : undefined;
+    const replySender = replyTarget?.senderId
+      ? members.find((member) => member.id === replyTarget.senderId)
+      : undefined;
+    const replySenderName = replyTarget
+      ? resolveSenderName({
+          senderName: replySender?.name,
+          isUser: replyTarget.role === "user",
+        })
+      : null;
 
     // Watch for speech input changes and update editor directly
     useEffect(() => {
@@ -155,6 +172,29 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           {/* No overflow clipping here: the editor scrolls itself, and the
               mention popup floats above the box. */}
           <div className="flex-1 flex h-full flex-col rounded-xl border border-border transition-all duration-200 bg-background">
+            {replyTarget && (
+              <div className="flex items-center gap-3 border-b border-border px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground">
+                    Replying to {replySenderName}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {typeof replyTarget.content === "string"
+                      ? replyTarget.content
+                      : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyTarget(null)}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Cancel reply"
+                  title="Cancel reply"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             <ContextButtons
               selectedContent={selectedContent || null}
               onRejectSelectedContent={rejectSelectedContent}
@@ -184,9 +224,13 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 onSubmit={handleSubmit}
                 autoFocus={true}
                 onCaretChange={handleCaretChange}
-                onKeyDownCapture={(event) =>
-                  autocompleteRef.current?.handleKeyDown(event) ?? false
-                }
+                onKeyDownCapture={(event) => {
+                  if (event.key === "Escape" && replyTargetId) {
+                    setReplyTarget(null);
+                    return true;
+                  }
+                  return autocompleteRef.current?.handleKeyDown(event) ?? false;
+                }}
               />
             </div>
 

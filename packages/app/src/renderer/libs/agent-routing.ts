@@ -43,6 +43,12 @@ export interface RouteInput {
   message: RoutableMessage;
   members: Member[];
   /**
+   * Sender of the message this one directly replies to. Explicit mentions win;
+   * otherwise replying to an agent addresses that agent instead of opening the
+   * floor. Resolve this from the authoritative transcript before routing.
+   */
+  replyToSenderId?: string | null;
+  /**
    * Answers an unaddressed message. Set for 1:1 chats; leave null in channels
    * so `openFloor` decides instead.
    */
@@ -70,6 +76,7 @@ export const NEW_CHAIN: ChainState = { hops: 0, invoked: [] };
 export function routeMessage({
   message,
   members,
+  replyToSenderId,
   defaultAgentMemberId,
   openFloor,
   chain,
@@ -88,13 +95,19 @@ export function routeMessage({
   }
 
   const mentioned = parseMentions(message.content, members);
+  const repliedToAgent =
+    replyToSenderId && byId.get(replyToSenderId)?.kind === "agent"
+      ? replyToSenderId
+      : undefined;
   const candidates = mentioned.length
     ? mentioned
-    : defaultAgentMemberId
-      ? [defaultAgentMemberId]
-      : openFloor
-        ? members.filter((member) => member.kind === "agent").map((m) => m.id)
-        : [];
+    : repliedToAgent
+      ? [repliedToAgent]
+      : defaultAgentMemberId
+        ? [defaultAgentMemberId]
+        : openFloor
+          ? members.filter((member) => member.kind === "agent").map((m) => m.id)
+          : [];
 
   const invoke: string[] = [];
   let limitReached = false;

@@ -51,12 +51,16 @@ describe("authoritative conversation send context", () => {
   };
 
   it("uses the target Dexie provider and transcript instead of renderer state", async () => {
+    const target = {
+      ...message("target-user", "target history"),
+      senderId: "me",
+      mentions: ["agent:fizz"],
+      reactions: { "👍": ["me"] },
+      replyToMessageId: "earlier-message",
+    };
     const readSnapshot = vi.fn(async () => ({
       conversation: conversation(),
-      messages: [
-        message("target-user", "target history"),
-        message("target-tool", "hidden tool result", "tool"),
-      ],
+      messages: [target, message("target-tool", "hidden tool result", "tool")],
     }));
 
     await expect(
@@ -72,7 +76,16 @@ describe("authoritative conversation send context", () => {
         configId: "claude-code",
         modelId: "claude-sonnet",
       },
-      messages: [{ id: "target-user", content: "target history" }],
+      messages: [
+        {
+          id: "target-user",
+          content: "target history",
+          senderId: "me",
+          mentions: ["agent:fizz"],
+          reactions: { "👍": ["me"] },
+          replyToMessageId: "earlier-message",
+        },
+      ],
     });
     expect(readSnapshot).toHaveBeenCalledWith("conversation-b");
   });

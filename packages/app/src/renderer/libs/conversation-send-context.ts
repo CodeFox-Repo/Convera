@@ -78,6 +78,10 @@ function toRendererMessages(messages: Message[]): RendererMessage[] {
       id: message.id,
       role: message.role,
       content: message.content,
+      senderId: message.senderId,
+      mentions: message.mentions,
+      reactions: message.reactions,
+      replyToMessageId: message.replyToMessageId,
       parts: message.parts as RendererMessage["parts"],
       experimental_attachments:
         message.experimental_attachments as RendererMessage["experimental_attachments"],

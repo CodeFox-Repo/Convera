@@ -19,6 +19,7 @@ import {
   Edit,
   GitBranch,
   RefreshCw,
+  Reply,
   SmilePlus,
 } from "lucide-react";
 import React, { memo } from "react";
@@ -56,7 +57,14 @@ export interface MessageRowProps {
   onEditContentChange: (content: string) => void;
   onCopy: () => void;
   onRegenerate: () => void;
+  onReply: () => void;
   onBranch: (messageIndex: number) => void;
+  replyTarget?: {
+    id: string;
+    senderName: string;
+    content: string;
+  } | null;
+  onOpenReplyTarget: () => void;
   renderContent: React.ReactNode;
 }
 
@@ -157,7 +165,10 @@ const MessageRow = memo(
     onEditContentChange,
     onCopy,
     onRegenerate,
+    onReply,
     onBranch,
+    replyTarget,
+    onOpenReplyTarget,
     renderContent,
   }: MessageRowProps) => {
     const isUser = message.role === "user";
@@ -176,6 +187,7 @@ const MessageRow = memo(
 
     return (
       <motion.div
+        data-message-id={message.id}
         className={cn(
           "group/message no-drag-region w-full",
           isGrouped ? "py-0.5" : "py-1.5",
@@ -233,6 +245,28 @@ const MessageRow = memo(
 
               {selectedContent && (
                 <SelectedContentBlock content={selectedContent} />
+              )}
+
+              {message.replyToMessageId && (
+                <button
+                  type="button"
+                  onClick={onOpenReplyTarget}
+                  className="block w-full max-w-2xl rounded-md border-l-2 border-primary bg-muted/50 px-3 py-2 text-left transition-colors hover:bg-muted"
+                  title={
+                    replyTarget
+                      ? `Jump to ${replyTarget.senderName}'s message`
+                      : "Original message unavailable"
+                  }
+                >
+                  <span className="block truncate text-xs font-medium text-foreground">
+                    {replyTarget?.senderName ?? "Original message unavailable"}
+                  </span>
+                  {replyTarget && (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {replyTarget.content || "Empty message"}
+                    </span>
+                  )}
+                </button>
               )}
 
               <div className="text-foreground leading-relaxed">
@@ -293,6 +327,15 @@ const MessageRow = memo(
                     {showReactions && (
                       <AddReactionButton messageId={message.id} />
                     )}
+
+                    <button
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={onReply}
+                      title="Reply to message"
+                      aria-label="Reply to message"
+                    >
+                      <Reply size={14} />
+                    </button>
 
                     <button
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"

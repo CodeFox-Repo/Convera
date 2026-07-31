@@ -11,11 +11,23 @@ import React from "react";
  * composes. It deliberately does not occupy a message row — it is a hint that
  * someone is about to speak, not a claim that they did.
  */
-export function TypingIndicator() {
+export function TypingIndicator({
+  conversationId,
+}: {
+  conversationId?: string | null;
+}) {
   const typing = useTypingStore((state) => state.typing);
   const members = useMembers();
 
-  const names = [...new Set(Object.values(typing))];
+  const names = conversationId
+    ? [
+        ...new Set(
+          Object.values(typing)
+            .filter((entry) => entry.conversationId === conversationId)
+            .map((entry) => entry.memberId),
+        ),
+      ]
+    : [];
   if (names.length === 0) return null;
 
   const byId = new Map((members ?? []).map((member) => [member.id, member]));

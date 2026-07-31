@@ -23,6 +23,7 @@ import React, {
   useState,
 } from "react";
 import { ChannelHeader, ChannelRoster } from "../chat/ChannelHeader";
+import { AgentContextPanel } from "../chat/AgentContextPanel";
 import { TypingIndicator } from "../chat/TypingIndicator";
 import { InboxPage } from "../inbox/InboxPage";
 import ChatInputContainer from "../chat/input/chat-input-container";
@@ -77,6 +78,7 @@ export function HomePage() {
     regenerateMessage,
     error,
     resetChat,
+    setReplyTarget,
   } = useChatContext();
 
   const { agentChanged, handleAgentChange, selectedAgent } = useAgentStore();
@@ -117,7 +119,13 @@ export function HomePage() {
     setSidebarWidth,
   } = useWorkspaceUI();
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [agentContextOpen, setAgentContextOpen] = useState(false);
   const resizingRef = useRef(false);
+
+  useEffect(() => {
+    setRosterOpen(false);
+    setAgentContextOpen(false);
+  }, [currentConversationId]);
 
   const startSidebarResize = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -393,7 +401,15 @@ export function HomePage() {
                 <ChannelHeader
                   channel={currentChannel}
                   rosterOpen={rosterOpen}
-                  onToggleRoster={() => setRosterOpen((open) => !open)}
+                  onToggleRoster={() => {
+                    setAgentContextOpen(false);
+                    setRosterOpen((open) => !open);
+                  }}
+                  contextOpen={agentContextOpen}
+                  onToggleContext={() => {
+                    setRosterOpen(false);
+                    setAgentContextOpen((open) => !open);
+                  }}
                 />
               )}
 
@@ -419,6 +435,10 @@ export function HomePage() {
                       isLoading={isLoading}
                       onEditMessage={editMessage}
                       onRegenerateMessage={regenerateMessage}
+                      onReplyToMessage={(message) => {
+                        setReplyTarget(message.id);
+                        chatInputRef.current?.focus();
+                      }}
                       onBranchFromMessage={handleBranchFromMessage}
                       agentChanged={agentChanged}
                       onRegenerateWithNewAgent={() => handleAgentChange(true)}
@@ -507,7 +527,7 @@ export function HomePage() {
               {/* Input Area */}
               <div className="px-4 pb-4 relative pointer-events-auto">
                 <div className="relative z-10">
-                  <TypingIndicator />
+                  <TypingIndicator conversationId={currentConversationId} />
                   <ChatInputContainer
                     ref={chatInputRef}
                     placeholder={inputPlaceholder}
@@ -529,6 +549,16 @@ export function HomePage() {
             onClose={() => setRosterOpen(false)}
           />
         )}
+        <AnimatePresence>
+          {activeView === "chat" &&
+            currentChannel?.kind === "dm" &&
+            agentContextOpen && (
+              <AgentContextPanel
+                channelId={currentChannel.id}
+                onClose={() => setAgentContextOpen(false)}
+              />
+            )}
+        </AnimatePresence>
       </div>
 
       {/* Global Search Dialog */}
