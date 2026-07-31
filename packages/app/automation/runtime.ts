@@ -19,6 +19,18 @@ export function normalizeElectronBinaryPath(value: unknown): string {
   return value.trim();
 }
 
+export function assertSupportedAutomationNodeVersion(
+  version = process.versions.node,
+): void {
+  const major = Number.parseInt(version.split(".", 1)[0] ?? "", 10);
+  if (!Number.isInteger(major) || major < 20 || major >= 26) {
+    throw new Error(
+      `Electron automation packaging requires Node 20-24; received Node ${version}. ` +
+        "Electron Forge 7 can exit before writing the packaged app under Node 26.",
+    );
+  }
+}
+
 export function electronBinaryPath() {
   return normalizeElectronBinaryPath(require("electron"));
 }

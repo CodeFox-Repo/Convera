@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  assertSupportedAutomationNodeVersion,
   chromiumVersion,
   electronBinaryPath,
   normalizeElectronBinaryPath,
@@ -20,4 +21,20 @@ describe("automation runtime discovery", () => {
     expect(existsSync(electronBinaryPath())).toBe(true);
     expect(chromiumVersion()).toMatch(/^\d+\.\d+\.\d+\.\d+$/);
   });
+
+  it.each(["20.20.2", "22.18.0", "24.4.1"])(
+    "accepts supported Node %s",
+    (version) => {
+      expect(() => assertSupportedAutomationNodeVersion(version)).not.toThrow();
+    },
+  );
+
+  it.each(["19.9.0", "26.0.0", "invalid"])(
+    "rejects unsupported Node %s",
+    (version) => {
+      expect(() => assertSupportedAutomationNodeVersion(version)).toThrow(
+        /requires Node 20-24/,
+      );
+    },
+  );
 });
