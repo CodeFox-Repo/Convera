@@ -40,7 +40,11 @@ async function speak(
  */
 export function installAgentSpeech(): void {
   registerWorkspaceSendMessage(
-    async ({ viewerMemberId, channelId, content }): Promise<WorkspaceQueryResult> => {
+    async ({
+      viewerMemberId,
+      channelId,
+      content,
+    }): Promise<WorkspaceQueryResult> => {
       const channel = await db.channels.get(channelId);
       if (!channel) {
         return {
