@@ -12,8 +12,15 @@ export const RUNTIME_DIR = path.join(APP_ROOT, ".automation");
 
 const require = createRequire(import.meta.url);
 
+export function normalizeElectronBinaryPath(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("Electron did not provide an executable path.");
+  }
+  return value.trim();
+}
+
 export function electronBinaryPath() {
-  return require("electron") as string;
+  return normalizeElectronBinaryPath(require("electron"));
 }
 
 export function automationProfilePath(profileId: string) {
@@ -37,11 +44,11 @@ export function chromiumVersion() {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
     },
   );
-  const version = result.stdout.trim();
+  const version = result.stdout?.trim() ?? "";
   if (result.status !== 0 || !/^\d+\.\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error(
-      `Could not read Chromium version from Electron: ${result.stderr.trim() || "unknown error"}`,
-    );
+    const detail =
+      result.error?.message || result.stderr?.trim() || "unknown error";
+    throw new Error(`Could not read Chromium version from Electron: ${detail}`);
   }
   return version;
 }
