@@ -81,7 +81,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       {/* Teams | Chats — a segmented control: rounded track, raised pill. */}
-      <div className="px-2 pt-1 pb-2">
+      <div className="px-1 pt-1 pb-2">
         <div className="flex gap-0.5 rounded-lg bg-sidebar-accent p-0.5">
           {(
             [
