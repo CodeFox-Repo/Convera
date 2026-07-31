@@ -65,4 +65,30 @@ describe("pending turn staging", () => {
       "assistant-2",
     ]);
   });
+
+  it("stages a turn that is not going to speak", () => {
+    // An agent offered the floor may decide it has nothing to add. Silence
+    // must leave no row at all — not an empty bubble deleted after the fact.
+    const pending = selectPendingTurnMessages(
+      [...base, { id: "user-2", role: "user", content: "next" }],
+      { turnId: "turn-2", userMessageId: "user-2" },
+    );
+
+    expect(pending.map((message) => message.id)).toEqual(["user-2"]);
+  });
+
+  it("still refuses a turn whose promised shell went missing", () => {
+    // The distinction that matters: declaring no reply is legal, losing the
+    // row of a reply that was coming is transcript corruption.
+    expect(() =>
+      selectPendingTurnMessages(
+        [...base, { id: "user-2", role: "user", content: "next" }],
+        {
+          turnId: "turn-2",
+          userMessageId: "user-2",
+          assistantMessageId: "assistant-2",
+        },
+      ),
+    ).toThrow(/assistant shell is missing/);
+  });
 });

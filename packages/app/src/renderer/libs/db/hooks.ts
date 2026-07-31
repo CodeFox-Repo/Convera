@@ -230,7 +230,7 @@ export interface PendingTurnMetadata {
   operationReason?: "edit" | "regenerate" | "provider-switch";
   sourceMessageId?: string;
   userMessageId?: string;
-  assistantMessageId: string;
+  assistantMessageId?: string;
 }
 
 export type PendingTurnRollback = Pick<

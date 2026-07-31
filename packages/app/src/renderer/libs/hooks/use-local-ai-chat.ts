@@ -3,9 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   LocalAIChatRequest,
   LocalAIFinishReason,
+  LocalAIInteractionResponse,
   LocalAIMessage,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
+import { handleWorkspaceQueryInteraction } from "../workspace-perception";
 import {
   createLocalAIUIMessageStream,
   type LocalAIUIMessageStream,
@@ -172,21 +174,21 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         }
 
         setStatus("streaming");
-        useUserInputStore
-          .getState()
-          .registerInteraction(event, async (response) => {
-            const result = await localAI.respondToInteraction(
-              event.requestId,
-              event.interactionId,
-              response,
+        const respond = async (response: LocalAIInteractionResponse) => {
+          const result = await localAI.respondToInteraction(
+            event.requestId,
+            event.interactionId,
+            response,
+          );
+          if (!result.success || !result.data?.accepted) {
+            throw new Error(
+              result.error?.message ||
+                "Local AI interaction is no longer active.",
             );
-            if (!result.success || !result.data?.accepted) {
-              throw new Error(
-                result.error?.message ||
-                  "Local AI interaction is no longer active.",
-              );
-            }
-          });
+          }
+        };
+        if (handleWorkspaceQueryInteraction(event, respond)) return;
+        useUserInputStore.getState().registerInteraction(event, respond);
         return;
       }
 

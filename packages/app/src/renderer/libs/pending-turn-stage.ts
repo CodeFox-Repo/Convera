@@ -9,7 +9,16 @@ export interface DurableTranscriptEntry {
 interface PendingTurnIdentifiers {
   turnId: string;
   userMessageId?: string;
-  assistantMessageId: string;
+  /**
+   * Absent when the turn is not expected to produce a reply at all — an agent
+   * offered the floor that decides it has nothing to add says nothing, and a
+   * colleague who stays quiet should leave no trace to clean up afterwards.
+   *
+   * This is deliberately a separate state from "the shell went missing", which
+   * still throws: a lost shell means a turn that WAS going to speak lost its
+   * row, and silently tolerating that would hide transcript corruption.
+   */
+  assistantMessageId?: string;
 }
 
 export function assertPendingTurnCanStage(
@@ -54,7 +63,7 @@ export function selectPendingTurnMessages<T extends DurableTranscriptEntry>(
   const selectedById = new Map(
     selected.map((message) => [message.id, message]),
   );
-  if (!selectedById.has(turn.assistantMessageId)) {
+  if (turn.assistantMessageId && !selectedById.has(turn.assistantMessageId)) {
     throw new Error("The pending assistant shell is missing.");
   }
   if (turn.userMessageId && !selectedById.has(turn.userMessageId)) {

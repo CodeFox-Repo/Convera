@@ -98,7 +98,8 @@ export interface PendingTurnJournal {
   modelId?: string;
   expectedRevision?: number;
   userMessageId?: string;
-  assistantMessageId: string;
+  /** Absent when the turn was not expected to speak; see pending-turn-stage. */
+  assistantMessageId?: string;
   /**
    * Ordered final transcript boundary. Message bodies and attachments remain
    * single-copy in `messages`; edit/regenerate suffix removal happens only
