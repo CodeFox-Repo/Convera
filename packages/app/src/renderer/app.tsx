@@ -10,6 +10,7 @@ import "../shared/localization/i18n";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
 import { ensureStarterTeam } from "./libs/agent-templates";
+import { installAgentSpeech } from "./libs/agent-speech";
 import { useFonts } from "./libs/hooks/use-fonts";
 import { useThemeSync } from "./libs/hooks/use-theme-sync";
 import { routeTree } from "./routes/routeTree.gen";
@@ -60,6 +61,9 @@ export default function App() {
   // First launch: hire a small starter team so the workspace isn't empty.
   useEffect(() => {
     void ensureStarterTeam();
+    // Registered before any turn can run: an agent whose send_message reports
+    // itself unavailable looks like a broken tool rather than a missing host.
+    installAgentSpeech();
   }, []);
 
   // Single window - just render the router

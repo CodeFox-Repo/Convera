@@ -14,6 +14,7 @@ import type {
 } from "@/shared/types/workspace-perception";
 import {
   WORKSPACE_MESSAGE_LIMIT_DEFAULT,
+  WORKSPACE_MESSAGE_CONTENT_MAX,
   WORKSPACE_MESSAGE_LIMIT_MAX,
   WORKSPACE_QUERY_INTERACTION,
 } from "@/shared/types/workspace-perception";
@@ -51,11 +52,28 @@ const readChannelSchema = z.object({
     .describe("How many of the most recent messages to return."),
 });
 
+const sendMessageSchema = z.object({
+  channel_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Channel id from list_channels."),
+  content: z
+    .string()
+    .trim()
+    .min(1)
+    .max(WORKSPACE_MESSAGE_CONTENT_MAX)
+    .describe("What to say, as you would type it into the channel."),
+});
+
 const DESCRIPTIONS = {
   list_channels:
     "List every channel in this workspace you are allowed to see, including ones you have not joined. Use it to find where a topic lives before reading it. Each entry reports whether you are a member, its group, and how many people are in it.",
   read_channel:
     "Read one channel's roster and its most recent messages. Use it to catch up on a room — including a visible room you have not joined — before answering or deciding what to remember. Returns oldest-first messages and flags when older history was cut.",
+  send_message:
+    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
 } as const;
 
 function schemaOf(shape: ZodRawShape): Record<string, unknown> {
@@ -181,6 +199,19 @@ export function createWorkspacePerceptionTools(
         ask(options, {
           kind: "list_channels",
           viewerMemberId: options.viewerMemberId,
+        }),
+    ),
+    perceptionTool(
+      "send_message",
+      DESCRIPTIONS.send_message,
+      sendMessageSchema.shape,
+      sendMessageSchema,
+      (input) =>
+        ask(options, {
+          kind: "send_message",
+          viewerMemberId: options.viewerMemberId,
+          channelId: input.channel_id as string,
+          content: input.content as string,
         }),
     ),
     perceptionTool(

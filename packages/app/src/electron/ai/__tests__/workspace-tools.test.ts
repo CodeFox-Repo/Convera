@@ -219,6 +219,7 @@ describe("withWorkspacePerception", () => {
     ).toEqual([
       "memory:status",
       "workspace:list_channels",
+      "workspace:send_message",
       "workspace:read_channel",
     ]);
   });
