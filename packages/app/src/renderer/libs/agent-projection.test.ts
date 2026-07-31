@@ -2,6 +2,7 @@ import type { Member } from "@/shared/types/workspace";
 import { describe, expect, it } from "vitest";
 import {
   buildChannelContext,
+  isPass,
   projectFor,
   type ProjectableMessage,
 } from "./agent-projection";
@@ -151,5 +152,15 @@ describe("buildChannelContext", () => {
     const context = buildChannelContext(fizz, "solo", [fizz]);
     expect(context).toContain("only participant");
     expect(context).not.toContain("@Name");
+  });
+});
+
+describe("isPass", () => {
+  it("recognises a declined turn and leaves real replies alone", () => {
+    expect(isPass("[pass]")).toBe(true);
+    expect(isPass("  [PASS]  ")).toBe(true);
+    expect(isPass("[pass] Patch knows this better")).toBe(true);
+    expect(isPass("Passing this to Patch")).toBe(false);
+    expect(isPass("Sure, here's the fix")).toBe(false);
   });
 });

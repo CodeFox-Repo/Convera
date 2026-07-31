@@ -119,6 +119,34 @@ describe("routeMessage", () => {
     expect(fresh.chain.hops).toBe(0);
   });
 
+  it("offers an unaddressed channel message to every agent in the room", () => {
+    const open = routeMessage({
+      message: { senderId: maya.id, content: "morning everyone" },
+      members,
+      openFloor: true,
+    });
+    expect(open.invoke).toEqual([fizz.id, honey.id, bean.id]);
+  });
+
+  it("keeps a named mention exclusive even with the floor open", () => {
+    const addressed = routeMessage({
+      message: { senderId: maya.id, content: "@Honey can you look at this" },
+      members,
+      openFloor: true,
+    });
+    expect(addressed.invoke).toEqual([honey.id]);
+  });
+
+  it("prefers an explicit default responder over the open floor", () => {
+    const oneOnOne = routeMessage({
+      message: { senderId: maya.id, content: "hi" },
+      members,
+      defaultAgentMemberId: fizz.id,
+      openFloor: true,
+    });
+    expect(oneOnOne.invoke).toEqual([fizz.id]);
+  });
+
   it("does not let an agent invoke itself", () => {
     const h0 = fromHuman("@Fizz start");
     expect(

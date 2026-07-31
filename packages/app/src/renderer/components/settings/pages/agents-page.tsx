@@ -16,6 +16,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/renderer/components/ui/tooltip";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { memberIdForAgent } from "@/renderer/libs/db";
+import { useMember } from "@/renderer/libs/stores/member-store";
+import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import { useAgentStore, type Agent } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { ToolDefinition } from "@/shared/types/mcp";
@@ -43,7 +47,14 @@ interface AgentFormData {
   name: string;
   description: string;
   systemPrompt: string;
+  /** "" follows the conversation's own selection. */
+  providerId: string;
+  modelId: string;
 }
+
+/** Encodes provider+model as one select value, since they only vary together. */
+const MODEL_VALUE_SEPARATOR = "::";
+const INHERIT_MODEL_VALUE = "inherit";
 
 interface DisabledTool {
   mcpName: string;
@@ -93,7 +104,13 @@ const AgentFormFields = ({
   form: AgentFormData;
   onChange: (form: AgentFormData) => void;
   idPrefix?: string;
-}) => (
+}) => {
+  const { providers } = useLocalAIProviders();
+  const modelValue = form.providerId
+    ? `${form.providerId}${MODEL_VALUE_SEPARATOR}${form.modelId}`
+    : INHERIT_MODEL_VALUE;
+
+  return (
   <div className="space-y-4">
     <div className="space-y-2">
       <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
@@ -138,8 +155,48 @@ const AgentFormFields = ({
         placeholder="Define the agent's personality, behavior, and capabilities..."
       />
     </div>
+
+    <div className="space-y-2">
+      <Label htmlFor={`${idPrefix}agent-model`} className="text-foreground">
+        Model
+      </Label>
+      <select
+        id={`${idPrefix}agent-model`}
+        className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-[3px]"
+        value={modelValue}
+        onChange={(event) => {
+          const [providerId = "", modelId = ""] =
+            event.target.value === INHERIT_MODEL_VALUE
+              ? []
+              : event.target.value.split(MODEL_VALUE_SEPARATOR);
+          onChange({ ...form, providerId, modelId });
+        }}
+      >
+        <option value={INHERIT_MODEL_VALUE}>
+          Follow the conversation&apos;s model
+        </option>
+        {providers.map((provider) =>
+          (provider.models ?? []).map((model) => {
+            const id = typeof model === "string" ? model : model.id;
+            return (
+              <option
+                key={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+                value={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+              >
+                {provider.name} · {id}
+              </option>
+            );
+          }),
+        )}
+      </select>
+      <p className="text-xs text-muted-foreground">
+        Each colleague can run on its own model — a reviewer on a stronger one,
+        a note-taker on something cheap.
+      </p>
+    </div>
   </div>
-);
+  );
+};
 
 const ToolBadge = ({
   tool,
@@ -302,6 +359,9 @@ const AgentListItem = ({
   onEdit: (agent: Agent) => void;
   onDelete: (agentId: string, agentName: string) => void;
 }) => {
+  // Portraits live on the Member, not the Agent — this row renders the same
+  // identity as every channel does.
+  const member = useMember(memberIdForAgent(agent.id));
   const selectedServerCount = agent.selectedMCPs?.length || 0;
 
   return (
@@ -311,9 +371,12 @@ const AgentListItem = ({
       }`}
     >
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <Bot className="h-5 w-5 text-primary" />
-        </div>
+        <MemberAvatar
+          member={member}
+          isHuman={false}
+          className="h-10 w-10 text-sm"
+          fallback={<Bot className="h-5 w-5 text-primary" />}
+        />
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-foreground">{agent.name}</h3>
@@ -382,6 +445,8 @@ export function AgentsSettingsPage({
     name: "",
     description: "",
     systemPrompt: "",
+    providerId: "",
+    modelId: "",
   });
 
   const {
@@ -426,7 +491,13 @@ export function AgentsSettingsPage({
     setSelectedTemplate(null);
     setSelectedMcpServers([]);
     setDisabledTools([]);
-    setAgentForm({ name: "", description: "", systemPrompt: "" });
+    setAgentForm({
+      name: "",
+      description: "",
+      systemPrompt: "",
+      providerId: "",
+      modelId: "",
+    });
     setEditingAgent(null);
   };
 
@@ -443,6 +514,8 @@ export function AgentsSettingsPage({
         name: template.name,
         description: template.description,
         systemPrompt: template.systemPrompt,
+        providerId: "",
+        modelId: "",
       });
       setDisabledTools([]);
       setEditingAgent(null);
@@ -455,6 +528,8 @@ export function AgentsSettingsPage({
       name: "",
       description: "",
       systemPrompt: "",
+      providerId: "",
+      modelId: "",
     });
     setSelectedMcpServers([]);
     setDisabledTools([]);
@@ -473,6 +548,8 @@ export function AgentsSettingsPage({
         description: agentForm.description.trim() || agentForm.name.trim(),
         systemPrompt: agentForm.systemPrompt.trim(),
         selectedMCPs: selectedMcpServers,
+        providerId: agentForm.providerId || undefined,
+        modelId: agentForm.modelId || undefined,
         predefined: false,
         disableToolReferences: disabledTools.map((tool) => ({
           mcpName: tool.mcpName,
@@ -497,6 +574,8 @@ export function AgentsSettingsPage({
       name: agent.name,
       description: agent.description,
       systemPrompt: agent.systemPrompt || "",
+      providerId: agent.providerId ?? "",
+      modelId: agent.modelId ?? "",
     });
     setSelectedMcpServers(agent.selectedMCPs || []);
     setDisabledTools(
@@ -526,6 +605,8 @@ export function AgentsSettingsPage({
         description: agentForm.description.trim() || agentForm.name.trim(),
         systemPrompt: agentForm.systemPrompt.trim(),
         selectedMCPs: finalSelectedMCPs,
+        providerId: agentForm.providerId || undefined,
+        modelId: agentForm.modelId || undefined,
         disableToolReferences: disabledTools.map((tool) => ({
           mcpName: tool.mcpName,
           toolName: tool.toolName,

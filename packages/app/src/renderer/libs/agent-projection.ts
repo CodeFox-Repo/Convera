@@ -116,22 +116,45 @@ export function buildChannelContext(
   self: Member,
   channelName: string,
   members: Member[],
+  mayPass = false,
 ): string {
   const others = members
     .filter((member) => member.id !== self.id)
     .map((member) => `${member.name} (${member.kind})`);
 
   const lines = [
-    `You are "${self.name}" in the channel #${channelName}.`,
+    `You are "${self.name}", a member of the team chat #${channelName}.`,
     others.length
       ? `Other participants: ${others.join(", ")}.`
       : "You are the only participant so far.",
     "Messages from others are prefixed with the speaker's name. Your own replies are not prefixed — do not prefix them.",
+    // The role prompt describes what this person is good at, not a script they
+    // must perform. Without this, "you are a code reviewer" turns a greeting
+    // into an unprompted review checklist — the single loudest tell that an
+    // agent is a costume rather than a colleague.
+    "This is a chat room, not a task queue. Read what was actually said and respond to it the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 
   if (others.length) {
     lines.push("Mention someone with @Name to bring them into the thread.");
   }
 
+  if (mayPass) {
+    lines.push(
+      `Nobody was addressed by name, so this message was offered to everyone in the room. Speak only if you actually have something to add: if someone else here is the better person to answer, or the message needs no reply from you, respond with exactly ${PASS_TOKEN} and nothing else. Passing is normal and costs nothing — a room where everyone answers every message is noise.`,
+    );
+  }
+
   return lines.join("\n");
+}
+
+/**
+ * How an agent declines a turn it was offered. Chosen to be something no
+ * genuine reply would ever start with, so the check can stay a prefix test.
+ */
+export const PASS_TOKEN = "[pass]";
+
+/** True when a reply is the agent choosing to stay silent. */
+export function isPass(text: string): boolean {
+  return text.trim().toLowerCase().startsWith(PASS_TOKEN);
 }

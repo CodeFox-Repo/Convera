@@ -23,7 +23,7 @@ import {
   createConversation,
   deleteConversation as deleteConversationFromDexie,
 } from "../db";
-import { buildChannelContext, projectFor } from "../agent-projection";
+import { buildChannelContext, isPass, projectFor } from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
 import { parseMentions } from "../mention-parser";
 import {
@@ -72,11 +72,13 @@ function buildResponderPrompt(
   agent: Pick<DBAgent, "id" | "name" | "systemPrompt">,
   responderMemberId: string | undefined,
   members: Member[],
+  channelName = "chat",
+  mayPass = false,
 ): string {
   const self = members.find((member) => member.id === responderMemberId);
   if (!self) return agent.systemPrompt;
 
-  const context = buildChannelContext(self, "chat", members);
+  const context = buildChannelContext(self, channelName, members, mayPass);
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
 }
 
@@ -343,6 +345,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const conversationId = currentConversationIdRef.current;
       if (!conversationId) return;
+      const relayChannel = await db.channels
+        .where("conversationId")
+        .equals(conversationId)
+        .first();
       const selection = getConversationSelectionToken();
       if (selection.conversationId !== conversationId) return;
       await flushConversationProviderSelection(conversationId);
@@ -360,6 +366,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         sendContext.providerSelection.configId,
       );
       const selectedModelId = sendContext.providerSelection.modelId;
+      const relayProviderId = agent.providerId
+        ? resolveLocalAIProviderId(agent.providerId)
+        : providerId;
+      const relayModelId = agent.modelId ?? selectedModelId;
       const runtimeResult =
         await window.localAI.getConversationRuntimeState(conversationId);
       if (!runtimeResult.success) {
@@ -378,7 +388,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const accepted = await chatAPI.resend(
         chatAPI.messages,
         {
-          providerId,
+          providerId: relayProviderId,
           conversationId,
           turnId,
           expectedRevision:
@@ -386,18 +396,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             sendContext.conversation.activeRevision,
           operation: selectAppendOperation(
             runtimeResult.data ?? null,
-            providerId,
+            relayProviderId,
             nextResponderId,
             sendContext.messages.length,
           ),
           model:
-            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+            relayModelId === DEFAULT_LOCAL_AI_MODEL_ID
               ? undefined
-              : selectedModelId,
+              : relayModelId,
           agent: {
             id: agent.id,
             memberId: nextResponderId,
-            systemPrompt: buildResponderPrompt(agent, nextResponderId, members),
+            systemPrompt: buildResponderPrompt(
+              agent,
+              nextResponderId,
+              members,
+              relayChannel?.name,
+            ),
           },
           responderId: nextResponderId,
           requestMessages: projectFor(
@@ -496,8 +511,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
-      saveMessages().then((settled) => {
-        if (settled) void runRelay();
+      saveMessages().then(async (settled) => {
+        if (!settled) return;
+        // An agent that passed said nothing; drop the placeholder rather than
+        // showing "[pass]" in the room. Persisted first so the durable turn
+        // stays consistent, then removed.
+        const assistantId = chatAPI.lastCompletedTurn?.assistantMessageId;
+        const passed = chatAPI.messages.find(
+          (message) =>
+            message.id === assistantId &&
+            typeof message.content === "string" &&
+            isPass(message.content),
+        );
+        if (passed) {
+          await db.messages.delete(passed.id);
+          chatAPI.setMessages(
+            chatAPI.messages.filter((message) => message.id !== passed.id),
+          );
+        }
+        void runRelay();
       });
     }
   }, [
@@ -771,15 +803,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const members = await db.members.toArray();
           const mentionedMemberIds = parseMentions(messageText, members);
           message.mentions = mentionedMemberIds;
+          const channelForSend = await db.channels
+            .where("conversationId")
+            .equals(conversationIdToUse)
+            .first();
+          // In a channel the floor is open — everyone in the room is offered
+          // the turn and passes if they have nothing to say. A plain 1:1 chat
+          // has one counterpart, who always answers.
+          const channelMembers = channelForSend
+            ? members.filter((member) =>
+                channelForSend.memberIds.includes(member.id),
+              )
+            : members;
           const routed = routeMessage({
             message: {
               senderId: LOCAL_HUMAN_MEMBER_ID,
               content: messageText,
             },
-            members,
-            defaultAgentMemberId: selectedAgent
-              ? memberIdForAgent(selectedAgent.id)
-              : null,
+            members: channelMembers,
+            defaultAgentMemberId: channelForSend
+              ? null
+              : selectedAgent
+                ? memberIdForAgent(selectedAgent.id)
+                : null,
+            openFloor: !!channelForSend,
             chain: null,
           });
           chainRef.current = routed.chain;
@@ -794,6 +841,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const responderMemberId = responder
             ? memberIdForAgent(responder.id)
             : undefined;
+          // A colleague configured with its own model uses it; otherwise the
+          // conversation's selection stands.
+          const responderProviderId = responder?.providerId
+            ? resolveLocalAIProviderId(responder.providerId)
+            : providerId;
+          const responderModelId = responder?.modelId ?? selectedModelId;
           const runtimeState = await getRuntimeState(conversationIdToUse);
           assertConversationSelectionUnchanged(
             selection,
@@ -806,18 +859,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const accepted = await chatAPI.send(
             message,
             {
-              providerId,
+              providerId: responderProviderId,
               conversationId: conversationIdToUse,
               turnId,
               expectedRevision:
                 runtimeState?.revision ?? conversation.activeRevision,
               model:
-                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                responderModelId === DEFAULT_LOCAL_AI_MODEL_ID
                   ? undefined
-                  : selectedModelId,
+                  : responderModelId,
               operation: selectAppendOperation(
                 runtimeState,
-                providerId,
+                responderProviderId,
                 responderMemberId ?? "actor:default",
                 persistedMessages.length,
               ),
@@ -828,7 +881,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     systemPrompt: buildResponderPrompt(
                       responder,
                       responderMemberId,
-                      members,
+                      channelMembers,
+                      channelForSend?.name,
+                      !!channelForSend && mentionedMemberIds.length === 0,
                     ),
                   }
                 : undefined,
