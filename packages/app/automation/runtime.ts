@@ -12,6 +12,22 @@ export const RUNTIME_DIR = path.join(APP_ROOT, ".automation");
 
 const require = createRequire(import.meta.url);
 
+const LOOPBACK_NO_PROXY_HOSTS = [
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+] as const;
+
+export function withAutomationLoopbackNoProxy(value?: string): string {
+  const entries = (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (entries.includes("*")) return "*";
+  return [...new Set([...entries, ...LOOPBACK_NO_PROXY_HOSTS])].join(",");
+}
+
 export function normalizeElectronBinaryPath(value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error("Electron did not provide an executable path.");

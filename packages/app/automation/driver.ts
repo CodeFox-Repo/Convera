@@ -10,8 +10,10 @@ import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import {
   APP_ROOT,
   automationProfilePath,
+  electronBinaryPath,
   preparedChromedriverPath,
   RUNTIME_DIR,
+  withAutomationLoopbackNoProxy,
   WORKSPACE_ROOT,
 } from "./runtime.js";
 
@@ -22,6 +24,11 @@ import {
  * UND_ERR_INVALID_ARG. Install a real Undici dispatcher that also respects the
  * user's proxy and NO_PROXY settings.
  */
+const automationNoProxy = withAutomationLoopbackNoProxy(
+  process.env.NO_PROXY ?? process.env.no_proxy,
+);
+process.env.NO_PROXY = automationNoProxy;
+process.env.no_proxy = automationNoProxy;
 setGlobalDispatcher(new EnvHttpProxyAgent());
 
 const DEFAULT_ENTRY_POINT = path.join(APP_ROOT, ".vite", "build", "main.js");
@@ -208,9 +215,14 @@ export class ConveraDriver {
       appArgs.push(`--user-data-dir=${userDataPath}`);
     }
 
-    const launchTarget = binaryPath
-      ? { appBinaryPath: binaryPath }
-      : { appEntryPoint: entryPoint };
+    // electron-service's appEntryPoint conversion resolves
+    // node_modules/.bin/electron, which is a short-lived JavaScript launcher.
+    // Chromedriver must own the actual Electron executable or it reports the
+    // launcher's clean exit as a misleading user-data-directory lock.
+    if (!binaryPath) appArgs.unshift(`--app=${entryPoint}`);
+    const launchTarget = {
+      appBinaryPath: binaryPath ?? electronBinaryPath(),
+    };
     const capabilities = Object.assign(
       createElectronCapabilities({
         ...launchTarget,

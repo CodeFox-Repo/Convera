@@ -5,9 +5,17 @@ import {
   chromiumVersion,
   electronBinaryPath,
   normalizeElectronBinaryPath,
+  withAutomationLoopbackNoProxy,
 } from "./runtime.js";
 
 describe("automation runtime discovery", () => {
+  it("keeps every local WebDriver endpoint out of host proxies", () => {
+    expect(withAutomationLoopbackNoProxy("example.com,127.0.0.1")).toBe(
+      "example.com,127.0.0.1,localhost,0.0.0.0,::1",
+    );
+    expect(withAutomationLoopbackNoProxy("*")).toBe("*");
+  });
+
   it("normalizes whitespace accidentally retained by Electron path metadata", () => {
     expect(normalizeElectronBinaryPath(" /tmp/Electron\n")).toBe(
       "/tmp/Electron",

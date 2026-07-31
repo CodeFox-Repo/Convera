@@ -16,6 +16,7 @@ import type { LocalAiProviderStatus } from "../types";
 import { createCodexMcpServer } from "./codex-mcp-server";
 
 const execFile = promisify(execFileCallback);
+const CODEX_MCP_LIST_TIMEOUT_MS = 15_000;
 
 type CodexConfigOverride = string | number | boolean | object;
 
@@ -80,7 +81,10 @@ async function listConfiguredCodexMcpServers(
       executablePath || "codex",
       ["mcp", "list", "--json"],
       {
-        timeout: 5_000,
+        // Codex can briefly serialize config access with the app-server
+        // process started during status/model discovery. Five seconds caused
+        // healthy local subscriptions to fail closed before a real turn.
+        timeout: CODEX_MCP_LIST_TIMEOUT_MS,
         maxBuffer: 2 * 1024 * 1024,
       },
     );
