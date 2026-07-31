@@ -9,15 +9,21 @@ import React, { useCallback, useEffect, useState } from "react";
 import ModifiedContentBlock from "../selected/modified-content-block";
 import { TOOL_COMPONENTS } from "../tools";
 import type { ToolMessagePart } from "../tools/tool-part";
-import ChatMessage from "./chat-message";
+import MessageRow from "./message-row";
 import ToolCall from "./tool-call";
+import { useMembers } from "@/renderer/libs/stores/member-store";
+import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
+import { useSelectionStore } from "@/renderer/libs/db/ui-state";
+import { resolveSenderName } from "@/renderer/libs/chat-labels";
 
 interface ChatContentProps {
   messages: UIMessage[];
+  /** Channels show reactions; 1:1 chats hide them. */
+  showReactions?: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   isLoading: boolean;
   onEditMessage: (message: UIMessage, newContent: string) => void;
-  onRegenerateMessage: () => void;
+  onRegenerateMessage: (message: UIMessage) => void;
   onBranchFromMessage: (messageIndex: number) => void;
   agentChanged?: boolean;
   onRegenerateWithNewAgent?: () => void;
@@ -34,7 +40,14 @@ export default function ChatContent({
   onEditMessage,
   onRegenerateMessage,
   onBranchFromMessage,
+  showReactions,
 }: ChatContentProps) {
+  const members = useMembers();
+  const { currentConversationId } = useSelectionStore();
+  const conversation = useConversation(currentConversationId);
+  // Names assistant rows written before senderId existed.
+  const boundAgent = useAgent(conversation?.agentId ?? null);
+  const agentName = boundAgent?.name ?? null;
   const [previousMessageCount, setPreviousMessageCount] = useState(0);
   const [hasReceivedFirstToken, setHasReceivedFirstToken] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -104,12 +117,15 @@ export default function ChatContent({
     [],
   );
 
-  const handleRegenerateWithLoading = useCallback(() => {
-    if (onRegenerateMessage) {
-      setHasReceivedFirstToken(false);
-      onRegenerateMessage();
-    }
-  }, [onRegenerateMessage]);
+  const handleRegenerateWithLoading = useCallback(
+    (message: UIMessage) => {
+      if (onRegenerateMessage) {
+        setHasReceivedFirstToken(false);
+        onRegenerateMessage(message);
+      }
+    },
+    [onRegenerateMessage],
+  );
 
   const handleAcceptModification = useCallback((messageId: string) => {
     setModifiedResponses((prev) => ({
@@ -254,7 +270,7 @@ export default function ChatContent({
   function renderLoadingIndicator() {
     return (
       <div className="w-full py-2">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="w-full px-4">
           <div className="flex gap-3">
             {/* Avatar section */}
             <div className="flex-shrink-0">
@@ -268,7 +284,7 @@ export default function ChatContent({
               {/* Header with role and timestamp - inline with avatar */}
               <div className="flex items-center gap-3 -mt-0.5">
                 <span className="text-sm font-semibold text-foreground">
-                  Convera
+                  {resolveSenderName({ isUser: false, agentName })}
                 </span>
                 <span className="text-xs text-muted-foreground/80">Now</span>
               </div>
@@ -324,8 +340,18 @@ export default function ChatContent({
   // Function to render messages with our new ChatMessage component
   // Note: This hook must be called before any conditional returns
   const renderMessages = useCallback(() => {
+    const membersById = new Map((members ?? []).map((m) => [m.id, m]));
+
     return messages.map((message, index) => {
       const isLastMessage = index === messages.length - 1;
+      const previous = index > 0 ? messages[index - 1] : undefined;
+      // Without senderId, role is the identity — two consecutive assistant
+      // rows are the same speaker, same as two consecutive user rows.
+      const isGrouped =
+        !!previous &&
+        (message.senderId
+          ? previous.senderId === message.senderId
+          : !previous.senderId && previous.role === message.role);
       const isLastUserMessage = !!(
         lastUserMessage && message.id === lastUserMessage.id
       );
@@ -360,10 +386,16 @@ export default function ChatContent({
       }
 
       return (
-        <ChatMessage
+        <MessageRow
           key={message.id}
+          showReactions={showReactions ?? false}
           message={message}
           messageIndex={index}
+          sender={
+            message.senderId ? membersById.get(message.senderId) : undefined
+          }
+          agentName={agentName}
+          isGrouped={isGrouped}
           isLastMessage={isLastMessage}
           isLastUserMessage={isLastUserMessage}
           isEditing={isEditing}
@@ -375,7 +407,7 @@ export default function ChatContent({
           onEditCancel={handleEditCancel}
           onEditContentChange={setEditedContent}
           onCopy={() => handleCopyContent(message.content || "", message.id)}
-          onRegenerate={handleRegenerateWithLoading}
+          onRegenerate={() => handleRegenerateWithLoading(message)}
           onBranch={onBranchFromMessage}
           renderContent={content}
         />
@@ -383,6 +415,8 @@ export default function ChatContent({
     });
   }, [
     messages,
+    members,
+    agentName,
     lastUserMessage,
     editingMessageId,
     editedContent,

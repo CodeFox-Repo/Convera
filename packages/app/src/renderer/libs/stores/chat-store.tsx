@@ -11,18 +11,74 @@ import React, {
 } from "react";
 import { useLocalAIChat } from "../hooks/use-local-ai-chat";
 import { useAgentStore } from "./agent-store";
-import { useChatHistory } from "./chat-history-store";
 import {
-  resolveLocalAIProviderId,
-  useModelConfigStore,
-} from "./model-config-store";
+  clearDeletionFailureNotification,
+  notifyDeferredDeletion,
+  useChatHistory,
+} from "./chat-history-store";
+import { resolveLocalAIProviderId } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
-import { db, createConversation, updateMessages } from "../db";
+import {
+  db,
+  createConversation,
+  deleteConversation as deleteConversationFromDexie,
+} from "../db";
+import { buildChannelContext, projectFor } from "../agent-projection";
+import { routeMessage, type ChainState } from "../agent-routing";
+import { parseMentions } from "../mention-parser";
+import {
+  LOCAL_HUMAN_MEMBER_ID,
+  memberIdForAgent,
+  type Agent as DBAgent,
+} from "../db/database";
+import type { Member } from "@/shared/types/workspace";
 import { useSelectionStore } from "../db/ui-state";
 import { useSettingsStore } from "./settings-store";
 import { useUserInputStore } from "./user-input-store";
+import { selectAppendOperation } from "../local-ai-request";
+import {
+  assertConversationSelectionUnchanged,
+  buildAuthoritativeEditMessages,
+  buildAuthoritativeRegenerateMessages,
+  loadConversationSendContext,
+  type ConversationSelectionToken,
+} from "../conversation-send-context";
+import { resolveNativeProviderSelection } from "../provider-selection";
+import { flushConversationProviderSelection } from "../conversation-provider-persistence";
+import { completeConversationTurnPersistence } from "../conversation-turn-persistence";
+import {
+  reconcilePendingTurn,
+  reconcilePendingTurns,
+} from "../conversation-turn-reconciliation";
+import { replayPendingConversationDeletions } from "../conversation-lifecycle";
 
 export type ChatViewMode = "compact" | "expanded";
+
+function toProjectable(messages: UIMessage[]) {
+  return messages.map((m) => ({
+    id: m.id,
+    senderId: m.senderId,
+    role: m.role as "user" | "assistant" | "system",
+    content:
+      typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+  }));
+}
+
+/**
+ * The responding agent's own prompt plus its place in the conversation.
+ * Without the channel context it reads the "Name: " prefixes as body text.
+ */
+function buildResponderPrompt(
+  agent: Pick<DBAgent, "id" | "name" | "systemPrompt">,
+  responderMemberId: string | undefined,
+  members: Member[],
+): string {
+  const self = members.find((member) => member.id === responderMemberId);
+  if (!self) return agent.systemPrompt;
+
+  const context = buildChannelContext(self, "chat", members);
+  return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
+}
 
 // Selected content structure
 export interface SelectedContent {
@@ -64,7 +120,7 @@ interface ChatContextType {
   sendMessage: (messageOrFiles?: string | File[], extraFiles?: File[]) => void;
   stopGeneration: () => void;
   editMessage: (message: Message, newContent: string) => void;
-  regenerateMessage: () => void;
+  regenerateMessage: (message: Message) => void;
   resetChat: () => void;
   setSelectedContent: (content: SelectedContent | null) => void;
   rejectSelectedContent: () => void;
@@ -92,6 +148,22 @@ interface ChatContextType {
 
 interface ChatMessage extends Omit<Message, "id"> {
   experimental_attachments?: Attachment[];
+}
+
+function getConversationSelectionToken(): ConversationSelectionToken {
+  const state = useSelectionStore.getState();
+  return {
+    conversationId: state.currentConversationId,
+    version: state.conversationSelectionVersion,
+  };
+}
+
+function getDefaultProviderSelection() {
+  const state = useSelectionStore.getState();
+  return resolveNativeProviderSelection(
+    state.defaultConfigId,
+    state.defaultModelId,
+  );
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -161,16 +233,189 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const prevLoadingRef = useRef(false);
   const currentConversationIdRef = useRef(currentConversationId);
   const activeConversationIdRef = useRef<string | null>(null);
-  const selectedAgentIdRef = useRef(selectedAgent?.id);
+  const activeTurnIdRef = useRef<string | null>(null);
+  // Relay state for agent→agent mentions; reset by each human message.
+  const chainRef = useRef<ChainState | null>(null);
+  // Agents still owed a turn from a multi-mention or an agent's own mentions.
+  const pendingInvokesRef = useRef<string[]>([]);
+  const relayActiveRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
   }, [currentConversationId]);
 
+  // Recover a main-process terminal outbox after renderer reload, sender
+  // destruction, or an ambiguous IPC failure. The journal and reconciliation
+  // transactions are idempotent, so multiple windows may safely run this.
   useEffect(() => {
-    selectedAgentIdRef.current = selectedAgent?.id;
-  }, [selectedAgent?.id]);
+    let stopped = false;
+    let running = false;
+    const reconcileOutstandingTurns = async () => {
+      if (stopped || running) return;
+      running = true;
+      try {
+        const activeTurnId = activeTurnIdRef.current;
+        const results = await reconcilePendingTurns({
+          preferLiveGrace: true,
+          excludeTurnIds: activeTurnId ? [activeTurnId] : [],
+        });
+        for (const result of results) {
+          if (!result.locallySettled) continue;
+          completeConversationTurnPersistence(result.turnId);
+          if (activeTurnIdRef.current === result.turnId) {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
+        }
+        const deletionResults = await replayPendingConversationDeletions();
+        for (const result of deletionResults) {
+          if (result.deleted) {
+            clearDeletionFailureNotification(result.conversationId);
+            continue;
+          }
+          if (result.skipped) {
+            if (result.retryable === false && result.error) {
+              notifyDeferredDeletion(result.conversationId, result.error);
+            }
+            continue;
+          }
+          console.error(
+            `Failed to replay deletion for ${result.conversationId}:`,
+            result.error,
+          );
+          notifyDeferredDeletion(result.conversationId, result.error);
+        }
+      } catch (error) {
+        console.error("Failed to reconcile a pending local AI turn:", error);
+      } finally {
+        running = false;
+      }
+    };
+    void reconcileOutstandingTurns();
+    const interval = window.setInterval(reconcileOutstandingTurns, 2_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  /**
+   * Agent→agent relay: when a finished reply mentions other agents (or a
+   * multi-mention left agents queued), invoke the next one. `routeMessage`'s
+   * chain state enforces the 3-hop cap and once-per-chain rule, so two agents
+   * mentioning each other terminates instead of ping-ponging forever.
+   */
+  const runRelay = useCallback(async () => {
+    if (relayActiveRef.current) return;
+
+    const lastMessage = chatAPI.messages.at(-1);
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+    const lastSenderId = lastMessage.senderId;
+    if (!lastSenderId || !lastSenderId.startsWith("agent:")) return;
+
+    const members = await db.members.toArray();
+    const routed = routeMessage({
+      message: {
+        senderId: lastSenderId,
+        content:
+          typeof lastMessage.content === "string" ? lastMessage.content : "",
+      },
+      members,
+      defaultAgentMemberId: null, // relays follow explicit mentions only
+      chain: chainRef.current,
+    });
+    chainRef.current = routed.chain;
+
+    const next = [...pendingInvokesRef.current, ...routed.invoke].filter(
+      (id, index, ids) => ids.indexOf(id) === index,
+    );
+    const [nextResponderId, ...rest] = next;
+    pendingInvokesRef.current = rest;
+    if (!nextResponderId) return;
+
+    const nextMember = members.find((m) => m.id === nextResponderId);
+    if (!nextMember?.agentId) return;
+    const agent = await db.agents.get(nextMember.agentId);
+    if (!agent) return;
+
+    relayActiveRef.current = true;
+    try {
+      const conversationId = currentConversationIdRef.current;
+      if (!conversationId) return;
+      const selection = getConversationSelectionToken();
+      if (selection.conversationId !== conversationId) return;
+      await flushConversationProviderSelection(conversationId);
+      assertConversationSelectionUnchanged(
+        selection,
+        getConversationSelectionToken(),
+      );
+      const sendContext = await loadConversationSendContext({
+        selection,
+        defaultSelection: getDefaultProviderSelection(),
+        getSelection: getConversationSelectionToken,
+      });
+      if (!sendContext) return;
+      const providerId = resolveLocalAIProviderId(
+        sendContext.providerSelection.configId,
+      );
+      const selectedModelId = sendContext.providerSelection.modelId;
+      const runtimeResult =
+        await window.localAI.getConversationRuntimeState(conversationId);
+      if (!runtimeResult.success) {
+        throw new Error(
+          runtimeResult.error?.message ||
+            "Could not read conversation runtime state.",
+        );
+      }
+      assertConversationSelectionUnchanged(
+        selection,
+        getConversationSelectionToken(),
+      );
+      const turnId = crypto.randomUUID();
+      activeConversationIdRef.current = conversationId;
+      activeTurnIdRef.current = turnId;
+      const accepted = await chatAPI.resend(
+        chatAPI.messages,
+        {
+          providerId,
+          conversationId,
+          turnId,
+          expectedRevision:
+            runtimeResult.data?.revision ??
+            sendContext.conversation.activeRevision,
+          operation: selectAppendOperation(
+            runtimeResult.data ?? null,
+            providerId,
+            nextResponderId,
+            sendContext.messages.length,
+          ),
+          model:
+            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+              ? undefined
+              : selectedModelId,
+          agent: {
+            id: agent.id,
+            memberId: nextResponderId,
+            systemPrompt: buildResponderPrompt(agent, nextResponderId, members),
+          },
+          responderId: nextResponderId,
+          requestMessages: projectFor(
+            nextResponderId,
+            toProjectable(chatAPI.messages),
+            members,
+          ),
+        },
+        sendContext.messages,
+      );
+      if (!accepted) {
+        activeConversationIdRef.current = null;
+        activeTurnIdRef.current = null;
+      }
+    } finally {
+      relayActiveRef.current = false;
+    }
+  }, [chatAPI]);
 
   // Save messages when loading completes (message finished)
   useEffect(() => {
@@ -183,44 +428,85 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const saveMessages = async () => {
         try {
           const convId = activeConversationIdRef.current;
-          const messages = chatAPI.messages;
+          const completedTurn = chatAPI.lastCompletedTurn;
 
-          if (!convId || !(await db.conversations.get(convId))) {
+          if (
+            !convId ||
+            !completedTurn ||
+            completedTurn.turnId !== activeTurnIdRef.current ||
+            !(await db.conversations.get(convId))
+          ) {
             console.error(
-              "Refusing to save a local AI stream without its originating conversation.",
+              "Refusing to save a local AI stream without its completed turn.",
             );
-            return;
+            return false;
           }
 
-          await updateMessages(
-            convId,
-            messages.map((m: Message) => ({
-              id: m.id,
-              role: m.role as "user" | "assistant" | "system" | "tool",
-              content:
-                typeof m.content === "string"
-                  ? m.content
-                  : JSON.stringify(m.content),
-              parts: m.parts,
-              experimental_attachments: m.experimental_attachments?.map(
-                (a: Attachment) => ({
-                  url: a.url,
-                  name: a.name ?? "",
-                  contentType: a.contentType ?? "",
-                }),
-              ),
-            })),
+          const liveAssistant = chatAPI.messages.find(
+            (message) => message.id === completedTurn.assistantMessageId,
           );
-          console.log("💾 Saved messages to conversation:", convId);
-          activeConversationIdRef.current = null;
+          const liveAssistantMentions = liveAssistant
+            ? parseMentions(
+                typeof liveAssistant.content === "string"
+                  ? liveAssistant.content
+                  : "",
+                await db.members.toArray(),
+              )
+            : undefined;
+          const result = await reconcilePendingTurn(completedTurn.turnId, {
+            liveAssistant: liveAssistant
+              ? {
+                  content: liveAssistant.content,
+                  senderId: liveAssistant.senderId,
+                  mentions: liveAssistantMentions,
+                  reactions: liveAssistant.reactions,
+                  parts: liveAssistant.parts,
+                  experimental_attachments:
+                    liveAssistant.experimental_attachments?.map(
+                      (attachment) => ({
+                        url: attachment.url,
+                        name: attachment.name ?? "",
+                        contentType: attachment.contentType ?? "",
+                      }),
+                    ),
+                }
+              : undefined,
+          });
+          if (result.locallySettled) {
+            completeConversationTurnPersistence(completedTurn.turnId);
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+            console.log("💾 Reconciled local AI turn:", completedTurn.turnId);
+            return true;
+          } else {
+            console.warn(
+              "Local AI turn is not terminal in the durable outbox yet:",
+              completedTurn.turnId,
+            );
+            return false;
+          }
         } catch (error) {
-          console.error("Failed to save conversation:", error);
+          // Keep both the in-memory barrier and Dexie journal. The background
+          // reconciler or delete-time reconciliation will retry the commit.
+          console.error(
+            "Failed to persist the completed local AI turn:",
+            error,
+          );
+          return false;
         }
       };
 
-      saveMessages();
+      saveMessages().then((settled) => {
+        if (settled) void runRelay();
+      });
     }
-  }, [chatAPI.isLoading, chatAPI.messages, setCurrentConversationId]);
+  }, [
+    chatAPI.isLoading,
+    chatAPI.lastCompletedTurn,
+    chatAPI.messages,
+    setCurrentConversationId,
+    runRelay,
+  ]);
 
   // Note: Conversation selection from sidebar is now handled automatically
   // through the shared useSelectionStore (Zustand) - no event listeners needed
@@ -353,6 +639,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  const getRuntimeState = useCallback(async (conversationId: string) => {
+    const result =
+      await window.localAI.getConversationRuntimeState(conversationId);
+    if (!result.success) {
+      throw new Error(
+        result.error?.message || "Could not read conversation runtime state.",
+      );
+    }
+    return result.data ?? null;
+  }, []);
+
   const sendMessage = useCallback(
     (messageOrFiles?: string | File[], extraFiles?: File[]) => {
       // Handle overloaded parameters
@@ -376,6 +673,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (!messageText && !selectedContent && filesToSend.length === 0) return;
+      const requestedSelection = getConversationSelectionToken();
 
       // Handle selected content (text only)
       if (selectedContent) {
@@ -392,6 +690,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const message: ChatMessage = {
         role: "user",
         content: messageText,
+        senderId: LOCAL_HUMAN_MEMBER_ID,
       };
 
       const sendMessageWithAttachments = async () => {
@@ -412,44 +711,157 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.experimental_attachments = fileAttachments;
           }
 
-          const { selectedConfigId, selectedModelId } =
-            useModelConfigStore.getState();
-          const providerId = resolveLocalAIProviderId(selectedConfigId);
-          let conversationIdToUse = currentConversationId;
-
-          if (
-            !conversationIdToUse ||
-            !(await db.conversations.get(conversationIdToUse))
-          ) {
-            conversationIdToUse = await createConversation({
-              title: messageText.slice(0, 50) || "New Conversation",
-              agentId: selectedAgent?.id ?? null,
-              modelId: `${providerId}:${selectedModelId}`,
-            });
-            setCurrentConversationId(conversationIdToUse);
-            currentConversationIdRef.current = conversationIdToUse;
+          let selection = requestedSelection;
+          let defaultSelection = getDefaultProviderSelection();
+          if (selection.conversationId) {
+            await flushConversationProviderSelection(selection.conversationId);
+            assertConversationSelectionUnchanged(
+              selection,
+              getConversationSelectionToken(),
+            );
           }
-
-          activeConversationIdRef.current = conversationIdToUse;
-
-          await chatAPI.send(message, {
-            providerId,
-            model:
-              selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
-                ? undefined
-                : selectedModelId,
-            agent: selectedAgent
-              ? {
-                  id: selectedAgent.id,
-                  systemPrompt: selectedAgent.systemPrompt,
-                }
-              : undefined,
+          let sendContext = await loadConversationSendContext({
+            selection,
+            defaultSelection,
+            getSelection: getConversationSelectionToken,
           });
 
-          chatAPI.setInput("");
-          clearAttachments();
+          if (!sendContext) {
+            assertConversationSelectionUnchanged(
+              selection,
+              getConversationSelectionToken(),
+            );
+            const conversationIdToUse = await createConversation({
+              title: messageText.slice(0, 50) || "New Conversation",
+              agentId: selectedAgent?.id ?? null,
+              modelId: `${defaultSelection.configId}:${defaultSelection.modelId}`,
+              activeRevision: 0,
+              activeProviderId: defaultSelection.configId,
+              activeModelId: defaultSelection.modelId,
+            });
+            try {
+              assertConversationSelectionUnchanged(
+                selection,
+                getConversationSelectionToken(),
+              );
+            } catch (error) {
+              await deleteConversationFromDexie(conversationIdToUse);
+              throw error;
+            }
+            setCurrentConversationId(conversationIdToUse);
+            currentConversationIdRef.current = conversationIdToUse;
+            selection = getConversationSelectionToken();
+            defaultSelection = getDefaultProviderSelection();
+            sendContext = await loadConversationSendContext({
+              selection,
+              defaultSelection,
+              getSelection: getConversationSelectionToken,
+            });
+          }
+
+          if (!sendContext || !selection.conversationId) {
+            throw new Error("Could not load the selected conversation.");
+          }
+          const conversationIdToUse = selection.conversationId;
+          const { conversation, messages: persistedMessages } = sendContext;
+          const providerId = resolveLocalAIProviderId(
+            sendContext.providerSelection.configId,
+          );
+          const selectedModelId = sendContext.providerSelection.modelId;
+          const members = await db.members.toArray();
+          const mentionedMemberIds = parseMentions(messageText, members);
+          message.mentions = mentionedMemberIds;
+          const routed = routeMessage({
+            message: {
+              senderId: LOCAL_HUMAN_MEMBER_ID,
+              content: messageText,
+            },
+            members,
+            defaultAgentMemberId: selectedAgent
+              ? memberIdForAgent(selectedAgent.id)
+              : null,
+            chain: null,
+          });
+          chainRef.current = routed.chain;
+          const [firstResponder, ...queued] = routed.invoke;
+          pendingInvokesRef.current = queued;
+          const responderMember = members.find(
+            (member) => member.id === firstResponder,
+          );
+          const responder = responderMember?.agentId
+            ? ((await db.agents.get(responderMember.agentId)) ?? selectedAgent)
+            : selectedAgent;
+          const responderMemberId = responder
+            ? memberIdForAgent(responder.id)
+            : undefined;
+          const runtimeState = await getRuntimeState(conversationIdToUse);
+          assertConversationSelectionUnchanged(
+            selection,
+            getConversationSelectionToken(),
+          );
+          const turnId = crypto.randomUUID();
+          activeConversationIdRef.current = conversationIdToUse;
+          activeTurnIdRef.current = turnId;
+
+          const accepted = await chatAPI.send(
+            message,
+            {
+              providerId,
+              conversationId: conversationIdToUse,
+              turnId,
+              expectedRevision:
+                runtimeState?.revision ?? conversation.activeRevision,
+              model:
+                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                  ? undefined
+                  : selectedModelId,
+              operation: selectAppendOperation(
+                runtimeState,
+                providerId,
+                responderMemberId ?? "actor:default",
+                persistedMessages.length,
+              ),
+              agent: responder
+                ? {
+                    id: responder.id,
+                    memberId: responderMemberId,
+                    systemPrompt: buildResponderPrompt(
+                      responder,
+                      responderMemberId,
+                      members,
+                    ),
+                  }
+                : undefined,
+              responderId: responderMemberId,
+              requestMessages: responderMemberId
+                ? projectFor(
+                    responderMemberId,
+                    [
+                      ...toProjectable(persistedMessages),
+                      {
+                        senderId: LOCAL_HUMAN_MEMBER_ID,
+                        role: "user",
+                        content: messageText,
+                      },
+                    ],
+                    members,
+                  )
+                : undefined,
+            },
+            persistedMessages,
+          );
+
+          if (accepted) {
+            chatAPI.setInput("");
+            clearAttachments();
+          } else {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
         } catch (error) {
-          console.error("Error processing file attachments:", error);
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
+          console.error("Could not prepare the selected conversation:", error);
         }
       };
 
@@ -461,9 +873,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       attachments,
       clearAttachments,
       fileToAttachment,
-      currentConversationId,
       setCurrentConversationId,
       selectedAgent,
+      getRuntimeState,
     ],
   );
 
@@ -482,65 +894,203 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const editMessage = useCallback(
     (message: Message, newContent: string) => {
-      const messageIndex = chatAPI.messages.findIndex(
-        (m) => m.id === message.id,
-      );
-      if (messageIndex === -1) return;
+      const requestedSelection = getConversationSelectionToken();
+      const rebase = async () => {
+        if (!requestedSelection.conversationId) return;
+        await flushConversationProviderSelection(
+          requestedSelection.conversationId,
+        );
+        assertConversationSelectionUnchanged(
+          requestedSelection,
+          getConversationSelectionToken(),
+        );
+        const sendContext = await loadConversationSendContext({
+          selection: requestedSelection,
+          defaultSelection: getDefaultProviderSelection(),
+          getSelection: getConversationSelectionToken,
+        });
+        if (!sendContext) return;
+        const updatedMessages = buildAuthoritativeEditMessages(
+          sendContext.messages,
+          message.id,
+          newContent,
+        );
+        if (!updatedMessages) return;
 
-      const updatedMessages = [...chatAPI.messages];
-      updatedMessages[messageIndex] = {
-        ...updatedMessages[messageIndex],
-        content: newContent,
+        const conversationId = requestedSelection.conversationId;
+        const providerId = resolveLocalAIProviderId(
+          sendContext.providerSelection.configId,
+        );
+        const selectedModelId = sendContext.providerSelection.modelId;
+        const members = await db.members.toArray();
+        const responderMemberId = selectedAgent
+          ? memberIdForAgent(selectedAgent.id)
+          : undefined;
+        const runtimeState = await getRuntimeState(conversationId);
+        assertConversationSelectionUnchanged(
+          requestedSelection,
+          getConversationSelectionToken(),
+        );
+        const turnId = crypto.randomUUID();
+        activeConversationIdRef.current = conversationId;
+        activeTurnIdRef.current = turnId;
+        const accepted = await chatAPI.resend(
+          updatedMessages,
+          {
+            providerId,
+            conversationId,
+            turnId,
+            expectedRevision:
+              runtimeState?.revision ?? sendContext.conversation.activeRevision,
+            model:
+              selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                ? undefined
+                : selectedModelId,
+            operation: {
+              kind: "rebase",
+              reason: "edit",
+              sourceMessageId: message.id,
+            },
+            agent: selectedAgent
+              ? {
+                  id: selectedAgent.id,
+                  memberId: responderMemberId,
+                  systemPrompt: buildResponderPrompt(
+                    selectedAgent,
+                    responderMemberId,
+                    members,
+                  ),
+                }
+              : undefined,
+            responderId: responderMemberId,
+            requestMessages: responderMemberId
+              ? projectFor(
+                  responderMemberId,
+                  toProjectable(updatedMessages),
+                  members,
+                )
+              : undefined,
+          },
+          sendContext.messages,
+        );
+        if (!accepted) {
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
+        }
       };
 
-      if (messageIndex < updatedMessages.length - 1) {
-        updatedMessages.splice(messageIndex + 1);
-      }
-
-      const { selectedConfigId, selectedModelId } =
-        useModelConfigStore.getState();
-      activeConversationIdRef.current = currentConversationId;
-      void chatAPI.resend(updatedMessages, {
-        providerId: resolveLocalAIProviderId(selectedConfigId),
-        model: selectedModelId,
-        agent: selectedAgent
-          ? {
-              id: selectedAgent.id,
-              systemPrompt: selectedAgent.systemPrompt,
-            }
-          : undefined,
+      void rebase().catch((error) => {
+        activeConversationIdRef.current = null;
+        activeTurnIdRef.current = null;
+        console.error("Failed to edit and rebase conversation:", error);
       });
     },
-    [chatAPI, currentConversationId, selectedAgent],
+    [chatAPI, getRuntimeState, selectedAgent],
   );
 
-  const regenerateMessage = useCallback(() => {
-    if (chatAPI.status === "ready" || chatAPI.status === "error") {
-      const nextMessages =
-        chatAPI.messages.at(-1)?.role === "assistant"
-          ? chatAPI.messages.slice(0, -1)
-          : chatAPI.messages;
-      const { selectedConfigId, selectedModelId } =
-        useModelConfigStore.getState();
-      activeConversationIdRef.current = currentConversationId;
-      void chatAPI.resend(nextMessages, {
-        providerId: resolveLocalAIProviderId(selectedConfigId),
-        model: selectedModelId,
-        agent: selectedAgent
-          ? {
-              id: selectedAgent.id,
-              systemPrompt: selectedAgent.systemPrompt,
-            }
-          : undefined,
-      });
-    }
-  }, [chatAPI, currentConversationId, selectedAgent]);
+  const regenerateMessage = useCallback(
+    (message: Message) => {
+      if (chatAPI.status === "ready" || chatAPI.status === "error") {
+        const requestedSelection = getConversationSelectionToken();
+        const rebase = async () => {
+          if (!requestedSelection.conversationId) return;
+          await flushConversationProviderSelection(
+            requestedSelection.conversationId,
+          );
+          assertConversationSelectionUnchanged(
+            requestedSelection,
+            getConversationSelectionToken(),
+          );
+          const sendContext = await loadConversationSendContext({
+            selection: requestedSelection,
+            defaultSelection: getDefaultProviderSelection(),
+            getSelection: getConversationSelectionToken,
+          });
+          if (!sendContext) return;
+          const nextMessages = buildAuthoritativeRegenerateMessages(
+            sendContext.messages,
+            message.id,
+          );
+          if (!nextMessages) return;
+          const conversationId = requestedSelection.conversationId;
+          const providerId = resolveLocalAIProviderId(
+            sendContext.providerSelection.configId,
+          );
+          const selectedModelId = sendContext.providerSelection.modelId;
+          const members = await db.members.toArray();
+          const responderMemberId = selectedAgent
+            ? memberIdForAgent(selectedAgent.id)
+            : undefined;
+          const runtimeState = await getRuntimeState(conversationId);
+          assertConversationSelectionUnchanged(
+            requestedSelection,
+            getConversationSelectionToken(),
+          );
+          const turnId = crypto.randomUUID();
+          activeConversationIdRef.current = conversationId;
+          activeTurnIdRef.current = turnId;
+          const accepted = await chatAPI.resend(
+            nextMessages,
+            {
+              providerId,
+              conversationId,
+              turnId,
+              expectedRevision:
+                runtimeState?.revision ??
+                sendContext.conversation.activeRevision,
+              model:
+                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                  ? undefined
+                  : selectedModelId,
+              operation: {
+                kind: "rebase",
+                reason: "regenerate",
+                sourceMessageId: message.id,
+              },
+              agent: selectedAgent
+                ? {
+                    id: selectedAgent.id,
+                    memberId: responderMemberId,
+                    systemPrompt: buildResponderPrompt(
+                      selectedAgent,
+                      responderMemberId,
+                      members,
+                    ),
+                  }
+                : undefined,
+              responderId: responderMemberId,
+              requestMessages: responderMemberId
+                ? projectFor(
+                    responderMemberId,
+                    toProjectable(nextMessages),
+                    members,
+                  )
+                : undefined,
+            },
+            sendContext.messages,
+          );
+          if (!accepted) {
+            activeConversationIdRef.current = null;
+            activeTurnIdRef.current = null;
+          }
+        };
+        void rebase().catch((error) => {
+          activeConversationIdRef.current = null;
+          activeTurnIdRef.current = null;
+          console.error("Failed to regenerate conversation:", error);
+        });
+      }
+    },
+    [chatAPI, getRuntimeState, selectedAgent],
+  );
 
   const resetChat = useCallback(() => {
     console.log("🔄 Frontend: resetChat called, clearing conversation ID");
     // Clear any pending user inputs
     useUserInputStore.getState().clearAllPending();
     chatAPI.setMessages([]);
+    activeConversationIdRef.current = null;
+    activeTurnIdRef.current = null;
     setSelectedContent(null);
     clearAttachments();
     setCurrentConversationId(null);

@@ -163,7 +163,7 @@ export function McpSettingsPage() {
           };
         case ConnectionStatus.DISABLED:
           return {
-            color: "bg-gray-500",
+            color: "bg-muted-foreground",
             glow: "",
           };
         case ConnectionStatus.UNAUTHORIZED:
@@ -223,11 +223,7 @@ export function McpSettingsPage() {
             </h2>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-300 hover:border-gray-400"
-                >
+                <Button variant="outline" size="sm">
                   <Settings className="h-4 w-4 mr-2" />
                   Config Files
                 </Button>
@@ -328,19 +324,13 @@ export function McpSettingsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleRestartServer(server.name)}
-                              className="text-blue-600 border-blue-300 hover:border-blue-400 hover:bg-blue-50"
                             >
                               <RefreshCw className="h-4 w-4 mr-1" />
                               Restart
                             </Button>
                           )}
                         {isRestarting && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled
-                            className="border-gray-300"
-                          >
+                          <Button variant="outline" size="sm" disabled>
                             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                             Restarting
                           </Button>
@@ -351,7 +341,7 @@ export function McpSettingsPage() {
                             size="sm"
                             onClick={() => handleRemoveServerClick(server.name)}
                             disabled={removingServers.has(server.name)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             {removingServers.has(server.name) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -387,7 +377,7 @@ export function McpSettingsPage() {
                 Server Configuration (JSON)
               </label>
               <textarea
-                className="w-full h-64 px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm font-mono"
+                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-64 w-full rounded-md border bg-transparent px-3 py-2 font-mono text-sm outline-none focus-visible:ring-[3px]"
                 value={manualConfig}
                 onChange={(e) => setManualConfig(e.target.value)}
                 placeholder={`{

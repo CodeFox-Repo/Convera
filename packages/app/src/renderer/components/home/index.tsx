@@ -3,20 +3,26 @@ import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Archive,
   ArrowLeft,
   Bot,
-  ChevronLeft,
-  ChevronRight,
-  Code,
+  Hash,
+  Lock,
   Moon,
-  Plus,
   Search,
   Server,
   Settings,
+  Store,
   Sun,
+  Users,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ChannelHeader } from "../chat/ChannelHeader";
 import ChatInputContainer from "../chat/input/chat-input-container";
 import type { ChatInputRef } from "../chat/input/chat-input-container";
 import ChatContent from "../chat/message/chat-content";
@@ -27,23 +33,34 @@ import {
 
 // Import settings pages
 import { AgentsSettingsPage } from "@/renderer/components/settings/pages/agents-page";
-import { DeveloperSettingsPage } from "@/renderer/components/settings/pages/developer-page";
 import { GeneralSettingsPage } from "@/renderer/components/settings/pages/general-page";
 import { McpSettingsPage } from "@/renderer/components/settings/pages/mcp-page";
+import { OrgRosterPage } from "@/renderer/components/talent/OrgRosterPage";
+import { TalentMarketPage } from "@/renderer/components/talent/TalentMarketPage";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
 
 // Import conversation list and search components
-import { ConversationList } from "@/renderer/components/sidebar/ConversationList";
+import {
+  WorkspaceSidebar,
+  WorkspaceUserRow,
+} from "@/renderer/components/sidebar/WorkspaceSidebar";
 import { GlobalSearchDialog } from "@/renderer/components/search/GlobalSearchDialog";
 import {
   useSearchUIState,
   useSelectionStore,
 } from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
-import { branchFromMessage } from "@/renderer/libs/db/hooks";
+import { branchConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
+import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
+import { useChannelByConversationId } from "@/renderer/libs/stores/channel-store";
+import { useMembers } from "@/renderer/libs/stores/member-store";
+import {
+  composeChannelAgentLine,
+  composeInputPlaceholder,
+} from "@/renderer/libs/chat-labels";
 
 type ViewType = "chat" | "settings";
-type SettingsTab = "general" | "agents" | "mcp" | "developer";
+type SettingsTab = "general" | "agents" | "talent" | "org" | "mcp";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -58,13 +75,64 @@ export function HomePage() {
     resetChat,
   } = useChatContext();
 
-  const { agentChanged, handleAgentChange } = useAgentStore();
+  const { agentChanged, handleAgentChange, selectedAgent } = useAgentStore();
   const { currentTheme, handleToggleTheme } = useSettingsStore();
   const { openSearch } = useSearchUIState();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  // Who this conversation is addressed to — a channel, or the agent behind it.
+  const currentChannel = useChannelByConversationId(currentConversationId);
+  const currentConversation = useConversation(currentConversationId);
+  const conversationAgent = useAgent(currentConversation?.agentId ?? null);
+  const inputPlaceholder = composeInputPlaceholder({
+    channelName: currentChannel?.name,
+    agentName: conversationAgent?.name ?? selectedAgent?.name ?? null,
+  });
+
+  const ChannelGlyph = currentChannel?.isPrivate ? Lock : Hash;
+
+  const allMembers = useMembers();
+  const channelAgentLine = useMemo(() => {
+    if (!currentChannel) return null;
+    const byId = new Map((allMembers ?? []).map((m) => [m.id, m]));
+    return composeChannelAgentLine(
+      currentChannel.memberIds.flatMap((id) => {
+        const member = byId.get(id);
+        return member?.kind === "agent" ? [member.name] : [];
+      }),
+    );
+  }, [currentChannel, allMembers]);
+
   const [activeView, setActiveView] = useState<ViewType>("chat");
+  // Resizable sidebar: drag the divider; width persists across sessions.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem("sidebarWidth"));
+    return stored >= 220 && stored <= 480 ? stored : 320;
+  });
+  const resizingRef = useRef(false);
+
+  const startSidebarResize = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    resizingRef.current = true;
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const width = Math.min(480, Math.max(220, e.clientX));
+      setSidebarWidth(width);
+    };
+    const onUp = (e: MouseEvent) => {
+      resizingRef.current = false;
+      const width = Math.min(480, Math.max(220, e.clientX));
+      localStorage.setItem("sidebarWidth", String(width));
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
   const [activeSettingsTab, setActiveSettingsTab] =
     useState<SettingsTab>("general");
 
@@ -77,11 +145,8 @@ export function HomePage() {
 
   // Helper to navigate to settings - auto-expands sidebar
   const navigateToSettings = useCallback(() => {
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
-    }
     setActiveView("settings");
-  }, [sidebarCollapsed]);
+  }, []);
 
   // Listen for navigate-to-settings from main process (tray menu)
   useEffect(() => {
@@ -101,7 +166,7 @@ export function HomePage() {
     }
 
     try {
-      const newConversationId = await branchFromMessage(
+      const newConversationId = await branchConversationWithRuntime(
         currentConversationId,
         messageIndex,
       );
@@ -117,8 +182,9 @@ export function HomePage() {
   const settingsNavItems = [
     { id: "general" as SettingsTab, label: "General", icon: Settings },
     { id: "agents" as SettingsTab, label: "Agents", icon: Bot },
+    { id: "talent" as SettingsTab, label: "Talent Market", icon: Store },
+    { id: "org" as SettingsTab, label: "Org", icon: Users },
     { id: "mcp" as SettingsTab, label: "MCP Servers", icon: Server },
-    { id: "developer" as SettingsTab, label: "Developer", icon: Code },
   ];
 
   // Render settings content based on active tab
@@ -132,10 +198,12 @@ export function HomePage() {
             onNavigateToMcp={() => setActiveSettingsTab("mcp")}
           />
         );
+      case "talent":
+        return <TalentMarketPage />;
+      case "org":
+        return <OrgRosterPage />;
       case "mcp":
         return <McpSettingsPage />;
-      case "developer":
-        return <DeveloperSettingsPage />;
       default:
         return <GeneralSettingsPage />;
     }
@@ -147,57 +215,44 @@ export function HomePage() {
       <EnhancedDragRegion top={24} bottom={24} left={24} right={24} />
 
       {/* Sidebar */}
-      <motion.div
-        className={`bg-background/85 backdrop-blur-md flex flex-col ${
-          sidebarCollapsed ? "w-0" : "w-80"
-        }`}
-        initial={false}
-        animate={{ width: sidebarCollapsed ? 0 : 320 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        style={{ overflow: "hidden" }}
+      <div
+        className="bg-sidebar text-sidebar-foreground backdrop-blur-md flex flex-shrink-0 flex-col overflow-hidden"
+        style={{ width: sidebarWidth }}
       >
         <SidebarDragRegion className="flex-1 flex flex-col h-full">
           {/* Sidebar Header */}
-          {!sidebarCollapsed && (
-            <div className="px-3 pb-3">
-              {/* Top row: traffic lights area + action buttons */}
-              <div className="flex items-center justify-end h-10">
+          {
+            <div className="px-3 pb-1">
+              {/* Traffic-light clearance — the OS buttons live in this strip. */}
+              <div className="h-8" />
+              {/* Workspace row: identity on the left, its actions on the right */}
+              <div className="flex items-center gap-2 h-8">
                 {activeView === "chat" ? (
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      onClick={openSearch}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                      aria-label="Search conversations"
-                      title="Search (⌘K)"
-                    >
-                      <Search size={14} />
-                    </button>
-                    <button
-                      onClick={handleNewChat}
-                      disabled={isLoading}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="New chat"
-                      title={
-                        isLoading
-                          ? "Stop the current response before starting a new chat"
-                          : "New Chat"
-                      }
-                    >
-                      <Plus size={14} />
-                    </button>
-                    <button
-                      onClick={() => setSidebarCollapsed(true)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                      aria-label="Collapse sidebar"
-                      title="Collapse Sidebar"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                  </div>
+                  <>
+                    <BaseLogo size={18} className="flex-shrink-0" />
+                    <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground">
+                      Personal
+                    </h1>
+                  </>
                 ) : (
+                  <>
+                    <button
+                      onClick={() => setActiveView("chat")}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors pointer-events-auto"
+                      aria-label="Back to chat"
+                      title="Back to Chat"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                    <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground">
+                      Settings
+                    </h1>
+                  </>
+                )}
+                {activeView === "chat" ? null : (
                   <button
                     onClick={handleToggleTheme}
-                    className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors pointer-events-auto"
                     title="Toggle theme"
                   >
                     {currentTheme === "dark" ? (
@@ -208,42 +263,34 @@ export function HomePage() {
                   </button>
                 )}
               </div>
-              {/* Bottom row: Logo + title or back button */}
-              <div className="flex items-center gap-2">
-                {activeView === "chat" ? (
-                  <>
-                    <BaseLogo size={20} className="flex-shrink-0" />
-                    <h1 className="text-lg font-semibold text-foreground">
-                      Convera
-                    </h1>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setActiveView("chat")}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors pointer-events-auto"
-                      aria-label="Back to chat"
-                      title="Back to Chat"
-                    >
-                      <ArrowLeft size={16} />
-                    </button>
-                    <h1 className="text-lg font-semibold text-foreground">
-                      Settings
-                    </h1>
-                  </>
-                )}
-              </div>
+
+              {/* Search bar row — Discord-style, the whole bar is the ⌘K entry */}
+              {activeView === "chat" && (
+                <button
+                  onClick={openSearch}
+                  className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-sidebar-foreground transition-colors pointer-events-auto"
+                  aria-label="Search conversations"
+                >
+                  <Search size={12} className="flex-shrink-0" />
+                  <span className="flex-1 truncate">Search</span>
+                  <kbd className="flex-shrink-0 font-sans text-[10px] tracking-wide opacity-60">
+                    ⌘K
+                  </kbd>
+                </button>
+              )}
             </div>
-          )}
+          }
 
           {/* Sidebar Content */}
-          <div className="flex-1 overflow-y-auto min-h-0 px-2">
-            {/* Conversation List (chat view) */}
-            {!sidebarCollapsed && activeView === "chat" && <ConversationList />}
+          <div className="flex-1 min-h-0 flex flex-col px-2">
+            {/* Workspace: groups, channels, legacy conversations (chat view) */}
+            {activeView === "chat" && (
+              <WorkspaceSidebar onNewChat={handleNewChat} />
+            )}
 
             {/* Settings Navigation */}
-            {!sidebarCollapsed && activeView === "settings" && (
-              <nav className="space-y-1">
+            {activeView === "settings" && (
+              <nav className="space-y-1 overflow-y-auto">
                 {settingsNavItems.map((item) => (
                   <button
                     key={item.id}
@@ -263,64 +310,40 @@ export function HomePage() {
           </div>
 
           {/* Sidebar Footer - Fixed at bottom */}
-          {!sidebarCollapsed && (
-            <div className="border-t border-border/60 p-2 flex-shrink-0 relative z-10">
+          {
+            <div className="border-t border-sidebar-border p-2 flex-shrink-0 relative z-10">
               {/* Drag whitespace area */}
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
               <div className="relative z-10">
                 {activeView === "chat" && (
-                  <>
-                    <button className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto">
-                      <Archive size={16} className="flex-shrink-0" />
-                      <span>Archive</span>
-                    </button>
-                    <button
-                      onClick={navigateToSettings}
-                      className="w-full px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-3 text-sm pointer-events-auto"
-                    >
-                      <Settings size={16} className="flex-shrink-0" />
-                      <span>Settings</span>
-                    </button>
-                  </>
+                  // The identity row IS the settings entry — click it, like
+                  // Discord's user pill. No separate menu rows.
+                  <WorkspaceUserRow onClick={navigateToSettings} />
                 )}
               </div>
             </div>
-          )}
+          }
         </SidebarDragRegion>
-      </motion.div>
+      </div>
 
-      {/* Floating Controls - positioned at left edge when sidebar is collapsed */}
-      {sidebarCollapsed && (
-        <div className="absolute top-8 left-4 z-20 flex gap-2">
-          <button
-            onClick={() => setSidebarCollapsed(false)}
-            className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150"
-            aria-label="Expand sidebar"
-            title="Expand Sidebar"
-          >
-            <ChevronRight size={16} />
-          </button>
-          <button
-            onClick={handleNewChat}
-            disabled={isLoading}
-            className="p-3 rounded-lg bg-background/80 backdrop-blur-sm border border-border/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-border/60 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="New chat"
-            title={
-              isLoading
-                ? "Stop the current response before starting a new chat"
-                : "New Chat"
-            }
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      )}
+      {/* Divider: drag to resize the sidebar. Wider hit area than its 1px look. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        onMouseDown={startSidebarResize}
+        className="group/divider relative z-20 -mx-1 w-2 flex-shrink-0 cursor-col-resize pointer-events-auto"
+      >
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors group-hover/divider:bg-ring" />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-background border-l border-border/30 relative">
+      <div className="flex-1 flex flex-col bg-background relative">
         {activeView === "chat" ? (
           <>
+            {currentChannel && <ChannelHeader channel={currentChannel} />}
+
             {/* Messages Area */}
             {messages.length > 0 ? (
               <div className="flex-1 overflow-y-auto relative">
@@ -335,8 +358,9 @@ export function HomePage() {
                   }}
                 ></div>
 
-                <div className="max-w-4xl mx-auto p-6 relative z-10">
+                <div className="w-full py-4 relative z-10">
                   <ChatContent
+                    showReactions={!!currentChannel}
                     messages={messages}
                     messagesEndRef={messagesEndRef}
                     isLoading={isLoading}
@@ -357,7 +381,7 @@ export function HomePage() {
                 <div
                   className="absolute top-0 draglayer z-0"
                   style={{
-                    left: sidebarCollapsed ? "120px" : "0",
+                    left: "0",
                     right: "80px",
                     height: "70px",
                   }}
@@ -376,15 +400,31 @@ export function HomePage() {
 
                 <div className="text-center space-y-6 max-w-md relative z-10">
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
-                    <BaseLogo size={64} />
+                    {currentChannel ? (
+                      <ChannelGlyph
+                        size={48}
+                        className="text-muted-foreground"
+                      />
+                    ) : (
+                      <BaseLogo size={64} />
+                    )}
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-foreground mb-2">
-                      Welcome to Convera
+                      {currentChannel
+                        ? `Welcome to #${currentChannel.name}`
+                        : "Welcome to Convera"}
                     </h3>
                     <p className="text-muted-foreground">
-                      Start a conversation by typing a message below
+                      {currentChannel
+                        ? `This is the start of #${currentChannel.name}.`
+                        : "Start a conversation by typing a message below"}
                     </p>
+                    {channelAgentLine && (
+                      <p className="text-muted-foreground mt-1">
+                        {channelAgentLine}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -397,24 +437,27 @@ export function HomePage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="mx-6 mb-4"
+                  className="px-4 mb-3"
                 >
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                    <p className="text-destructive text-sm">
-                      {error.message ||
-                        "An error occurred. Please check your API key or try again later."}
-                    </p>
+                  <div>
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                      <p className="text-destructive text-sm">
+                        {error.message ||
+                          "Something went wrong. Please try again."}
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* Input Area */}
-            <div className="px-6 pb-6 relative pointer-events-auto">
-              <div className="max-w-4xl mx-auto relative z-10">
+            <div className="px-4 pb-4 relative pointer-events-auto">
+              <div className="relative z-10">
                 <ChatInputContainer
                   ref={chatInputRef}
-                  placeholder="Message Convera..."
+                  placeholder={inputPlaceholder}
+                  variant={currentChannel ? "channel" : "chat"}
                 />
               </div>
             </div>

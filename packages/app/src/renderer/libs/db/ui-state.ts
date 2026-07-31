@@ -19,6 +19,11 @@ import {
   DEFAULT_LOCAL_AI_PROVIDER_ID,
   isLocalAIProviderId,
 } from "../local-ai";
+import {
+  resolveConversationProviderSelection,
+  resolveNativeProviderSelection,
+} from "../provider-selection";
+import { persistConversationProviderSelection } from "../conversation-provider-persistence";
 
 // Re-export for convenience
 export {
@@ -31,35 +36,106 @@ export {
 interface SelectionState {
   // Currently selected items
   currentConversationId: string | null;
+  conversationSelectionVersion: number;
   selectedAgentId: string | null;
   selectedConfigId: string;
   selectedModelId: string;
+  defaultConfigId: string;
+  defaultModelId: string;
 
   // Actions
   setCurrentConversation: (id: string | null) => void;
   setSelectedAgent: (id: string | null) => void;
   setSelectedModel: (configId: string, modelId: string) => void;
+  setDefaultModel: (configId: string, modelId: string) => void;
 }
 
-export const useSelectionStore = create<SelectionState>((set) => ({
+export const useSelectionStore = create<SelectionState>((set, get) => ({
   currentConversationId: null,
+  conversationSelectionVersion: 0,
   selectedAgentId: null,
   selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
   selectedModelId: DEFAULT_LOCAL_AI_MODEL_ID,
+  defaultConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+  defaultModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
-  setCurrentConversation: (id) => set({ currentConversationId: id }),
+  setCurrentConversation: (id) => {
+    set((state) => ({
+      currentConversationId: id,
+      conversationSelectionVersion: state.conversationSelectionVersion + 1,
+    }));
+    if (!id) {
+      const { defaultConfigId, defaultModelId } = get();
+      set({
+        selectedConfigId: defaultConfigId,
+        selectedModelId: defaultModelId,
+      });
+      return;
+    }
+
+    void db.conversations.get(id).then((conversation) => {
+      if (get().currentConversationId !== id || !conversation) return;
+      const selection = resolveConversationProviderSelection(conversation, {
+        configId: get().defaultConfigId,
+        modelId: get().defaultModelId,
+      });
+      set({
+        selectedConfigId: selection.configId,
+        selectedModelId: selection.modelId,
+      });
+    });
+  },
   setSelectedAgent: (id) => set({ selectedAgentId: id }),
   setSelectedModel: (configId, modelId) => {
-    set({ selectedConfigId: configId, selectedModelId: modelId });
+    const selection = resolveNativeProviderSelection(configId, modelId);
+    set({
+      selectedConfigId: selection.configId,
+      selectedModelId: selection.modelId,
+    });
+    const conversationId = get().currentConversationId;
+    if (conversationId) {
+      void persistConversationProviderSelection(
+        conversationId,
+        selection,
+      ).catch((error) => {
+        console.error(
+          "Failed to persist the conversation provider selection:",
+          error,
+        );
+      });
+      return;
+    }
+
+    get().setDefaultModel(selection.configId, selection.modelId);
+  },
+  setDefaultModel: (configId, modelId) => {
+    const selection = resolveNativeProviderSelection(configId, modelId);
+    set({
+      defaultConfigId: selection.configId,
+      defaultModelId: selection.modelId,
+      ...(get().currentConversationId
+        ? {}
+        : {
+            selectedConfigId: selection.configId,
+            selectedModelId: selection.modelId,
+          }),
+    });
     void db.settings.put({
-      key: "local-ai-selection",
-      value: { configId, modelId },
+      key: "local-ai-default-selection",
+      value: {
+        configId: selection.configId,
+        modelId: selection.modelId,
+      },
       updatedAt: new Date(),
     });
   },
 }));
 
-void db.settings.get("local-ai-selection").then((record) => {
+void Promise.all([
+  db.settings.get("local-ai-default-selection"),
+  db.settings.get("local-ai-selection"),
+]).then(([currentRecord, legacyRecord]) => {
+  const record = currentRecord ?? legacyRecord;
   const value = record?.value;
   if (
     value &&
@@ -70,12 +146,63 @@ void db.settings.get("local-ai-selection").then((record) => {
     typeof value.modelId === "string" &&
     isLocalAIProviderId(value.configId)
   ) {
+    const hasActiveConversation =
+      useSelectionStore.getState().currentConversationId !== null;
     useSelectionStore.setState({
-      selectedConfigId: value.configId,
-      selectedModelId: value.modelId,
+      defaultConfigId: value.configId,
+      defaultModelId: value.modelId,
+      ...(hasActiveConversation
+        ? {}
+        : {
+            selectedConfigId: value.configId,
+            selectedModelId: value.modelId,
+          }),
     });
   }
 });
+
+// ==================== Unread State ====================
+
+const LAST_SEEN_KEY = "conversation-last-seen";
+
+function loadLastSeen(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(LAST_SEEN_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface UnreadState {
+  /** conversationId -> epoch ms of the last time the user looked at it. */
+  lastSeen: Record<string, number>;
+  markSeen: (conversationId: string) => void;
+}
+
+/**
+ * A conversation with no entry counts as seen: every existing conversation
+ * predates this store, and opening the app to an all-bold sidebar is noise.
+ */
+export const useUnreadStore = create<UnreadState>((set, get) => ({
+  lastSeen: loadLastSeen(),
+  markSeen: (conversationId) => {
+    const lastSeen = { ...get().lastSeen, [conversationId]: Date.now() };
+    set({ lastSeen });
+    localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));
+  },
+}));
+
+export function isUnread(
+  lastSeen: Record<string, number>,
+  conversationId: string,
+  updatedAt: Date | undefined,
+): boolean {
+  const seenAt = lastSeen[conversationId];
+  return seenAt !== undefined && updatedAt !== undefined
+    ? updatedAt.getTime() > seenAt
+    : false;
+}
 
 // ==================== Chat UI State ====================
 

@@ -29,9 +29,14 @@ describe("ClaudeCodeAdapter MCP transport", () => {
     const adapter = new ClaudeCodeAdapter();
     const request: LocalAIChatRequest = {
       requestId: "native-mcp",
+      conversationId: "conversation",
+      turnId: "turn",
       providerId: "claude-code",
       modelId: "claude-test",
-      messages: [{ role: "user", content: "use cua" }],
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "use cua" },
+      },
       options: { cwd: "/tmp/convera-test" },
     };
     const status: LocalAiProviderStatus = {
@@ -44,7 +49,7 @@ describe("ClaudeCodeAdapter MCP transport", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    const model = await adapter.createModel(request, status, {
+    const run = await adapter.prepareRun(request, status, {
       tools: [],
       nativeMcpServers: {
         cua: {
@@ -57,19 +62,22 @@ describe("ClaudeCodeAdapter MCP transport", () => {
       requestInteraction: vi.fn(async () => ({ approved: false })),
     });
 
-    expect(model).toBe(mocks.model);
-    expect(mocks.provider).toHaveBeenCalledWith("claude-test", {
-      pathToClaudeCodeExecutable: "/test/claude",
-      cwd: "/tmp/convera-test",
-      mcpServers: {
-        cua: {
-          type: "stdio",
-          command: "cua-driver",
-          args: ["mcp"],
+    expect(run.model).toBe(mocks.model);
+    expect(mocks.provider).toHaveBeenCalledWith(
+      "claude-test",
+      expect.objectContaining({
+        pathToClaudeCodeExecutable: "/test/claude",
+        cwd: "/tmp/convera-test",
+        mcpServers: {
+          cua: {
+            type: "stdio",
+            command: "cua-driver",
+            args: ["mcp"],
+          },
         },
-      },
-      allowedTools: ["mcp__cua__screenshot"],
-    });
+        allowedTools: ["mcp__cua__screenshot"],
+      }),
+    );
     expect(mocks.createSdkMcpServer).not.toHaveBeenCalled();
     expect(mocks.tool).not.toHaveBeenCalled();
   });

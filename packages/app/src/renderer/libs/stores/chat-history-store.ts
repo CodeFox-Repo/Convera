@@ -7,16 +7,21 @@
 
 import type { Message } from "@/renderer/types/chat";
 import { useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import {
   useConversations,
   useMessages,
   createConversation,
   updateConversation,
-  deleteConversation as deleteConv,
   addMessage,
   updateMessages,
   type Conversation,
+  db,
 } from "../db";
+import {
+  deleteConversationWithRuntime,
+  retryPendingConversationDeletion,
+} from "../conversation-lifecycle";
 import { useSelectionStore } from "../db/ui-state";
 
 // Re-export types for backward compatibility
@@ -25,6 +30,9 @@ export interface ConversationData {
   title: string | null;
   agentId: string | null;
   modelId: string | null;
+  activeRevision: number;
+  activeProviderId: string | null;
+  activeModelId: string | null;
   systemPrompt: string | null;
   metadata: {
     settings?: Record<string, unknown>;
@@ -36,6 +44,67 @@ export interface ConversationData {
   messages: Message[];
   createdAt: string;
   updatedAt: string;
+}
+
+function parseModelSelection(modelId?: string) {
+  const separatorIndex = modelId?.indexOf(":") ?? -1;
+  return {
+    providerId:
+      modelId && separatorIndex >= 0 ? modelId.slice(0, separatorIndex) : null,
+    activeModelId:
+      modelId && separatorIndex >= 0 ? modelId.slice(separatorIndex + 1) : null,
+  };
+}
+
+const reportedDeletionErrors = new Map<string, string>();
+
+function deletionToastId(conversationId: string): string {
+  return `conversation-deletion:${conversationId}`;
+}
+
+export function notifyDeferredDeletion(
+  conversationId: string,
+  error: unknown,
+): void {
+  const message =
+    error instanceof Error ? error.message : "Conversation deletion failed.";
+  if (reportedDeletionErrors.get(conversationId) === message) return;
+  reportedDeletionErrors.set(conversationId, message);
+  const retryable = !(
+    typeof error === "object" &&
+    error !== null &&
+    "retryable" in error &&
+    error.retryable === false
+  );
+  toast.error("Conversation deletion is pending", {
+    id: deletionToastId(conversationId),
+    description: `${message} Convera will retry automatically.`,
+    ...(retryable
+      ? {}
+      : {
+          description: message,
+          duration: Infinity,
+          action: {
+            label: "Retry",
+            onClick: () => {
+              reportedDeletionErrors.delete(conversationId);
+              void retryPendingConversationDeletion(conversationId)
+                .then(() => {
+                  clearDeletionFailureNotification(conversationId);
+                  toast.success("Conversation deleted");
+                })
+                .catch((retryError) => {
+                  notifyDeferredDeletion(conversationId, retryError);
+                });
+            },
+          },
+        }),
+  });
+}
+
+export function clearDeletionFailureNotification(conversationId: string): void {
+  reportedDeletionErrors.delete(conversationId);
+  toast.dismiss(deletionToastId(conversationId));
 }
 
 // ==================== Hooks ====================
@@ -57,6 +126,9 @@ export function useChatHistoryStore() {
     title: conv.title,
     agentId: conv.agentId,
     modelId: conv.modelId,
+    activeRevision: conv.activeRevision,
+    activeProviderId: conv.activeProviderId,
+    activeModelId: conv.activeModelId,
     systemPrompt: conv.systemPrompt,
     metadata: conv.metadata as ConversationData["metadata"],
     messages: [], // Messages are queried separately
@@ -85,10 +157,14 @@ export function useChatHistoryStore() {
         content: string;
       };
     }) => {
+      const selection = parseModelSelection(options?.modelId);
       const id = await createConversation({
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
       });
@@ -112,9 +188,22 @@ export function useChatHistoryStore() {
     },
 
     deleteConversation: async (id: string) => {
-      await deleteConv(id);
-      if (currentConversationId === id) {
-        setCurrentConversation(null);
+      try {
+        await deleteConversationWithRuntime(id, true);
+      } catch (error) {
+        if (await db.pendingConversationDeletions.get(id)) {
+          notifyDeferredDeletion(id, error);
+        }
+        throw error;
+      } finally {
+        const [intent, conversation] = await Promise.all([
+          db.pendingConversationDeletions.get(id),
+          db.conversations.get(id),
+        ]);
+        if (currentConversationId === id && (intent || !conversation)) {
+          setCurrentConversation(null);
+        }
+        if (!intent) clearDeletionFailureNotification(id);
       }
     },
 
@@ -131,6 +220,11 @@ export function useChatHistoryStore() {
             typeof m.content === "string"
               ? m.content
               : JSON.stringify(m.content),
+          senderId: m.senderId,
+          mentions: m.mentions,
+          // updateMessages rewrites every row, so reactions must ride along or
+          // a save would silently drop them.
+          reactions: m.reactions,
           parts: m.parts,
           experimental_attachments: m.experimental_attachments?.map((a) => ({
             url: a.url,
@@ -151,6 +245,9 @@ export function useChatHistoryStore() {
           typeof message.content === "string"
             ? message.content
             : JSON.stringify(message.content),
+        senderId: message.senderId,
+        mentions: message.mentions,
+        reactions: message.reactions,
         parts: message.parts,
         experimental_attachments: message.experimental_attachments?.map(
           (a) => ({
@@ -187,6 +284,9 @@ export function useChatHistory(
           id: m.id,
           role: m.role as "user" | "assistant" | "system" | "data",
           content: m.content,
+          senderId: m.senderId,
+          mentions: m.mentions,
+          reactions: m.reactions,
           parts: m.parts as Message["parts"],
           experimental_attachments:
             m.experimental_attachments as Message["experimental_attachments"],
@@ -202,6 +302,9 @@ export function useChatHistory(
     title: conv.title,
     agentId: conv.agentId,
     modelId: conv.modelId,
+    activeRevision: conv.activeRevision,
+    activeProviderId: conv.activeProviderId,
+    activeModelId: conv.activeModelId,
     systemPrompt: conv.systemPrompt,
     metadata: conv.metadata as ConversationData["metadata"],
     messages: [],
@@ -218,9 +321,27 @@ export function useChatHistory(
 
   const deleteChat = useCallback(
     async (conversationId: string) => {
-      await deleteConv(conversationId);
-      if (currentConversationId === conversationId) {
-        setCurrentConversation(null);
+      try {
+        await deleteConversationWithRuntime(conversationId, true);
+      } catch (error) {
+        if (await db.pendingConversationDeletions.get(conversationId)) {
+          notifyDeferredDeletion(conversationId, error);
+        }
+        throw error;
+      } finally {
+        const [intent, conversation] = await Promise.all([
+          db.pendingConversationDeletions.get(conversationId),
+          db.conversations.get(conversationId),
+        ]);
+        if (
+          currentConversationId === conversationId &&
+          (intent || !conversation)
+        ) {
+          setCurrentConversation(null);
+        }
+        if (!intent) {
+          clearDeletionFailureNotification(conversationId);
+        }
       }
     },
     [currentConversationId, setCurrentConversation],
@@ -236,10 +357,14 @@ export function useChatHistory(
         content: string;
       };
     }) => {
+      const selection = parseModelSelection(options?.modelId);
       const id = await createConversation({
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
       });
@@ -258,6 +383,9 @@ export function useChatHistory(
         title: options?.title ?? null,
         agentId: options?.agentId ?? null,
         modelId: options?.modelId ?? null,
+        activeRevision: 0,
+        activeProviderId: selection.providerId,
+        activeModelId: selection.activeModelId,
         systemPrompt: null,
         metadata: null,
         messages: options?.initialMessage

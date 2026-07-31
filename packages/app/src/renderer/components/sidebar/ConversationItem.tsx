@@ -7,10 +7,10 @@ import {
   ContextMenuTrigger,
 } from "@/renderer/components/ui/context-menu";
 import type { Conversation } from "@/renderer/libs/db/database";
-import {
-  updateConversation,
-  deleteConversation,
-} from "@/renderer/libs/db/hooks";
+import { updateConversation } from "@/renderer/libs/db/hooks";
+import { deleteConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
+import { useSelectionStore } from "@/renderer/libs/db/ui-state";
+import { notifyDeferredDeletion } from "@/renderer/libs/stores/chat-history-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import {
   Archive,
@@ -25,6 +25,7 @@ import {
 interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
+  isUnread: boolean;
   onSelect: () => void;
 }
 
@@ -45,12 +46,14 @@ function formatRelativeTime(date: Date): string {
 export function ConversationItem({
   conversation,
   isActive,
+  isUnread,
   onSelect,
 }: ConversationItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(conversation.title || "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { currentConversationId, setCurrentConversation } = useSelectionStore();
 
   const isStarred = conversation.metadata?.starred ?? false;
   const isArchived = conversation.metadata?.archived ?? false;
@@ -99,47 +102,71 @@ export function ConversationItem({
 
   const handleDelete = async () => {
     if (showDeleteConfirm) {
-      await deleteConversation(conversation.id);
-      setShowDeleteConfirm(false);
+      try {
+        await deleteConversationWithRuntime(conversation.id, true);
+        if (currentConversationId === conversation.id) {
+          setCurrentConversation(null);
+        }
+        setShowDeleteConfirm(false);
+      } catch (error) {
+        console.error("Failed to delete conversation:", error);
+        notifyDeferredDeletion(conversation.id, error);
+      }
     } else {
       setShowDeleteConfirm(true);
     }
   };
 
+  // Every chat is with the same default assistant (Convera), so the row
+  // identity is the conversation topic — not a per-row persona.
   const displayTitle = conversation.title || "Untitled conversation";
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <button
-          onClick={onSelect}
-          className={cn(
-            "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left pointer-events-auto transition-colors",
-            isActive
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+        <div className="relative">
+          {isUnread && !isActive && (
+            <span className="absolute left-0 top-1/2 h-3 w-1 -translate-x-1 -translate-y-1/2 rounded-full bg-primary" />
           )}
-        >
-          <MessageSquare size={14} className="flex-shrink-0 opacity-50" />
-          {isRenaming ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onBlur={handleRename}
-              onKeyDown={handleKeyDown}
-              className="flex-1 min-w-0 bg-transparent border-b border-foreground/30 outline-none text-foreground text-sm"
-            />
-          ) : (
-            <span className="flex-1 min-w-0 truncate text-sm">
-              {displayTitle}
+          <button
+            onClick={onSelect}
+            className={cn(
+              "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left pointer-events-auto transition-colors",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "hover:bg-sidebar-hover hover:text-sidebar-foreground",
+              !isActive &&
+                (isUnread
+                  ? "text-sidebar-foreground"
+                  : "text-muted-foreground"),
+            )}
+          >
+            <MessageSquare size={14} className="flex-shrink-0 opacity-50" />
+            {isRenaming ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={handleRename}
+                onKeyDown={handleKeyDown}
+                className="flex-1 min-w-0 bg-transparent border-b border-foreground/30 outline-none text-foreground text-sm"
+              />
+            ) : (
+              <span
+                className={cn(
+                  "flex-1 min-w-0 truncate text-sm",
+                  isUnread && !isActive && "font-semibold",
+                )}
+              >
+                {displayTitle}
+              </span>
+            )}
+            <span className="flex-shrink-0 text-xs text-muted-foreground">
+              {formatRelativeTime(conversation.updatedAt)}
             </span>
-          )}
-          <span className="flex-shrink-0 text-xs opacity-50">
-            {formatRelativeTime(conversation.updatedAt)}
-          </span>
-        </button>
+          </button>
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
@@ -180,7 +207,11 @@ export function ConversationItem({
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={handleDelete}>
           <Trash2 size={14} />
-          <span>{showDeleteConfirm ? "Click again to confirm" : "Delete"}</span>
+          <span>
+            {showDeleteConfirm
+              ? "Confirm chat + conversation memory"
+              : "Delete"}
+          </span>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

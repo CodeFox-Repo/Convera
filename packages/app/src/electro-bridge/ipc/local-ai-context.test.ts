@@ -1,4 +1,5 @@
 import type {
+  LocalAIChatRequest,
   LocalAIRuntimeService,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
@@ -87,6 +88,63 @@ function createRuntime(
     startChat: vi.fn(),
     abort: vi.fn(() => true),
     respondToInteraction: vi.fn(() => false),
+    getConversationRuntimeState: vi.fn(() => null),
+    getTurnRuntimeState: vi.fn(() => null),
+    acknowledgeTurnPersistence: vi.fn(() => true),
+    quiesceConversation: vi.fn(() => "lease-1"),
+    resumeConversation: vi.fn(() => true),
+    branchConversation: vi.fn((request) => ({
+      conversationId: request.targetConversationId,
+      revision: 0,
+      memoryEpoch: 0,
+      memoryVersion: 0,
+      transcriptVersion: 0,
+      providers: [],
+    })),
+    deleteConversation: vi.fn(() => true),
+    resetConversationProviderSession: vi.fn((request) => ({
+      conversationId: request.conversationId,
+      revision: 0,
+      memoryEpoch: 0,
+      memoryVersion: 0,
+      transcriptVersion: 0,
+      providers: [],
+    })),
+    getMemorySettings: vi.fn(() => ({
+      provider: "off" as const,
+      subconsciousProvider: "off" as const,
+      schedule: "every-turn" as const,
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    })),
+    updateMemorySettings: vi.fn(() => ({
+      provider: "off" as const,
+      subconsciousProvider: "off" as const,
+      schedule: "every-turn" as const,
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    })),
+    getMemoryStatus: vi.fn(() => ({
+      health: "disabled" as const,
+      pendingJobs: 0,
+      failedJobs: 0,
+    })),
+    ...overrides,
+  };
+}
+
+function chatRequest(
+  overrides: Partial<LocalAIChatRequest> = {},
+): LocalAIChatRequest {
+  return {
+    requestId: "request-1",
+    conversationId: "conversation-1",
+    turnId: "turn-1",
+    providerId: "codex-cli",
+    operation: {
+      kind: "append",
+      message: { role: "user", content: "hello" },
+    },
     ...overrides,
   };
 }
@@ -172,11 +230,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     const forbidden = start?.(createEvent(otherSender), request);
     expect(forbidden).toMatchObject({
@@ -223,10 +277,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const baseRequest = {
-      requestId: "request-1",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const baseRequest = chatRequest();
 
     expect(
       start?.(createEvent(sender), {
@@ -242,7 +293,10 @@ describe("local AI IPC", () => {
       start?.(createEvent(sender), {
         ...baseRequest,
         providerId: "claude-code",
-        messages: [{ role: "user", content: "x".repeat(200_001) }],
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "x".repeat(200_001) },
+        },
       }),
     ).toMatchObject({
       success: false,
@@ -264,23 +318,40 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const baseRequest = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const baseRequest = chatRequest();
     const invalidRequests = [
       { ...baseRequest, modelId: { id: "not-a-string" } },
       { ...baseRequest, agent: { systemPrompt: 42 } },
+      {
+        ...baseRequest,
+        agent: { id: "fizz", memberId: "agent:honey" },
+      },
+      {
+        ...baseRequest,
+        agent: { id: "../fizz", memberId: "agent:../fizz" },
+      },
       { ...baseRequest, options: { temperature: Number.NaN } },
       { ...baseRequest, options: { maxOutputTokens: 0 } },
       {
         ...baseRequest,
+        operation: {
+          kind: "append",
+          message: { id: "latest", role: "user", content: "latest" },
+          recoveryMessages: [
+            { id: "different", role: "user", content: "different" },
+          ],
+        },
+      },
+      {
+        ...baseRequest,
         agent: { systemPrompt: "x" },
-        messages: Array.from({ length: 5 }, () => ({
-          role: "user",
-          content: "x".repeat(200_000),
-        })),
+        operation: {
+          kind: "bootstrap",
+          messages: Array.from({ length: 6 }, () => ({
+            role: "user",
+            content: "x".repeat(200_000),
+          })),
+        },
       },
     ];
 
@@ -292,6 +363,32 @@ describe("local AI IPC", () => {
       });
     }
     expect(runtime.startChat).not.toHaveBeenCalled();
+  });
+
+  it("accepts a provider-switch rebase through privileged validation", () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
+    const request = chatRequest({
+      operation: {
+        kind: "rebase",
+        reason: "provider-switch",
+        messages: [{ role: "user", content: "authoritative transcript" }],
+      },
+    });
+
+    expect(start?.(createEvent(sender), request)).toMatchObject({
+      success: true,
+      accepted: true,
+    });
   });
 
   it("accepts interaction responses only from the active request owner", async () => {
@@ -312,11 +409,10 @@ describe("local AI IPC", () => {
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const respond = handlers.get(LOCAL_AI_CHANNELS.RESPOND_INTERACTION);
 
-    start?.(createEvent(allowedSender), {
-      requestId: "request-1",
-      providerId: "claude-code",
-      messages: [{ role: "user", content: "hello" }],
-    });
+    start?.(
+      createEvent(allowedSender),
+      chatRequest({ providerId: "claude-code" }),
+    );
 
     await expect(
       respond?.(createEvent(allowedSender), "request-1", "interaction-1", {
@@ -387,24 +483,23 @@ describe("local AI IPC", () => {
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
 
-    start?.(createEvent(sender), {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    });
+    start?.(createEvent(sender), chatRequest());
+    expect(resolveChat).toBeTypeOf("function");
     sender.destroy();
 
     expect(runtime.abort).toHaveBeenCalledWith("request-1");
     resolveChat?.();
   });
 
-  it("makes an accepted abort terminal and releases the request id", async () => {
+  it("waits for the authoritative runtime terminal after an accepted abort", async () => {
     const sender = new FakeWebContents(1);
     const pendingChats: Array<() => void> = [];
+    let emitRuntimeEvent: ((event: LocalAIStreamEvent) => void) | undefined;
     const runtime = createRuntime({
       startChat: vi.fn(
-        () =>
+        (_request, emit) =>
           new Promise<void>((resolve) => {
+            emitRuntimeEvent = emit;
             pendingChats.push(resolve);
           }),
       ),
@@ -420,11 +515,7 @@ describe("local AI IPC", () => {
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
     const abort = handlers.get(LOCAL_AI_CHANNELS.ABORT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,
@@ -434,14 +525,35 @@ describe("local AI IPC", () => {
       success: true,
       data: { aborted: true },
     });
-    expect(sender.sent.at(-1)).toEqual({
-      channel: LOCAL_AI_CHANNELS.EVENT,
-      event: {
-        type: "finish",
-        requestId: "request-1",
-        finishReason: "aborted",
-      },
+    expect(sender.sent).toEqual([]);
+    expect(start?.(createEvent(sender), request)).toMatchObject({
+      success: false,
+      accepted: false,
+      error: { code: "LOCAL_AI_DUPLICATE_REQUEST" },
     });
+
+    emitRuntimeEvent?.({
+      type: "finish",
+      requestId: "request-1",
+      finishReason: "aborted",
+      conversationId: "conversation-1",
+      turnId: "turn-1",
+      revision: 4,
+    });
+    pendingChats.shift()?.();
+    await vi.waitFor(() =>
+      expect(sender.sent.at(-1)).toEqual({
+        channel: LOCAL_AI_CHANNELS.EVENT,
+        event: {
+          type: "finish",
+          requestId: "request-1",
+          finishReason: "aborted",
+          conversationId: "conversation-1",
+          turnId: "turn-1",
+          revision: 4,
+        },
+      }),
+    );
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,
@@ -468,11 +580,7 @@ describe("local AI IPC", () => {
       ipc as never,
     );
     const start = handlers.get(LOCAL_AI_CHANNELS.START_CHAT);
-    const request = {
-      requestId: "request-1",
-      providerId: "codex-cli",
-      messages: [{ role: "user", content: "hello" }],
-    };
+    const request = chatRequest();
 
     expect(start?.(createEvent(sender), request)).toEqual({
       success: true,
@@ -504,15 +612,315 @@ describe("local AI IPC", () => {
     });
   });
 
+  it("validates and forwards conversation lifecycle requests", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+
+    const branch = handlers.get(LOCAL_AI_CHANNELS.BRANCH_CONVERSATION);
+    const quiesce = handlers.get(LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION);
+    const resume = handlers.get(LOCAL_AI_CHANNELS.RESUME_CONVERSATION);
+    const remove = handlers.get(LOCAL_AI_CHANNELS.DELETE_CONVERSATION);
+    const reset = handlers.get(
+      LOCAL_AI_CHANNELS.RESET_CONVERSATION_PROVIDER_SESSION,
+    );
+    const branchRequest = {
+      sourceConversationId: "conversation-1",
+      targetConversationId: "conversation-2",
+      throughMessageId: "message-2",
+      bootstrapMessages: [{ role: "user", content: "hello" }],
+    };
+
+    await expect(
+      branch?.(createEvent(sender), branchRequest),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { conversationId: "conversation-2", revision: 0 },
+    });
+    expect(runtime.branchConversation).toHaveBeenCalledWith(branchRequest);
+
+    await expect(
+      quiesce?.(createEvent(sender), "conversation-1"),
+    ).resolves.toEqual({
+      success: true,
+      data: { quiesced: true, leaseToken: "lease-1" },
+    });
+    expect(runtime.quiesceConversation).toHaveBeenCalledWith("conversation-1");
+    await expect(
+      resume?.(createEvent(sender), {
+        conversationId: "conversation-1",
+        leaseToken: "lease-1",
+      }),
+    ).resolves.toEqual({
+      success: true,
+      data: { resumed: true },
+    });
+    expect(runtime.resumeConversation).toHaveBeenCalledWith(
+      "conversation-1",
+      "lease-1",
+    );
+
+    await quiesce?.(createEvent(sender), "conversation-1");
+
+    await expect(
+      remove?.(createEvent(sender), {
+        conversationId: "conversation-1",
+        forgetConversationMemory: false,
+        leaseToken: "lease-1",
+      }),
+    ).resolves.toEqual({
+      success: true,
+      data: { deleted: true },
+    });
+
+    await expect(
+      reset?.(createEvent(sender), {
+        conversationId: "conversation-1",
+        providerId: "codex-cli",
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { conversationId: "conversation-1" },
+    });
+  });
+
+  it("releases a renderer-owned lease when its sender is destroyed", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime({
+      quiesceConversation: vi.fn(() => "lease-1"),
+      resumeConversation: vi.fn(() => true),
+    });
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+
+    await handlers.get(LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION)?.(
+      createEvent(sender),
+      "conversation-1",
+    );
+    sender.destroy();
+
+    await vi.waitFor(() => {
+      expect(runtime.resumeConversation).toHaveBeenCalledWith(
+        "conversation-1",
+        "lease-1",
+      );
+    });
+  });
+
+  it("requires the owning lease token for resume and delete", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    await handlers.get(LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION)?.(
+      createEvent(sender),
+      "conversation-1",
+    );
+
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.RESUME_CONVERSATION)?.(
+        createEvent(sender),
+        { conversationId: "conversation-1", leaseToken: "wrong-lease" },
+      ),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_CONVERSATION_LEASE_INVALID" },
+    });
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.DELETE_CONVERSATION)?.(
+        createEvent(sender),
+        {
+          conversationId: "conversation-1",
+          forgetConversationMemory: true,
+          leaseToken: "wrong-lease",
+        },
+      ),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_CONVERSATION_LEASE_INVALID" },
+    });
+    expect(runtime.deleteConversation).not.toHaveBeenCalled();
+  });
+
+  it("queries and acknowledges durable terminal turn state", async () => {
+    const sender = new FakeWebContents(1);
+    const turnRequest = {
+      conversationId: "conversation-1",
+      turnId: "turn-1",
+    };
+    const runtime = createRuntime({
+      getTurnRuntimeState: vi.fn(() => ({
+        ...turnRequest,
+        requestId: "request-1",
+        providerId: "codex-cli",
+        revision: 2,
+        status: "completed" as const,
+        startedAt: "2026-07-31T00:00:00.000Z",
+        completedAt: "2026-07-31T00:00:01.000Z",
+        finishReason: "stop" as const,
+        assistantText: "replay me",
+      })),
+      acknowledgeTurnPersistence: vi.fn(() => true),
+    });
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.GET_TURN_RUNTIME_STATE)?.(
+        createEvent(sender),
+        turnRequest,
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { status: "completed", assistantText: "replay me" },
+    });
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.ACKNOWLEDGE_TURN_PERSISTENCE)?.(
+        createEvent(sender),
+        turnRequest,
+      ),
+    ).resolves.toEqual({
+      success: true,
+      data: { acknowledged: true },
+    });
+    expect(runtime.acknowledgeTurnPersistence).toHaveBeenCalledWith(
+      turnRequest,
+    );
+  });
+
+  it("validates memory settings before they reach privileged storage", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+    const validUpdate = {
+      provider: "local",
+      subconsciousProvider: "follow-active",
+      schedule: "batch",
+      batchSize: 5,
+      idleDelayMs: 30_000,
+    };
+
+    await expect(
+      update?.(createEvent(sender), validUpdate),
+    ).resolves.toMatchObject({ success: true });
+    expect(runtime.updateMemorySettings).toHaveBeenCalledWith(validUpdate);
+
+    await expect(
+      update?.(createEvent(sender), {
+        apiKey: 42,
+        unknownSetting: true,
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(runtime.updateMemorySettings).toHaveBeenCalledOnce();
+  });
+
+  it("accepts local and paused memory providers", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+
+    await expect(
+      update?.(createEvent(sender), { provider: "local" }),
+    ).resolves.toMatchObject({ success: true });
+    await expect(
+      update?.(createEvent(sender), { provider: "off" }),
+    ).resolves.toMatchObject({ success: true });
+
+    expect(runtime.updateMemorySettings).toHaveBeenNthCalledWith(1, {
+      provider: "local",
+    });
+    expect(runtime.updateMemorySettings).toHaveBeenNthCalledWith(2, {
+      provider: "off",
+    });
+    expect(runtime.getMemorySettings).not.toHaveBeenCalled();
+  });
+
+  it("rejects the removed Letta provider and connection fields", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+    const update = handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS);
+
+    await expect(
+      update?.(createEvent(sender), { apiKey: "must-not-leak" }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    await expect(
+      update?.(createEvent(sender), {
+        provider: "letta",
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+
+    expect(runtime.updateMemorySettings).not.toHaveBeenCalled();
+  });
+
   it("serializes Error fields without crossing the process boundary", () => {
     const error = Object.assign(new Error("CLI failed"), {
       code: "CLI_EXITED",
+      retryable: false,
     });
 
     expect(serializeLocalAIError(error)).toMatchObject({
       name: "Error",
       message: "CLI failed",
       code: "CLI_EXITED",
+      retryable: false,
     });
   });
 });

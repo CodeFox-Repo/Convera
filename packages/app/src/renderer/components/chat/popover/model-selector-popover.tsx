@@ -81,11 +81,14 @@ export default function ModelSelector() {
 
   // Find current selected model display name
   const selectedDisplayName = useMemo(() => {
-    if (selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID) {
-      return "Auto";
-    }
-    return formatModelName(selectedModelId);
-  }, [selectedModelId]);
+    const providerName =
+      groupedModels[selectedConfigId]?.configName ?? selectedConfigId;
+    const modelName =
+      selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+        ? "Auto"
+        : formatModelName(selectedModelId);
+    return `${providerName} · ${modelName}`;
+  }, [groupedModels, selectedConfigId, selectedModelId]);
 
   if (availableModels.length === 0) {
     return null;
@@ -100,7 +103,7 @@ export default function ModelSelector() {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          className="w-[320px] bg-popover border border-border rounded-xl shadow-lg z-50"
+          className="w-[320px] bg-popover border border-border rounded-xl shadow-lg z-50 text-popover-foreground"
           side="bottom"
           align="start"
           sideOffset={8}

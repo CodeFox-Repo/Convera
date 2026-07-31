@@ -1,5 +1,6 @@
 /dist
 /coverage
+/.automation
 /.vite
 .vite/
 /out

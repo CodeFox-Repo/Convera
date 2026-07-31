@@ -100,3 +100,6 @@ out/
 # PNPM specific
 .pnpm-store/
 .pnpm-debug.log*
+
+# Test artifacts
+packages/app/playwright-report/

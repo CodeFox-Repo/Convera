@@ -86,7 +86,7 @@ const ModifiedContentBlock = memo(
               disabled={isPasting}
               className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
                 isPasting
-                  ? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                  ? "bg-muted text-muted-foreground"
                   : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-800/30"
               } transition-colors`}
             >
