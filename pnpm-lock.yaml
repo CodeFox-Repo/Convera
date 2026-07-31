@@ -36,8 +36,8 @@ importers:
         specifier: ^1.0.18
         version: 1.0.18
       '@modelcontextprotocol/sdk':
-        specifier: 1.12.3
-        version: 1.12.3
+        specifier: 1.13.0
+        version: 1.13.0
       '@radix-ui/react-accordion':
         specifier: ^1.2.4
         version: 1.2.11(@types/react-dom@19.1.4)(@types/react@19.1.4)(react-dom@19.1.0)(react@19.1.0)
@@ -3564,8 +3564,8 @@ packages:
       langium: 3.3.1
     dev: false
 
-  /@modelcontextprotocol/sdk@1.12.3:
-    resolution: {integrity: sha512-DyVYSOafBvk3/j1Oka4z5BWT8o4AFmoNyZY9pALOm7Lh3GZglR71Co4r4dEUoqDWdDazIZQHBe7J2Nwkg6gHgQ==}
+  /@modelcontextprotocol/sdk@1.13.0:
+    resolution: {integrity: sha512-P5FZsXU0kY881F6Hbk9GhsYx02/KgWK1DYf7/tyE/1lcFKhDYPQR9iYjhQXJn+Sg6hQleMo3DB7h7+p4wgp2Lw==}
     engines: {node: '>=18'}
     dependencies:
       ajv: 6.12.6
@@ -6835,7 +6835,7 @@ packages:
     resolution: {integrity: sha512-Rt7kee+mc4YE4szzA13YESBfM8H7V9zR05OJQbyRLXHsnnBX4PfLOGLqbhgQ4ccTOZgUGxjmESuklExw+kXnJQ==}
     dependencies:
       '@anthropic-ai/sdk': 0.32.1
-      '@modelcontextprotocol/sdk': 1.12.3
+      '@modelcontextprotocol/sdk': 1.13.0
       ai: 4.3.19(react@19.1.0)(zod@3.25.76)
       express: 5.1.0
       json-schema: 0.4.0
@@ -12549,11 +12549,6 @@ packages:
     engines: {node: '>=0.8.x'}
     dev: true
 
-  /eventsource-parser@3.0.1:
-    resolution: {integrity: sha512-VARTJ9CYeuQYb0pZEPbzi740OWFgpHe7AYJ2WFZVnUDUQp5Dk2yJUgF36YsZ81cOyxT0QxmXD2EQpapAouzWVA==}
-    engines: {node: '>=18.0.0'}
-    dev: false
-
   /eventsource-parser@3.1.0:
     resolution: {integrity: sha512-kJezFj9YFAMLeORyi7aCLxLbD5/qWMQnoMVlVPyHIll7lgRJCc3JVln9Vgl9nwQi0YkMnhdGTMNn7CkRRAptMg==}
     engines: {node: '>=18.0.0'}
@@ -12563,7 +12558,7 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
     dependencies:
-      eventsource-parser: 3.0.1
+      eventsource-parser: 3.1.0
     dev: false
 
   /execa@1.0.0:

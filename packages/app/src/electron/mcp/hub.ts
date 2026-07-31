@@ -11,6 +11,11 @@ import * as path from "path";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { BUILTIN_TOOL_ANNOTATIONS, BUILTIN_TOOLS_REGISTRY } from "../tools";
 import { MCPConnection } from "./connection";
+import {
+  CUA_SERVER_ID,
+  normalizeManagedServer,
+  withManagedServers,
+} from "./managed-servers";
 
 /**
  * Generic wrapper for builtin tool calls
@@ -53,7 +58,8 @@ export class MCPHub extends EventEmitter {
     }
 
     // Load configuration
-    this.config = this.loadConfig();
+    this.config = withManagedServers(this.loadConfig());
+    this.saveConfig();
   }
 
   /**
@@ -182,13 +188,11 @@ export class MCPHub extends EventEmitter {
 
     // Start all connections concurrently without waiting for completion
     // This avoids blocking initialization on slow/failing connections
-    servers
-      .filter(([, serverConfig]) => serverConfig.disabled !== true)
-      .forEach(([name, serverConfig]) => {
-        this.connectServer(name, serverConfig).catch((error) => {
-          console.error(`✗ Failed to connect MCP server ${name}:`, error);
-        });
+    servers.forEach(([name, serverConfig]) => {
+      this.connectServer(name, serverConfig).catch((error) => {
+        console.error(`✗ Failed to connect MCP server ${name}:`, error);
       });
+    });
 
     console.log(`MCP initialization started for ${servers.length} servers`);
   }
@@ -207,14 +211,7 @@ export class MCPHub extends EventEmitter {
 
     const connection = new MCPConnection(name, config);
 
-    // Forward events
-    connection.on("toolsChanged", (data) => this.emit("toolsChanged", data));
-    connection.on("resourcesChanged", (data) =>
-      this.emit("resourcesChanged", data),
-    );
-    connection.on("promptsChanged", (data) =>
-      this.emit("promptsChanged", data),
-    );
+    this.attachConnectionEvents(connection);
 
     this.connections.set(name, connection);
     await connection.connect();
@@ -287,14 +284,22 @@ export class MCPHub extends EventEmitter {
    * Add new server
    */
   async addServer(name: string, config: MCPServerConfig): Promise<ServerInfo> {
-    this.config.mcpServers[name] = config;
+    if (name === CUA_SERVER_ID) {
+      throw new Error(
+        `Server '${CUA_SERVER_ID}' is managed by Convera and cannot be replaced`,
+      );
+    }
+
+    const normalizedConfig = normalizeManagedServer(name, config);
+    this.config.mcpServers[name] = normalizedConfig;
     this.saveConfig();
 
-    if (config.disabled !== true) {
-      return await this.connectServer(name, config);
+    if (normalizedConfig.disabled !== true) {
+      return await this.connectServer(name, normalizedConfig);
     } else {
       // Create connection but don't start
-      const connection = new MCPConnection(name, config);
+      const connection = new MCPConnection(name, normalizedConfig);
+      this.attachConnectionEvents(connection);
       this.connections.set(name, connection);
       return connection.getServerInfo();
     }
@@ -304,6 +309,12 @@ export class MCPHub extends EventEmitter {
    * Remove server
    */
   async removeServer(name: string): Promise<void> {
+    if (name === CUA_SERVER_ID) {
+      throw new Error(
+        `Server '${name}' is managed by Convera and cannot be removed; disable it instead`,
+      );
+    }
+
     await this.disconnectServer(name);
     delete this.config.mcpServers[name];
     this.saveConfig();
@@ -316,23 +327,31 @@ export class MCPHub extends EventEmitter {
     name: string,
     config: MCPServerConfig,
   ): Promise<ServerInfo> {
-    this.config.mcpServers[name] = config;
+    const normalizedConfig = normalizeManagedServer(name, config);
+    this.config.mcpServers[name] = normalizedConfig;
     this.saveConfig();
 
-    const connection = this.connections.get(name);
-    if (connection) {
+    await this.disconnectServer(name);
+    const connection = new MCPConnection(name, normalizedConfig);
+    this.attachConnectionEvents(connection);
+    this.connections.set(name, connection);
+
+    if (normalizedConfig.disabled === true) {
+      await connection.connect();
       return connection.getServerInfo();
-    } else {
-      // If no connection exists, create one if enabled
-      if (config.disabled !== true) {
-        return await this.connectServer(name, config);
-      } else {
-        // Create connection but don't start
-        const connection = new MCPConnection(name, config);
-        this.connections.set(name, connection);
-        return connection.getServerInfo();
-      }
     }
+
+    try {
+      await connection.connect();
+    } catch (error) {
+      if (!normalizedConfig.managed) {
+        throw error;
+      }
+      return connection.getServerInfo();
+    }
+
+    this.updateToolCache();
+    return connection.getServerInfo();
   }
 
   /**
@@ -483,7 +502,7 @@ export class MCPHub extends EventEmitter {
    * Update configuration
    */
   async updateConfig(newConfig: MCPConfig): Promise<void> {
-    this.config = newConfig;
+    this.config = withManagedServers(newConfig);
     this.saveConfig();
   }
 
@@ -525,6 +544,19 @@ export class MCPHub extends EventEmitter {
    */
   hasServer(name: string): boolean {
     return this.connections.has(name);
+  }
+
+  private attachConnectionEvents(connection: MCPConnection): void {
+    connection.on("toolsChanged", (data) => this.emit("toolsChanged", data));
+    connection.on("resourcesChanged", (data) =>
+      this.emit("resourcesChanged", data),
+    );
+    connection.on("promptsChanged", (data) =>
+      this.emit("promptsChanged", data),
+    );
+    connection.on("connectionError", (data) =>
+      this.emit("connectionError", data),
+    );
   }
 
   /**

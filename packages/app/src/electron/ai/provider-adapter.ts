@@ -1,7 +1,11 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { LanguageModel, ProviderMetadata } from "ai";
-import type { AgentTool, AgentToolInteraction } from "./agent-tools";
+import type {
+  AgentTool,
+  AgentToolInteraction,
+  NativeMcpServer,
+} from "./agent-tools";
 import type { ProviderSessionBinding } from "./session/types";
 import type { LocalAiProviderId, LocalAiProviderStatus } from "./types";
 
@@ -29,6 +33,9 @@ export type LocalAiProviderExecutionPolicy = "interactive" | "text-only";
 export interface LocalAiProviderRunContext {
   session?: ProviderSessionBinding;
   tools: AgentTool[];
+  nativeMcpServers?: Readonly<
+    Record<string, NativeMcpServer & { toolNames: string[] }>
+  >;
   executionPolicy?: LocalAiProviderExecutionPolicy;
   /** Always supplied by LocalAiRuntime; optional for direct adapter callers. */
   sandbox?: AgentSandbox;

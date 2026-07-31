@@ -731,12 +731,35 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           );
         }
 
+        const toolGroups =
+          this.executionPolicy === "text-only"
+            ? []
+            : await this.getToolGroups();
+        controller.signal.throwIfAborted();
+        const nativeMcpServers =
+          this.executionPolicy === "text-only"
+            ? {}
+            : Object.fromEntries(
+                toolGroups.flatMap((group) =>
+                  group.nativeMcpServer
+                    ? [
+                        [
+                          group.serverName,
+                          {
+                            ...group.nativeMcpServer,
+                            toolNames: group.tools.map((tool) => tool.name),
+                          },
+                        ],
+                      ]
+                    : [],
+                ),
+              );
         const tools =
           this.executionPolicy === "text-only"
             ? []
             : this.mergeTools(
                 createAgentToolCatalog({
-                  groups: await this.getToolGroups(),
+                  groups: toolGroups.filter((group) => !group.nativeMcpServer),
                   executeTool: this.executeTool,
                   requestInteraction,
                   sandbox,
@@ -747,6 +770,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         const run = await adapter.prepareRun(trustedRequest, probeStatus, {
           session: resumableBinding,
           tools,
+          nativeMcpServers,
           executionPolicy: this.executionPolicy,
           sandbox,
           requestInteraction,

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { getLogger, initializeLogger } from "@/electron/logger";
 import {
   callTool,
-  getAllTools,
+  getAgentToolGroups,
   getMCPHub,
   initializeMCPHub,
   mcpToolCall,
@@ -166,7 +166,7 @@ app.whenReady().then(async () => {
       },
       getToolGroups: async () => {
         await initializeMCPHub();
-        return getAllTools();
+        return getAgentToolGroups();
       },
       executeTool: (serverName, toolName, input) =>
         serverName.toLowerCase() === "builtin"

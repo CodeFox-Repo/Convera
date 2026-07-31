@@ -35,6 +35,7 @@ export function McpSettingsPage() {
     mcpServers,
     loadingMcpServers,
     handleManualInstallMcp,
+    handleMcpConfigChange,
     handleRemoveServer,
     refreshAll: refreshMcpData,
     subscribeMcpChanges,
@@ -49,6 +50,9 @@ export function McpSettingsPage() {
   const [restartingServers, setRestartingServers] = useState<Set<string>>(
     new Set(),
   );
+  const [updatingServers, setUpdatingServers] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     const mcpStore = useMcpStore.getState();
@@ -60,7 +64,7 @@ export function McpSettingsPage() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [subscribeMcpChanges]);
 
   const handleOpenManualDialog = () => {
     setShowManualConfigDialog(true);
@@ -112,12 +116,31 @@ export function McpSettingsPage() {
   const handleRestartServer = async (serverId: string) => {
     setRestartingServers((prev) => new Set([...prev, serverId]));
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      refreshMcpData();
+      const response = await window.mcpAPI.startServer(serverId);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to restart server");
+      }
+      await refreshMcpData();
     } catch (error) {
       console.error("Failed to restart server:", error);
     } finally {
       setRestartingServers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(serverId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleManagedServerToggle = async (
+    serverId: string,
+    disabled: boolean,
+  ) => {
+    setUpdatingServers((prev) => new Set([...prev, serverId]));
+    try {
+      await handleMcpConfigChange(serverId, "disabled", disabled);
+    } finally {
+      setUpdatingServers((prev) => {
         const newSet = new Set(prev);
         newSet.delete(serverId);
         return newSet;
@@ -267,9 +290,33 @@ export function McpSettingsPage() {
                               {server.description}
                             </p>
                           )}
+                          {server.error && (
+                            <p className="text-sm text-red-600">
+                              {server.error}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {server.managed && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={updatingServers.has(server.name)}
+                            onClick={() =>
+                              handleManagedServerToggle(
+                                server.name,
+                                server.status !== ConnectionStatus.DISABLED,
+                              )
+                            }
+                          >
+                            {updatingServers.has(server.name)
+                              ? "Updating"
+                              : server.status === ConnectionStatus.DISABLED
+                                ? "Enable"
+                                : "Disable"}
+                          </Button>
+                        )}
                         {(server.status === ConnectionStatus.ERROR ||
                           server.status === ConnectionStatus.DISCONNECTED) &&
                           !isRestarting && (
@@ -288,19 +335,21 @@ export function McpSettingsPage() {
                             Restarting
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveServerClick(server.name)}
-                          disabled={removingServers.has(server.name)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          {removingServers.has(server.name) ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {!server.managed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveServerClick(server.name)}
+                            disabled={removingServers.has(server.name)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            {removingServers.has(server.name) ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

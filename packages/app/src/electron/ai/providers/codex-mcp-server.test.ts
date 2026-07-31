@@ -15,8 +15,8 @@ describe("Codex image-capable MCP server", () => {
       ],
     }));
     const definition: AgentTool = {
-      name: "builtin__computer_control",
-      qualifiedName: "builtin:computer_control",
+      name: "cua__screenshot",
+      qualifiedName: "cua:screenshot",
       description: "Capture the screen",
       inputSchema: {
         type: "object",

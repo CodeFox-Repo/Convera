@@ -3,9 +3,18 @@ import type { AgentSandbox } from "@/shared/types/workspace";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
 import { canonicalizeToolInputForSandbox } from "./sandbox";
 
+export interface NativeMcpServer {
+  transport: "stdio";
+  command: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
 export interface AgentToolGroup {
   serverName: string;
   tools: ToolDefinition[];
+  nativeMcpServer?: NativeMcpServer;
 }
 
 export interface AgentToolInteraction {

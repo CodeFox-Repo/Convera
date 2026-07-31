@@ -93,6 +93,29 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
       tools.length > 0
         ? createSdkMcpServer({ name: "convera", tools })
         : undefined;
+    const nativeMcpDefinitions = context.nativeMcpServers ?? {};
+    const nativeMcpServers = textOnly
+      ? {}
+      : Object.fromEntries(
+          Object.entries(nativeMcpDefinitions).map(([serverName, server]) => [
+            serverName,
+            {
+              type: "stdio" as const,
+              command: server.command,
+              args: server.args,
+              ...(server.env ? { env: server.env } : {}),
+            },
+          ]),
+        );
+    const mcpServers = {
+      ...nativeMcpServers,
+      ...(mcpServer ? { convera: mcpServer } : {}),
+    };
+    const nativeAllowedTools = textOnly
+      ? []
+      : Object.entries(nativeMcpDefinitions).flatMap(([serverName, server]) =>
+          server.toolNames.map((toolName) => `mcp__${serverName}__${toolName}`),
+        );
 
     const fallbackRoot = request.options?.cwd ?? process.cwd();
     const sandbox = context.sandbox ?? {
@@ -106,14 +129,18 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         pathToClaudeCodeExecutable: status.executablePath,
         cwd: sandbox.writableRoots[0] ?? sandbox.root,
         resume: context.session?.nativeSessionId,
-        mcpServers: textOnly
-          ? {}
-          : mcpServer
-            ? { convera: mcpServer }
-            : undefined,
-        allowedTools: exposedTools.map(
-          (definition) => `mcp__convera__${definition.name}`,
-        ),
+        mcpServers:
+          Object.keys(mcpServers).length > 0
+            ? mcpServers
+            : textOnly
+              ? {}
+              : undefined,
+        allowedTools: [
+          ...exposedTools.map(
+            (definition) => `mcp__convera__${definition.name}`,
+          ),
+          ...nativeAllowedTools,
+        ],
         ...(textOnly
           ? {
               permissionMode: "dontAsk" as const,

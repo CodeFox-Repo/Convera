@@ -158,6 +158,10 @@ export const useMcpStore = create<McpState>()(
             toast.success(
               `Configuration for ${currentConfig.name || id} saved`,
             );
+            await Promise.all([
+              get().fetchMcpConfigurations(),
+              get().fetchAllMcpServers(),
+            ]);
           } catch (error) {
             console.error(
               `Error updating MCP server configuration ${id}:`,

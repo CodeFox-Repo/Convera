@@ -34,6 +34,7 @@ describe("CodexCliAdapter", () => {
 
     const run = await adapter.prepareRun(request, status, {
       tools: [],
+      nativeMcpServers: {},
       requestInteraction: async () => ({ approved: false }),
     });
 
