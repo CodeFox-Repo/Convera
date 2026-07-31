@@ -3,9 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   LocalAIChatRequest,
   LocalAIFinishReason,
+  LocalAIInteractionResponse,
   LocalAIMessage,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
+import { handleWorkspaceQueryInteraction } from "../workspace-perception";
+import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
+import { useTypingStore } from "../stores/typing-store";
 import {
   createLocalAIUIMessageStream,
   type LocalAIUIMessageStream,
@@ -41,6 +45,12 @@ export interface LocalAIChatOptions {
   operation: RendererChatOperation;
   requestMessages?: LocalAIMessage[];
   responderId?: string;
+  /**
+   * The agent speaks by calling `send_message`, so this turn must not reserve
+   * a reply row. Pre-creating one is a claim that somebody spoke before they
+   * decided to, and it forces a delete when they stay quiet.
+   */
+  speaksViaTool?: boolean;
 }
 
 export interface LocalAICompletedTurn {
@@ -50,7 +60,8 @@ export interface LocalAICompletedTurn {
   modelId?: string;
   expectedRevision?: number;
   userMessageId?: string;
-  assistantMessageId: string;
+  /** Absent when the turn spoke through a tool and reserved no row. */
+  assistantMessageId?: string;
   revision: number;
   finishReason: LocalAIFinishReason;
 }
@@ -148,12 +159,35 @@ export function useLocalAIChat(): UseLocalAIChatResult {
     }
   }, []);
 
+  // Who the active request speaks as, so a tool-call signal can be attributed.
+  const activeResponderIdRef = useRef<string | undefined>(undefined);
+
+  /** Any exit from a request retires its indicator, including a failed one. */
+  const clearTyping = useCallback(() => {
+    const requestId = activeRequestIdRef.current;
+    if (requestId) useTypingStore.getState().stopTyping(requestId);
+    activeResponderIdRef.current = undefined;
+  }, []);
+
   const handleEvent = useCallback(
     (event: LocalAIStreamEvent) => {
       if (event.requestId !== activeRequestIdRef.current) return;
 
       if (event.type === "ui-message") {
         setStatus("streaming");
+        // The stream already reports when a tool opens, so "who is typing"
+        // comes from the agent actually reaching for the speech tool rather
+        // than from a slot allocated before it decided anything.
+        const chunk = event.chunk as { type?: string; toolName?: string };
+        if (
+          chunk.type === "tool-input-start" &&
+          chunk.toolName?.endsWith(WORKSPACE_SEND_MESSAGE_TOOL) &&
+          activeResponderIdRef.current
+        ) {
+          useTypingStore
+            .getState()
+            .startTyping(event.requestId, activeResponderIdRef.current);
+        }
         activeUIMessageStreamRef.current?.push(event.chunk);
         return;
       }
@@ -172,21 +206,21 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         }
 
         setStatus("streaming");
-        useUserInputStore
-          .getState()
-          .registerInteraction(event, async (response) => {
-            const result = await localAI.respondToInteraction(
-              event.requestId,
-              event.interactionId,
-              response,
+        const respond = async (response: LocalAIInteractionResponse) => {
+          const result = await localAI.respondToInteraction(
+            event.requestId,
+            event.interactionId,
+            response,
+          );
+          if (!result.success || !result.data?.accepted) {
+            throw new Error(
+              result.error?.message ||
+                "Local AI interaction is no longer active.",
             );
-            if (!result.success || !result.data?.accepted) {
-              throw new Error(
-                result.error?.message ||
-                  "Local AI interaction is no longer active.",
-              );
-            }
-          });
+          }
+        };
+        if (handleWorkspaceQueryInteraction(event, respond)) return;
+        useUserInputStore.getState().registerInteraction(event, respond);
         return;
       }
 
@@ -207,6 +241,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         }
         setStatus(event.finishReason === "error" ? "error" : "ready");
         useUserInputStore.getState().dismissRequest(event.requestId);
+        clearTyping();
         activeRequestIdRef.current = undefined;
         activeTurnRef.current = undefined;
         releaseSubscription();
@@ -240,6 +275,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         }
         useUserInputStore.getState().dismissRequest(previousRequestId);
         releaseSubscription();
+        clearTyping();
         activeRequestIdRef.current = undefined;
         await closeUIMessageStream();
         if (previousTurn) {
@@ -291,14 +327,21 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         modelId: options.model,
         expectedRevision: options.expectedRevision,
         userMessageId,
-        assistantMessageId,
+        // A tool-speaking turn reserves nothing; whatever it says arrives as a
+        // real message written by `send_message`.
+        ...(options.speaksViaTool ? {} : { assistantMessageId }),
       };
 
       setError(undefined);
       setLastCompletedTurn(undefined);
       setStatus("submitted");
-      setMessages([...nextMessages, assistantMessage]);
+      setMessages(
+        options.speaksViaTool
+          ? nextMessages
+          : [...nextMessages, assistantMessage],
+      );
       activeRequestIdRef.current = requestId;
+      activeResponderIdRef.current = options.responderId;
       activeTurnRef.current = activeTurn;
       activeUIMessageStreamRef.current = uiMessageStream;
       unsubscribeRef.current = localAI.onEvent(requestId, (event) => {
@@ -396,6 +439,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
         setError(nextError);
         setStatus("error");
         useUserInputStore.getState().dismissRequest(requestId);
+        clearTyping();
         activeRequestIdRef.current = undefined;
         activeTurnRef.current = undefined;
         releaseSubscription();
@@ -466,6 +510,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       if (!result.data?.aborted) {
         const activeTurn = activeTurnRef.current;
         useUserInputStore.getState().dismissRequest(requestId);
+        clearTyping();
         activeRequestIdRef.current = undefined;
         activeTurnRef.current = undefined;
         releaseSubscription();

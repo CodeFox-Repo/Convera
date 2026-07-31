@@ -7,11 +7,11 @@ import {
 import { useAgents } from "@/renderer/libs/db";
 import { useMembers, type Member } from "@/renderer/libs/stores/member-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
-import { UserMinus } from "lucide-react";
+import { UserMinus, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./confirm-dialog";
-import { TalentAvatar } from "./talent-avatar";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 
 const ORG_NAME = "Personal Workspace";
 
@@ -28,7 +28,7 @@ function RosterRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border last:border-b-0">
-      <TalentAvatar emoji={member.avatar} kind={member.kind} size={36} />
+      <MemberAvatar member={member} className="size-9 text-sm" />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -114,9 +114,12 @@ export function OrgRosterPage() {
 
       <div className="bg-card text-card-foreground border border-border rounded-lg px-4">
         {roster.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6">
-            Nobody here yet. Hire someone from the Talent Market.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <Users size={28} className="text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Nobody here yet. Hire someone from the Talent Market.
+            </p>
+          </div>
         ) : (
           roster.map((member) => {
             const agent = agentFor(member);

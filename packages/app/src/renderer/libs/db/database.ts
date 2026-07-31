@@ -10,14 +10,19 @@
  * AI inference and tools run through the Electron main process.
  */
 
-import type { Channel, Group, Member } from "@/shared/types/workspace";
+import type {
+  Channel,
+  Group,
+  Member,
+  Workspace,
+} from "@/shared/types/workspace";
 import Dexie, { type EntityTable, type Transaction } from "dexie";
 import {
   migrateConversationRecordToV2,
   migrateMessageRecordToV2,
 } from "./database-migrations";
 
-export type { Channel, Group, Member };
+export type { Channel, Group, Member, Workspace };
 
 // ==================== Data Models ====================
 
@@ -93,7 +98,8 @@ export interface PendingTurnJournal {
   modelId?: string;
   expectedRevision?: number;
   userMessageId?: string;
-  assistantMessageId: string;
+  /** Absent when the turn was not expected to speak; see pending-turn-stage. */
+  assistantMessageId?: string;
   /**
    * Ordered final transcript boundary. Message bodies and attachments remain
    * single-copy in `messages`; edit/regenerate suffix removal happens only
@@ -137,6 +143,12 @@ export interface Agent {
     reason?: string;
   }>;
   selectedMCPs?: string[];
+  /**
+   * The model behind this colleague. Unset means it follows the conversation's
+   * own provider selection, which is what plain chats want.
+   */
+  providerId?: string;
+  modelId?: string;
   isBuiltIn: boolean;
   /** @deprecated Use isBuiltIn instead. Kept for backward compatibility */
   predefined?: boolean;
@@ -161,11 +173,15 @@ export interface AppSetting {
 
 // ==================== Members ====================
 
-/**
- * Single-workspace for now; the field exists so multi-workspace can arrive
- * without another migration.
- */
+/** The workspace every group and channel belongs to until more are created. */
 export const LOCAL_WORKSPACE_ID = "personal";
+
+export const LOCAL_WORKSPACE: Workspace = {
+  id: LOCAL_WORKSPACE_ID,
+  name: "Personal",
+  icon: null,
+  sortOrder: 0,
+};
 
 /** The person using this install. One human member, stable id. */
 export const LOCAL_HUMAN_MEMBER_ID = "me";
@@ -222,6 +238,7 @@ export class ConveraDB extends Dexie {
   modelConfigs!: EntityTable<ModelConfig, "id">;
   settings!: EntityTable<AppSetting, "key">;
   members!: EntityTable<Member, "id">;
+  workspaces!: EntityTable<Workspace, "id">;
   groups!: EntityTable<Group, "id">;
   channels!: EntityTable<Channel, "id">;
 
@@ -313,10 +330,49 @@ export class ConveraDB extends Dexie {
       channels: "id, workspaceId, groupId, conversationId, updatedAt",
     });
 
+    // v7: channels carry an explicit order so the sidebar can be dragged.
+    // Existing rows get their current alphabetical position, which is what
+    // they were already being displayed in.
+    this.version(7)
+      .stores({
+        channels:
+          "id, workspaceId, groupId, conversationId, updatedAt, sortOrder",
+      })
+      .upgrade(async (transaction) => {
+        const channels = transaction.table<Channel, string>("channels");
+        const byGroup = new Map<string | null, Channel[]>();
+        for (const channel of await channels.toArray()) {
+          const list = byGroup.get(channel.groupId);
+          if (list) list.push(channel);
+          else byGroup.set(channel.groupId, [channel]);
+        }
+        for (const list of byGroup.values()) {
+          list.sort((a, b) => a.name.localeCompare(b.name));
+          await Promise.all(
+            list.map((channel, sortOrder) =>
+              channels.update(channel.id, { sortOrder }),
+            ),
+          );
+        }
+      });
+
+    // v8: workspaces become a real table. Groups already carried a
+    // workspaceId, so the existing rows need no rewrite — only the row they
+    // have always pointed at has to exist.
+    this.version(8)
+      .stores({ workspaces: "id, sortOrder" })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table<Workspace, string>("workspaces")
+          .put(LOCAL_WORKSPACE);
+      });
+
     // A database created fresh at the latest version never runs upgrade hooks,
-    // so the local human member must also be seeded on populate.
+    // so the local human member and default workspace must also be seeded on
+    // populate.
     this.on("populate", (tx) => {
       void tx.table<Member, string>("members").put(LOCAL_HUMAN_MEMBER);
+      void tx.table<Workspace, string>("workspaces").put(LOCAL_WORKSPACE);
     });
   }
 }

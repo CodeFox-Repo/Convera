@@ -9,11 +9,12 @@ import {
   type AgentTemplate,
 } from "@/renderer/libs/agent-templates";
 import { useAgents } from "@/renderer/libs/db";
-import { Check, Search } from "lucide-react";
+import { Check, Search, SearchX, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./confirm-dialog";
-import { TalentAvatar } from "./talent-avatar";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { TEMPLATE_AVATARS } from "@/renderer/libs/template-avatars";
 
 function TalentCard({
   template,
@@ -27,7 +28,18 @@ function TalentCard({
   return (
     <div className="bg-card text-card-foreground border border-border rounded-lg p-4 flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        <TalentAvatar emoji={template.avatar} kind="agent" />
+        <MemberAvatar
+          member={{
+            id: template.id,
+            workspaceId: "",
+            kind: "agent",
+            name: template.name,
+            avatar: TEMPLATE_AVATARS[template.id] ?? template.avatar,
+            agentId: null,
+            status: "idle",
+          }}
+          className="size-10 text-base"
+        />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium truncate">{template.name}</h3>
           <p className="text-xs text-muted-foreground truncate">
@@ -58,7 +70,10 @@ function TalentCard({
             Hired
           </>
         ) : (
-          "Hire"
+          <>
+            <UserPlus className="h-4 w-4" />
+            Hire
+          </>
         )}
       </Button>
     </div>
@@ -116,9 +131,12 @@ export function TalentMarketPage() {
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No talent matches “{query}”.
-        </p>
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <SearchX size={28} className="text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            No talent matches “{query}”.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((template) => (

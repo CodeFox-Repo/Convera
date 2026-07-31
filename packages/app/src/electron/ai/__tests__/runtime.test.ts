@@ -157,6 +157,10 @@ describe("LocalAiRuntime", () => {
         id: "codex-cli",
         availability: "unavailable",
       }),
+      expect.objectContaining({
+        id: "openai-api",
+        availability: "unavailable",
+      }),
     ]);
   });
 

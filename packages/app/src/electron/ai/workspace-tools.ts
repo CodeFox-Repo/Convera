@@ -1,0 +1,231 @@
+/**
+ * The agent's eyes, main-process side.
+ *
+ * An agent perceives the workspace by looking, never by having it injected
+ * (see CLAUDE.md, "Agents Are Colleagues"). The workspace itself lives in the
+ * renderer's Dexie database, so each tool call rides the existing interaction
+ * channel: main emits an `input` interaction carrying a `WorkspaceQuery`, the
+ * renderer answers out of Dexie, and the JSON comes back in `value`.
+ */
+
+import type {
+  WorkspaceQuery,
+  WorkspaceQueryResult,
+} from "@/shared/types/workspace-perception";
+import {
+  WORKSPACE_MESSAGE_LIMIT_DEFAULT,
+  WORKSPACE_MESSAGE_CONTENT_MAX,
+  WORKSPACE_MESSAGE_LIMIT_MAX,
+  WORKSPACE_QUERY_INTERACTION,
+} from "@/shared/types/workspace-perception";
+import { z, type ZodRawShape, type ZodTypeAny } from "zod";
+import type { AgentTool, AgentToolInteraction } from "./agent-tools";
+import type {
+  LocalAiTurnHookInput,
+  LocalAiTurnHooks,
+  PreparedLocalAiTurnContext,
+} from "./runtime";
+
+export interface WorkspacePerceptionOptions {
+  /** The agent's `Member.id` — the identity every query is filtered against. */
+  viewerMemberId: string;
+  requestInteraction(
+    interaction: AgentToolInteraction,
+  ): Promise<{ approved?: boolean; value?: string }>;
+}
+
+const listChannelsSchema = z.object({});
+
+const readChannelSchema = z.object({
+  channel_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Channel id from list_channels."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(WORKSPACE_MESSAGE_LIMIT_MAX)
+    .default(WORKSPACE_MESSAGE_LIMIT_DEFAULT)
+    .describe("How many of the most recent messages to return."),
+});
+
+const sendMessageSchema = z.object({
+  channel_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Channel id from list_channels."),
+  content: z
+    .string()
+    .trim()
+    .min(1)
+    .max(WORKSPACE_MESSAGE_CONTENT_MAX)
+    .describe("What to say, as you would type it into the channel."),
+});
+
+const DESCRIPTIONS = {
+  list_channels:
+    "List every channel in this workspace you are allowed to see, including ones you have not joined. Use it to find where a topic lives before reading it. Each entry reports whether you are a member, its group, and how many people are in it.",
+  read_channel:
+    "Read one channel's roster and its most recent messages. Use it to catch up on a room — including a visible room you have not joined — before answering or deciding what to remember. Returns oldest-first messages and flags when older history was cut.",
+  send_message:
+    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
+} as const;
+
+function schemaOf(shape: ZodRawShape): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+  for (const [name, validator] of Object.entries(shape)) {
+    properties[name] = {
+      type: name === "limit" ? "integer" : "string",
+      description: validator.description,
+    };
+    if (!validator.isOptional()) required.push(name);
+  }
+  return { type: "object", properties, required, additionalProperties: false };
+}
+
+function failure(code: string, message: string): WorkspaceQueryResult {
+  return { ok: false, error: { code, message } };
+}
+
+/**
+ * Exported so the entry point below and its tests share one round trip. The
+ * renderer is the only thing that can answer, so a missing/garbled reply is a
+ * tool error rather than a thrown turn failure — the agent can retry or move on.
+ */
+async function ask(
+  options: WorkspacePerceptionOptions,
+  query: WorkspaceQuery,
+): Promise<WorkspaceQueryResult> {
+  let response: { value?: string };
+  try {
+    response = await options.requestInteraction({
+      kind: "input",
+      name: WORKSPACE_QUERY_INTERACTION,
+      prompt: `Workspace query: ${query.kind}`,
+      input: query,
+    });
+  } catch (error) {
+    return failure(
+      "WORKSPACE_QUERY_UNAVAILABLE",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
+  if (typeof response.value !== "string") {
+    return failure(
+      "WORKSPACE_QUERY_UNAVAILABLE",
+      "The workspace did not answer. Continue without it rather than guessing what is in the channel.",
+    );
+  }
+  try {
+    return JSON.parse(response.value) as WorkspaceQueryResult;
+  } catch {
+    return failure(
+      "WORKSPACE_QUERY_MALFORMED",
+      "The workspace answer could not be parsed.",
+    );
+  }
+}
+
+function perceptionTool(
+  name: string,
+  description: string,
+  inputShape: ZodRawShape,
+  inputValidator: ZodTypeAny,
+  execute: (input: Record<string, unknown>) => Promise<WorkspaceQueryResult>,
+): AgentTool {
+  return {
+    name,
+    qualifiedName: `workspace:${name}`,
+    description,
+    inputSchema: schemaOf(inputShape),
+    inputShape,
+    inputValidator,
+    execute: async (input) => execute(inputValidator.parse(input)),
+  };
+}
+
+/** Only an agent standing somewhere has eyes; a plain chat turn has none. */
+function viewerMemberId(input: LocalAiTurnHookInput): string | undefined {
+  return input.request.agent?.memberId?.trim() || undefined;
+}
+
+/**
+ * Wraps existing turn hooks so perception tools ride along with whatever else
+ * the turn already injects. `prepareTurnContext` is one slot on the runtime and
+ * the memory coordinator owns it, so composing here keeps both.
+ */
+export function withWorkspacePerception(
+  hooks: LocalAiTurnHooks,
+): LocalAiTurnHooks {
+  return {
+    ...hooks,
+    prepareTurnContext: async (
+      input,
+    ): Promise<PreparedLocalAiTurnContext | undefined> => {
+      const prepared = await hooks.prepareTurnContext?.(input);
+      const memberId = viewerMemberId(input);
+      if (!memberId) return prepared;
+      return {
+        ...prepared,
+        additionalTools: [
+          ...(prepared?.additionalTools ?? []),
+          ...createWorkspacePerceptionTools({
+            viewerMemberId: memberId,
+            requestInteraction: input.requestInteraction,
+          }),
+        ],
+      };
+    },
+  };
+}
+
+export function createWorkspacePerceptionTools(
+  options: WorkspacePerceptionOptions,
+): AgentTool[] {
+  return [
+    perceptionTool(
+      "list_channels",
+      DESCRIPTIONS.list_channels,
+      listChannelsSchema.shape,
+      listChannelsSchema,
+      () =>
+        ask(options, {
+          kind: "list_channels",
+          viewerMemberId: options.viewerMemberId,
+        }),
+    ),
+    perceptionTool(
+      "send_message",
+      DESCRIPTIONS.send_message,
+      sendMessageSchema.shape,
+      sendMessageSchema,
+      (input) =>
+        ask(options, {
+          kind: "send_message",
+          viewerMemberId: options.viewerMemberId,
+          channelId: input.channel_id as string,
+          content: input.content as string,
+        }),
+    ),
+    perceptionTool(
+      "read_channel",
+      DESCRIPTIONS.read_channel,
+      readChannelSchema.shape,
+      readChannelSchema,
+      (input) =>
+        ask(options, {
+          kind: "read_channel",
+          viewerMemberId: options.viewerMemberId,
+          channelId: input.channel_id as string,
+          limit: input.limit as number,
+        }),
+    ),
+  ];
+}

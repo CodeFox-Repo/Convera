@@ -59,6 +59,9 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
 /** Channels the main process may push to the browser. */
 const ALLOWED_EVENT_CHANNELS = new Set(["local-ai:event"]);
 
+/** How long a dropped tab may reconnect before its stream is abandoned. */
+const DEFAULT_RECONNECT_GRACE_MS = 15_000;
+
 export interface WebBridgeOptions {
   /** Dispatch an invoke to the already-registered ipcMain handler. */
   invoke: (
@@ -70,6 +73,12 @@ export interface WebBridgeOptions {
   host?: string;
   /** Renderer dev server URL, used to print a ready-to-open browser link. */
   rendererURL?: string;
+  /**
+   * Grace period before a disconnected tab's in-flight requests are aborted.
+   * A reconnect inside it keeps the stream alive; tests set 0 to assert the
+   * abandon path without waiting.
+   */
+  reconnectGraceMs?: number;
   /**
    * Reuse this token instead of generating one; production callers omit it
    * and get a fresh random token per launch.
@@ -182,6 +191,8 @@ export async function startWebBridge(
   >();
 
   const requireToken = options.requireToken ?? true;
+  const reconnectGraceMs =
+    options.reconnectGraceMs ?? DEFAULT_RECONNECT_GRACE_MS;
   const authorize = (
     tokenHeader: string | string[] | undefined,
     origin: string | undefined,
@@ -280,22 +291,37 @@ export async function startWebBridge(
       return;
     }
     wsServer.handleUpgrade(request, socket, head, (ws) => {
-      const previous = clients.get(clientId);
-      previous?.sender.destroy();
-      previous?.socket.close();
-
-      const sender = new WebBridgeSender((channel, payload) => {
+      const emit = (channel: string, payload: unknown) => {
         if (!ALLOWED_EVENT_CHANNELS.has(channel) || ws.readyState !== ws.OPEN) {
           return;
         }
         const frame: WebBridgeEventFrame = { channel, payload };
         ws.send(JSON.stringify(frame));
-      });
+      };
+
+      // Same tab, new socket: keep the sender so an in-flight turn keeps
+      // streaming instead of being orphaned mid-reply.
+      const previous = clients.get(clientId);
+      previous?.socket.close();
+      const sender =
+        previous?.sender.isDestroyed() === false
+          ? previous.sender
+          : new WebBridgeSender(emit);
+      sender.rebind(emit);
       const client = { socket: ws, sender };
       clients.set(clientId, client);
+      // Don't tear the sender down the instant the socket drops: a reconnect
+      // within the grace window reuses it, so a turn in flight survives an HMR
+      // reload or a sleeping laptop. Only a tab that stays gone is abandoned,
+      // which is what aborts its requests.
       const disconnect = () => {
-        if (clients.get(clientId) === client) clients.delete(clientId);
-        sender.destroy();
+        if (clients.get(clientId) !== client) return;
+        const timer = setTimeout(() => {
+          if (clients.get(clientId) !== client) return;
+          clients.delete(clientId);
+          sender.destroy();
+        }, reconnectGraceMs);
+        timer.unref?.();
       };
       ws.once("close", disconnect);
       ws.once("error", disconnect);

@@ -11,12 +11,15 @@
  * ponytail: dev-only. `CONVERA_WEB_BRIDGE=1 pnpm start` is still the path for
  * the real Electron window, where MCP and the OS integrations exist.
  */
+import { config as loadDotenv } from "dotenv";
+loadDotenv();
+
 import { LocalAiRuntime } from "@/electron/ai";
+import { withWorkspacePerception } from "@/electron/ai/workspace-tools";
 import { setupLocalAIIPC } from "@/electro-bridge/ipc/local-ai-context";
 import {
   createRecordingIpcMain,
   createWebBridgeEvent,
-  WebBridgeSender,
 } from "@/electron/web-bridge/dispatch";
 import {
   startWebBridge,
@@ -47,6 +50,9 @@ const runtime = new LocalAiRuntime({
   executeTool: async () => {
     throw new Error("MCP tools require the full Electron app");
   },
+  // The browser build has no memory coordinator to wrap, but an agent without
+  // eyes here would look like a bug in the tools rather than a missing host.
+  turnHooks: withWorkspacePerception({}),
 });
 
 const recordingIPC = createRecordingIpcMain({
@@ -54,29 +60,32 @@ const recordingIPC = createRecordingIpcMain({
   removeHandler: () => {},
 } as unknown as IpcMain);
 
-// Deferred lookup: the sender exists before the bridge it emits through.
-const emit = { to: undefined as WebBridgeHandle["emit"] | undefined };
-const sender = new WebBridgeSender((channel, payload) =>
-  emit.to?.(channel, payload),
-);
+// The bridge owns one sender per connected tab and routes stream events
+// through it. Standing up a separate sender here would emit into nothing —
+// which is exactly what happened: replies streamed nowhere and only appeared
+// after a reload re-read the persisted turn.
+// A holder rather than a bare `let`: the closure below reads it after the
+// bridge exists, but nothing reassigns the binding itself.
+const handle: { bridge?: WebBridgeHandle } = {};
 
 setupLocalAIIPC(
-  { runtime, getAllowedWebContents: () => [sender as never] },
+  {
+    runtime,
+    getAllowedWebContents: () =>
+      (handle.bridge?.senders() ?? []).map((sender) => sender as never),
+  },
   recordingIPC,
 );
 
-const bridge = await startWebBridge({
+handle.bridge = await startWebBridge({
   requireToken: false,
   rendererURL,
-  invoke: (channel, args) =>
+  invoke: (channel, args, sender) =>
     recordingIPC.dispatch(channel, args, createWebBridgeEvent(sender)),
 });
 
-emit.to = bridge.emit;
-
 const shutdown = () => {
-  sender.destroy();
-  void Promise.allSettled([bridge.close(), renderer.close()]).then(() =>
+  void Promise.allSettled([handle.bridge?.close(), renderer.close()]).then(() =>
     process.exit(0),
   );
 };

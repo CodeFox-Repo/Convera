@@ -41,6 +41,20 @@ export const SANDBOX_LAYOUT = {
   workspace: "workspace",
 } as const;
 
+/**
+ * The top of the sidebar hierarchy: a named home for a set of groups, the way
+ * a Slack workspace or Discord server holds its channel list. One workspace
+ * ("Personal") exists by default; the layer is here so several can coexist
+ * without every group floating at the root.
+ */
+export interface Workspace {
+  id: string;
+  name: string;
+  /** Emoji shown before the name; null renders the app logo. */
+  icon: string | null;
+  sortOrder: number;
+}
+
 /** Sidebar section: "The Hive" / "Product" / "Launch Swarm". */
 export interface Group {
   id: string;
@@ -69,6 +83,8 @@ export interface Channel {
   conversationId: string;
   /** Replies when nobody is mentioned. */
   defaultAgentMemberId: string | null;
+  /** Position within its group. Absent on rows created before drag ordering. */
+  sortOrder?: number;
   createdAt: Date;
   updatedAt: Date;
 }

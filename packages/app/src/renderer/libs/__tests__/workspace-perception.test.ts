@@ -1,0 +1,362 @@
+import "fake-indexeddb/auto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  db,
+  LOCAL_WORKSPACE_ID,
+  type Channel,
+  type Member,
+  type Message,
+} from "../db";
+import {
+  canViewChannel,
+  handleWorkspaceQueryInteraction,
+  registerWorkspaceSendMessage,
+  resolveWorkspaceQuery,
+} from "../workspace-perception";
+import { WORKSPACE_QUERY_INTERACTION } from "@/shared/types/workspace-perception";
+import type { LocalAIInteractionResponse } from "@/shared/types/local-ai";
+
+const AGENT = "agent:fizz";
+const HUMAN = "me";
+
+function member(id: string, name: string, kind: Member["kind"]): Member {
+  return {
+    id,
+    workspaceId: LOCAL_WORKSPACE_ID,
+    kind,
+    name,
+    avatar: null,
+    agentId: kind === "agent" ? id.slice("agent:".length) : null,
+    status: "idle",
+  };
+}
+
+function channel(
+  id: string,
+  name: string,
+  memberIds: string[],
+  overrides: Partial<Channel> = {},
+): Channel {
+  return {
+    id,
+    workspaceId: LOCAL_WORKSPACE_ID,
+    groupId: "group-hive",
+    name,
+    kind: "channel",
+    isPrivate: false,
+    memberIds,
+    conversationId: `conversation-${id}`,
+    defaultAgentMemberId: null,
+    createdAt: new Date("2026-07-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function message(
+  id: string,
+  conversationId: string,
+  senderId: string,
+  content: string,
+  minute: number,
+): Message {
+  return {
+    id,
+    conversationId,
+    role: senderId === HUMAN ? "user" : "assistant",
+    content,
+    senderId,
+    createdAt: new Date(Date.UTC(2026, 6, 1, 0, minute)),
+  };
+}
+
+beforeEach(async () => {
+  await db.open();
+  await Promise.all([
+    db.channels.clear(),
+    db.groups.clear(),
+    db.members.clear(),
+    db.messages.clear(),
+  ]);
+  await db.groups.put({
+    id: "group-hive",
+    workspaceId: LOCAL_WORKSPACE_ID,
+    name: "The Hive",
+    icon: null,
+    sortOrder: 0,
+  });
+  await db.members.bulkPut([
+    member(HUMAN, "You", "human"),
+    member(AGENT, "Fizz", "agent"),
+    member("agent:buzz", "Buzz", "agent"),
+  ]);
+  await db.channels.bulkPut([
+    channel("joined", "announcements", [HUMAN, AGENT]),
+    channel("visible", "design", [HUMAN, "agent:buzz"]),
+    channel("hidden", "founders", [HUMAN], { isPrivate: true }),
+  ]);
+  await db.messages.bulkPut([
+    message("m1", "conversation-joined", HUMAN, "Kickoff is Monday.", 1),
+    message("m2", "conversation-joined", AGENT, "Noted.", 2),
+    message("m3", "conversation-visible", HUMAN, "Palette review.", 3),
+    message("m4", "conversation-hidden", HUMAN, "Board deck.", 4),
+  ]);
+});
+
+describe("channel visibility", () => {
+  it("hides a private channel the viewer is not in", () => {
+    const priv = channel("p", "founders", [HUMAN], { isPrivate: true });
+    expect(canViewChannel(AGENT, priv)).toBe(false);
+    expect(canViewChannel(HUMAN, priv)).toBe(true);
+  });
+
+  it("hides a DM the viewer is not part of", () => {
+    const dm = channel("d", "dm", [HUMAN, "agent:buzz"], { kind: "dm" });
+    expect(canViewChannel(AGENT, dm)).toBe(false);
+  });
+});
+
+describe("list_channels", () => {
+  it("returns joined and not-joined channels, and omits invisible ones", async () => {
+    const result = await resolveWorkspaceQuery({
+      kind: "list_channels",
+      viewerMemberId: AGENT,
+    });
+
+    expect(result).toMatchObject({ ok: true, kind: "list_channels" });
+    if (!result.ok || result.kind !== "list_channels") throw new Error("bad");
+    expect(result.channels).toEqual([
+      expect.objectContaining({
+        id: "joined",
+        name: "announcements",
+        joined: true,
+        group: "The Hive",
+        memberCount: 2,
+      }),
+      expect.objectContaining({
+        id: "visible",
+        name: "design",
+        joined: false,
+        memberCount: 2,
+      }),
+    ]);
+  });
+});
+
+describe("read_channel", () => {
+  it("reads a joined channel's roster and transcript oldest-first", async () => {
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 30,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.joined).toBe(true);
+    expect(result.channel.truncated).toBe(false);
+    expect(result.channel.members.map((entry) => entry.name)).toEqual([
+      "You",
+      "Fizz",
+    ]);
+    expect(
+      result.channel.messages.map((entry) => [entry.senderName, entry.content]),
+    ).toEqual([
+      ["You", "Kickoff is Monday."],
+      ["Fizz", "Noted."],
+    ]);
+  });
+
+  it("reads a visible channel the agent has not joined", async () => {
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "visible",
+      limit: 30,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.joined).toBe(false);
+    expect(result.channel.messages).toHaveLength(1);
+  });
+
+  it("refuses a channel the agent may not see without confirming it exists", async () => {
+    const hidden = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "hidden",
+      limit: 30,
+    });
+    const absent = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "no-such-channel",
+      limit: 30,
+    });
+
+    expect(hidden).toMatchObject({
+      ok: false,
+      error: { code: "CHANNEL_NOT_VISIBLE" },
+    });
+    // Identical shape, so existence cannot be probed.
+    if (hidden.ok || absent.ok) throw new Error("bad");
+    expect(hidden.error.code).toBe(absent.error.code);
+  });
+
+  it("honours limit by keeping the most recent messages", async () => {
+    await db.messages.bulkPut([
+      message("m5", "conversation-joined", HUMAN, "Third.", 5),
+      message("m6", "conversation-joined", AGENT, "Fourth.", 6),
+    ]);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 2,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.messages.map((entry) => entry.content)).toEqual([
+      "Third.",
+      "Fourth.",
+    ]);
+    expect(result.channel.truncated).toBe(true);
+  });
+
+  it("trims a transcript that would overflow the transport budget", async () => {
+    const body = "x".repeat(1_900);
+    await db.messages.bulkPut(
+      Array.from({ length: 40 }, (_, index) =>
+        message(
+          `big-${index}`,
+          "conversation-joined",
+          HUMAN,
+          `${index} ${body}`,
+          10 + index,
+        ),
+      ),
+    );
+
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 40,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.truncated).toBe(true);
+    expect(JSON.stringify(result.channel).length).toBeLessThanOrEqual(18_000);
+    expect(result.channel.messages.at(-1)?.content).toContain("39 ");
+  });
+});
+
+describe("send_message", () => {
+  it("delegates a write to any channel the agent can see, joined or not", async () => {
+    const handler = vi.fn(async () => ({
+      ok: true as const,
+      kind: "send_message" as const,
+      messageId: "created-1",
+    }));
+    registerWorkspaceSendMessage(handler);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: AGENT,
+      channelId: "visible",
+      content: "Chiming in from outside.",
+    });
+
+    expect(result).toMatchObject({ ok: true, messageId: "created-1" });
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ channelId: "visible", viewerMemberId: AGENT }),
+    );
+    registerWorkspaceSendMessage(undefined);
+  });
+
+  it("refuses a write to a channel the agent cannot see, before the handler runs", async () => {
+    const handler = vi.fn(async () => ({
+      ok: true as const,
+      kind: "send_message" as const,
+      messageId: "created-1",
+    }));
+    registerWorkspaceSendMessage(handler);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: AGENT,
+      channelId: "hidden",
+      content: "Should never land.",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "CHANNEL_NOT_VISIBLE" },
+    });
+    expect(handler).not.toHaveBeenCalled();
+    registerWorkspaceSendMessage(undefined);
+  });
+
+  it("reports unavailability when no handler is registered", async () => {
+    expect(
+      await resolveWorkspaceQuery({
+        kind: "send_message",
+        viewerMemberId: AGENT,
+        channelId: "joined",
+        content: "Anyone home?",
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "WORKSPACE_WRITE_UNAVAILABLE" },
+    });
+  });
+});
+
+describe("interaction interception", () => {
+  it("answers a workspace query without prompting the user", async () => {
+    const respond = vi.fn<
+      (response: LocalAIInteractionResponse) => Promise<void>
+    >(async () => {});
+    const handled = handleWorkspaceQueryInteraction(
+      {
+        type: "interaction",
+        requestId: "request-1",
+        interactionId: "interaction-1",
+        kind: "input",
+        name: WORKSPACE_QUERY_INTERACTION,
+        prompt: "Workspace query: list_channels",
+        input: { kind: "list_channels", viewerMemberId: AGENT },
+      },
+      respond,
+    );
+
+    expect(handled).toBe(true);
+    await vi.waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
+    const [response] = respond.mock.calls[0];
+    expect(JSON.parse(response.value ?? "")).toMatchObject({
+      ok: true,
+      kind: "list_channels",
+    });
+  });
+
+  it("leaves an ordinary approval interaction on the user path", () => {
+    const respond = vi.fn<
+      (response: LocalAIInteractionResponse) => Promise<void>
+    >(async () => {});
+    const handled = handleWorkspaceQueryInteraction(
+      {
+        type: "interaction",
+        requestId: "request-1",
+        interactionId: "interaction-2",
+        kind: "approval",
+        name: "builtin:write_file",
+        prompt: "Allow?",
+      },
+      respond,
+    );
+
+    expect(handled).toBe(false);
+    expect(respond).not.toHaveBeenCalled();
+  });
+});

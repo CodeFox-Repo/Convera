@@ -27,7 +27,9 @@ interface CliDefinition {
   isAuthenticated: (result: CommandResult) => boolean;
 }
 
-const CLI_DEFINITIONS: Record<LocalAiProviderId, CliDefinition> = {
+type CliProviderId = Extract<LocalAiProviderId, "claude-code" | "codex-cli">;
+
+const CLI_DEFINITIONS: Record<CliProviderId, CliDefinition> = {
   "claude-code": {
     providerId: "claude-code",
     executableName: "claude",
@@ -91,7 +93,7 @@ function errorDetail(error: unknown): string {
 }
 
 export async function probeCliProvider(
-  providerId: LocalAiProviderId,
+  providerId: CliProviderId,
   options: {
     run?: CliCommandRunner;
     environment?: NodeJS.ProcessEnv;

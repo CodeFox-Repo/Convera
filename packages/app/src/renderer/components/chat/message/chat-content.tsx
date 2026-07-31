@@ -11,6 +11,7 @@ import { TOOL_COMPONENTS } from "../tools";
 import type { ToolMessagePart } from "../tools/tool-part";
 import MessageRow from "./message-row";
 import ToolCall from "./tool-call";
+import { WORKSPACE_TOOL_NAMES } from "@/shared/types/workspace-perception";
 import { useMembers } from "@/renderer/libs/stores/member-store";
 import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
@@ -216,6 +217,11 @@ export default function ChatContent({
       const rendererName = toolName.includes(":")
         ? toolName.slice(toolName.lastIndexOf(":") + 1)
         : toolName;
+
+      // How a colleague looks around and how it speaks are its own business —
+      // a person's messages appear in the room, not their glance at the roster.
+      // The message `send_message` posts shows up on its own.
+      if (WORKSPACE_TOOL_NAMES.has(rendererName)) return null;
 
       // Check if there's a custom renderer for this tool
       const CustomRenderer =

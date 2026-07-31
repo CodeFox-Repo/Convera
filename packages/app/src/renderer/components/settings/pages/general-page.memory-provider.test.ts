@@ -1,3 +1,5 @@
+// The page now imports the profile section, which reaches the Dexie singleton.
+import "fake-indexeddb/auto";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/renderer/libs/hooks/use-local-ai-providers", () => ({

@@ -88,6 +88,8 @@ export function useAgentStore() {
         systemPrompt: agent.systemPrompt,
         disableToolReferences: agent.disableToolReferences,
         selectedMCPs: agent.selectedMCPs,
+        providerId: agent.providerId,
+        modelId: agent.modelId,
       });
     },
 

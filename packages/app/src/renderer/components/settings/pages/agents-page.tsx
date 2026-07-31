@@ -16,6 +16,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/renderer/components/ui/tooltip";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { memberIdForAgent } from "@/renderer/libs/db";
+import { useMember } from "@/renderer/libs/stores/member-store";
+import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import { useAgentStore, type Agent } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { ToolDefinition } from "@/shared/types/mcp";
@@ -43,7 +47,14 @@ interface AgentFormData {
   name: string;
   description: string;
   systemPrompt: string;
+  /** "" follows the conversation's own selection. */
+  providerId: string;
+  modelId: string;
 }
+
+/** Encodes provider+model as one select value, since they only vary together. */
+const MODEL_VALUE_SEPARATOR = "::";
+const INHERIT_MODEL_VALUE = "inherit";
 
 interface DisabledTool {
   mcpName: string;
@@ -93,53 +104,99 @@ const AgentFormFields = ({
   form: AgentFormData;
   onChange: (form: AgentFormData) => void;
   idPrefix?: string;
-}) => (
-  <div className="space-y-4">
-    <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
-        Name
-      </Label>
-      <Input
-        id={`${idPrefix}agent-name`}
-        value={form.name}
-        className="text-foreground"
-        onChange={(e) => onChange({ ...form, name: e.target.value })}
-        placeholder="Enter agent name"
-        maxLength={50}
-      />
-    </div>
+}) => {
+  const { providers } = useLocalAIProviders();
+  const modelValue = form.providerId
+    ? `${form.providerId}${MODEL_VALUE_SEPARATOR}${form.modelId}`
+    : INHERIT_MODEL_VALUE;
 
-    <div className="space-y-2">
-      <Label
-        htmlFor={`${idPrefix}agent-description`}
-        className="text-foreground"
-      >
-        Description
-      </Label>
-      <Input
-        id={`${idPrefix}agent-description`}
-        value={form.description}
-        className="text-foreground"
-        onChange={(e) => onChange({ ...form, description: e.target.value })}
-        placeholder="Brief description of what this agent does"
-        maxLength={100}
-      />
-    </div>
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
+          Name
+        </Label>
+        <Input
+          id={`${idPrefix}agent-name`}
+          value={form.name}
+          className="text-foreground"
+          onChange={(e) => onChange({ ...form, name: e.target.value })}
+          placeholder="Enter agent name"
+          maxLength={50}
+        />
+      </div>
 
-    <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}agent-prompt`} className="text-foreground">
-        System Prompt
-      </Label>
-      <textarea
-        id={`${idPrefix}agent-prompt`}
-        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
-        value={form.systemPrompt}
-        onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
-        placeholder="Define the agent's personality, behavior, and capabilities..."
-      />
+      <div className="space-y-2">
+        <Label
+          htmlFor={`${idPrefix}agent-description`}
+          className="text-foreground"
+        >
+          Description
+        </Label>
+        <Input
+          id={`${idPrefix}agent-description`}
+          value={form.description}
+          className="text-foreground"
+          onChange={(e) => onChange({ ...form, description: e.target.value })}
+          placeholder="Brief description of what this agent does"
+          maxLength={100}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-prompt`} className="text-foreground">
+          System Prompt
+        </Label>
+        <textarea
+          id={`${idPrefix}agent-prompt`}
+          className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+          value={form.systemPrompt}
+          onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
+          placeholder="Define the agent's personality, behavior, and capabilities..."
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-model`} className="text-foreground">
+          Model
+        </Label>
+        <select
+          id={`${idPrefix}agent-model`}
+          className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-[3px]"
+          value={modelValue}
+          onChange={(event) => {
+            const [providerId = "", modelId = ""] =
+              event.target.value === INHERIT_MODEL_VALUE
+                ? []
+                : event.target.value.split(MODEL_VALUE_SEPARATOR);
+            onChange({ ...form, providerId, modelId });
+          }}
+        >
+          <option value={INHERIT_MODEL_VALUE}>
+            Follow the conversation&apos;s model
+          </option>
+          {providers.map((provider) =>
+            (provider.models ?? []).map((model) => {
+              const id = typeof model === "string" ? model : model.id;
+              return (
+                <option
+                  key={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+                  value={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+                >
+                  {provider.name} · {id}
+                </option>
+              );
+            }),
+          )}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Each colleague can run on its own model — a reviewer on a stronger
+          one, a note-taker on something cheap.
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ToolBadge = ({
   tool,
@@ -302,6 +359,9 @@ const AgentListItem = ({
   onEdit: (agent: Agent) => void;
   onDelete: (agentId: string, agentName: string) => void;
 }) => {
+  // Portraits live on the Member, not the Agent — this row renders the same
+  // identity as every channel does.
+  const member = useMember(memberIdForAgent(agent.id));
   const selectedServerCount = agent.selectedMCPs?.length || 0;
 
   return (
@@ -311,9 +371,12 @@ const AgentListItem = ({
       }`}
     >
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <Bot className="h-5 w-5 text-primary" />
-        </div>
+        <MemberAvatar
+          member={member}
+          isHuman={false}
+          className="h-10 w-10 text-sm"
+          fallback={<Bot className="h-5 w-5 text-primary" />}
+        />
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-foreground">{agent.name}</h3>
@@ -347,6 +410,8 @@ const AgentListItem = ({
           size="sm"
           onClick={() => onEdit(agent)}
           className="h-8 w-8 p-0"
+          aria-label={`Configure ${agent.name}`}
+          title="Configure"
         >
           <Settings className="h-4 w-4" />
         </Button>
@@ -355,6 +420,8 @@ const AgentListItem = ({
           size="sm"
           onClick={() => onDelete(agent.id, agent.name)}
           className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+          aria-label={`Delete ${agent.name}`}
+          title="Delete"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -382,6 +449,8 @@ export function AgentsSettingsPage({
     name: "",
     description: "",
     systemPrompt: "",
+    providerId: "",
+    modelId: "",
   });
 
   const {
@@ -426,7 +495,13 @@ export function AgentsSettingsPage({
     setSelectedTemplate(null);
     setSelectedMcpServers([]);
     setDisabledTools([]);
-    setAgentForm({ name: "", description: "", systemPrompt: "" });
+    setAgentForm({
+      name: "",
+      description: "",
+      systemPrompt: "",
+      providerId: "",
+      modelId: "",
+    });
     setEditingAgent(null);
   };
 
@@ -443,6 +518,8 @@ export function AgentsSettingsPage({
         name: template.name,
         description: template.description,
         systemPrompt: template.systemPrompt,
+        providerId: "",
+        modelId: "",
       });
       setDisabledTools([]);
       setEditingAgent(null);
@@ -455,6 +532,8 @@ export function AgentsSettingsPage({
       name: "",
       description: "",
       systemPrompt: "",
+      providerId: "",
+      modelId: "",
     });
     setSelectedMcpServers([]);
     setDisabledTools([]);
@@ -473,6 +552,8 @@ export function AgentsSettingsPage({
         description: agentForm.description.trim() || agentForm.name.trim(),
         systemPrompt: agentForm.systemPrompt.trim(),
         selectedMCPs: selectedMcpServers,
+        providerId: agentForm.providerId || undefined,
+        modelId: agentForm.modelId || undefined,
         predefined: false,
         disableToolReferences: disabledTools.map((tool) => ({
           mcpName: tool.mcpName,
@@ -497,6 +578,8 @@ export function AgentsSettingsPage({
       name: agent.name,
       description: agent.description,
       systemPrompt: agent.systemPrompt || "",
+      providerId: agent.providerId ?? "",
+      modelId: agent.modelId ?? "",
     });
     setSelectedMcpServers(agent.selectedMCPs || []);
     setDisabledTools(
@@ -526,6 +609,8 @@ export function AgentsSettingsPage({
         description: agentForm.description.trim() || agentForm.name.trim(),
         systemPrompt: agentForm.systemPrompt.trim(),
         selectedMCPs: finalSelectedMCPs,
+        providerId: agentForm.providerId || undefined,
+        modelId: agentForm.modelId || undefined,
         disableToolReferences: disabledTools.map((tool) => ({
           mcpName: tool.mcpName,
           toolName: tool.toolName,
@@ -659,7 +744,13 @@ export function AgentsSettingsPage({
           <p className="text-sm text-muted-foreground mb-3">
             No MCP servers configured
           </p>
-          <Button variant="outline" size="sm" onClick={onNavigateToMcp}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNavigateToMcp}
+            className="flex items-center gap-2"
+          >
+            <Server className="h-4 w-4" />
             Setup MCP Servers
           </Button>
         </div>
@@ -731,16 +822,24 @@ export function AgentsSettingsPage({
 
           {mcpServerCount === 0 && (
             <div className="p-4 bg-muted/30 border border-border rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-foreground">
-                    Connect Tools First
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add MCP servers to give your agents powerful capabilities
-                  </p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <Server className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-foreground">
+                      Connect Tools First
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Add MCP servers to give your agents powerful capabilities
+                    </p>
+                  </div>
                 </div>
-                <Button variant="outline" onClick={onNavigateToMcp}>
+                <Button
+                  variant="outline"
+                  onClick={onNavigateToMcp}
+                  className="flex items-center gap-2"
+                >
+                  <Server className="h-4 w-4" />
                   Setup MCP Servers
                 </Button>
               </div>

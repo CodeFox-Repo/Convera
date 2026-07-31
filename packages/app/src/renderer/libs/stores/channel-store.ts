@@ -14,11 +14,20 @@ import {
   LOCAL_WORKSPACE_ID,
   type Channel,
   type Group,
+  type Workspace,
 } from "../db";
 
-export type { Channel, Group };
+export type { Channel, Group, Workspace };
 
 // ==================== Hooks ====================
+
+export function useWorkspace(): Workspace | undefined {
+  return useLiveQuery(() => db.workspaces.get(LOCAL_WORKSPACE_ID));
+}
+
+export async function renameWorkspace(name: string): Promise<void> {
+  await db.workspaces.update(LOCAL_WORKSPACE_ID, { name });
+}
 
 export function useGroups(): Group[] | undefined {
   return useLiveQuery(() => db.groups.orderBy("sortOrder").toArray());
@@ -109,6 +118,10 @@ export async function createChannel(
   const conversationId = await createConversation({ title: input.name });
   const id = crypto.randomUUID();
   const now = new Date();
+  // Dexie cannot index null, so an ungrouped count has to be filtered.
+  const siblingCount = await db.channels
+    .filter((channel) => channel.groupId === input.groupId)
+    .count();
 
   await db.channels.add({
     id,
@@ -120,11 +133,30 @@ export async function createChannel(
     memberIds,
     conversationId,
     defaultAgentMemberId,
+    sortOrder: siblingCount,
     createdAt: now,
     updatedAt: now,
   });
 
   return id;
+}
+
+/**
+ * Reorder within a group, or move across groups, in one write.
+ * `orderedIds` is the group's new top-to-bottom order.
+ */
+export async function reorderChannels(
+  groupId: string | null,
+  orderedIds: string[],
+): Promise<void> {
+  const now = new Date();
+  await db.transaction("rw", db.channels, async () => {
+    await Promise.all(
+      orderedIds.map((id, sortOrder) =>
+        db.channels.update(id, { groupId, sortOrder, updatedAt: now }),
+      ),
+    );
+  });
 }
 
 export async function renameChannel(id: string, name: string): Promise<void> {

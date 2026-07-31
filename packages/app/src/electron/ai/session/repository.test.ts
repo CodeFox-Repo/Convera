@@ -20,6 +20,7 @@ import {
   TURN_RECOVERY_TEXT_LIMIT,
   TURN_RECOVERY_TRUNCATION_MARKER,
 } from "./repository";
+import { LOCAL_AI_PROVIDER_IDS } from "../types";
 
 const temporaryDirectories: string[] = [];
 
@@ -1285,5 +1286,38 @@ describe("SessionStateRepository", () => {
     await expect(recovered.listReplayableTurnHooks()).resolves.toMatchObject([
       { turnId: "configuration-turn", retryable: true },
     ]);
+  });
+});
+
+describe("provider id schema", () => {
+  it("accepts a state file written by every registered provider", async () => {
+    // Regression: the schema used to hardcode its own provider list, so a
+    // conversation completed on a newly added provider invalidated the whole
+    // file on the next read — every conversation became unusable at once.
+    for (const providerId of LOCAL_AI_PROVIDER_IDS) {
+      const path = await statePath();
+      await writeFile(
+        path,
+        JSON.stringify({
+          schemaVersion: 2,
+          conversations: [
+            {
+              conversationId: "c1",
+              revision: 0,
+              transcriptVersion: 1,
+              lastCompletedProviderId: providerId,
+              memoryEpoch: 0,
+              memoryVersion: 0,
+              updatedAt: "2026-07-31T00:00:00.000Z",
+            },
+          ],
+          bindings: [],
+          turns: [],
+        }),
+        "utf8",
+      );
+      const repository = new JsonSessionStateRepository({ path });
+      await expect(repository.getBindings("c1")).resolves.toEqual([]);
+    }
   });
 });

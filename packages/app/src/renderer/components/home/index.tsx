@@ -6,9 +6,9 @@ import {
   ArrowLeft,
   Bot,
   Hash,
+  Inbox as InboxIcon,
   Lock,
   Moon,
-  Search,
   Server,
   Settings,
   Store,
@@ -22,7 +22,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { ChannelHeader } from "../chat/ChannelHeader";
+import { ChannelHeader, ChannelRoster } from "../chat/ChannelHeader";
+import { TypingIndicator } from "../chat/TypingIndicator";
+import { InboxPage } from "../inbox/InboxPage";
 import ChatInputContainer from "../chat/input/chat-input-container";
 import type { ChatInputRef } from "../chat/input/chat-input-container";
 import ChatContent from "../chat/message/chat-content";
@@ -38,12 +40,17 @@ import { McpSettingsPage } from "@/renderer/components/settings/pages/mcp-page";
 import { OrgRosterPage } from "@/renderer/components/talent/OrgRosterPage";
 import { TalentMarketPage } from "@/renderer/components/talent/TalentMarketPage";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
+import {
+  useWorkspaceUI,
+  type SettingsTab,
+} from "@/renderer/libs/stores/workspace-ui-context";
 
 // Import conversation list and search components
 import {
   WorkspaceSidebar,
   WorkspaceUserRow,
 } from "@/renderer/components/sidebar/WorkspaceSidebar";
+import { WorkspaceTitle } from "@/renderer/components/sidebar/WorkspaceTitle";
 import { GlobalSearchDialog } from "@/renderer/components/search/GlobalSearchDialog";
 import {
   useSearchUIState,
@@ -58,9 +65,6 @@ import {
   composeChannelAgentLine,
   composeInputPlaceholder,
 } from "@/renderer/libs/chat-labels";
-
-type ViewType = "chat" | "settings";
-type SettingsTab = "general" | "agents" | "talent" | "org" | "mcp";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -103,12 +107,16 @@ export function HomePage() {
     );
   }, [currentChannel, allMembers]);
 
-  const [activeView, setActiveView] = useState<ViewType>("chat");
-  // Resizable sidebar: drag the divider; width persists across sessions.
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    const stored = Number(localStorage.getItem("sidebarWidth"));
-    return stored >= 320 && stored <= 480 ? stored : 320;
-  });
+  // Where the user was standing — one context owns all of it.
+  const {
+    view: activeView,
+    setView: setActiveView,
+    settingsTab: activeSettingsTab,
+    setSettingsTab: setActiveSettingsTab,
+    sidebarWidth,
+    setSidebarWidth,
+  } = useWorkspaceUI();
+  const [rosterOpen, setRosterOpen] = useState(false);
   const resizingRef = useRef(false);
 
   const startSidebarResize = useCallback((event: React.MouseEvent) => {
@@ -116,13 +124,11 @@ export function HomePage() {
     resizingRef.current = true;
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const width = Math.min(480, Math.max(320, e.clientX));
-      setSidebarWidth(width);
+      setSidebarWidth(e.clientX);
     };
     const onUp = (e: MouseEvent) => {
       resizingRef.current = false;
-      const width = Math.min(480, Math.max(320, e.clientX));
-      localStorage.setItem("sidebarWidth", String(width));
+      setSidebarWidth(e.clientX);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
@@ -133,8 +139,6 @@ export function HomePage() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, []);
-  const [activeSettingsTab, setActiveSettingsTab] =
-    useState<SettingsTab>("general");
 
   // Global search keyboard shortcut (Cmd+K / Ctrl+K)
   useKeyboardShortcut({
@@ -227,13 +231,13 @@ export function HomePage() {
               <div className="h-8" />
               {/* Workspace row: identity on the left, its actions on the right */}
               <div className="flex items-center gap-2 h-8">
-                {activeView === "chat" ? (
-                  <>
-                    <BaseLogo size={18} className="flex-shrink-0" />
-                    <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground">
-                      Personal
-                    </h1>
-                  </>
+                {activeView !== "settings" ? (
+                  <WorkspaceTitle
+                    onManageAgents={() => {
+                      setActiveView("settings");
+                      setActiveSettingsTab("agents");
+                    }}
+                  />
                 ) : (
                   <>
                     <button
@@ -249,7 +253,7 @@ export function HomePage() {
                     </h1>
                   </>
                 )}
-                {activeView === "chat" ? null : (
+                {activeView !== "settings" ? null : (
                   <button
                     onClick={handleToggleTheme}
                     className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors pointer-events-auto"
@@ -264,27 +268,52 @@ export function HomePage() {
                 )}
               </div>
 
-              {/* Search bar row — Discord-style, the whole bar is the ⌘K entry */}
-              {activeView === "chat" && (
+              {/* Inbox: unread + mentions across the workspace */}
+              {activeView !== "settings" && (
                 <button
-                  onClick={openSearch}
-                  className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-sidebar-foreground transition-colors pointer-events-auto"
-                  aria-label="Search conversations"
+                  onClick={() =>
+                    setActiveView(activeView === "inbox" ? "chat" : "inbox")
+                  }
+                  className={`mt-1.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors pointer-events-auto ${
+                    activeView === "inbox"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                  }`}
+                  aria-label="Inbox"
                 >
-                  <Search size={12} className="flex-shrink-0" />
-                  <span className="flex-1 truncate">Search</span>
-                  <kbd className="flex-shrink-0 font-sans text-[10px] tracking-wide opacity-60">
-                    ⌘K
-                  </kbd>
+                  <InboxIcon size={12} className="flex-shrink-0" />
+                  <span className="flex-1 truncate">Inbox</span>
                 </button>
               )}
+
+              {/* Agents sits beside Inbox: both are workspace-wide views, not
+                  a room you talk in. */}
+              {activeView !== "settings" && (
+                <button
+                  onClick={() =>
+                    setActiveView(activeView === "agents" ? "chat" : "agents")
+                  }
+                  className={`mt-0.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors pointer-events-auto ${
+                    activeView === "agents"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                  }`}
+                  aria-label="Agents"
+                >
+                  <Bot size={12} className="flex-shrink-0" />
+                  <span className="flex-1 truncate">Agents</span>
+                </button>
+              )}
+
+              {/* The search bar row is hidden for now; ⌘K still opens the
+                  dialog, so the capability is intact without the chrome. */}
             </div>
           }
 
           {/* Sidebar Content */}
           <div className="flex-1 min-h-0 flex flex-col px-2">
             {/* Workspace: groups, channels, legacy conversations (chat view) */}
-            {activeView === "chat" && (
+            {activeView !== "settings" && (
               <WorkspaceSidebar onNewChat={handleNewChat} />
             )}
 
@@ -316,7 +345,7 @@ export function HomePage() {
               <div className="drag-whitespace absolute inset-0 pointer-events-none"></div>
 
               <div className="relative z-10 px-1">
-                {activeView === "chat" && (
+                {activeView !== "settings" && (
                   // The identity row IS the settings entry — click it, like
                   // Discord's user pill. No separate menu rows.
                   <WorkspaceUserRow onClick={navigateToSettings} />
@@ -338,135 +367,167 @@ export function HomePage() {
         <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors group-hover/divider:bg-ring" />
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-background relative">
-        {activeView === "chat" ? (
-          <>
-            {currentChannel && <ChannelHeader channel={currentChannel} />}
+      {/* Main Content Area — plus the roster as a real second column, so
+          opening it narrows the transcript instead of covering it. */}
+      <div className="flex-1 flex min-w-0">
+        <div className="flex-1 flex flex-col bg-background relative min-w-0">
+          {activeView === "inbox" ? (
+            <InboxPage
+              onOpenConversation={(conversationId) => {
+                setCurrentConversation(conversationId);
+                setActiveView("chat");
+              }}
+            />
+          ) : activeView === "agents" ? (
+            <div className="flex-1 overflow-y-auto">
+              <AgentsSettingsPage
+                onNavigateToMcp={() => {
+                  setActiveView("settings");
+                  setActiveSettingsTab("mcp");
+                }}
+              />
+            </div>
+          ) : activeView === "chat" ? (
+            <>
+              {currentChannel && (
+                <ChannelHeader
+                  channel={currentChannel}
+                  rosterOpen={rosterOpen}
+                  onToggleRoster={() => setRosterOpen((open) => !open)}
+                />
+              )}
 
-            {/* Messages Area */}
-            {messages.length > 0 ? (
-              <div className="flex-1 overflow-y-auto relative">
-                {/* Chat area background drag region - avoid button zones */}
-                <div
-                  className="absolute draglayer z-0"
-                  style={{
-                    top: "70px",
-                    left: "0",
-                    right: "0",
-                    bottom: "0",
-                  }}
-                ></div>
+              {/* Messages Area */}
+              {messages.length > 0 ? (
+                <div className="flex-1 overflow-y-auto relative">
+                  {/* Chat area background drag region - avoid button zones */}
+                  <div
+                    className="absolute draglayer z-0"
+                    style={{
+                      top: "70px",
+                      left: "0",
+                      right: "0",
+                      bottom: "0",
+                    }}
+                  ></div>
 
-                <div className="w-full py-4 relative z-10">
-                  <ChatContent
-                    showReactions={!!currentChannel}
-                    messages={messages}
-                    messagesEndRef={messagesEndRef}
-                    isLoading={isLoading}
-                    onEditMessage={editMessage}
-                    onRegenerateMessage={regenerateMessage}
-                    onBranchFromMessage={handleBranchFromMessage}
-                    agentChanged={agentChanged}
-                    onRegenerateWithNewAgent={() => handleAgentChange(true)}
-                    onIgnoreAgentChange={() => handleAgentChange(false)}
+                  <div className="w-full py-4 relative z-10">
+                    <ChatContent
+                      showReactions={!!currentChannel}
+                      messages={messages}
+                      messagesEndRef={messagesEndRef}
+                      isLoading={isLoading}
+                      onEditMessage={editMessage}
+                      onRegenerateMessage={regenerateMessage}
+                      onBranchFromMessage={handleBranchFromMessage}
+                      agentChanged={agentChanged}
+                      onRegenerateWithNewAgent={() => handleAgentChange(true)}
+                      onIgnoreAgentChange={() => handleAgentChange(false)}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center relative">
+                  {/* Welcome page background drag areas - multiple regions avoiding buttons */}
+
+                  {/* Top area - avoid both left and right button zones */}
+                  <div
+                    className="absolute top-0 draglayer z-0"
+                    style={{
+                      left: "0",
+                      right: "80px",
+                      height: "70px",
+                    }}
+                  ></div>
+
+                  {/* Main center area - full width below buttons */}
+                  <div
+                    className="absolute draglayer z-0"
+                    style={{
+                      top: "70px",
+                      left: "0",
+                      right: "0",
+                      bottom: "120px",
+                    }}
+                  ></div>
+
+                  <div className="text-center space-y-6 max-w-md relative z-10">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
+                      {currentChannel ? (
+                        <ChannelGlyph
+                          size={48}
+                          className="text-muted-foreground"
+                        />
+                      ) : (
+                        <BaseLogo size={64} />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-foreground mb-2">
+                        {currentChannel
+                          ? `Welcome to #${currentChannel.name}`
+                          : "Welcome to Convera"}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {currentChannel
+                          ? `This is the start of #${currentChannel.name}.`
+                          : "Start a conversation by typing a message below"}
+                      </p>
+                      {channelAgentLine && (
+                        <p className="text-muted-foreground mt-1">
+                          {channelAgentLine}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Display */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="px-4 mb-3"
+                  >
+                    <div>
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                        <p className="text-destructive text-sm">
+                          {error.message ||
+                            "Something went wrong. Please try again."}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Input Area */}
+              <div className="px-4 pb-4 relative pointer-events-auto">
+                <div className="relative z-10">
+                  <TypingIndicator />
+                  <ChatInputContainer
+                    ref={chatInputRef}
+                    placeholder={inputPlaceholder}
+                    variant={currentChannel ? "channel" : "chat"}
                   />
                 </div>
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center relative">
-                {/* Welcome page background drag areas - multiple regions avoiding buttons */}
-
-                {/* Top area - avoid both left and right button zones */}
-                <div
-                  className="absolute top-0 draglayer z-0"
-                  style={{
-                    left: "0",
-                    right: "80px",
-                    height: "70px",
-                  }}
-                ></div>
-
-                {/* Main center area - full width below buttons */}
-                <div
-                  className="absolute draglayer z-0"
-                  style={{
-                    top: "70px",
-                    left: "0",
-                    right: "0",
-                    bottom: "120px",
-                  }}
-                ></div>
-
-                <div className="text-center space-y-6 max-w-md relative z-10">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
-                    {currentChannel ? (
-                      <ChannelGlyph
-                        size={48}
-                        className="text-muted-foreground"
-                      />
-                    ) : (
-                      <BaseLogo size={64} />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-foreground mb-2">
-                      {currentChannel
-                        ? `Welcome to #${currentChannel.name}`
-                        : "Welcome to Convera"}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      {currentChannel
-                        ? `This is the start of #${currentChannel.name}.`
-                        : "Start a conversation by typing a message below"}
-                    </p>
-                    {channelAgentLine && (
-                      <p className="text-muted-foreground mt-1">
-                        {channelAgentLine}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Error Display */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="px-4 mb-3"
-                >
-                  <div>
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-                      <p className="text-destructive text-sm">
-                        {error.message ||
-                          "Something went wrong. Please try again."}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Input Area */}
-            <div className="px-4 pb-4 relative pointer-events-auto">
-              <div className="relative z-10">
-                <ChatInputContainer
-                  ref={chatInputRef}
-                  placeholder={inputPlaceholder}
-                  variant={currentChannel ? "channel" : "chat"}
-                />
-              </div>
+            </>
+          ) : (
+            /* Settings View - Content only, navigation is in sidebar */
+            <div className="flex-1 overflow-y-auto">
+              {renderSettingsContent()}
             </div>
-          </>
-        ) : (
-          /* Settings View - Content only, navigation is in sidebar */
-          <div className="flex-1 overflow-y-auto">
-            {renderSettingsContent()}
-          </div>
+          )}
+        </div>
+        {activeView === "chat" && currentChannel && rosterOpen && (
+          <ChannelRoster
+            channel={currentChannel}
+            onClose={() => setRosterOpen(false)}
+          />
         )}
       </div>
 

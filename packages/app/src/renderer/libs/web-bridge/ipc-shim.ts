@@ -56,9 +56,21 @@ export function readWebBridgeConfig(): WebBridgeConfig | null {
  * `create*API(ipcRenderer)` factories consume this unchanged, so the browser
  * and Electron builds share one API implementation.
  */
+const CLIENT_ID_KEY = "convera-bridge-client-id";
+
 export function createWebBridgeIPC(config: WebBridgeConfig): RendererIPCLike {
   const listeners = new Map<string, Set<Listener>>();
-  const clientId = globalThis.crypto.randomUUID();
+  // Identity of the *tab*, not of this module instance: an HMR reload
+  // re-evaluates this file, and a fresh id would read as a different browser
+  // to the bridge — orphaning the sender an in-flight turn is streaming to, so
+  // the reply lands nowhere until a manual refresh re-reads it from disk.
+  const clientId = ((): string => {
+    const stored = sessionStorage.getItem(CLIENT_ID_KEY);
+    if (stored) return stored;
+    const created = globalThis.crypto.randomUUID();
+    sessionStorage.setItem(CLIENT_ID_KEY, created);
+    return created;
+  })();
   let socket: WebSocket | null = null;
   let ready: Promise<void> | null = null;
 

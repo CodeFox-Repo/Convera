@@ -2,10 +2,17 @@ import type { Member } from "@/shared/types/workspace";
 import { parseMentions } from "./mention-parser";
 
 /**
- * Decides which agents reply to a new message.
+ * Decides which agents are *given the chance* to reply to a new message.
  *
- * Mentions win; with none, the channel's default agent answers; with neither,
- * nobody does (a human-only channel is valid).
+ * An explicit @mention is an address: those agents answer. With no mention the
+ * message is addressed to the room, so every agent in it is offered the turn
+ * and each decides for itself whether it has something worth saying — the same
+ * way a person decides whether to speak up (see CLAUDE.md: agents are
+ * colleagues, and the platform does not pick who talks). An agent declines by
+ * replying with nothing but the pass token, which the caller drops.
+ *
+ * `defaultAgentMemberId` remains for 1:1 chats, where there is exactly one
+ * counterpart and silence would just look broken.
  *
  * Agents can @ each other, so a single human message can start a chain. Two
  * agents mentioning each other would otherwise burn tokens forever, hence two
@@ -35,8 +42,16 @@ export interface RoutableMessage {
 export interface RouteInput {
   message: RoutableMessage;
   members: Member[];
-  /** Answers when a message mentions nobody. */
+  /**
+   * Answers an unaddressed message. Set for 1:1 chats; leave null in channels
+   * so `openFloor` decides instead.
+   */
   defaultAgentMemberId?: string | null;
+  /**
+   * Channel semantics: an unaddressed message is offered to every agent
+   * present, each of which may pass. Ignored when `defaultAgentMemberId` is set.
+   */
+  openFloor?: boolean;
   /** Carried over from the previous route; omit to start a fresh chain. */
   chain?: ChainState | null;
 }
@@ -56,6 +71,7 @@ export function routeMessage({
   message,
   members,
   defaultAgentMemberId,
+  openFloor,
   chain,
 }: RouteInput): RouteResult {
   const byId = new Map(members.map((member) => [member.id, member]));
@@ -76,7 +92,9 @@ export function routeMessage({
     ? mentioned
     : defaultAgentMemberId
       ? [defaultAgentMemberId]
-      : [];
+      : openFloor
+        ? members.filter((member) => member.kind === "agent").map((m) => m.id)
+        : [];
 
   const invoke: string[] = [];
   let limitReached = false;

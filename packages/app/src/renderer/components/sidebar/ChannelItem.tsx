@@ -20,6 +20,13 @@ interface ChannelItemProps {
   isActive: boolean;
   isUnread: boolean;
   onSelect: () => void;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  /** "above" / "below" render the drop indicator; null hides it. */
+  dropEdge?: "above" | "below" | null;
+  isDragging?: boolean;
 }
 
 export function ChannelItem({
@@ -27,6 +34,12 @@ export function ChannelItem({
   isActive,
   isUnread,
   onSelect,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  dropEdge,
+  isDragging,
 }: ChannelItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -51,7 +64,22 @@ export function ChannelItem({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="relative">
+        <div
+          className={cn("relative", isDragging && "opacity-40")}
+          draggable
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
+        >
+          {dropEdge && (
+            <span
+              className={cn(
+                "pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary",
+                dropEdge === "above" ? "-top-px" : "-bottom-px",
+              )}
+            />
+          )}
           {isUnread && !isActive && (
             <span className="absolute left-0 top-1/2 h-3 w-1 -translate-x-1 -translate-y-1/2 rounded-full bg-primary" />
           )}

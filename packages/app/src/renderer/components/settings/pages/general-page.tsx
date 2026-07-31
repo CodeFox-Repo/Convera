@@ -1,3 +1,4 @@
+import { ProfileSection } from "@/renderer/components/settings/profile-section";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
@@ -21,7 +22,15 @@ import {
   LOCAL_AI_MEMORY_PROVIDERS,
   isLocalAIMemoryProvider,
 } from "@/shared/types/local-ai";
-import { Check, Database, Loader2, RotateCcw, Terminal } from "lucide-react";
+import {
+  Check,
+  Cpu,
+  Database,
+  Keyboard,
+  Loader2,
+  RotateCcw,
+  Terminal,
+} from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export const MEMORY_PROVIDER_OPTIONS = LOCAL_AI_MEMORY_PROVIDERS.map(
@@ -349,12 +358,17 @@ export function GeneralSettingsPage() {
           </p>
         </div>
 
+        <ProfileSection />
+
         {/* Keyboard Shortcuts Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-foreground">
-              Keyboard Shortcuts
-            </h2>
+            <div className="flex items-center gap-2">
+              <Keyboard className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-medium text-foreground">
+                Keyboard Shortcuts
+              </h2>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -409,9 +423,12 @@ export function GeneralSettingsPage() {
         {/* Model Configurations Section */}
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-medium text-foreground">
-              Local AI Providers
-            </h2>
+            <div className="flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-medium text-foreground">
+                Local AI Providers
+              </h2>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Choose the local CLI Convera uses for new chats. Your selection is
               stored only on this device.

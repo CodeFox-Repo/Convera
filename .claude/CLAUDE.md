@@ -2,6 +2,43 @@
 
 Convera is an advanced chat application built with Electron and React, featuring MCP (Model Context Protocol) integration for extensible AI capabilities.
 
+## Core Philosophy: Agents Are Colleagues, Not Features
+
+Convera simulates a real workplace. Humans and agents are **peers standing in
+the same position**: both are participants in a shared workspace of channels
+and chats. The reference model is `block/buzz` (cloned at `~/i/buzz`, see its
+ARCHITECTURE.md) — humans and agents are equal clients of the same event
+stream; an agent's only privilege is a different pair of eyes.
+
+Three rules follow, and they override convenience:
+
+1. **Perception is pull-based (the agent's "eyes" are an API).**
+   An agent sees the workspace the way a person does — by looking. It reads
+   channels, rosters, and channel descriptions through tools
+   (`read_channel`, `list_channels`, …) when it decides it needs to. Never
+   push workspace content into an agent's system prompt as pre-digested
+   "briefings" — the platform must not decide for the agent what matters.
+   A prompt carries only: the agent's own persona, where it is standing
+   (channel name + description, who's in the room), and the message batch it
+   is being asked to respond to. Everything else it fetches itself.
+
+2. **Memory is self-decided.**
+   When an agent receives information (a project announcement, a task, a
+   correction), *it* decides whether and what to remember, via its own
+   memory tools writing into its own sandbox (`memory/`). Curation is the
+   agent's job; the platform only provides storage primitives. No automatic
+   fact-stuffing.
+
+3. **Channels carry meaning.**
+   A channel's name and description are real context (like #announcements
+   being the onboarding hall where project direction is posted). Agents are
+   expected to read the rooms they are members of to build their own
+   understanding — the same way a new hire reads the pinned posts.
+
+The goal is to model genuine collegial behavior: introduce a project in one
+channel, assign tasks in another, and expect agents to have coherent context
+because they *looked*, not because they were injected.
+
 ## Project Structure
 
 - `app/` - Main Electron application

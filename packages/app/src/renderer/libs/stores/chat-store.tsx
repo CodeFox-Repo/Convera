@@ -1,4 +1,5 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
+import type { LocalAIMessage } from "@/shared/types/local-ai";
 import { AppSettings } from "@/shared/types/settings";
 import type { Attachment, Message, UIMessage } from "@/renderer/types/chat";
 import React, {
@@ -19,12 +20,20 @@ import {
 import { resolveLocalAIProviderId } from "./model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "../local-ai";
 import {
+  addMessage,
   db,
   createConversation,
   deleteConversation as deleteConversationFromDexie,
 } from "../db";
-import { buildChannelContext, projectFor } from "../agent-projection";
+import {
+  buildChannelContext,
+  isPass,
+  projectFor,
+  projectOpenFloor,
+  type OfferedPeer,
+} from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
+import { dispatchOpenFloor } from "../open-floor-dispatch";
 import { parseMentions } from "../mention-parser";
 import {
   LOCAL_HUMAN_MEMBER_ID,
@@ -73,12 +82,38 @@ function buildResponderPrompt(
   agent: Pick<DBAgent, "id" | "name" | "systemPrompt">,
   responderMemberId: string | undefined,
   members: Member[],
+  channelName = "chat",
+  mayPass = false,
+  alsoOffered: OfferedPeer[] = [],
+  channelId?: string,
 ): string {
   const self = members.find((member) => member.id === responderMemberId);
   if (!self) return agent.systemPrompt;
 
-  const context = buildChannelContext(self, "chat", members);
+  const context = buildChannelContext(
+    self,
+    channelName,
+    members,
+    mayPass,
+    alsoOffered,
+    channelId,
+  );
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
+}
+
+/**
+ * One open-floor fan-out, captured before any of it runs.
+ *
+ * `requestMessages` is per-agent because every colleague sees itself as the
+ * assistant, but all of them are projections of the *same* batch. `room` is
+ * carried too so each offer's prompt names the same participants and repeats
+ * the same permission to pass.
+ */
+interface OpenFloorOffer {
+  requestMessages: Map<string, LocalAIMessage[]>;
+  room: Member[];
+  /** Everyone this batch went to, so each knows it was not asked alone. */
+  offered: OfferedPeer[];
 }
 
 // Selected content structure
@@ -240,6 +275,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // Agents still owed a turn from a multi-mention or an agent's own mentions.
   const pendingInvokesRef = useRef<string[]>([]);
   const relayActiveRef = useRef(false);
+  // The frozen open-floor offer: what the room looked like when the floor was
+  // opened, plus the prompt each offered agent was to answer it with. Turns
+  // commit one at a time, so without this the second agent would read the
+  // first one's answer and agree with it instead of judging the question.
+  const openFloorOfferRef = useRef<OpenFloorOffer | null>(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -335,6 +375,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingInvokesRef.current = rest;
     if (!nextResponderId) return;
 
+    // An agent still owed a turn from the open floor answers the batch it was
+    // offered, not the transcript its colleagues have since written into. A
+    // mention chain is the opposite case: being named *is* a reply to what was
+    // just said, so it reads live.
+    const offer = openFloorOfferRef.current;
+    const offeredMessages = offer?.requestMessages.get(nextResponderId);
+    if (!pendingInvokesRef.current.length) openFloorOfferRef.current = null;
+
     const nextMember = members.find((m) => m.id === nextResponderId);
     if (!nextMember?.agentId) return;
     const agent = await db.agents.get(nextMember.agentId);
@@ -344,6 +392,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const conversationId = currentConversationIdRef.current;
       if (!conversationId) return;
+      const relayChannel = await db.channels
+        .where("conversationId")
+        .equals(conversationId)
+        .first();
       const selection = getConversationSelectionToken();
       if (selection.conversationId !== conversationId) return;
       await flushConversationProviderSelection(conversationId);
@@ -361,6 +413,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         sendContext.providerSelection.configId,
       );
       const selectedModelId = sendContext.providerSelection.modelId;
+      const relayProviderId = agent.providerId
+        ? resolveLocalAIProviderId(agent.providerId)
+        : providerId;
+      const relayModelId = agent.modelId ?? selectedModelId;
       const runtimeResult =
         await window.localAI.getConversationRuntimeState(conversationId);
       if (!runtimeResult.success) {
@@ -379,7 +435,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const accepted = await chatAPI.resend(
         chatAPI.messages,
         {
-          providerId,
+          providerId: relayProviderId,
           conversationId,
           turnId,
           expectedRevision:
@@ -387,25 +443,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             sendContext.conversation.activeRevision,
           operation: selectAppendOperation(
             runtimeResult.data ?? null,
-            providerId,
+            relayProviderId,
             nextResponderId,
             sendContext.messages.length,
           ),
           model:
-            selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+            relayModelId === DEFAULT_LOCAL_AI_MODEL_ID
               ? undefined
-              : selectedModelId,
+              : relayModelId,
           agent: {
             id: agent.id,
             memberId: nextResponderId,
-            systemPrompt: buildResponderPrompt(agent, nextResponderId, members),
+            systemPrompt: buildResponderPrompt(
+              agent,
+              nextResponderId,
+              offeredMessages ? (offer?.room ?? members) : members,
+              relayChannel?.name,
+              offeredMessages !== undefined,
+              offer?.offered ?? [],
+            ),
           },
           responderId: nextResponderId,
-          requestMessages: projectFor(
-            nextResponderId,
-            toProjectable(chatAPI.messages),
-            members,
-          ),
+          speaksViaTool: offeredMessages !== undefined,
+          requestMessages:
+            offeredMessages ??
+            projectFor(
+              nextResponderId,
+              toProjectable(chatAPI.messages),
+              members,
+            ),
         },
         sendContext.messages,
       );
@@ -497,8 +563,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
-      saveMessages().then((settled) => {
-        if (settled) void runRelay();
+      saveMessages().then(async (settled) => {
+        if (!settled) return;
+        // A turn that produced no visible text left a shell behind. That
+        // covers both the explicit pass token and — now that speaking is a
+        // tool call — an agent whose words went out through `send_message`
+        // and whose turn output is therefore empty. Either way an empty
+        // bubble is not a thing anyone said, so it does not belong in the
+        // room. Persisted first so the durable turn stays consistent.
+        const assistantId = chatAPI.lastCompletedTurn?.assistantMessageId;
+        const silent = chatAPI.messages.find((message) => {
+          if (message.id !== assistantId) return false;
+          if (typeof message.content !== "string") return false;
+          return !message.content.trim() || isPass(message.content);
+        });
+        if (silent) {
+          await db.messages.delete(silent.id);
+          chatAPI.setMessages(
+            chatAPI.messages.filter((message) => message.id !== silent.id),
+          );
+        }
+        void runRelay();
       });
     }
   }, [
@@ -807,21 +892,148 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const members = await db.members.toArray();
           const mentionedMemberIds = parseMentions(messageText, members);
           message.mentions = mentionedMemberIds;
+          const channelForSend = await db.channels
+            .where("conversationId")
+            .equals(conversationIdToUse)
+            .first();
+          // In a channel the floor is open — everyone in the room is offered
+          // the turn and passes if they have nothing to say. A plain 1:1 chat
+          // has one counterpart, who always answers.
+          const channelMembers = channelForSend
+            ? members.filter((member) =>
+                channelForSend.memberIds.includes(member.id),
+              )
+            : members;
           const routed = routeMessage({
             message: {
               senderId: LOCAL_HUMAN_MEMBER_ID,
               content: messageText,
             },
-            members,
-            defaultAgentMemberId: selectedAgent
-              ? memberIdForAgent(selectedAgent.id)
-              : null,
+            members: channelMembers,
+            defaultAgentMemberId: channelForSend
+              ? null
+              : selectedAgent
+                ? memberIdForAgent(selectedAgent.id)
+                : null,
+            openFloor: !!channelForSend,
             chain: null,
           });
 
           chainRef.current = routed.chain;
           const [firstResponder, ...queued] = routed.invoke;
           pendingInvokesRef.current = queued;
+          // Everyone offered the floor judges the room as it stands *now* —
+          // before any of them has answered. Projected once, up front, so the
+          // colleague that commits second is not reading the first one's reply.
+          const openFloor = !!channelForSend && mentionedMemberIds.length === 0;
+          const offeredPeers: OfferedPeer[] = openFloor
+            ? await Promise.all(
+                routed.invoke.map(async (id) => {
+                  const peer = members.find((member) => member.id === id);
+                  const peerAgent = peer?.agentId
+                    ? await db.agents.get(peer.agentId)
+                    : undefined;
+                  return {
+                    id,
+                    name: peer?.name ?? "A colleague",
+                    description: peerAgent?.description || undefined,
+                  };
+                }),
+              )
+            : [];
+          openFloorOfferRef.current = openFloor
+            ? {
+                requestMessages: projectOpenFloor(
+                  routed.invoke,
+                  [
+                    ...toProjectable(persistedMessages),
+                    {
+                      senderId: LOCAL_HUMAN_MEMBER_ID,
+                      role: "user",
+                      content: messageText,
+                    },
+                  ],
+                  members,
+                ),
+                room: channelMembers,
+                offered: offeredPeers,
+              }
+            : null;
+          // Open floor: everyone offered the message runs at once. They reserve
+          // no rows and speak through `send_message`, so there is nothing for
+          // them to queue behind — a room where three people were asked does
+          // not make them answer in series.
+          if (openFloor && routed.invoke.length > 0) {
+            const offer = openFloorOfferRef.current;
+            const turns = (
+              await Promise.all(
+                routed.invoke.map(async (id) => {
+                  const member = members.find((m) => m.id === id);
+                  const dbAgent = member?.agentId
+                    ? await db.agents.get(member.agentId)
+                    : undefined;
+                  if (!dbAgent || !offer) return undefined;
+                  return {
+                    memberId: id,
+                    agentId: dbAgent.id,
+                    conversationId: conversationIdToUse,
+                    providerId: dbAgent.providerId
+                      ? resolveLocalAIProviderId(dbAgent.providerId)
+                      : providerId,
+                    modelId:
+                      (dbAgent.modelId ?? selectedModelId) ===
+                      DEFAULT_LOCAL_AI_MODEL_ID
+                        ? undefined
+                        : (dbAgent.modelId ?? selectedModelId),
+                    systemPrompt: buildResponderPrompt(
+                      dbAgent,
+                      id,
+                      channelMembers,
+                      channelForSend?.name,
+                      true,
+                      offeredPeers,
+                      channelForSend?.id,
+                    ),
+                    requestMessages: offer.requestMessages.get(id) ?? [],
+                  };
+                }),
+              )
+            ).filter((turn): turn is NonNullable<typeof turn> => !!turn);
+
+            if (turns.length > 0) {
+              // `chatAPI.send` normally persists the human's message on the way
+              // to running a turn; this path does not use it, so the message is
+              // written here or it would never reach the room.
+              const userMessageId = await addMessage(conversationIdToUse, {
+                role: "user",
+                content: messageText,
+                senderId: LOCAL_HUMAN_MEMBER_ID,
+                mentions: mentionedMemberIds,
+                status: "completed",
+              });
+              chatAPI.setMessages([
+                ...persistedMessages,
+                {
+                  id: userMessageId,
+                  role: "user",
+                  content: messageText,
+                  senderId: LOCAL_HUMAN_MEMBER_ID,
+                  createdAt: new Date(),
+                },
+              ]);
+              chatAPI.setInput("");
+              clearAttachments();
+              pendingInvokesRef.current = [];
+              void dispatchOpenFloor(turns).then((results) => {
+                const failed = results.filter((r) => r.error);
+                if (failed.length) {
+                  console.error("Open floor turns failed:", failed);
+                }
+              });
+              return;
+            }
+          }
+
           const responderMember = members.find(
             (member) => member.id === firstResponder,
           );
@@ -831,6 +1043,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const responderMemberId = responder
             ? memberIdForAgent(responder.id)
             : undefined;
+          // A colleague configured with its own model uses it; otherwise the
+          // conversation's selection stands.
+          const responderProviderId = responder?.providerId
+            ? resolveLocalAIProviderId(responder.providerId)
+            : providerId;
+          const responderModelId = responder?.modelId ?? selectedModelId;
           const runtimeState = await getRuntimeState(conversationIdToUse);
           assertConversationSelectionUnchanged(
             selection,
@@ -843,18 +1061,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           const accepted = await chatAPI.send(
             message,
             {
-              providerId,
+              providerId: responderProviderId,
               conversationId: conversationIdToUse,
               turnId,
               expectedRevision:
                 runtimeState?.revision ?? conversation.activeRevision,
               model:
-                selectedModelId === DEFAULT_LOCAL_AI_MODEL_ID
+                responderModelId === DEFAULT_LOCAL_AI_MODEL_ID
                   ? undefined
-                  : selectedModelId,
+                  : responderModelId,
               operation: selectAppendOperation(
                 runtimeState,
-                providerId,
+                responderProviderId,
                 responderMemberId ?? "actor:default",
                 persistedMessages.length,
               ),
@@ -865,13 +1083,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     systemPrompt: buildResponderPrompt(
                       responder,
                       responderMemberId,
-                      members,
+                      channelMembers,
+                      channelForSend?.name,
+                      openFloor,
+                      offeredPeers,
                     ),
                   }
                 : undefined,
               responderId: responderMemberId,
+              // Open floor: the agent speaks with `send_message`, so no reply
+              // row is reserved and staying quiet leaves no trace.
+              speaksViaTool: openFloor,
               requestMessages: responderMemberId
-                ? projectFor(
+                ? (openFloorOfferRef.current?.requestMessages.get(
+                    responderMemberId,
+                  ) ??
+                  projectFor(
                     responderMemberId,
                     [
                       ...toProjectable(persistedMessages),
@@ -882,7 +1109,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       },
                     ],
                     members,
-                  )
+                  ))
                 : undefined,
             },
             persistedMessages,
@@ -1128,6 +1355,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     chatAPI.setMessages([]);
     activeConversationIdRef.current = null;
     activeTurnIdRef.current = null;
+    pendingInvokesRef.current = [];
+    openFloorOfferRef.current = null;
     setSelectedContent(null);
     clearAttachments();
     setCurrentConversationId(null);

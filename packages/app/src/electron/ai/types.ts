@@ -1,4 +1,8 @@
-export const LOCAL_AI_PROVIDER_IDS = ["claude-code", "codex-cli"] as const;
+export const LOCAL_AI_PROVIDER_IDS = [
+  "claude-code",
+  "codex-cli",
+  "openai-api",
+] as const;
 
 export type LocalAiProviderId = (typeof LOCAL_AI_PROVIDER_IDS)[number];
 
@@ -7,7 +11,7 @@ export interface LocalAiProviderDescriptor {
   label: string;
   defaultModel: string;
   models: string[];
-  transport: "claude-agent-sdk" | "codex-app-server";
+  transport: "claude-agent-sdk" | "codex-app-server" | "openai-api";
   supportsStreaming: true;
 }
 

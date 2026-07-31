@@ -79,6 +79,31 @@ export function projectFor(
 }
 
 /**
+ * Projects one open-floor offer for everyone it was offered to, at once.
+ *
+ * The turns still commit one at a time — the runtime serializes per
+ * conversation and only one turn may be pending — so the colleague invoked
+ * second would otherwise be handed a transcript that already contains the
+ * first one's answer. Models agree with what is in the window, and three
+ * agents answer one question with the same sentence. Projecting the batch up
+ * front makes "everyone judges the same room" structural rather than a rule
+ * each call site has to remember.
+ */
+export function projectOpenFloor(
+  targetMemberIds: string[],
+  messages: ProjectableMessage[],
+  members: Member[],
+  options: ProjectOptions = {},
+): Map<string, LocalAIMessage[]> {
+  return new Map(
+    targetMemberIds.map((id) => [
+      id,
+      projectFor(id, messages, members, options),
+    ]),
+  );
+}
+
+/**
  * Drops the oldest non-system messages until the transcript fits.
  *
  * System messages carry the agent's identity and are never dropped; losing them
@@ -112,26 +137,86 @@ function truncateToBudget(
  * Without it the agent treats the "Name: " prefixes as part of the message body
  * and has no idea that @-mentioning a peer is an available move.
  */
+/**
+ * A colleague who was offered the same message. The description is what makes
+ * "closer to their work than mine" answerable — a bare name says nothing about
+ * who writes the docs.
+ */
+export interface OfferedPeer {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export function buildChannelContext(
   self: Member,
   channelName: string,
   members: Member[],
+  mayPass = false,
+  /**
+   * Who else received this same message. An agent that only knows it was asked
+   * concludes it should answer — three colleagues each reasoned that way and
+   * posted the same sentence. A person in a room can see the question went to
+   * everyone, and that is what makes "someone else is better placed" a judgement
+   * they can actually make.
+   */
+  alsoOffered: OfferedPeer[] = [],
+  /** Needed to call send_message — the name alone is not addressable. */
+  channelId?: string,
 ): string {
   const others = members
     .filter((member) => member.id !== self.id)
     .map((member) => `${member.name} (${member.kind})`);
 
   const lines = [
-    `You are "${self.name}" in the channel #${channelName}.`,
+    channelId
+      ? `You are "${self.name}", a member of the team chat #${channelName} (channel_id: ${channelId}).`
+      : `You are "${self.name}", a member of the team chat #${channelName}.`,
     others.length
       ? `Other participants: ${others.join(", ")}.`
       : "You are the only participant so far.",
     "Messages from others are prefixed with the speaker's name. Your own replies are not prefixed — do not prefix them.",
+    // The role prompt describes what this person is good at, not a script they
+    // must perform. Without this, "you are a code reviewer" turns a greeting
+    // into an unprompted review checklist — the single loudest tell that an
+    // agent is a costume rather than a colleague.
+    // Without this the model answers into its own turn output, which nobody
+    // reads: the room only shows what `send_message` posted.
+    "You are not replying to a prompt — you are in a room. Nothing you write as your answer is visible to anyone. The ONLY way to say something here is to call the send_message tool with this channel's id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
+    "This is a chat room, not a task queue. Read what was actually said and respond to it the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 
   if (others.length) {
     lines.push("Mention someone with @Name to bring them into the thread.");
   }
 
+  if (mayPass) {
+    const peers = alsoOffered.filter((member) => member.id !== self.id);
+    lines.push(
+      peers.length
+        ? `Nobody was addressed by name. This same message went to ${peers
+            .map((peer) =>
+              peer.description
+                ? `${peer.name} (${peer.description})`
+                : peer.name,
+            )
+            .join(
+              "; ",
+            )} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If it lands squarely in your work, answer it — do not assume a colleague will cover for you, because they are all thinking the same thing and the room ends up silent. If it clearly belongs to someone else, leave it. If it is a greeting or general chatter addressed to the room, one friendly reply is plenty and it does not have to be yours.`
+        : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
+    );
+  }
+
   return lines.join("\n");
+}
+
+/**
+ * How an agent declines a turn it was offered. Chosen to be something no
+ * genuine reply would ever start with, so the check can stay a prefix test.
+ */
+export const PASS_TOKEN = "[pass]";
+
+/** True when a reply is the agent choosing to stay silent. */
+export function isPass(text: string): boolean {
+  return text.trim().toLowerCase().startsWith(PASS_TOKEN);
 }

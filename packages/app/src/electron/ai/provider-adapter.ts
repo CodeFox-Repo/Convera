@@ -1,6 +1,6 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
-import type { LanguageModel, ProviderMetadata } from "ai";
+import type { LanguageModel, ProviderMetadata, ToolSet } from "ai";
 import type {
   AgentTool,
   AgentToolInteraction,
@@ -20,6 +20,12 @@ export function resolveLocalModelId(
 export interface LocalAiProviderRun {
   model: LanguageModel;
   providerOptions?: Record<string, Record<string, unknown>>;
+  /**
+   * Tools handed to `streamText` rather than wired into the provider itself.
+   * Only adapters without their own tool transport (a plain HTTP API) use this;
+   * the CLI adapters expose tools through their own MCP bridge.
+   */
+  tools?: ToolSet;
   getNativeSessionId(metadata: ProviderMetadata | undefined): string;
 }
 
@@ -52,6 +58,15 @@ export interface LocalAiProviderAdapter {
    * thing standing between the model and the rest of the disk.
    */
   readonly enforcesSandbox: boolean;
+  /**
+   * True when the provider already gives the model file and shell access of its
+   * own (both CLI adapters do). False means the runtime must supply the basic
+   * read/write/list floor, or the agent would have no hands at all — no way to
+   * keep the memory file the colleague model assumes it can keep.
+   *
+   * Optional so existing adapters keep their behaviour; absent reads as true.
+   */
+  readonly providesOwnTools?: boolean;
   getStatus(): Promise<LocalAiProviderStatus>;
   prepareRun(
     request: LocalAIChatRequest,
