@@ -67,9 +67,18 @@ const runtime = new LocalAiRuntime({
 
 // The bridge owns one sender per connected tab; the host talks to whichever
 // one is live.
-const agentHostBridge = new AgentHostRendererBridge(
-  () => handle.bridge?.senders()[0] as never,
-);
+const agentHostBridge = new AgentHostRendererBridge(() => {
+  // The newest live tab, not the first ever seen: a stale sender from a closed
+  // tab still answers isDestroyed() falsely enough to swallow every request.
+  const senders = (handle.bridge?.senders() ?? []).filter(
+    (candidate) => !candidate.isDestroyed(),
+  );
+  const sender = senders[senders.length - 1];
+  if (!sender) {
+    console.warn("[agent-host] no live renderer; work cannot be delivered");
+  }
+  return sender as never;
+});
 const agentHost = new AgentHost({
   repository: new JsonAgentHostJobRepository({
     path: join(tmpdir(), "convera-dev-agent-host-jobs.json"),
