@@ -772,7 +772,9 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
                     ? createBasicAgentTools(sandbox)
                     : []),
                   ...createAgentToolCatalog({
-                    groups: toolGroups.filter((group) => !group.nativeMcpServer),
+                    groups: toolGroups.filter(
+                      (group) => !group.nativeMcpServer,
+                    ),
                     executeTool: this.executeTool,
                     requestInteraction,
                     sandbox,
