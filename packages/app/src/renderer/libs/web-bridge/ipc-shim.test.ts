@@ -38,6 +38,7 @@ class FakeSocket {
 describe("web bridge ipc shim", () => {
   it("waits for the event socket before invoking, so no stream event is lost", async () => {
     vi.stubGlobal("WebSocket", FakeSocket);
+    vi.stubGlobal("sessionStorage", undefined);
     FakeSocket.instances = [];
 
     const fetchMock = vi.fn(async () => ({
