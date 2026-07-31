@@ -9,6 +9,7 @@ import type { UIMessageChunk } from "ai";
 export type LocalAIProviderKind =
   | "claude-code"
   | "codex-cli"
+  | "openai-api"
   | "openai-compatible";
 
 export type LocalAIProviderAvailability =

@@ -52,7 +52,11 @@ interface ActiveConversationLease {
 }
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
-const ALLOWED_PROVIDER_IDS = new Set(["claude-code", "codex-cli"]);
+const ALLOWED_PROVIDER_IDS = new Set([
+  "claude-code",
+  "codex-cli",
+  "openai-api",
+]);
 const MAX_MESSAGE_CHARS = 200_000;
 const MAX_REQUEST_CHARS = 1_000_000;
 const MAX_INTERACTION_RESPONSE_CHARS = 20_000;

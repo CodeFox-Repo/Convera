@@ -23,6 +23,9 @@ importers:
 
   packages/app:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: ^3.0.90
+        version: 3.0.90(zod@3.25.76)
       '@fontsource/inter':
         specifier: ^5.2.5
         version: 5.2.5
@@ -727,6 +730,17 @@ packages:
       '@ai-sdk/provider': 3.0.14
       '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
       '@vercel/oidc': 3.2.0
+      zod: 3.25.76
+    dev: false
+
+  /@ai-sdk/openai@3.0.90(zod@3.25.76):
+    resolution: {integrity: sha512-GIucFshCN7JZwTDur25PsnLEMRUFfAKuLaA9TP9fzGxPC2Zxzl94tvat93ZdZLURkKOrDukU0E4fj73tKDWjTA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.41(zod@3.25.76)
       zod: 3.25.76
     dev: false
 

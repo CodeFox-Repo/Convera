@@ -20,10 +20,13 @@ import type {
 } from "@/shared/types/local-ai";
 import type { AgentSandbox } from "@/shared/types/workspace";
 import {
+  stepCountIs,
   streamText,
   type LanguageModel,
   type ModelMessage,
   type ProviderMetadata,
+  type StopCondition,
+  type ToolSet,
   type UIMessageChunk,
 } from "ai";
 import { createHash, randomUUID } from "node:crypto";
@@ -33,6 +36,7 @@ import {
   type AgentToolGroup,
   type AgentToolInteraction,
 } from "./agent-tools";
+import { createBasicAgentTools } from "./basic-tools";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "./provider-descriptors";
 import type {
   LocalAiProviderAdapter,
@@ -40,6 +44,7 @@ import type {
 } from "./provider-adapter";
 import { ClaudeCodeAdapter } from "./providers/claude-code";
 import { CodexCliAdapter } from "./providers/codex-cli";
+import { OpenAIApiAdapter } from "./providers/openai-api";
 import {
   defaultSessionStatePath,
   DEFAULT_LOCAL_AI_ACTOR_ID,
@@ -77,6 +82,8 @@ interface RuntimeStreamOptions {
   abortSignal: AbortSignal;
   maxOutputTokens?: number;
   providerOptions?: Record<string, Record<string, unknown>>;
+  tools?: ToolSet;
+  stopWhen?: StopCondition<ToolSet>;
 }
 
 export type RuntimeStreamInvoker = (
@@ -441,6 +448,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     const adapters = options.adapters ?? [
       new ClaudeCodeAdapter(),
       new CodexCliAdapter(),
+      new OpenAIApiAdapter(),
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
     this.workingDirectory = options.workingDirectory ?? process.cwd();
@@ -758,12 +766,18 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           this.executionPolicy === "text-only"
             ? []
             : this.mergeTools(
-                createAgentToolCatalog({
-                  groups: toolGroups.filter((group) => !group.nativeMcpServer),
-                  executeTool: this.executeTool,
-                  requestInteraction,
-                  sandbox,
-                }),
+                [
+                  // A provider that brings no tools of its own gets the floor.
+                  ...(adapter.providesOwnTools === false
+                    ? createBasicAgentTools(sandbox)
+                    : []),
+                  ...createAgentToolCatalog({
+                    groups: toolGroups.filter((group) => !group.nativeMcpServer),
+                    executeTool: this.executeTool,
+                    requestInteraction,
+                    sandbox,
+                  }),
+                ],
                 turnContext?.additionalTools ?? [],
               );
         controller.signal.throwIfAborted();
@@ -792,6 +806,10 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           abortSignal: controller.signal,
           maxOutputTokens: request.options?.maxOutputTokens,
           providerOptions: run.providerOptions,
+          tools: run.tools,
+          // Tools passed here are executed by the AI SDK, so the loop has to be
+          // stepped explicitly or the turn ends at the first tool call.
+          stopWhen: run.tools ? stepCountIs(12) : undefined,
         });
         const forwarded = await this.forwardStream(
           request.requestId,

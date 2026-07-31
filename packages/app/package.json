@@ -91,6 +91,7 @@
     "webdriverio": "9.27.1"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.90",
     "@fontsource/inter": "^5.2.5",
     "@hurdlegroup/robotjs": "^0.12.3",
     "@icons-pack/react-simple-icons": "^12.2.0",
