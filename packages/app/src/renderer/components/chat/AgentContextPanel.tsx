@@ -3,6 +3,9 @@ import {
   type AgentContextInspection,
 } from "@/renderer/libs/agent-context-inspector";
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { useAgentHostTasks } from "@/renderer/libs/hooks/use-agent-host-jobs";
+import { memberIdForAgent } from "@/renderer/libs/db";
+import { useChannels } from "@/renderer/libs/stores/channel-store";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -10,10 +13,15 @@ import {
   Eye,
   Loader2,
   LockKeyhole,
+  Pause,
+  Play,
+  RotateCcw,
+  Send,
+  Square,
   Wrench,
   X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 function Section({
   icon: Icon,
@@ -41,12 +49,201 @@ function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Private, out-of-band inspection of the context Convera can account for.
- * Nothing rendered here is appended to the DM transcript or exposed as an
- * agent tool. Home owns whether the panel is mounted; the loader itself still
- * rejects non-DM channels so a public header cannot accidentally reuse it.
- */
+function taskStatusLabel(status: string): string {
+  return status === "running"
+    ? "Working"
+    : status === "queued"
+      ? "Queued"
+      : status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function AgentWorkSection({ agentId }: { agentId: string }) {
+  const agentMemberId = memberIdForAgent(agentId);
+  const { tasks, error, control, redirect } = useAgentHostTasks(agentMemberId);
+  const channels = useChannels();
+  const [guidingTaskId, setGuidingTaskId] = useState<string>();
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState<string>();
+  const channelNames = useMemo(
+    () =>
+      new Map((channels ?? []).map((channel) => [channel.id, channel.name])),
+    [channels],
+  );
+  const visibleTasks = tasks
+    .filter((task) => task.channelKind !== "dm")
+    .slice(0, 20);
+
+  async function runControl(
+    taskId: string,
+    action: "pause" | "resume" | "cancel",
+  ) {
+    setBusy(`${taskId}:${action}`);
+    try {
+      await control(taskId, action);
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  async function submitGuidance(taskId: string) {
+    const value = instruction.trim();
+    if (!value) return;
+    setBusy(`${taskId}:redirect`);
+    try {
+      if (await redirect(taskId, value)) {
+        setInstruction("");
+        setGuidingTaskId(undefined);
+      }
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
+  return (
+    <Section icon={Activity} title="Work in channels">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Chat here to let this agent inspect and control its own work. Buttons
+        below act directly on Agent Host and do not wait for the model.
+      </p>
+      {error && (
+        <p className="text-xs leading-relaxed text-destructive">{error}</p>
+      )}
+      {visibleTasks.length === 0 ? (
+        <Empty>No channel tasks are recorded for this agent yet.</Empty>
+      ) : (
+        <div className="space-y-2">
+          {visibleTasks.map((task) => {
+            const isActive =
+              task.status === "running" || task.status === "queued";
+            const isPaused = task.status === "paused";
+            const channelName =
+              channelNames.get(task.channelId) ?? task.channelId;
+            const latestGuidance = task.controlInstructions.at(-1);
+            const guiding = guidingTaskId === task.id;
+            return (
+              <article
+                key={task.id}
+                className={cn(
+                  "border-l-2 py-1 pl-3",
+                  isActive
+                    ? "border-primary"
+                    : isPaused
+                      ? "border-amber-500"
+                      : "border-sidebar-border",
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium">
+                      #{channelName}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {taskStatusLabel(task.status)} · {task.runCount} run
+                      {task.runCount === 1 ? "" : "s"} · {task.id.slice(-8)}
+                    </p>
+                    {latestGuidance && (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        Guidance: {latestGuidance}
+                      </p>
+                    )}
+                    {task.error && (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-destructive">
+                        {task.error}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-0.5">
+                    {isActive && (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:text-sidebar-foreground"
+                        disabled={busy !== undefined}
+                        onClick={() => void runControl(task.id, "pause")}
+                        aria-label={`Pause work in ${channelName}`}
+                        title="Pause"
+                      >
+                        <Pause size={12} />
+                      </button>
+                    )}
+                    {isPaused && (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:text-sidebar-foreground"
+                        disabled={busy !== undefined}
+                        onClick={() => void runControl(task.id, "resume")}
+                        aria-label={`Resume work in ${channelName}`}
+                        title="Resume"
+                      >
+                        <Play size={12} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:text-sidebar-foreground"
+                      disabled={busy !== undefined}
+                      onClick={() => {
+                        setGuidingTaskId(guiding ? undefined : task.id);
+                        setInstruction("");
+                      }}
+                      aria-label={`Guide work in ${channelName}`}
+                      aria-expanded={guiding}
+                      title="Redirect with guidance"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                    {![
+                      "completed",
+                      "failed",
+                      "cancelled",
+                      "interrupted",
+                    ].includes(task.status) && (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:text-destructive"
+                        disabled={busy !== undefined}
+                        onClick={() => void runControl(task.id, "cancel")}
+                        aria-label={`Cancel work in ${channelName}`}
+                        title="Cancel"
+                      >
+                        <Square size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {guiding && (
+                  <div className="mt-2 space-y-1.5">
+                    <textarea
+                      value={instruction}
+                      onChange={(event) => setInstruction(event.target.value)}
+                      className="min-h-20 w-full resize-y rounded-md border border-sidebar-border px-2 py-1.5 text-xs text-sidebar-foreground outline-none pointer-events-auto focus:border-ring"
+                      maxLength={4_000}
+                      placeholder="What should change in the replacement run?"
+                      aria-label={`Private guidance for work in ${channelName}`}
+                    />
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 rounded-md border border-sidebar-border px-2 py-1 text-xs font-medium text-sidebar-foreground transition-colors pointer-events-auto hover:border-ring disabled:opacity-50"
+                      disabled={!instruction.trim() || busy !== undefined}
+                      onClick={() => void submitGuidance(task.id)}
+                    >
+                      {busy === `${task.id}:redirect` ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Send size={12} />
+                      )}
+                      Apply and restart
+                    </button>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export function AgentContextPanel({
   channelId,
   onClose,
@@ -83,24 +280,22 @@ export function AgentContextPanel({
       exit={{ width: 0, opacity: 0 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
       className="no-drag-region flex flex-shrink-0 flex-col overflow-hidden border-l border-sidebar-border bg-sidebar text-sidebar-foreground"
-      aria-label="Agent context"
+      aria-label="Agent work and context"
     >
       <div className="flex items-start gap-2 border-b border-sidebar-border px-4 py-3">
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">
-            {inspection
-              ? `${inspection.agent.name}'s context`
-              : "Agent context"}
+            {inspection ? `${inspection.agent.name}'s work` : "Agent work"}
           </h3>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            Private inspector · never posted to the conversation
+            Private control · status comes from Agent Host
           </p>
         </div>
         <button
           onClick={onClose}
           className="rounded-md p-1.5 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
           title="Close"
-          aria-label="Close agent context"
+          aria-label="Close agent work"
         >
           <X size={15} />
         </button>
@@ -133,6 +328,8 @@ export function AgentContextPanel({
                   : " · conversation model"}
               </p>
             </div>
+
+            <AgentWorkSection agentId={inspection.agent.id} />
 
             <Section icon={Brain} title="Injected / session identity">
               <p className="text-xs leading-relaxed text-muted-foreground">
