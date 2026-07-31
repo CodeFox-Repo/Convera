@@ -51,6 +51,7 @@ import {
   reconcilePendingTurns,
 } from "../conversation-turn-reconciliation";
 import { replayPendingConversationDeletions } from "../conversation-lifecycle";
+import { submitHumanChannelMessage } from "../agent-host-service";
 
 export type ChatViewMode = "compact" | "expanded";
 
@@ -764,6 +765,41 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           const conversationIdToUse = selection.conversationId;
           const { conversation, messages: persistedMessages } = sendContext;
+          const channel = await db.channels
+            .where("conversationId")
+            .equals(conversationIdToUse)
+            .first();
+          if (channel) {
+            const persisted = await submitHumanChannelMessage({
+              channel,
+              conversation,
+              content: messageText,
+              persistedMessageCount: persistedMessages.length,
+              attachments: message.experimental_attachments?.map(
+                (attachment) => ({
+                  url: attachment.url,
+                  name: attachment.name ?? "",
+                  contentType: attachment.contentType ?? "",
+                }),
+              ),
+            });
+            chatAPI.setMessages([
+              ...persistedMessages,
+              {
+                id: persisted.id,
+                role: "user",
+                content: persisted.content,
+                senderId: persisted.senderId,
+                mentions: persisted.mentions,
+                experimental_attachments: message.experimental_attachments,
+                createdAt: persisted.createdAt,
+              },
+            ]);
+            chatAPI.setInput("");
+            clearAttachments();
+            return;
+          }
+
           const providerId = resolveLocalAIProviderId(
             sendContext.providerSelection.configId,
           );
@@ -782,6 +818,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               : null,
             chain: null,
           });
+
           chainRef.current = routed.chain;
           const [firstResponder, ...queued] = routed.invoke;
           pendingInvokesRef.current = queued;

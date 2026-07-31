@@ -10,9 +10,10 @@ import {
 } from "@/renderer/libs/stores/member-store";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { useAgentHostJobs } from "@/renderer/libs/hooks/use-agent-host-jobs";
 import type { Member } from "@/shared/types/workspace";
 import { AnimatePresence, motion } from "framer-motion";
-import { Hash, Lock, Plus, Star, X } from "lucide-react";
+import { Hash, LoaderCircle, Lock, Plus, Square, Star, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 interface ChannelHeaderProps {
@@ -28,6 +29,17 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
   const allMembers = useMembers();
   const [paneOpen, setPaneOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const {
+    jobs,
+    activeJobs,
+    error: hostError,
+    cancel,
+  } = useAgentHostJobs(channel.id);
+  const latestJob = jobs.at(-1);
+  const latestFailure =
+    latestJob?.status === "failed" || latestJob?.status === "interrupted"
+      ? latestJob
+      : undefined;
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {
@@ -53,6 +65,28 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {channel.name}
         </h2>
+        {activeJobs.length > 0 && (
+          <span
+            className="flex items-center gap-1 text-xs text-muted-foreground"
+            title={`${activeJobs.length} background agent job${activeJobs.length === 1 ? "" : "s"}`}
+          >
+            <LoaderCircle size={12} className="animate-spin" />
+            {activeJobs.length} working
+          </span>
+        )}
+        {hostError && (
+          <span className="truncate text-xs text-destructive" title={hostError}>
+            Agent Host unavailable
+          </span>
+        )}
+        {!hostError && activeJobs.length === 0 && latestFailure?.error && (
+          <span
+            className="max-w-56 truncate text-xs text-destructive"
+            title={latestFailure.error}
+          >
+            Agent error: {latestFailure.error}
+          </span>
+        )}
 
         <button
           onClick={() => setPaneOpen((open) => !open)}
@@ -155,6 +189,9 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
 
               {members.map((member) => {
                 const isDefault = channel.defaultAgentMemberId === member.id;
+                const memberJobs = activeJobs.filter(
+                  (job) => job.agentMemberId === member.id,
+                );
                 return (
                   <div
                     key={member.id}
@@ -166,9 +203,30 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
                         {member.name}
                       </span>
                       <span className="block truncate text-xs leading-tight text-muted-foreground">
-                        {isDefault ? "Default responder" : member.kind}
+                        {memberJobs.length > 0
+                          ? memberJobs.some((job) => job.status === "running")
+                            ? "Working in background"
+                            : "Queued"
+                          : isDefault
+                            ? "Default responder"
+                            : member.kind}
                       </span>
                     </span>
+
+                    {memberJobs.length > 0 && (
+                      <button
+                        className="rounded p-1 text-muted-foreground pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                        onClick={() =>
+                          void Promise.all(
+                            memberJobs.map((job) => cancel(job.id)),
+                          )
+                        }
+                        title={`Stop ${member.name}'s background work`}
+                        aria-label={`Stop ${member.name}'s background work`}
+                      >
+                        <Square size={12} />
+                      </button>
+                    )}
 
                     {/* Faded rather than hidden: display:none would put these
                         out of reach of the keyboard entirely. */}
