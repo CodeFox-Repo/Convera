@@ -10,15 +10,27 @@ import {
 } from "@/renderer/libs/stores/member-store";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { useAgentHostJobs } from "@/renderer/libs/hooks/use-agent-host-jobs";
 import type { Member } from "@/shared/types/workspace";
 import { AnimatePresence, motion } from "framer-motion";
-import { Hash, Lock, Plus, Star, X } from "lucide-react";
+import {
+  Brain,
+  Hash,
+  LoaderCircle,
+  Lock,
+  Plus,
+  Square,
+  Star,
+  X,
+} from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 interface ChannelHeaderProps {
   channel: Channel;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  contextOpen?: boolean;
+  onToggleContext?: () => void;
 }
 
 /**
@@ -30,8 +42,14 @@ export function ChannelHeader({
   channel,
   rosterOpen,
   onToggleRoster,
+  contextOpen,
+  onToggleContext,
 }: ChannelHeaderProps) {
   const allMembers = useMembers();
+  const { jobs, activeJobs, error: hostError } = useAgentHostJobs(channel.id);
+  const latestFailure = [...jobs]
+    .reverse()
+    .find((job) => job.status === "failed" || job.status === "interrupted");
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {
@@ -47,10 +65,50 @@ export function ChannelHeader({
       <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
         {channel.name}
       </h2>
+      {activeJobs.length > 0 && (
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <LoaderCircle size={12} className="animate-spin" />
+          {activeJobs.length} working
+        </span>
+      )}
+      {hostError && (
+        <span
+          className="max-w-56 truncate text-xs text-destructive"
+          title={hostError}
+        >
+          Agent Host unavailable
+        </span>
+      )}
+      {!hostError && activeJobs.length === 0 && latestFailure?.error && (
+        <span
+          className="max-w-56 truncate text-xs text-destructive"
+          title={latestFailure.error}
+        >
+          Agent error: {latestFailure.error}
+        </span>
+      )}
+      {channel.kind === "dm" && onToggleContext && (
+        <button
+          onClick={onToggleContext}
+          className={cn(
+            "ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors pointer-events-auto",
+            contextOpen
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+          aria-label="Inspect agent context"
+          aria-expanded={contextOpen}
+          title="Context available to this agent"
+        >
+          <Brain size={13} />
+          Context
+        </button>
+      )}
       <button
         onClick={onToggleRoster}
         className={cn(
-          "ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors pointer-events-auto",
+          "flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors pointer-events-auto",
+          channel.kind !== "dm" && "ml-auto",
           rosterOpen
             ? "bg-accent text-accent-foreground"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -84,6 +142,7 @@ export function ChannelRoster({
 }) {
   const allMembers = useMembers();
   const [inviting, setInviting] = useState(false);
+  const { activeJobs, cancel } = useAgentHostJobs(channel.id);
 
   const members = useMemo(() => {
     const byId = new Map((allMembers ?? []).map((m) => [m.id, m]));
@@ -172,6 +231,9 @@ export function ChannelRoster({
 
           {members.map((member) => {
             const isDefault = channel.defaultAgentMemberId === member.id;
+            const memberJobs = activeJobs.filter(
+              (job) => job.agentMemberId === member.id,
+            );
             return (
               <div
                 key={member.id}
@@ -190,9 +252,33 @@ export function ChannelRoster({
                         aria-hidden="true"
                       />
                     )}
-                    {isDefault ? "Default responder" : member.kind}
+                    {memberJobs.length > 0 ? (
+                      <>
+                        <LoaderCircle size={11} className="animate-spin" />
+                        {memberJobs.some((job) => job.status === "running")
+                          ? "Working"
+                          : "Queued"}
+                      </>
+                    ) : isDefault ? (
+                      "Default responder"
+                    ) : (
+                      member.kind
+                    )}
                   </span>
                 </span>
+
+                {memberJobs.length > 0 && (
+                  <button
+                    className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                    onClick={() =>
+                      void Promise.all(memberJobs.map((job) => cancel(job.id)))
+                    }
+                    title={`Stop ${member.name}'s background work`}
+                    aria-label={`Stop ${member.name}'s background work`}
+                  >
+                    <Square size={12} />
+                  </button>
+                )}
 
                 {/* Faded rather than hidden: display:none would put these
                         out of reach of the keyboard entirely. */}
@@ -229,4 +315,3 @@ export function ChannelRoster({
     </AnimatePresence>
   );
 }
-

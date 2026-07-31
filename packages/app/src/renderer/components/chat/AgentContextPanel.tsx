@@ -261,7 +261,8 @@ export function AgentContextPanel({
               {inspection.runtime.conversation ? (
                 <div className="space-y-1 text-[11px] leading-relaxed text-muted-foreground">
                   <p>
-                    Transcript v{inspection.runtime.conversation.transcriptVersion}
+                    Transcript v
+                    {inspection.runtime.conversation.transcriptVersion}
                     {" · "}memory v
                     {inspection.runtime.conversation.memoryVersion}
                   </p>
