@@ -47,7 +47,9 @@ export function createRecordingIpcMain(target: IpcMain): RecordingIpcMain {
  * as a real renderer without any special-casing there.
  */
 export class WebBridgeSender extends EventEmitter {
-  readonly id = -1;
+  private static nextId = -1;
+
+  readonly id = WebBridgeSender.nextId--;
   readonly mainFrame = {};
 
   private destroyed = false;

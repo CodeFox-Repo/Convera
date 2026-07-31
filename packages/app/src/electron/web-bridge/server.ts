@@ -6,7 +6,9 @@ import {
   type ServerResponse,
 } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import { WebBridgeSender } from "./dispatch";
 import {
+  WEB_BRIDGE_CLIENT_HEADER,
   WEB_BRIDGE_DEFAULT_PORT,
   WEB_BRIDGE_EVENT_PATH,
   WEB_BRIDGE_INVOKE_PATH,
@@ -30,6 +32,17 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   "local-ai:start-chat",
   "local-ai:abort",
   "local-ai:respond-interaction",
+  "local-ai:get-conversation-runtime-state",
+  "local-ai:get-turn-runtime-state",
+  "local-ai:acknowledge-turn-persistence",
+  "local-ai:quiesce-conversation",
+  "local-ai:resume-conversation",
+  "local-ai:branch-conversation",
+  "local-ai:delete-conversation",
+  "local-ai:reset-conversation-provider-session",
+  "local-ai:get-memory-settings",
+  "local-ai:update-memory-settings",
+  "local-ai:get-memory-status",
   "mcp:getServers",
   "mcp:getAllTools",
   "mcp:startServer",
@@ -48,7 +61,11 @@ const ALLOWED_EVENT_CHANNELS = new Set(["local-ai:event"]);
 
 export interface WebBridgeOptions {
   /** Dispatch an invoke to the already-registered ipcMain handler. */
-  invoke: (channel: string, args: unknown[]) => Promise<unknown>;
+  invoke: (
+    channel: string,
+    args: unknown[],
+    sender: WebBridgeSender,
+  ) => Promise<unknown>;
   port?: number;
   host?: string;
   /** Renderer dev server URL, used to print a ready-to-open browser link. */
@@ -66,8 +83,8 @@ export interface WebBridgeHandle {
   token: string;
   /** Renderer URL with bridge + token already attached. */
   browserURL: string;
-  /** Push an event frame to every connected browser client. */
-  emit: (channel: string, payload: unknown) => void;
+  /** Live sender identities accepted by local-ai-context. */
+  senders: () => WebBridgeSender[];
   close: () => Promise<void>;
 }
 
@@ -121,7 +138,8 @@ function sendJSON(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
-    "access-control-allow-headers": "content-type, x-convera-bridge-token",
+    "access-control-allow-headers":
+      "content-type, x-convera-bridge-token, x-convera-bridge-client",
     "access-control-allow-methods": "POST, OPTIONS",
   });
   response.end(payload);
@@ -154,7 +172,10 @@ export async function startWebBridge(
     options.port ??
     Number(process.env.CONVERA_WEB_BRIDGE_PORT ?? WEB_BRIDGE_DEFAULT_PORT);
   const token = options.token ?? randomBytes(24).toString("hex");
-  const clients = new Set<WebSocket>();
+  const clients = new Map<
+    string,
+    { socket: WebSocket; sender: WebBridgeSender }
+  >();
 
   const authorize = (
     tokenHeader: string | string[] | undefined,
@@ -204,10 +225,24 @@ export async function startWebBridge(
         return;
       }
 
+      const clientHeader = request.headers[WEB_BRIDGE_CLIENT_HEADER];
+      const clientId = Array.isArray(clientHeader)
+        ? clientHeader[0]
+        : clientHeader;
+      const client =
+        typeof clientId === "string" ? clients.get(clientId) : undefined;
+      if (!client || client.sender.isDestroyed()) {
+        sendJSON(response, 409, {
+          error: "A live event socket is required before invoking IPC",
+        });
+        return;
+      }
+
       try {
         const data = await options.invoke(
           invokeRequest.channel,
           invokeRequest.args,
+          client.sender,
         );
         sendJSON(response, 200, {
           ok: true,
@@ -226,8 +261,10 @@ export async function startWebBridge(
 
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
+    const clientId = url.searchParams.get("client") ?? "";
     if (
       url.pathname !== WEB_BRIDGE_EVENT_PATH ||
+      !/^[A-Za-z0-9_-]{16,128}$/.test(clientId) ||
       !authorize(
         url.searchParams.get("token") ?? undefined,
         request.headers.origin,
@@ -237,9 +274,25 @@ export async function startWebBridge(
       return;
     }
     wsServer.handleUpgrade(request, socket, head, (ws) => {
-      clients.add(ws);
-      ws.on("close", () => clients.delete(ws));
-      ws.on("error", () => clients.delete(ws));
+      const previous = clients.get(clientId);
+      previous?.sender.destroy();
+      previous?.socket.close();
+
+      const sender = new WebBridgeSender((channel, payload) => {
+        if (!ALLOWED_EVENT_CHANNELS.has(channel) || ws.readyState !== ws.OPEN) {
+          return;
+        }
+        const frame: WebBridgeEventFrame = { channel, payload };
+        ws.send(JSON.stringify(frame));
+      });
+      const client = { socket: ws, sender };
+      clients.set(clientId, client);
+      const disconnect = () => {
+        if (clients.get(clientId) === client) clients.delete(clientId);
+        sender.destroy();
+      };
+      ws.once("close", disconnect);
+      ws.once("error", disconnect);
     });
   });
 
@@ -282,20 +335,12 @@ export async function startWebBridge(
     url,
     token,
     browserURL: browserURL.toString(),
-    emit: (channel, payload) => {
-      if (!ALLOWED_EVENT_CHANNELS.has(channel)) return;
-      const frame: WebBridgeEventFrame = { channel, payload };
-      const message = JSON.stringify(frame);
-      clients.forEach((client) => {
-        try {
-          client.send(message);
-        } catch {
-          clients.delete(client);
-        }
-      });
-    },
+    senders: () => [...clients.values()].map((client) => client.sender),
     close: async () => {
-      clients.forEach((client) => client.close());
+      clients.forEach(({ socket, sender }) => {
+        sender.destroy();
+        socket.terminate();
+      });
       clients.clear();
       wsServer.close();
       await new Promise<void>((resolve) => httpServer.close(() => resolve()));

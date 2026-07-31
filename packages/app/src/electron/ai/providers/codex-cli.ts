@@ -1,17 +1,119 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
-import type { LanguageModel } from "ai";
 import type {
   CodexAppServerProvider,
   CodexAppServerRequestHandlers,
 } from "ai-sdk-provider-codex-cli";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 import type { ZodEffects, ZodTypeAny } from "zod";
 import { probeCliProvider } from "../cli-probe";
 import {
   resolveLocalModelId,
   type LocalAiProviderAdapter,
+  type LocalAiProviderRun,
 } from "../provider-adapter";
 import type { LocalAiProviderStatus } from "../types";
 import { createCodexMcpServer } from "./codex-mcp-server";
+
+const execFile = promisify(execFileCallback);
+const CODEX_MCP_LIST_TIMEOUT_MS = 15_000;
+
+type CodexConfigOverride = string | number | boolean | object;
+
+const CODEX_TEXT_ONLY_FEATURES = [
+  "apps",
+  "browser_use",
+  "browser_use_external",
+  "browser_use_full_cdp_access",
+  "chronicle",
+  "code_mode",
+  "code_mode_host",
+  "computer_use",
+  "deferred_executor",
+  "enable_mcp_apps",
+  "executor_capability_discovery",
+  "goals",
+  "hooks",
+  "image_generation",
+  "in_app_browser",
+  "mcp_2026_07_28",
+  "memories",
+  "multi_agent",
+  "plugins",
+  "remote_plugin",
+  "rmcp_client",
+  "shell_snapshot",
+  "shell_tool",
+  "skill_mcp_dependency_install",
+  "skill_search",
+  "tool_call_mcp_elicitation",
+  "tool_suggest",
+  "unified_exec",
+  "workspace_dependencies",
+] as const;
+
+export function createCodexTextOnlyConfigOverrides(
+  mcpServerNames: readonly string[],
+): Record<string, CodexConfigOverride> {
+  return {
+    ...Object.fromEntries(
+      CODEX_TEXT_ONLY_FEATURES.map((feature) => [`features.${feature}`, false]),
+    ),
+    "agents.enabled": false,
+    "tools.view_image": false,
+    "tools.web_search": false,
+    web_search: "disabled",
+    mcp_servers: Object.fromEntries(
+      mcpServerNames.map((name) => [name, { enabled: false }]),
+    ),
+  };
+}
+
+interface CodexMcpListEntry {
+  name?: unknown;
+}
+
+async function listConfiguredCodexMcpServers(
+  executablePath?: string,
+): Promise<string[]> {
+  try {
+    const { stdout } = await execFile(
+      executablePath || "codex",
+      ["mcp", "list", "--json"],
+      {
+        // Codex can briefly serialize config access with the app-server
+        // process started during status/model discovery. Five seconds caused
+        // healthy local subscriptions to fail closed before a real turn.
+        timeout: CODEX_MCP_LIST_TIMEOUT_MS,
+        maxBuffer: 2 * 1024 * 1024,
+      },
+    );
+    const parsed: unknown = JSON.parse(stdout);
+    if (!Array.isArray(parsed)) {
+      throw new TypeError("Codex MCP list was not an array.");
+    }
+    return parsed.map((entry) => {
+      const name = (entry as CodexMcpListEntry)?.name;
+      if (typeof name !== "string" || name.trim().length === 0) {
+        throw new TypeError("Codex MCP list contained an invalid server name.");
+      }
+      return name;
+    });
+  } catch (error) {
+    throw Object.assign(
+      new Error(
+        `Cannot establish the Codex text-only boundary because configured MCP servers could not be enumerated: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+      { code: "LOCAL_AI_TEXT_ONLY_POLICY_UNAVAILABLE" },
+    );
+  }
+}
+
+export interface CodexCliAdapterOptions {
+  listConfiguredMcpServers?: (executablePath?: string) => Promise<string[]>;
+}
 
 export class CodexCliAdapter implements LocalAiProviderAdapter {
   readonly id = "codex-cli" as const;
@@ -19,12 +121,20 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
   // escape fails in the kernel rather than in our path checks.
   readonly enforcesSandbox = true;
 
+  private readonly listConfiguredMcpServers: (
+    executablePath?: string,
+  ) => Promise<string[]>;
   private provider?: CodexAppServerProvider;
   private providerExecutablePath?: string;
   private modelCatalog?: {
     defaultModel: string;
     models: string[];
   };
+
+  constructor(options: CodexCliAdapterOptions = {}) {
+    this.listConfiguredMcpServers =
+      options.listConfiguredMcpServers ?? listConfiguredCodexMcpServers;
+  }
 
   async getStatus(): Promise<LocalAiProviderStatus> {
     const status = await probeCliProvider(this.id);
@@ -54,14 +164,16 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     return this.modelCatalog ? { ...status, ...this.modelCatalog } : status;
   }
 
-  async createModel(
+  async prepareRun(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
-    context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
-  ): Promise<LanguageModel> {
+    context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
+  ): Promise<LocalAiProviderRun> {
     await this.ensureProvider(status.executablePath);
+    const textOnly = context.executionPolicy === "text-only";
     const { tool } = await importCodexProviderWithZod3Compatibility();
-    const tools = context.tools.map((definition) =>
+    const exposedTools = textOnly ? [] : context.tools;
+    const tools = exposedTools.map((definition) =>
       tool({
         name: definition.name,
         description: definition.description,
@@ -92,7 +204,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           options: ["Allow once", "Deny"],
         })
       ).approved === true;
-    const serverRequests: CodexAppServerRequestHandlers = {
+    const interactiveServerRequests: CodexAppServerRequestHandlers = {
       onCommandExecutionApproval: async ({ params }) => ({
         decision: (await requestApproval(
           "codex:command_execution",
@@ -117,28 +229,78 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           ? { action: "accept", content: {} }
           : { action: "decline", content: null },
     };
-    const sandbox = context.sandbox;
-    // `workspaceWrite` makes cwd writable on top of `writableRoots`, so cwd has
-    // to be a writable root — pointing it at `sandbox.root` would silently widen
-    // writes to the whole cage.
-    const cwd = sandbox
-      ? (sandbox.writableRoots[0] ?? sandbox.root)
-      : request.options?.cwd;
-
-    return this.provider!(
+    const textOnlyServerRequests: CodexAppServerRequestHandlers = {
+      onCommandExecutionApproval: async () => ({ decision: "decline" }),
+      onFileChangeApproval: async () => ({ decision: "decline" }),
+      onSkillApproval: async () => ({ decision: "decline" }),
+      onMcpElicitation: async () => ({
+        action: "decline",
+        content: null,
+      }),
+    };
+    const serverRequests = textOnly
+      ? textOnlyServerRequests
+      : interactiveServerRequests;
+    const fallbackRoot = request.options?.cwd ?? process.cwd();
+    const sandbox = context.sandbox ?? {
+      root: fallbackRoot,
+      writableRoots: [fallbackRoot],
+      networkAccess: false,
+    };
+    // `workspaceWrite` makes cwd writable in addition to writableRoots, so cwd
+    // must itself be one of the actor's writable roots.
+    const cwd = sandbox.writableRoots[0] ?? sandbox.root;
+    const configOverrides = textOnly
+      ? createCodexTextOnlyConfigOverrides(
+          await this.listConfiguredMcpServers(status.executablePath),
+        )
+      : undefined;
+    const model = this.provider!(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         cwd,
         mcpServers: mcpServer ? { convera: mcpServer } : undefined,
         serverRequests,
-        approvalPolicy: "on-request",
-        sandboxPolicy: {
-          type: "workspaceWrite",
-          writableRoots: sandbox ? sandbox.writableRoots : cwd ? [cwd] : [],
-          networkAccess: sandbox?.networkAccess ?? false,
-        },
+        approvalPolicy: textOnly ? "never" : "on-request",
+        sandboxPolicy: textOnly
+          ? "read-only"
+          : {
+              type: "workspaceWrite",
+              writableRoots: sandbox.writableRoots,
+              networkAccess: sandbox.networkAccess,
+            },
+        configOverrides,
       },
     );
+    const providerOptions = context.session
+      ? {
+          "codex-app-server": {
+            threadId: context.session.nativeSessionId,
+          },
+        }
+      : {
+          "codex-app-server": {
+            threadMode: "persistent" as const,
+          },
+        };
+
+    return {
+      model,
+      providerOptions,
+      getNativeSessionId(metadata) {
+        const nativeSessionId = metadata?.["codex-app-server"]?.threadId;
+        if (
+          typeof nativeSessionId !== "string" ||
+          nativeSessionId.trim().length === 0
+        ) {
+          throw Object.assign(
+            new Error("Codex did not return a persistent thread id."),
+            { code: "LOCAL_AI_SESSION_METADATA_INVALID" },
+          );
+        }
+        return nativeSessionId;
+      },
+    };
   }
 
   async dispose(): Promise<void> {
@@ -162,7 +324,6 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
       defaultSettings: {
         codexPath: executablePath,
         minCodexVersion: "0.144.0",
-        threadMode: "stateless",
         autoApprove: false,
         approvalPolicy: "on-request",
         sandboxPolicy: "read-only",

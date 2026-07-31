@@ -19,6 +19,8 @@ export interface UIMessage {
   content: string;
   /** Member.id of the speaker; absent on history written before member identity. */
   senderId?: string;
+  /** Member ids explicitly mentioned by this message. */
+  mentions?: string[];
   /** emoji -> Member.id[] who reacted. Only set on persisted messages. */
   reactions?: Record<string, string[]>;
   createdAt?: Date;

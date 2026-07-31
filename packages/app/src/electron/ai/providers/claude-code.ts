@@ -1,5 +1,4 @@
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
-import type { LanguageModel } from "ai";
 import {
   createClaudeCode,
   createSdkMcpServer,
@@ -10,6 +9,7 @@ import { probeCliProvider } from "../cli-probe";
 import {
   resolveLocalModelId,
   type LocalAiProviderAdapter,
+  type LocalAiProviderRun,
 } from "../provider-adapter";
 import { toMcpToolResult } from "../tool-result";
 import type { LocalAiProviderStatus } from "../types";
@@ -59,12 +59,14 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
     return probeCliProvider(this.id);
   }
 
-  async createModel(
+  async prepareRun(
     request: LocalAIChatRequest,
     status: LocalAiProviderStatus,
-    context: Parameters<LocalAiProviderAdapter["createModel"]>[2],
-  ): Promise<LanguageModel> {
-    const tools = context.tools.map((definition) =>
+    context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
+  ): Promise<LocalAiProviderRun> {
+    const textOnly = context.executionPolicy === "text-only";
+    const exposedTools = textOnly ? [] : context.tools;
+    const tools = exposedTools.map((definition) =>
       createClaudeTool(
         definition.name,
         definition.description,
@@ -92,26 +94,60 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         ? createSdkMcpServer({ name: "convera", tools })
         : undefined;
 
-    const sandbox = context.sandbox;
-
-    return this.provider(
+    const fallbackRoot = request.options?.cwd ?? process.cwd();
+    const sandbox = context.sandbox ?? {
+      root: fallbackRoot,
+      writableRoots: [fallbackRoot],
+      networkAccess: false,
+    };
+    const model = this.provider(
       resolveLocalModelId(request.modelId, status.defaultModel),
       {
         pathToClaudeCodeExecutable: status.executablePath,
-        cwd: sandbox
-          ? (sandbox.writableRoots[0] ?? sandbox.root)
-          : request.options?.cwd,
-        mcpServers: mcpServer ? { convera: mcpServer } : undefined,
-        allowedTools: context.tools.map(
+        cwd: sandbox.writableRoots[0] ?? sandbox.root,
+        resume: context.session?.nativeSessionId,
+        mcpServers: textOnly
+          ? {}
+          : mcpServer
+            ? { convera: mcpServer }
+            : undefined,
+        allowedTools: exposedTools.map(
           (definition) => `mcp__convera__${definition.name}`,
         ),
-        // The one part of the sandbox contract the SDK can enforce: with an
-        // empty allow list, sandboxed subprocesses get no network at all.
-        ...(sandbox && !sandbox.networkAccess
-          ? { sandbox: { enabled: true, network: { allowedDomains: [] } } }
-          : {}),
+        ...(textOnly
+          ? {
+              permissionMode: "dontAsk" as const,
+              tools: [],
+              settingSources: [],
+              plugins: [],
+              canUseTool: async () => ({
+                behavior: "deny" as const,
+                message:
+                  "This subscription turn is restricted to text generation.",
+                interrupt: true,
+              }),
+            }
+          : !sandbox.networkAccess
+            ? { sandbox: { enabled: true, network: { allowedDomains: [] } } }
+            : {}),
       },
     );
+    return {
+      model,
+      getNativeSessionId(metadata) {
+        const nativeSessionId = metadata?.["claude-code"]?.sessionId;
+        if (
+          typeof nativeSessionId !== "string" ||
+          nativeSessionId.trim().length === 0
+        ) {
+          throw Object.assign(
+            new Error("Claude Code did not return a session id."),
+            { code: "LOCAL_AI_SESSION_METADATA_INVALID" },
+          );
+        }
+        return nativeSessionId;
+      },
+    };
   }
 
   async dispose(): Promise<void> {

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import WebSocket from "ws";
 
 vi.mock("@/electron/logger", () => ({
   getLogger: () => ({
@@ -9,25 +10,47 @@ vi.mock("@/electron/logger", () => ({
   }),
 }));
 
-import { WEB_BRIDGE_TOKEN_HEADER } from "@/shared/web-bridge/protocol";
+import {
+  WEB_BRIDGE_CLIENT_HEADER,
+  WEB_BRIDGE_TOKEN_HEADER,
+} from "@/shared/web-bridge/protocol";
 import { startWebBridge, type WebBridgeHandle } from "./server";
 
 let bridge: WebBridgeHandle | undefined;
+const sockets = new Set<WebSocket>();
 
 afterEach(async () => {
+  sockets.forEach((socket) => socket.terminate());
+  sockets.clear();
   await bridge?.close();
   bridge = undefined;
 });
+
+async function connect(
+  handle: WebBridgeHandle,
+  clientId = "server-test-client",
+): Promise<WebSocket> {
+  const socket = new WebSocket(
+    `${handle.url.replace(/^http/, "ws")}/ipc/events?token=${handle.token}&client=${clientId}`,
+  );
+  sockets.add(socket);
+  await new Promise<void>((resolve, reject) => {
+    socket.once("open", resolve);
+    socket.once("error", reject);
+  });
+  return socket;
+}
 
 async function invoke(
   handle: WebBridgeHandle,
   channel: string,
   args: unknown[] = [],
-  overrides: { token?: string; origin?: string } = {},
+  overrides: { token?: string; origin?: string; clientId?: string } = {},
 ) {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     [WEB_BRIDGE_TOKEN_HEADER]: overrides.token ?? handle.token,
+    [WEB_BRIDGE_CLIENT_HEADER]: overrides.clientId ?? "server-test-client",
   };
   if (overrides.origin) headers.origin = overrides.origin;
 
@@ -45,6 +68,7 @@ describe("web bridge server", () => {
       args,
     }));
     bridge = await startWebBridge({ invoke: invokeSpy, port: 45911 });
+    await connect(bridge);
 
     const allowed = await invoke(bridge, "local-ai:list-providers", []);
     expect(allowed.status).toBe(200);
@@ -62,6 +86,7 @@ describe("web bridge server", () => {
   it("rejects a wrong token and a non-loopback origin", async () => {
     const invokeSpy = vi.fn(async () => "ok");
     bridge = await startWebBridge({ invoke: invokeSpy, port: 45912 });
+    await connect(bridge);
 
     const badToken = await invoke(bridge, "local-ai:list-providers", [], {
       token: "wrong-token",
@@ -88,6 +113,7 @@ describe("web bridge server", () => {
       },
       port: 45913,
     });
+    await connect(bridge);
 
     const response = await invoke(bridge, "mcp:getServers", []);
     expect(response.status).toBe(200);
@@ -95,5 +121,15 @@ describe("web bridge server", () => {
       ok: false,
       error: "runtime exploded",
     });
+  });
+
+  it("refuses invokes that are not bound to a live event socket", async () => {
+    const invokeSpy = vi.fn(async () => "ok");
+    bridge = await startWebBridge({ invoke: invokeSpy, port: 45914 });
+
+    const response = await invoke(bridge, "local-ai:list-providers");
+
+    expect(response.status).toBe(409);
+    expect(invokeSpy).not.toHaveBeenCalled();
   });
 });

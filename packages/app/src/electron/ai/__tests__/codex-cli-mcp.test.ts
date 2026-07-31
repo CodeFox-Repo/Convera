@@ -55,9 +55,14 @@ describe("CodexCliAdapter MCP transport", () => {
     const adapter = new CodexCliAdapter();
     const request: LocalAIChatRequest = {
       requestId: "test",
+      conversationId: "conversation",
+      turnId: "turn",
       providerId: "codex-cli",
       modelId: "gpt-test",
-      messages: [{ role: "user", content: "use a tool" }],
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "use a tool" },
+      },
       options: { cwd: "/tmp/convera-test" },
     };
     const status: LocalAiProviderStatus = {
@@ -70,7 +75,7 @@ describe("CodexCliAdapter MCP transport", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    await adapter.createModel(request, status, {
+    await adapter.prepareRun(request, status, {
       tools: [
         {
           name: "builtin__probe",
@@ -112,9 +117,14 @@ describe("CodexCliAdapter MCP transport", () => {
     const adapter = new CodexCliAdapter();
     const request: LocalAIChatRequest = {
       requestId: "test",
+      conversationId: "conversation",
+      turnId: "turn",
       providerId: "codex-cli",
       modelId: "gpt-test",
-      messages: [{ role: "user", content: "use a tool" }],
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "use a tool" },
+      },
     };
     const status: LocalAiProviderStatus = {
       ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
@@ -126,7 +136,7 @@ describe("CodexCliAdapter MCP transport", () => {
       checkedAt: new Date(0).toISOString(),
     };
 
-    await adapter.createModel(request, status, {
+    await adapter.prepareRun(request, status, {
       tools: [
         {
           name: "builtin__probe",
@@ -156,6 +166,146 @@ describe("CodexCliAdapter MCP transport", () => {
       }),
     ).resolves.toEqual({ action: "accept", content: {} });
 
+    await adapter.dispose();
+  });
+
+  it("removes native and configured tools for a text-only turn", async () => {
+    const listConfiguredMcpServers = vi.fn(async () => [
+      "node_repl",
+      "openaiDeveloperDocs",
+    ]);
+    const adapter = new CodexCliAdapter({ listConfiguredMcpServers });
+    const request: LocalAIChatRequest = {
+      requestId: "restricted",
+      conversationId: "memory-curator",
+      turnId: "memory-turn",
+      providerId: "codex-cli",
+      modelId: "gpt-test",
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "return json" },
+      },
+      options: { cwd: "/tmp/convera-test" },
+    };
+    const status: LocalAiProviderStatus = {
+      ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
+      available: true,
+      authenticated: true,
+      executablePath: "/test/codex",
+      defaultModel: "gpt-test",
+      models: ["gpt-test"],
+      checkedAt: new Date(0).toISOString(),
+    };
+    const interaction = vi.fn(async () => ({ approved: true }));
+
+    await adapter.prepareRun(request, status, {
+      tools: [
+        {
+          name: "builtin__probe",
+          qualifiedName: "builtin:probe",
+          description: "Must not be exposed",
+          inputSchema: { type: "object", properties: {} },
+          inputShape: {},
+          inputValidator: z.object({}),
+          execute: vi.fn(async () => "UNREACHABLE"),
+        },
+      ],
+      executionPolicy: "text-only",
+      requestInteraction: interaction,
+    });
+
+    expect(listConfiguredMcpServers).toHaveBeenCalledWith("/test/codex");
+    const settings = providerSettings() as
+      | {
+          mcpServers?: unknown;
+          approvalPolicy?: unknown;
+          sandboxPolicy?: unknown;
+          configOverrides?: Record<string, unknown>;
+          serverRequests?: Record<
+            string,
+            (...args: never[]) => Promise<unknown>
+          >;
+        }
+      | undefined;
+    expect(settings).toMatchObject({
+      approvalPolicy: "never",
+      sandboxPolicy: "read-only",
+      configOverrides: {
+        "features.shell_tool": false,
+        "features.unified_exec": false,
+        "features.computer_use": false,
+        "features.browser_use": false,
+        "features.apps": false,
+        "features.plugins": false,
+        "features.skill_search": false,
+        "features.hooks": false,
+        "features.multi_agent": false,
+        "agents.enabled": false,
+        "tools.view_image": false,
+        "tools.web_search": false,
+        web_search: "disabled",
+        mcp_servers: {
+          node_repl: { enabled: false },
+          openaiDeveloperDocs: { enabled: false },
+        },
+      },
+    });
+    expect(settings?.mcpServers).toBeUndefined();
+    await expect(
+      settings?.serverRequests?.onCommandExecutionApproval?.(),
+    ).resolves.toEqual({ decision: "decline" });
+    await expect(
+      settings?.serverRequests?.onFileChangeApproval?.(),
+    ).resolves.toEqual({ decision: "decline" });
+    await expect(
+      settings?.serverRequests?.onSkillApproval?.(),
+    ).resolves.toEqual({ decision: "decline" });
+    await expect(
+      settings?.serverRequests?.onMcpElicitation?.(),
+    ).resolves.toEqual({ action: "decline", content: null });
+    expect(interaction).not.toHaveBeenCalled();
+
+    await adapter.dispose();
+  });
+
+  it("fails closed when configured MCP servers cannot be enumerated", async () => {
+    const adapter = new CodexCliAdapter({
+      listConfiguredMcpServers: vi.fn(async () => {
+        throw Object.assign(new Error("probe failed"), {
+          code: "LOCAL_AI_TEXT_ONLY_POLICY_UNAVAILABLE",
+        });
+      }),
+    });
+    const request: LocalAIChatRequest = {
+      requestId: "restricted",
+      conversationId: "memory-curator",
+      turnId: "memory-turn",
+      providerId: "codex-cli",
+      modelId: "gpt-test",
+      operation: {
+        kind: "append",
+        message: { role: "user", content: "return json" },
+      },
+    };
+    const status: LocalAiProviderStatus = {
+      ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
+      available: true,
+      authenticated: true,
+      executablePath: "/test/codex",
+      defaultModel: "gpt-test",
+      models: ["gpt-test"],
+      checkedAt: new Date(0).toISOString(),
+    };
+
+    await expect(
+      adapter.prepareRun(request, status, {
+        tools: [],
+        executionPolicy: "text-only",
+        requestInteraction: vi.fn(async () => ({ approved: false })),
+      }),
+    ).rejects.toMatchObject({
+      code: "LOCAL_AI_TEXT_ONLY_POLICY_UNAVAILABLE",
+    });
     await adapter.dispose();
   });
 });

@@ -59,8 +59,13 @@ function status(id: "codex-cli" | "claude-code"): LocalAiProviderStatus {
 function request(providerId: "codex-cli" | "claude-code"): LocalAIChatRequest {
   return {
     requestId: "test",
+    conversationId: "conversation",
+    turnId: "turn",
     providerId,
-    messages: [{ role: "user", content: "hello" }],
+    operation: {
+      kind: "append",
+      message: { role: "user", content: "hello" },
+    },
     options: { cwd: "/fallback/cwd" },
   };
 }
@@ -83,7 +88,7 @@ describe("provider sandbox contract", () => {
 
   it("translates the sandbox into codex's sandboxPolicy", async () => {
     const adapter = new CodexCliAdapter();
-    await adapter.createModel(request("codex-cli"), status("codex-cli"), {
+    await adapter.prepareRun(request("codex-cli"), status("codex-cli"), {
       tools: [],
       requestInteraction: async () => ({ approved: false }),
       sandbox,
@@ -103,7 +108,7 @@ describe("provider sandbox contract", () => {
 
   it("carries networkAccess through to codex", async () => {
     const adapter = new CodexCliAdapter();
-    await adapter.createModel(request("codex-cli"), status("codex-cli"), {
+    await adapter.prepareRun(request("codex-cli"), status("codex-cli"), {
       tools: [],
       requestInteraction: async () => ({ approved: false }),
       sandbox: { ...sandbox, networkAccess: true },
@@ -115,7 +120,7 @@ describe("provider sandbox contract", () => {
 
   it("keeps the cwd-only policy when no sandbox is supplied", async () => {
     const adapter = new CodexCliAdapter();
-    await adapter.createModel(request("codex-cli"), status("codex-cli"), {
+    await adapter.prepareRun(request("codex-cli"), status("codex-cli"), {
       tools: [],
       requestInteraction: async () => ({ approved: false }),
     });

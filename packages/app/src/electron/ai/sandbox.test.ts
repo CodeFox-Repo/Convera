@@ -5,8 +5,10 @@ import { join, resolve } from "node:path";
 import { realpathSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  canonicalizeToolInputForSandbox,
   isInsideSandbox,
   resolveInSandbox,
+  SandboxToolPolicyError,
   SandboxViolationError,
 } from "./sandbox";
 
@@ -108,5 +110,150 @@ describe("resolveInSandbox", () => {
     expect(() =>
       resolveInSandbox(sandbox, "../honey/planted.md", "write"),
     ).toThrow(SandboxViolationError);
+  });
+
+  it("rejects writable roots that themselves escape the sandbox", () => {
+    expect(() =>
+      resolveInSandbox(
+        { ...sandbox, writableRoots: [secrets] },
+        join(secrets, "planted.md"),
+        "write",
+      ),
+    ).toThrow(SandboxViolationError);
+  });
+});
+
+describe("canonicalizeToolInputForSandbox", () => {
+  it("canonicalizes host MCP path arguments using read/write annotations", () => {
+    const read = canonicalizeToolInputForSandbox({
+      sandbox,
+      serverName: "repo",
+      definition: {
+        name: "read_file",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+        inputSchema: {
+          type: "object",
+          properties: { path: { type: "string" } },
+        },
+      },
+      input: { path: "SOUL.md" },
+    });
+    expect(read.input.path).toBe(resolve(realpathSync(agentRoot), "SOUL.md"));
+
+    const write = canonicalizeToolInputForSandbox({
+      sandbox,
+      serverName: "repo",
+      definition: {
+        name: "write_file",
+        annotations: { readOnlyHint: false, openWorldHint: false },
+        inputSchema: {
+          type: "object",
+          properties: { file_path: { type: "string" } },
+        },
+      },
+      input: { file_path: "workspace/new.md" },
+    });
+    expect(write.input.file_path).toBe(
+      resolve(realpathSync(workspace), "new.md"),
+    );
+  });
+
+  it("rejects escaped, open-world, and opaque host tool calls", () => {
+    expect(() =>
+      canonicalizeToolInputForSandbox({
+        sandbox,
+        serverName: "repo",
+        definition: {
+          name: "read_file",
+          annotations: { readOnlyHint: true, openWorldHint: false },
+          inputSchema: {
+            type: "object",
+            properties: { path: { type: "string" } },
+          },
+        },
+        input: { path: "../honey/SOUL.md" },
+      }),
+    ).toThrow(SandboxViolationError);
+
+    expect(() =>
+      canonicalizeToolInputForSandbox({
+        sandbox,
+        serverName: "builtin",
+        definition: {
+          name: "web_fetch",
+          annotations: { readOnlyHint: true, openWorldHint: true },
+        },
+        input: { url: "https://example.com" },
+      }),
+    ).toThrow(SandboxToolPolicyError);
+
+    expect(() =>
+      canonicalizeToolInputForSandbox({
+        sandbox,
+        serverName: "external",
+        definition: {
+          name: "execute",
+          inputSchema: {
+            type: "object",
+            properties: { command: { type: "string" } },
+          },
+        },
+        input: { command: "cat /etc/passwd" },
+      }),
+    ).toThrow(SandboxToolPolicyError);
+  });
+
+  it("keeps computer control independent from network permission", () => {
+    expect(
+      canonicalizeToolInputForSandbox({
+        sandbox,
+        serverName: "builtin",
+        definition: {
+          name: "computer_control",
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            openWorldHint: true,
+          },
+        },
+        input: { action: "screenshot" },
+      }).input,
+    ).toEqual({ action: "screenshot" });
+  });
+
+  it("rejects host shell execution for every provider sandbox", () => {
+    expect(() =>
+      canonicalizeToolInputForSandbox({
+        sandbox: { ...sandbox, networkAccess: true },
+        serverName: "builtin",
+        definition: {
+          name: "execute_command",
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            openWorldHint: true,
+          },
+        },
+        input: { command: "pwd" },
+      }),
+    ).toThrow("host shell execution has no enforceable OS sandbox");
+  });
+
+  it("allows web fetch only for a network-enabled agent", () => {
+    expect(
+      canonicalizeToolInputForSandbox({
+        sandbox: { ...sandbox, networkAccess: true },
+        serverName: "builtin",
+        definition: {
+          name: "web_fetch",
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            openWorldHint: true,
+          },
+        },
+        input: { url: "https://example.com" },
+      }).input,
+    ).toEqual({ url: "https://example.com" });
   });
 });

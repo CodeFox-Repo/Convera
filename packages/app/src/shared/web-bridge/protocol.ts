@@ -8,6 +8,7 @@ export const WEB_BRIDGE_DEFAULT_PORT = 5200;
 export const WEB_BRIDGE_INVOKE_PATH = "/ipc/invoke";
 export const WEB_BRIDGE_EVENT_PATH = "/ipc/events";
 export const WEB_BRIDGE_TOKEN_HEADER = "x-convera-bridge-token";
+export const WEB_BRIDGE_CLIENT_HEADER = "x-convera-bridge-client";
 
 export interface WebBridgeInvokeRequest {
   channel: string;

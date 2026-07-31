@@ -1,6 +1,6 @@
 /**
- * The v2 migration runs against real user data, so the check that matters is
- * "open a populated v1 database, upgrade, nothing was lost".
+ * The member migration follows the durable lifecycle schema, so the check that
+ * matters is "open a populated v4 database, upgrade, nothing was lost".
  */
 
 import "fake-indexeddb/auto";
@@ -32,9 +32,27 @@ function openV1(): Dexie {
   return db;
 }
 
-function openV2(): Dexie {
+function openV4(): Dexie {
   const db = openV1();
-  db.version(2)
+  db.version(2).stores({
+    conversations:
+      "id, agentId, updatedAt, activeProviderId, [metadata.starred]",
+    messages: "id, conversationId, turnId, [conversationId+turnId], createdAt",
+  });
+  db.version(3).stores({
+    pendingTurns:
+      "turnId, conversationId, requestId, state, createdAt, [conversationId+state]",
+  });
+  db.version(4).stores({
+    pendingConversationDeletions:
+      "conversationId, state, updatedAt, lastAttemptAt, nextAttemptAt",
+  });
+  return db;
+}
+
+function openV5(): Dexie {
+  const db = openV4();
+  db.version(5)
     .stores({ members: "id, workspaceId, kind" })
     .upgrade(seedMembers);
   return db;
@@ -52,26 +70,29 @@ const agent = (id: string, name: string): Agent => ({
   updatedAt: new Date(),
 });
 
-describe("v2 member migration", () => {
+describe("v5 member migration", () => {
   beforeEach(async () => {
     await Dexie.delete(DB_NAME);
 
-    const v1 = openV1();
-    await v1.open();
-    await v1
+    const v4 = openV4();
+    await v4.open();
+    await v4
       .table<Agent>("agents")
       .bulkAdd([agent("agent-fizz", "Fizz"), agent("agent-honey", "Honey")]);
-    await v1.table<Conversation>("conversations").add({
+    await v4.table<Conversation>("conversations").add({
       id: "conv-1",
       title: "Existing chat",
       agentId: "agent-fizz",
       modelId: null,
+      activeRevision: 0,
+      activeProviderId: null,
+      activeModelId: null,
       systemPrompt: null,
       metadata: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    await v1.table<Message>("messages").bulkAdd([
+    await v4.table<Message>("messages").bulkAdd([
       {
         id: "m1",
         conversationId: "conv-1",
@@ -87,11 +108,11 @@ describe("v2 member migration", () => {
         createdAt: new Date(2),
       },
     ]);
-    v1.close();
+    v4.close();
   });
 
   it("keeps existing conversations and messages intact", async () => {
-    const db = openV2();
+    const db = openV5();
     await db.open();
 
     const conversations = await db
@@ -110,7 +131,7 @@ describe("v2 member migration", () => {
   });
 
   it("creates one human member plus one per existing agent", async () => {
-    const db = openV2();
+    const db = openV5();
     await db.open();
 
     const members = await db.table<Member>("members").toArray();
@@ -135,7 +156,7 @@ describe("v2 member migration", () => {
   });
 
   it("leaves senderId unset on old messages so the renderer falls back to role", async () => {
-    const db = openV2();
+    const db = openV5();
     await db.open();
 
     const messages = await db.table<Message>("messages").toArray();
@@ -144,11 +165,11 @@ describe("v2 member migration", () => {
   });
 
   it("is idempotent when reopened", async () => {
-    const first = openV2();
+    const first = openV5();
     await first.open();
     first.close();
 
-    const second = openV2();
+    const second = openV5();
     await second.open();
     expect(await second.table<Member>("members").count()).toBe(3);
     second.close();

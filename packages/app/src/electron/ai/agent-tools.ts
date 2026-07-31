@@ -1,5 +1,7 @@
 import type { ToolDefinition } from "@/shared/types/mcp";
+import type { AgentSandbox } from "@/shared/types/workspace";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
+import { canonicalizeToolInputForSandbox } from "./sandbox";
 
 export interface AgentToolGroup {
   serverName: string;
@@ -26,6 +28,7 @@ export interface AgentTool {
 
 export interface AgentToolCatalogOptions {
   groups: AgentToolGroup[];
+  sandbox?: AgentSandbox;
   executeTool(
     serverName: string,
     toolName: string,
@@ -254,7 +257,7 @@ export function createAgentToolCatalog(
         inputShape,
         inputValidator,
         execute: async (input: Record<string, unknown>) => {
-          const parsed = inputValidator.parse(input);
+          let parsed = inputValidator.parse(input);
 
           if (
             group.serverName.toLowerCase() === BUILTIN_SERVER &&
@@ -279,6 +282,15 @@ export function createAgentToolCatalog(
               userSelection: interaction.value,
               message: `User selected: ${interaction.value}`,
             };
+          }
+
+          if (options.sandbox) {
+            parsed = canonicalizeToolInputForSandbox({
+              sandbox: options.sandbox,
+              serverName: group.serverName,
+              definition,
+              input: parsed,
+            }).input;
           }
 
           if (requiresApproval(group.serverName, definition)) {

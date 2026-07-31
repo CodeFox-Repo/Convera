@@ -29,8 +29,10 @@
     "test:unit": "vitest",
     "test:e2e": "playwright test",
     "test:all": "vitest run && playwright test",
+    "memory:eval": "tsx scripts/memory-eval.mts",
+    "memory:eval:real": "tsx scripts/memory-eval.mts --real",
     "automation": "WDIO_LOG_LEVEL=silent tsx automation/server.ts",
-    "automation:prepare": "electron-forge package && tsx automation/prepare-driver.ts",
+    "automation:prepare": "tsx automation/check-runtime.ts && electron-forge package && tsx automation/prepare-driver.ts",
     "automation:typecheck": "tsc --noEmit -p automation/tsconfig.json"
   },
   "author": "Smal1boy <541898146chen@gmail.com>",
@@ -172,6 +174,7 @@
     "vaul": "^1.1.2",
     "ws": "^8.18.1",
     "zod": "^3.25.76",
+    "zod-to-json-schema": "3.24.5",
     "zustand": "^5.0.4"
   },
   "lint-staged": {

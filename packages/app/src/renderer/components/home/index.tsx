@@ -50,11 +50,8 @@ import {
   useSelectionStore,
 } from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
-import {
-  branchFromMessage,
-  useAgent,
-  useConversation,
-} from "@/renderer/libs/db/hooks";
+import { branchConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
+import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
 import { useChannelByConversationId } from "@/renderer/libs/stores/channel-store";
 import { useMembers } from "@/renderer/libs/stores/member-store";
 import {
@@ -169,7 +166,7 @@ export function HomePage() {
     }
 
     try {
-      const newConversationId = await branchFromMessage(
+      const newConversationId = await branchConversationWithRuntime(
         currentConversationId,
         messageIndex,
       );

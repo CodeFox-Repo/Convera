@@ -1,4 +1,5 @@
 import {
+  WEB_BRIDGE_CLIENT_HEADER,
   WEB_BRIDGE_DEFAULT_PORT,
   WEB_BRIDGE_EVENT_PATH,
   WEB_BRIDGE_INVOKE_PATH,
@@ -54,6 +55,7 @@ export function readWebBridgeConfig(): WebBridgeConfig | null {
  */
 export function createWebBridgeIPC(config: WebBridgeConfig): RendererIPCLike {
   const listeners = new Map<string, Set<Listener>>();
+  const clientId = globalThis.crypto.randomUUID();
   let socket: WebSocket | null = null;
   let ready: Promise<void> | null = null;
 
@@ -68,6 +70,7 @@ export function createWebBridgeIPC(config: WebBridgeConfig): RendererIPCLike {
     const wsURL = new URL(WEB_BRIDGE_EVENT_PATH, config.url);
     wsURL.protocol = wsURL.protocol === "https:" ? "wss:" : "ws:";
     wsURL.searchParams.set("token", config.token);
+    wsURL.searchParams.set("client", clientId);
 
     const next = new WebSocket(wsURL.toString());
     socket = next;
@@ -109,6 +112,7 @@ export function createWebBridgeIPC(config: WebBridgeConfig): RendererIPCLike {
           headers: {
             "content-type": "application/json",
             [WEB_BRIDGE_TOKEN_HEADER]: config.token,
+            [WEB_BRIDGE_CLIENT_HEADER]: clientId,
           },
           body: JSON.stringify({ channel, args }),
         },

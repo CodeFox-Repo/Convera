@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LocalAiProviderAdapter } from "../ai/provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../ai/provider-descriptors";
 import { LocalAiRuntime } from "../ai/runtime";
+import { InMemorySessionStateRepository } from "../ai/session/repository";
 import { cleanupMCPHub, getAllTools, initializeMCPHub } from "./index";
 
 describe("main-process agent tool catalog", () => {
@@ -13,8 +14,11 @@ describe("main-process agent tool catalog", () => {
   });
 
   it("provides every builtin tool to startChat after MCP initialization", async () => {
-    const createModel = vi.fn<LocalAiProviderAdapter["createModel"]>(
-      async () => ({}) as LanguageModel,
+    const prepareRun = vi.fn<LocalAiProviderAdapter["prepareRun"]>(
+      async () => ({
+        model: {} as LanguageModel,
+        getNativeSessionId: () => "thread-runtime-catalog",
+      }),
     );
     const adapter: LocalAiProviderAdapter = {
       id: "codex-cli",
@@ -25,7 +29,7 @@ describe("main-process agent tool catalog", () => {
         authenticated: true,
         checkedAt: new Date(0).toISOString(),
       })),
-      createModel,
+      prepareRun,
       dispose: vi.fn(async () => undefined),
     };
     const configPath = join(
@@ -42,19 +46,28 @@ describe("main-process agent tool catalog", () => {
         toUIMessageStream: async function* () {
           yield { type: "finish" as const, finishReason: "stop" as const };
         },
+        providerMetadata: Promise.resolve({
+          "codex-app-server": { threadId: "thread-runtime-catalog" },
+        }),
       }),
+      sessionRepository: new InMemorySessionStateRepository(),
     });
 
     await runtime.startChat(
       {
         requestId: "runtime-catalog",
+        conversationId: "conversation-runtime-catalog",
+        turnId: "turn-runtime-catalog",
         providerId: "codex-cli",
-        messages: [{ role: "user", content: "List available tools." }],
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "List available tools." },
+        },
       },
       vi.fn(),
     );
 
-    const context = createModel.mock.calls[0]?.[2];
+    const context = prepareRun.mock.calls[0]?.[2];
     expect(context?.tools.map((tool) => tool.qualifiedName)).toEqual([
       "builtin:ask_user_input",
       "builtin:computer_control",

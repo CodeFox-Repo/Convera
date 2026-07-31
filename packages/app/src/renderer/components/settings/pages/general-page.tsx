@@ -1,4 +1,5 @@
 import { Button } from "@/renderer/components/ui/button";
+import { Input } from "@/renderer/components/ui/input";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
@@ -6,8 +7,35 @@ import {
 } from "@/renderer/libs/local-ai";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
-import { Check, Loader2, RotateCcw, Terminal } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import {
+  MAX_MEMORY_BATCH_SIZE,
+  MIN_MEMORY_BATCH_SIZE,
+  isValidMemoryBatchSize,
+} from "@/renderer/libs/memory-settings-constraints";
+import type {
+  LocalAIMemorySettings,
+  LocalAIMemorySettingsUpdate,
+  LocalAIMemoryStatus,
+} from "@/shared/types/local-ai";
+import {
+  LOCAL_AI_MEMORY_PROVIDERS,
+  isLocalAIMemoryProvider,
+} from "@/shared/types/local-ai";
+import { Check, Database, Loader2, RotateCcw, Terminal } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
+export const MEMORY_PROVIDER_OPTIONS = LOCAL_AI_MEMORY_PROVIDERS.map(
+  (value) => ({
+    value,
+    label: value === "off" ? "Off" : "Local",
+  }),
+);
+
+export function createMemoryProviderUpdate(
+  value: string,
+): LocalAIMemorySettingsUpdate | null {
+  return isLocalAIMemoryProvider(value) ? { provider: value } : null;
+}
 
 export function GeneralSettingsPage() {
   // Refs for shortcut recording
@@ -16,9 +44,16 @@ export function GeneralSettingsPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Model Config state
-  const { selectedConfigId, setSelectedModel, subscribeToModelConfigChanges } =
+  const { defaultConfigId, setDefaultModel, subscribeToModelConfigChanges } =
     useModelConfigStore();
   const { providers, loading: providersLoading } = useLocalAIProviders();
+  const [memorySettings, setMemorySettings] =
+    useState<LocalAIMemorySettings | null>(null);
+  const [memoryStatus, setMemoryStatus] = useState<LocalAIMemoryStatus | null>(
+    null,
+  );
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
 
   // Settings Store
   const {
@@ -48,6 +83,67 @@ export function GeneralSettingsPage() {
     subscribeToSettingsChanges,
     subscribeToModelConfigChanges,
   ]);
+
+  const refreshMemoryConfiguration = useCallback(async () => {
+    setMemoryError(null);
+    try {
+      const [settingsResult, statusResult] = await Promise.all([
+        window.localAI.getMemorySettings(),
+        window.localAI.getMemoryStatus(),
+      ]);
+      if (!settingsResult.success || !settingsResult.data) {
+        throw new Error(
+          settingsResult.error?.message || "Could not load memory settings.",
+        );
+      }
+      setMemorySettings(settingsResult.data);
+      if (!statusResult.success || !statusResult.data) {
+        throw new Error(
+          statusResult.error?.message || "Could not load memory status.",
+        );
+      }
+      setMemoryStatus(statusResult.data);
+    } catch (error) {
+      setMemoryError(
+        error instanceof Error
+          ? error.message
+          : "Could not load memory settings.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMemoryConfiguration();
+  }, [refreshMemoryConfiguration]);
+
+  const updateMemoryConfiguration = useCallback(
+    async (update: LocalAIMemorySettingsUpdate) => {
+      setMemorySaving(true);
+      setMemoryError(null);
+      try {
+        const result = await window.localAI.updateMemorySettings(update);
+        if (!result.success || !result.data) {
+          throw new Error(
+            result.error?.message || "Could not update memory settings.",
+          );
+        }
+        setMemorySettings(result.data);
+        const statusResult = await window.localAI.getMemoryStatus();
+        if (statusResult.success && statusResult.data) {
+          setMemoryStatus(statusResult.data);
+        }
+      } catch (error) {
+        setMemoryError(
+          error instanceof Error
+            ? error.message
+            : "Could not update memory settings.",
+        );
+      } finally {
+        setMemorySaving(false);
+      }
+    },
+    [],
+  );
 
   // Shortcut recording functions
   const saveRecordedShortcutCallback = useCallback(
@@ -324,7 +420,7 @@ export function GeneralSettingsPage() {
 
           <div className="border border-border rounded-lg divide-y divide-border">
             {providers.map((provider) => {
-              const isSelected = provider.id === selectedConfigId;
+              const isSelected = provider.id === defaultConfigId;
               const isAvailable = provider.availability === "available";
               const canSelect =
                 !providersLoading &&
@@ -340,7 +436,7 @@ export function GeneralSettingsPage() {
                   disabled={!canSelect}
                   onClick={() => {
                     if (isLocalAIProviderId(provider.id)) {
-                      setSelectedModel(provider.id, DEFAULT_LOCAL_AI_MODEL_ID);
+                      setDefaultModel(provider.id, DEFAULT_LOCAL_AI_MODEL_ID);
                     }
                   }}
                   className="flex w-full items-center justify-between p-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
@@ -387,6 +483,181 @@ export function GeneralSettingsPage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-medium text-foreground">
+                Memory and Context
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Store memory locally. A separate Codex or Claude session can
+              curate completed turns without blocking the reply.
+            </p>
+          </div>
+
+          <div className="border border-border rounded-lg divide-y divide-border">
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Memory provider
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Off pauses memory without deleting it. Local keeps memory on
+                  this device.
+                </p>
+              </div>
+              <select
+                aria-label="Memory provider"
+                value={memorySettings?.provider ?? "off"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) => {
+                  const update = createMemoryProviderUpdate(event.target.value);
+                  if (update) {
+                    void updateMemoryConfiguration(update);
+                  }
+                }}
+                className="min-w-36 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                {MEMORY_PROVIDER_OPTIONS.map((provider) => (
+                  <option key={provider.value} value={provider.value}>
+                    {provider.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Subconscious curator
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Uses an isolated subscription session to consolidate memory.
+                </p>
+              </div>
+              <select
+                aria-label="Subconscious curator"
+                value={memorySettings?.subconsciousProvider ?? "off"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) =>
+                  void updateMemoryConfiguration({
+                    subconsciousProvider: event.target
+                      .value as LocalAIMemorySettings["subconsciousProvider"],
+                  })
+                }
+                className="min-w-44 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <option value="off">Off</option>
+                <option value="codex-cli">Codex</option>
+                <option value="claude-code">Claude</option>
+                <option value="follow-active">Follow active provider</option>
+              </select>
+            </label>
+
+            <label className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Consolidation schedule
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Run after every turn, in batches, or while idle.
+                </p>
+              </div>
+              <select
+                aria-label="Memory consolidation schedule"
+                value={memorySettings?.schedule ?? "every-turn"}
+                disabled={!memorySettings || memorySaving}
+                onChange={(event) =>
+                  void updateMemoryConfiguration({
+                    schedule: event.target
+                      .value as LocalAIMemorySettings["schedule"],
+                  })
+                }
+                className="min-w-36 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <option value="every-turn">Every turn</option>
+                <option value="batch">Batch</option>
+                <option value="idle">Idle</option>
+              </select>
+            </label>
+
+            {memorySettings?.schedule === "batch" && (
+              <label className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm text-foreground">Batch size</span>
+                <Input
+                  key={memorySettings.batchSize}
+                  type="number"
+                  min={MIN_MEMORY_BATCH_SIZE}
+                  max={MAX_MEMORY_BATCH_SIZE}
+                  defaultValue={memorySettings.batchSize}
+                  disabled={memorySaving}
+                  onBlur={(event) => {
+                    const batchSize = Number(event.target.value);
+                    if (
+                      isValidMemoryBatchSize(batchSize) &&
+                      batchSize !== memorySettings.batchSize
+                    ) {
+                      void updateMemoryConfiguration({ batchSize });
+                    }
+                  }}
+                  className="w-28 bg-transparent"
+                />
+              </label>
+            )}
+
+            {memorySettings?.schedule === "idle" && (
+              <label className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm text-foreground">
+                  Idle delay (seconds)
+                </span>
+                <Input
+                  key={memorySettings.idleDelayMs}
+                  type="number"
+                  min={1}
+                  max={3600}
+                  defaultValue={Math.round(memorySettings.idleDelayMs / 1000)}
+                  disabled={memorySaving}
+                  onBlur={(event) => {
+                    const seconds = Number(event.target.value);
+                    const idleDelayMs = seconds * 1000;
+                    if (
+                      Number.isFinite(seconds) &&
+                      seconds >= 1 &&
+                      seconds <= 3600 &&
+                      idleDelayMs !== memorySettings.idleDelayMs
+                    ) {
+                      void updateMemoryConfiguration({ idleDelayMs });
+                    }
+                  }}
+                  className="w-28 bg-transparent"
+                />
+              </label>
+            )}
+
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <span className="font-medium text-foreground">
+                  Memory status
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  {memoryError ||
+                    memoryStatus?.detail ||
+                    "Memory runtime has not reported a status yet."}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {memorySaving
+                  ? "Saving…"
+                  : `${memoryStatus?.health ?? "unknown"} · ${
+                      memoryStatus?.pendingJobs ?? 0
+                    } pending · ${memoryStatus?.failedJobs ?? 0} failed`}
+              </span>
+            </div>
           </div>
         </div>
       </div>

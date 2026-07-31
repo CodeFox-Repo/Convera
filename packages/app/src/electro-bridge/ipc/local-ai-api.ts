@@ -6,6 +6,18 @@ export const LOCAL_AI_CHANNELS = {
   START_CHAT: "local-ai:start-chat",
   ABORT: "local-ai:abort",
   RESPOND_INTERACTION: "local-ai:respond-interaction",
+  GET_CONVERSATION_RUNTIME_STATE: "local-ai:get-conversation-runtime-state",
+  GET_TURN_RUNTIME_STATE: "local-ai:get-turn-runtime-state",
+  ACKNOWLEDGE_TURN_PERSISTENCE: "local-ai:acknowledge-turn-persistence",
+  QUIESCE_CONVERSATION: "local-ai:quiesce-conversation",
+  RESUME_CONVERSATION: "local-ai:resume-conversation",
+  BRANCH_CONVERSATION: "local-ai:branch-conversation",
+  DELETE_CONVERSATION: "local-ai:delete-conversation",
+  RESET_CONVERSATION_PROVIDER_SESSION:
+    "local-ai:reset-conversation-provider-session",
+  GET_MEMORY_SETTINGS: "local-ai:get-memory-settings",
+  UPDATE_MEMORY_SETTINGS: "local-ai:update-memory-settings",
+  GET_MEMORY_STATUS: "local-ai:get-memory-status",
   EVENT: "local-ai:event",
 } as const;
 
@@ -41,6 +53,27 @@ export function createLocalAIAPI(rendererIPC: LocalAIRendererIPC): ILocalAIAPI {
         interactionId,
         response,
       ),
+    getConversationRuntimeState: (conversationId) =>
+      invoke(LOCAL_AI_CHANNELS.GET_CONVERSATION_RUNTIME_STATE, conversationId),
+    getTurnRuntimeState: (request) =>
+      invoke(LOCAL_AI_CHANNELS.GET_TURN_RUNTIME_STATE, request),
+    acknowledgeTurnPersistence: (request) =>
+      invoke(LOCAL_AI_CHANNELS.ACKNOWLEDGE_TURN_PERSISTENCE, request),
+    quiesceConversation: (conversationId) =>
+      invoke(LOCAL_AI_CHANNELS.QUIESCE_CONVERSATION, conversationId),
+    resumeConversation: (request) =>
+      invoke(LOCAL_AI_CHANNELS.RESUME_CONVERSATION, request),
+    branchConversation: (request) =>
+      invoke(LOCAL_AI_CHANNELS.BRANCH_CONVERSATION, request),
+    deleteConversation: (request) =>
+      invoke(LOCAL_AI_CHANNELS.DELETE_CONVERSATION, request),
+    resetConversationProviderSession: (request) =>
+      invoke(LOCAL_AI_CHANNELS.RESET_CONVERSATION_PROVIDER_SESSION, request),
+    getMemorySettings: () => invoke(LOCAL_AI_CHANNELS.GET_MEMORY_SETTINGS),
+    updateMemorySettings: (update) =>
+      invoke(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS, update),
+    getMemoryStatus: (conversationId) =>
+      invoke(LOCAL_AI_CHANNELS.GET_MEMORY_STATUS, conversationId),
     onEvent: (requestId, callback) => {
       const handler = (_event: unknown, event: LocalAIStreamEvent) => {
         if (event.requestId === requestId) callback(event);
