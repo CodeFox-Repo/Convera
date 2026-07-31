@@ -5,6 +5,7 @@
  */
 
 import "fake-indexeddb/auto";
+import { TEMPLATE_AVATARS } from "./template-avatars";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   AGENT_TEMPLATES,
@@ -66,7 +67,8 @@ describe("hire flow", () => {
       kind: "agent",
       name: sage.name,
       agentId: agent.id,
-      avatar: sage.avatar,
+      // Hire prefers the settled portrait over the template emoji.
+      avatar: TEMPLATE_AVATARS[sage.id] ?? sage.avatar,
       status: "idle",
     });
   });

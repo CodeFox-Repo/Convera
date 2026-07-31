@@ -7,6 +7,7 @@
  */
 
 import type { AgentTemplate } from "@/shared/types/workspace";
+import { TEMPLATE_AVATARS } from "./template-avatars";
 import {
   db,
   memberIdForAgent,
@@ -141,15 +142,31 @@ export async function dedupeHiredAgents(): Promise<void> {
     const liveAgentIds = new Set((await db.agents.toArray()).map((a) => a.id));
     const members = await db.members.toArray();
     for (const member of members) {
-      if (member.kind === "agent" && member.agentId && !liveAgentIds.has(member.agentId)) {
+      if (
+        member.kind === "agent" &&
+        member.agentId &&
+        !liveAgentIds.has(member.agentId)
+      ) {
         await db.members.delete(member.id);
       }
     }
   });
 }
 
+/** Members hired before the portraits existed still carry the emoji. */
+async function upgradeEmojiAvatars(): Promise<void> {
+  const members = await db.members.toArray();
+  for (const member of members) {
+    if (member.kind !== "agent" || member.avatar?.startsWith("data:")) continue;
+    const template = AGENT_TEMPLATES.find((t) => t.name === member.name);
+    const portrait = template && TEMPLATE_AVATARS[template.id];
+    if (portrait) await db.members.update(member.id, { avatar: portrait });
+  }
+}
+
 export async function ensureStarterTeam(): Promise<void> {
   await dedupeHiredAgents();
+  await upgradeEmojiAvatars();
   // Claim the seed flag atomically first: StrictMode double-invokes effects,
   // and two concurrent runs would otherwise both see an empty roster.
   const claimed = await db.transaction("rw", db.settings, async () => {
@@ -183,7 +200,8 @@ export async function hireTemplate(template: AgentTemplate): Promise<Agent> {
   });
   await upsertAgentMember(agent);
   await db.members.update(memberIdForAgent(agent.id), {
-    avatar: template.avatar,
+    // Portrait when we have one; the template emoji otherwise.
+    avatar: TEMPLATE_AVATARS[template.id] ?? template.avatar,
   });
   return agent;
 }
