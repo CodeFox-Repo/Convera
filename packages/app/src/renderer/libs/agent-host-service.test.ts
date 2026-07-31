@@ -1,6 +1,10 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentHostJob, IAgentHostAPI } from "@/shared/types/agent-host";
+import type {
+  AgentHostDispatch,
+  AgentHostJob,
+  IAgentHostAPI,
+} from "@/shared/types/agent-host";
 import type { ILocalAIAPI } from "@/shared/types/local-ai";
 import type { Member } from "@/shared/types/workspace";
 import {
@@ -11,45 +15,34 @@ import {
   type Conversation,
 } from "./db/database";
 import {
+  dispatchAgentHostOffers,
   RendererAgentHostService,
-  submitHumanChannelMessage,
 } from "./agent-host-service";
-import { reconcilePendingTurn } from "./conversation-turn-reconciliation";
 
-const fizzAgent: Agent = {
+const agent: Agent = {
   id: "fizz",
   name: "Fizz",
-  description: "",
-  systemPrompt: "",
+  description: "Builds the app",
+  systemPrompt: "You are Fizz.",
   disableToolReferences: [],
+  providerId: "codex-cli",
+  modelId: "gpt-5",
   isBuiltIn: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
-
-const fizz: Member = {
+const member: Member = {
   id: "agent:fizz",
   workspaceId: "personal",
   kind: "agent",
   name: "Fizz",
   avatar: null,
-  agentId: fizzAgent.id,
+  agentId: agent.id,
   status: "idle",
 };
-
-const honey: Member = {
-  id: "agent:honey",
-  workspaceId: "personal",
-  kind: "agent",
-  name: "Honey",
-  avatar: null,
-  agentId: "honey",
-  status: "idle",
-};
-
 const conversation: Conversation = {
   id: "conversation",
-  title: "Flight path",
+  title: "Work",
   agentId: null,
   modelId: null,
   activeRevision: 0,
@@ -60,240 +53,126 @@ const conversation: Conversation = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
-
 const channel: Channel = {
   id: "channel",
   workspaceId: "personal",
   groupId: null,
-  name: "flight-path",
+  name: "work",
   kind: "channel",
   isPrivate: false,
-  memberIds: [LOCAL_HUMAN_MEMBER.id, fizz.id, honey.id],
+  memberIds: [LOCAL_HUMAN_MEMBER.id, member.id],
   conversationId: conversation.id,
-  defaultAgentMemberId: fizz.id,
+  defaultAgentMemberId: member.id,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
-
 const job: AgentHostJob = {
   id: "job",
   channelId: channel.id,
   conversationId: conversation.id,
   triggerMessageId: "human-message",
-  agentMemberId: fizz.id,
-  chain: { hops: 0, invoked: [fizz.id] },
+  contextMessageIds: ["older-message", "human-message"],
+  mode: "open-floor",
+  offeredAgentMemberIds: [member.id],
+  agentId: agent.id,
+  agentMemberId: member.id,
+  chain: { hops: 0, invoked: [member.id] },
   status: "running",
   attempts: 1,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
 
-describe("RendererAgentHostService channel tools", () => {
-  const enqueue = vi.fn(async () => ({ success: true, jobs: [] }));
+describe("RendererAgentHostService", () => {
+  const enqueue = vi.fn(async () => ({ success: true, jobs: [job] }));
 
   beforeEach(async () => {
     enqueue.mockClear();
     await db.open();
-    await db.transaction(
-      "rw",
-      [
-        db.messages,
-        db.pendingTurns,
-        db.pendingConversationDeletions,
-        db.conversations,
-        db.channels,
-        db.members,
-        db.agents,
-      ],
-      async () => {
-        await Promise.all([
-          db.messages.clear(),
-          db.pendingTurns.clear(),
-          db.pendingConversationDeletions.clear(),
-          db.conversations.clear(),
-          db.channels.clear(),
-          db.members.clear(),
-          db.agents.clear(),
-        ]);
-        await db.agents.put(fizzAgent);
-        await db.members.bulkPut([LOCAL_HUMAN_MEMBER, fizz, honey]);
-        await db.conversations.put(conversation);
-        await db.channels.put(channel);
-        await db.messages.put({
-          id: "human-message",
-          conversationId: conversation.id,
-          role: "user",
-          content: "@Fizz take this",
-          senderId: LOCAL_HUMAN_MEMBER.id,
-          createdAt: new Date(),
-        });
+    await Promise.all([
+      db.messages.clear(),
+      db.pendingTurns.clear(),
+      db.conversations.clear(),
+      db.channels.clear(),
+      db.members.clear(),
+      db.agents.clear(),
+    ]);
+    await db.agents.put(agent);
+    await db.members.bulkPut([LOCAL_HUMAN_MEMBER, member]);
+    await db.conversations.put(conversation);
+    await db.channels.put(channel);
+    await db.messages.bulkPut([
+      {
+        id: "older-message",
+        conversationId: conversation.id,
+        role: "assistant",
+        content: "Earlier",
+        senderId: member.id,
+        createdAt: new Date(1),
       },
-    );
+      {
+        id: "human-message",
+        conversationId: conversation.id,
+        role: "user",
+        content: "Take this",
+        senderId: LOCAL_HUMAN_MEMBER.id,
+        createdAt: new Date(2),
+      },
+      {
+        id: "later-message",
+        conversationId: conversation.id,
+        role: "assistant",
+        content: "Must not leak into the frozen offer",
+        senderId: member.id,
+        createdAt: new Date(3),
+      },
+    ]);
     Object.assign(globalThis, {
       window: {
         agentHost: { enqueue } as unknown as IAgentHostAPI,
-        localAI: {
-          getConversationRuntimeState: vi.fn(async () => ({
-            success: true,
-            data: null,
-          })),
-          getTurnRuntimeState: vi.fn(
-            async (request: { conversationId: string; turnId: string }) => ({
-              success: true,
-              data: {
-                ...request,
-                requestId: "request",
-                providerId: "claude-code",
-                revision: 1,
-                status: "completed",
-                startedAt: new Date().toISOString(),
-                completedAt: new Date().toISOString(),
-                finishReason: "stop",
-                assistantText: "Done",
-              },
-            }),
-          ),
-          acknowledgeTurnPersistence: vi.fn(async () => ({
-            success: true,
-            data: { acknowledged: true },
-          })),
-        } as unknown as ILocalAIAPI,
+        localAI: {} as ILocalAIAPI,
       },
     });
   });
 
-  it("stages a durable actor-isolated turn for the main-process host", async () => {
+  it("prepares a concurrent tool-only turn from the frozen message boundary", async () => {
     const service = new RendererAgentHostService();
+    const before = await db.messages.count();
     const prepared = await service.prepareTurn(job);
 
     expect(prepared.request).toMatchObject({
       conversationId: conversation.id,
-      providerId: "claude-code",
+      providerId: "codex-cli",
+      modelId: "gpt-5",
+      concurrent: true,
       operation: {
         kind: "bootstrap",
         messages: [
-          {
-            role: "user",
-            content: "You: @Fizz take this",
-          },
+          { role: "assistant", content: "Earlier" },
+          { role: "user", content: "You: Take this" },
         ],
       },
-      agent: {
-        id: fizzAgent.id,
-        memberId: fizz.id,
-      },
-      agentHost: {
-        jobId: job.id,
-        channelId: channel.id,
-        agentMemberId: fizz.id,
-      },
+      agent: { id: agent.id, memberId: member.id },
     });
-    expect(await db.pendingTurns.get(prepared.request.turnId)).toMatchObject({
-      requestId: prepared.request.requestId,
-      assistantMessageId: prepared.assistantMessageId,
-      state: "staged",
-    });
-    expect(await db.messages.get(prepared.assistantMessageId)).toMatchObject({
-      senderId: fizz.id,
-      status: "pending",
-    });
+    expect(prepared.request.agent?.systemPrompt).toContain(
+      "The ONLY way to say something here is to call the send_message tool",
+    );
+    expect(await db.messages.count()).toBe(before);
+    expect(await db.pendingTurns.count()).toBe(0);
   });
 
-  it("persists a human channel message before dispatching mentions or the default", async () => {
-    const first = await submitHumanChannelMessage({
-      channel,
-      conversation,
-      content: "Please take the default queue",
-      persistedMessageCount: 1,
-    });
-    expect(await db.messages.get(first.id)).toMatchObject({
-      senderId: LOCAL_HUMAN_MEMBER.id,
-      content: "Please take the default queue",
-    });
-    expect(enqueue).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        triggerMessageId: first.id,
-        agentMemberIds: [fizz.id],
-      }),
-    );
-
-    const second = await submitHumanChannelMessage({
-      channel,
-      conversation,
-      content: "@Honey handle this instead",
-      persistedMessageCount: 2,
-    });
-    expect(enqueue).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        triggerMessageId: second.id,
-        agentMemberIds: [honey.id],
-      }),
-    );
-  });
-
-  it("injects the actor identity and dispatches callback mentions", async () => {
-    const service = new RendererAgentHostService();
-    const prepared = await service.prepareTurn(job);
-    const result = await service.executeChannelTool(job, "send_message", {
-      content: "Progress is ready. @Honey please verify.",
-    });
-    const posted = await db.messages.get(
-      (result.result as { messageId: string }).messageId,
-    );
-
-    expect(posted).toMatchObject({
-      senderId: fizz.id,
-      role: "assistant",
-      mentions: [honey.id],
-    });
-    expect(enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        triggerMessageId: posted?.id,
-        agentMemberIds: [honey.id],
-      }),
-    );
-    expect(
-      (await db.pendingTurns.get(prepared.request.turnId))?.desiredMessageIds,
-    ).toContain(posted?.id);
-
-    const repeated = await service.executeChannelTool(job, "send_message", {
-      content: "@Honey again",
-    });
-    expect(
-      (repeated.result as { mentionedAgentMemberIds: string[] })
-        .mentionedAgentMemberIds,
-    ).toEqual([]);
-    expect(enqueue).toHaveBeenCalledTimes(1);
-
-    await reconcilePendingTurn(prepared.request.turnId, {
-      liveAssistant: { content: "Done", senderId: fizz.id },
-    });
-    expect(await db.messages.get(posted!.id)).toMatchObject({
-      content: "Progress is ready. @Honey please verify.",
-      senderId: fizz.id,
-    });
-  });
-
-  it("refuses to edit another member's message", async () => {
-    const service = new RendererAgentHostService();
-    await expect(
-      service.executeChannelTool(job, "edit_message", {
-        messageId: "human-message",
-        content: "impersonated",
-      }),
-    ).rejects.toThrow("only their own");
-    expect((await db.messages.get("human-message"))?.content).toBe(
-      "@Fizz take this",
-    );
-  });
-
-  it("refuses all channel tools after membership is removed", async () => {
-    await db.channels.update(channel.id, {
-      memberIds: [LOCAL_HUMAN_MEMBER.id, honey.id],
-    });
-    const service = new RendererAgentHostService();
-    await expect(
-      service.executeChannelTool(job, "list_members", {}),
-    ).rejects.toThrow("no longer a member");
+  it("only enqueues a collaboration-layer dispatch", async () => {
+    const dispatch: AgentHostDispatch = {
+      channelId: channel.id,
+      conversationId: conversation.id,
+      triggerMessageId: "human-message",
+      contextMessageIds: ["human-message"],
+      mode: "direct",
+      offeredAgentMemberIds: [member.id],
+      targets: [{ agentId: agent.id, memberId: member.id }],
+      chain: { hops: 0, invoked: [member.id] },
+    };
+    expect(await dispatchAgentHostOffers(dispatch)).toEqual([job]);
+    expect(enqueue).toHaveBeenCalledWith(dispatch);
   });
 });

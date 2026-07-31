@@ -330,18 +330,6 @@ describe("local AI IPC", () => {
         ...baseRequest,
         agent: { id: "../fizz", memberId: "agent:../fizz" },
       },
-      {
-        ...baseRequest,
-        agent: { id: "fizz", memberId: "agent:fizz" },
-        agentHost: {
-          jobId: "forged-job",
-          channelId: "channel",
-          conversationId: baseRequest.conversationId,
-          triggerMessageId: "message",
-          agentMemberId: "agent:fizz",
-          chain: { hops: 0, invoked: ["agent:fizz"] },
-        },
-      },
       { ...baseRequest, options: { temperature: Number.NaN } },
       { ...baseRequest, options: { maxOutputTokens: 0 } },
       {

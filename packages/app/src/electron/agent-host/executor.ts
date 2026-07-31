@@ -2,7 +2,6 @@ import type {
   AgentHostEvent,
   AgentHostJob,
   PreparedAgentHostTurn,
-  SettledAgentHostTurn,
 } from "@/shared/types/agent-host";
 import type { LocalAIRuntimeService } from "@/shared/types/local-ai";
 import type { AgentHostExecutor } from "./host";
@@ -19,38 +18,28 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
   async execute(
     job: AgentHostJob,
     emit: (event: AgentHostEvent) => void,
-  ): Promise<SettledAgentHostTurn> {
-    await this.bridge.request({
-      kind: "set-member-status",
-      memberId: job.agentMemberId,
-      status: "working",
-    });
+  ): Promise<void> {
     try {
       const prepared = await this.bridge.request<PreparedAgentHostTurn>({
         kind: "prepare-turn",
         job,
       });
-      this.activeRequests.set(job.id, prepared.request.requestId);
-      await this.runtime.startChat(prepared.request, (event) => {
-        emit({ type: "stream", jobId: job.id, event });
-      });
-      return await this.bridge.request<SettledAgentHostTurn>({
-        kind: "settle-turn",
-        job: {
-          ...job,
-          requestId: prepared.request.requestId,
-          turnId: prepared.request.turnId,
+      const request = {
+        ...prepared.request,
+        conversationId: job.conversationId,
+        concurrent: true,
+        agent: {
+          ...prepared.request.agent,
+          id: job.agentId,
+          memberId: job.agentMemberId,
         },
+      };
+      this.activeRequests.set(job.id, request.requestId);
+      await this.runtime.startChat(request, (event) => {
+        emit({ type: "stream", jobId: job.id, event });
       });
     } finally {
       this.activeRequests.delete(job.id);
-      await this.bridge
-        .request({
-          kind: "set-member-status",
-          memberId: job.agentMemberId,
-          status: "idle",
-        })
-        .catch(() => undefined);
     }
   }
 

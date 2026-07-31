@@ -22,7 +22,6 @@ import { AgentHost } from "@/electron/agent-host/host";
 import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
 import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
 import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
-import { withAgentHostTurnHooks } from "@/electron/agent-host/turn-hooks";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -155,10 +154,7 @@ app.whenReady().then(async () => {
     });
     localAIRuntime = new LocalAiRuntime({
       sessionRepository,
-      turnHooks: withAgentHostTurnHooks(
-        withWorkspacePerception(memoryCoordinator),
-        agentHostBridge,
-      ),
+      turnHooks: withWorkspacePerception(memoryCoordinator),
       memoryService: memoryCoordinator,
       resolveSandbox: async (request) => {
         const agentId = request.agent?.id?.trim();

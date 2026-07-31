@@ -1,203 +1,170 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
+  AgentHostDispatch,
   AgentHostJob,
-  SettledAgentHostTurn,
 } from "@/shared/types/agent-host";
 import { AgentHost, type AgentHostExecutor } from "./host";
 import { InMemoryAgentHostJobRepository } from "./repository";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((yes, no) => {
-    resolve = yes;
-    reject = no;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
   return { promise, resolve, reject };
 }
 
-const settled: SettledAgentHostTurn = {
-  assistantContent: "done",
-  triggerMessageId: "assistant-message",
-  followupAgentMemberIds: [],
-  chain: { hops: 0, invoked: ["agent:a"] },
-  limitReached: false,
-};
-
-function dispatch(conversationId: string, agentMemberIds = ["agent:a"]) {
+function dispatch(
+  conversationId: string,
+  members = ["agent:a"],
+  triggerMessageId = `message:${conversationId}`,
+): AgentHostDispatch {
   return {
     channelId: `channel:${conversationId}`,
     conversationId,
-    triggerMessageId: `message:${conversationId}`,
-    agentMemberIds,
-    chain: { hops: 0, invoked: [...agentMemberIds] },
+    triggerMessageId,
+    contextMessageIds: [triggerMessageId],
+    mode: members.length > 1 ? "open-floor" : "direct",
+    offeredAgentMemberIds: [...members],
+    targets: members.map((memberId) => ({
+      memberId,
+      agentId: memberId.slice("agent:".length),
+    })),
+    chain: { hops: 0, invoked: [...members] },
   };
 }
 
-async function eventually(assertion: () => void): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    try {
-      assertion();
-      return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-  }
-  assertion();
+function storedJob(status: AgentHostJob["status"]): AgentHostJob {
+  return {
+    id: "stored",
+    channelId: "channel:c1",
+    conversationId: "c1",
+    triggerMessageId: "message:c1",
+    contextMessageIds: ["message:c1"],
+    mode: "direct",
+    offeredAgentMemberIds: ["agent:a"],
+    agentId: "a",
+    agentMemberId: "agent:a",
+    chain: { hops: 0, invoked: ["agent:a"] },
+    status,
+    attempts: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 describe("AgentHost", () => {
-  it("deduplicates one trigger/actor pair", async () => {
-    const execute = vi.fn(async () => settled);
-    const host = new AgentHost({
-      repository: new InMemoryAgentHostJobRepository(),
-      executor: { execute },
-      createId: () => "job-1",
-    });
-    const first = await host.enqueue(dispatch("c1"));
-    const second = await host.enqueue(dispatch("c1"));
-
-    expect(second[0].id).toBe(first[0].id);
-    await eventually(() => expect(execute).toHaveBeenCalledOnce());
-  });
-
-  it("rejects targets that were not admitted by the bounded mention chain", async () => {
-    const host = new AgentHost({
-      repository: new InMemoryAgentHostJobRepository(),
-      executor: { execute: async () => settled },
-    });
-    await expect(
-      host.enqueue({
-        ...dispatch("c1"),
-        agentMemberIds: ["agent:forged"],
-      }),
-    ).rejects.toThrow("Invalid Agent Host dispatch");
-  });
-
-  it("holds recovered and new work until the renderer announces readiness", async () => {
-    const execute = vi.fn(async () => settled);
+  it("deduplicates the same trigger and actor", async () => {
+    const execute = vi.fn(async () => undefined);
     const host = new AgentHost({
       repository: new InMemoryAgentHostJobRepository(),
       executor: { execute },
       startPaused: true,
+      createId: () => "job-1",
     });
-    await host.enqueue(dispatch("c1"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(execute).not.toHaveBeenCalled();
-
-    host.start();
-    await eventually(() => expect(execute).toHaveBeenCalledOnce());
+    const first = await host.enqueue(dispatch("c1"));
+    const second = await host.enqueue(dispatch("c1"));
+    expect(second[0].id).toBe(first[0].id);
+    expect(await host.listJobs()).toHaveLength(1);
   });
 
-  it("surfaces executor failures without stopping later channels", async () => {
-    const execute = vi
-      .fn<AgentHostExecutor["execute"]>()
-      .mockRejectedValueOnce(new Error("Codex CLI is missing"))
-      .mockResolvedValue(settled);
-    let sequence = 0;
+  it("rejects an offer without its frozen trigger boundary", async () => {
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute: async () => undefined },
+    });
+    await expect(
+      host.enqueue({
+        ...dispatch("c1"),
+        contextMessageIds: ["different"],
+      }),
+    ).rejects.toThrow("Invalid Agent Host dispatch");
+  });
+
+  it("runs different actors in one conversation concurrently", async () => {
+    const gates = new Map<string, ReturnType<typeof deferred<void>>>();
+    const execute = vi.fn((job: AgentHostJob) => {
+      const gate = deferred<void>();
+      gates.set(job.agentMemberId, gate);
+      return gate.promise;
+    });
     const host = new AgentHost({
       repository: new InMemoryAgentHostJobRepository(),
       executor: { execute },
-      createId: () => `job-${++sequence}`,
+      maxConcurrency: 3,
     });
-    await host.enqueue(dispatch("broken"));
-    await host.enqueue(dispatch("healthy"));
-
-    await eventually(() => expect(execute).toHaveBeenCalledTimes(2));
-    await vi.waitFor(async () => {
-      expect(await host.listJobs()).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: "job-1",
-            status: "failed",
-            error: "Codex CLI is missing",
-          }),
-          expect.objectContaining({ id: "job-2", status: "completed" }),
-        ]),
-      );
-    });
+    await host.enqueue(dispatch("same", ["agent:a", "agent:b"]));
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+    gates.get("agent:a")?.resolve();
+    gates.get("agent:b")?.resolve();
   });
 
-  it("serializes jobs in one conversation and runs other channels concurrently", async () => {
-    const gates = new Map<
-      string,
-      ReturnType<typeof deferred<SettledAgentHostTurn>>
-    >();
+  it("serializes one actor while allowing another actor to work", async () => {
+    const gates = new Map<string, ReturnType<typeof deferred<void>>>();
     const execute = vi.fn((job: AgentHostJob) => {
-      const gate = deferred<SettledAgentHostTurn>();
+      const gate = deferred<void>();
       gates.set(job.id, gate);
       return gate.promise;
     });
-    let sequence = 0;
+    let nextId = 0;
     const host = new AgentHost({
       repository: new InMemoryAgentHostJobRepository(),
       executor: { execute },
-      maxConcurrency: 2,
-      createId: () => `job-${++sequence}`,
+      maxConcurrency: 3,
+      createId: () => `job-${++nextId}`,
     });
-    await host.enqueue(dispatch("same", ["agent:a", "agent:b"]));
-    await host.enqueue(dispatch("other", ["agent:c"]));
-
-    await eventually(() => expect(execute).toHaveBeenCalledTimes(2));
-    expect(
-      execute.mock.calls.map(([job]) => job.conversationId).sort(),
-    ).toEqual(["other", "same"]);
-
-    gates.get("job-1")?.resolve(settled);
-    await eventually(() => expect(execute).toHaveBeenCalledTimes(3));
-    gates.get("job-2")?.resolve(settled);
-    gates.get("job-3")?.resolve(settled);
+    await host.enqueue(dispatch("same", ["agent:a"], "message:one"));
+    await host.enqueue(dispatch("same", ["agent:a"], "message:two"));
+    await host.enqueue(dispatch("same", ["agent:b"], "message:three"));
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+    expect(execute.mock.calls.map(([job]) => job.agentMemberId)).toEqual([
+      "agent:a",
+      "agent:b",
+    ]);
+    gates.get("job-1")?.resolve();
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(3));
+    gates.get("job-2")?.resolve();
+    gates.get("job-3")?.resolve();
   });
 
-  it("does not replay a running job recovered after restart", async () => {
-    const timestamp = new Date().toISOString();
-    const running: AgentHostJob = {
-      id: "running",
-      channelId: "channel",
-      conversationId: "conversation",
-      triggerMessageId: "message",
-      agentMemberId: "agent:a",
-      chain: { hops: 0, invoked: ["agent:a"] },
-      status: "running",
-      attempts: 1,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+  it("marks a running job interrupted instead of replaying it", async () => {
+    const running = storedJob("running");
     const repository = new InMemoryAgentHostJobRepository([running]);
-    const execute = vi.fn(async () => settled);
+    const execute = vi.fn(async () => undefined);
     const host = new AgentHost({ repository, executor: { execute } });
     await host.initialize();
-
-    expect(execute).not.toHaveBeenCalled();
     expect((await host.listJobs())[0]).toMatchObject({
       status: "interrupted",
-      error: expect.stringContaining("not replayed"),
+      attempts: 1,
     });
+    expect(execute).not.toHaveBeenCalled();
   });
 
-  it("queues callback mentions returned by a completed agent", async () => {
-    const execute = vi
-      .fn<AgentHostExecutor["execute"]>()
-      .mockResolvedValueOnce({
-        assistantContent: "@B please continue",
-        triggerMessageId: "assistant-a",
-        followupAgentMemberIds: ["agent:b"],
-        chain: { hops: 1, invoked: ["agent:a", "agent:b"] },
-        limitReached: false,
-      })
-      .mockResolvedValue(settled);
-    let sequence = 0;
+  it("cancels the exact running provider request", async () => {
+    const gate = deferred<void>();
+    const cancel = vi.fn(async () => {
+      gate.resolve();
+      return true;
+    });
+    const executor: AgentHostExecutor = {
+      execute: () => gate.promise,
+      cancel,
+    };
     const host = new AgentHost({
       repository: new InMemoryAgentHostJobRepository(),
-      executor: { execute },
-      createId: () => `job-${++sequence}`,
+      executor,
+      createId: () => "job-1",
     });
     await host.enqueue(dispatch("c1"));
-
-    await eventually(() => expect(execute).toHaveBeenCalledTimes(2));
-    expect(execute.mock.calls[1][0]).toMatchObject({
-      agentMemberId: "agent:b",
-      triggerMessageId: "assistant-a",
-    });
+    await vi.waitFor(async () =>
+      expect((await host.listJobs())[0].status).toBe("running"),
+    );
+    expect(await host.cancel("job-1")).toBe(true);
+    expect(cancel).toHaveBeenCalledWith(
+      expect.objectContaining({ agentMemberId: "agent:a" }),
+    );
+    expect((await host.listJobs())[0].status).toBe("cancelled");
   });
 });

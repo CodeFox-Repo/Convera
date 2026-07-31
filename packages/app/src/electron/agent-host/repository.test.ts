@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,6 +16,10 @@ function job(id: string, status: AgentHostJob["status"]): AgentHostJob {
     channelId: "channel",
     conversationId: "conversation",
     triggerMessageId: `message-${id}`,
+    contextMessageIds: [`message-${id}`],
+    mode: "direct",
+    offeredAgentMemberIds: ["agent:a"],
+    agentId: "a",
     agentMemberId: "agent:a",
     chain: { hops: 0, invoked: ["agent:a"] },
     status,
@@ -60,6 +64,40 @@ describe("JsonAgentHostJobRepository", () => {
     expect((await repository.list()).map(({ id }) => id).sort()).toEqual([
       "2",
       "3",
+    ]);
+  });
+
+  it("migrates legacy queued work to interrupted instead of replaying it", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "jobs.json");
+    const current = job("1", "queued");
+    const v1 = {
+      id: current.id,
+      channelId: current.channelId,
+      conversationId: current.conversationId,
+      triggerMessageId: current.triggerMessageId,
+      agentMemberId: current.agentMemberId,
+      chain: current.chain,
+      status: current.status,
+      attempts: current.attempts,
+      createdAt: current.createdAt,
+      updatedAt: current.updatedAt,
+    };
+    await writeFile(
+      path,
+      JSON.stringify({ schemaVersion: 1, jobs: [v1] }),
+      "utf8",
+    );
+    const repository = new JsonAgentHostJobRepository({ path });
+
+    expect(await repository.list()).toEqual([
+      expect.objectContaining({
+        id: "1",
+        status: "interrupted",
+        contextMessageIds: ["message-1"],
+        error: expect.stringContaining("predates frozen offer context"),
+      }),
     ]);
   });
 });

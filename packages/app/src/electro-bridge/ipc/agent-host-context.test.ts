@@ -47,7 +47,10 @@ const dispatch: AgentHostDispatch = {
   channelId: "channel",
   conversationId: "conversation",
   triggerMessageId: "message",
-  agentMemberIds: ["agent:fizz"],
+  contextMessageIds: ["message"],
+  mode: "direct",
+  offeredAgentMemberIds: ["agent:fizz"],
+  targets: [{ agentId: "fizz", memberId: "agent:fizz" }],
   chain: { hops: 0, invoked: ["agent:fizz"] },
 };
 

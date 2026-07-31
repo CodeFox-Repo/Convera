@@ -15,11 +15,26 @@ export interface AgentHostChain {
   invoked: string[];
 }
 
+export type AgentHostOfferMode = "open-floor" | "direct";
+
+export interface AgentHostTarget {
+  /** Stable Agent entity id. Electron main binds the runtime sandbox to it. */
+  agentId: string;
+  /** Stable workspace participant id used for authorship and native sessions. */
+  memberId: string;
+}
+
 export interface AgentHostDispatch {
   channelId: string;
   conversationId: string;
   triggerMessageId: string;
-  agentMemberIds: string[];
+  /** Exact transcript boundary shared by everyone offered this message. */
+  contextMessageIds: string[];
+  /** Direct mentions must answer; an open floor may stay quiet. */
+  mode: AgentHostOfferMode;
+  /** Everyone who received the same offer, used only to explain the room. */
+  offeredAgentMemberIds: string[];
+  targets: AgentHostTarget[];
   chain: AgentHostChain;
 }
 
@@ -28,6 +43,10 @@ export interface AgentHostJob {
   channelId: string;
   conversationId: string;
   triggerMessageId: string;
+  contextMessageIds: string[];
+  mode: AgentHostOfferMode;
+  offeredAgentMemberIds: string[];
+  agentId: string;
   agentMemberId: string;
   chain: AgentHostChain;
   status: AgentHostJobStatus;
@@ -43,40 +62,12 @@ export interface AgentHostJob {
 
 export interface PreparedAgentHostTurn {
   request: LocalAIChatRequest;
-  assistantMessageId: string;
 }
 
-export type AgentHostRendererRequest =
-  | {
-      id: string;
-      kind: "prepare-turn";
-      job: AgentHostJob;
-    }
-  | {
-      id: string;
-      kind: "settle-turn";
-      job: AgentHostJob;
-    }
-  | {
-      id: string;
-      kind: "set-member-status";
-      memberId: string;
-      status: "idle" | "working" | "offline";
-    }
-  | {
-      id: string;
-      kind: "channel-tool";
-      job: AgentHostJob;
-      toolName: AgentHostChannelToolName;
-      input: Record<string, unknown>;
-    };
-
-export interface SettledAgentHostTurn {
-  assistantContent: string;
-  triggerMessageId: string;
-  followupAgentMemberIds: string[];
-  chain: AgentHostChain;
-  limitReached: boolean;
+export interface AgentHostRendererRequest {
+  id: string;
+  kind: "prepare-turn";
+  job: AgentHostJob;
 }
 
 export interface AgentHostRendererResponse {
@@ -96,21 +87,6 @@ export type AgentHostEvent =
       jobId: string;
       event: LocalAIStreamEvent;
     };
-
-export const AGENT_HOST_CHANNEL_TOOLS = [
-  "read_channel",
-  "send_message",
-  "edit_message",
-  "react",
-  "list_members",
-] as const;
-
-export type AgentHostChannelToolName =
-  (typeof AGENT_HOST_CHANNEL_TOOLS)[number];
-
-export interface AgentHostToolResult {
-  result: unknown;
-}
 
 export interface IAgentHostAPI {
   ready(): Promise<{ success: boolean; error?: string }>;

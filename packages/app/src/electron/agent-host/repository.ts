@@ -15,21 +15,23 @@ const chainSchema = z.object({
   invoked: z.array(z.string().min(1)),
 });
 
-const jobSchema = z.object({
+const statusSchema = z.enum([
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+  "interrupted",
+]);
+
+const legacyJobSchema = z.object({
   id: z.string().min(1),
   channelId: z.string().min(1),
   conversationId: z.string().min(1),
   triggerMessageId: z.string().min(1),
   agentMemberId: z.string().min(1),
   chain: chainSchema,
-  status: z.enum([
-    "queued",
-    "running",
-    "completed",
-    "failed",
-    "cancelled",
-    "interrupted",
-  ]),
+  status: statusSchema,
   attempts: z.number().int().min(0),
   requestId: z.string().min(1).optional(),
   turnId: z.string().min(1).optional(),
@@ -40,10 +42,44 @@ const jobSchema = z.object({
   completedAt: z.string().datetime().optional(),
 });
 
-const stateSchema = z.object({
+const jobSchema = legacyJobSchema.extend({
+  contextMessageIds: z.array(z.string().min(1)).min(1).max(500),
+  mode: z.enum(["open-floor", "direct"]),
+  offeredAgentMemberIds: z.array(z.string().min(1)).max(16),
+  agentId: z.string().min(1),
+});
+
+const legacyStateSchema = z.object({
   schemaVersion: z.literal(1),
+  jobs: z.array(legacyJobSchema),
+});
+
+const stateSchema = z.object({
+  schemaVersion: z.literal(2),
   jobs: z.array(jobSchema),
 });
+
+type LegacyJob = z.infer<typeof legacyJobSchema>;
+
+function migrateLegacyJob(job: LegacyJob): AgentHostJob {
+  const incompatible = job.status === "queued" || job.status === "running";
+  return {
+    ...job,
+    agentId: job.agentMemberId.startsWith("agent:")
+      ? job.agentMemberId.slice("agent:".length)
+      : job.agentMemberId,
+    contextMessageIds: [job.triggerMessageId],
+    mode: "direct",
+    offeredAgentMemberIds: [job.agentMemberId],
+    status: incompatible ? "interrupted" : job.status,
+    error: incompatible
+      ? "This queued Agent Host job predates frozen offer context and was not replayed."
+      : job.error,
+    completedAt: incompatible
+      ? (job.completedAt ?? job.updatedAt)
+      : job.completedAt,
+  };
+}
 
 function prune(jobs: AgentHostJob[], limit: number): AgentHostJob[] {
   const terminal = jobs
@@ -92,23 +128,49 @@ export class JsonAgentHostJobRepository implements AgentHostJobRepository {
   }
 
   private async readState(): Promise<{
-    schemaVersion: 1;
-    jobs: AgentHostJob[];
-  }> {
-    const value = await this.file.read();
-    if (value === undefined) return { schemaVersion: 1, jobs: [] };
-    return stateSchema.parse(value) as {
-      schemaVersion: 1;
+    state: {
+      schemaVersion: 2;
       jobs: AgentHostJob[];
     };
+    migrated: boolean;
+  }> {
+    const value = await this.file.read();
+    if (value === undefined) {
+      return { state: { schemaVersion: 2, jobs: [] }, migrated: false };
+    }
+    const version = z.object({ schemaVersion: z.number() }).parse(value);
+    if (version.schemaVersion === 1) {
+      const legacy = legacyStateSchema.parse(value);
+      return {
+        state: {
+          schemaVersion: 2,
+          jobs: legacy.jobs.map(migrateLegacyJob),
+        },
+        migrated: true,
+      };
+    }
+    return {
+      state: stateSchema.parse(value) as {
+        schemaVersion: 2;
+        jobs: AgentHostJob[];
+      },
+      migrated: false,
+    };
+  }
+
+  private async writeState(state: {
+    schemaVersion: 2;
+    jobs: AgentHostJob[];
+  }): Promise<void> {
+    await this.file.write(stateSchema.parse(state));
   }
 
   async list(): Promise<AgentHostJob[]> {
     return this.writes.run(async () => {
-      const state = await this.readState();
+      const { state, migrated } = await this.readState();
       const jobs = prune(state.jobs, this.maxTerminalJobs);
-      if (jobs.length !== state.jobs.length) {
-        await this.file.write({ schemaVersion: 1, jobs });
+      if (migrated || jobs.length !== state.jobs.length) {
+        await this.writeState({ schemaVersion: 2, jobs });
       }
       return structuredClone(jobs);
     });
@@ -117,14 +179,14 @@ export class JsonAgentHostJobRepository implements AgentHostJobRepository {
   async put(job: AgentHostJob): Promise<void> {
     await this.writes.run(async () => {
       const validated = jobSchema.parse(job) as AgentHostJob;
-      const state = await this.readState();
+      const { state } = await this.readState();
       const index = state.jobs.findIndex(
         (candidate) => candidate.id === validated.id,
       );
       if (index === -1) state.jobs.push(structuredClone(validated));
       else state.jobs[index] = structuredClone(validated);
       state.jobs = prune(state.jobs, this.maxTerminalJobs);
-      await this.file.write(state);
+      await this.writeState(state);
     });
   }
 }
