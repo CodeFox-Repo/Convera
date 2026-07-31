@@ -2,9 +2,9 @@
   :root {
     --background: rgb(250 249 245);
     --foreground: rgb(20 20 19);
-    --card: rgb(255 255 255);
+    --card: rgb(253 252 249);
     --card-foreground: rgb(20 20 19);
-    --popover: rgb(255 255 255);
+    --popover: rgb(253 252 249);
     --popover-foreground: rgb(20 20 19);
     --primary: rgb(176 83 47);
     --primary-foreground: rgb(250 249 245);
@@ -30,6 +30,12 @@
     --sidebar-primary-foreground: rgb(250 249 245);
     --sidebar-accent: rgb(240 237 228);
     --sidebar-accent-foreground: rgb(20 20 19);
+    /* Hover sits between rest and selected so the three row states read apart. */
+    --sidebar-hover: color-mix(
+      in srgb,
+      var(--sidebar-accent) 45%,
+      var(--sidebar)
+    );
     --sidebar-border: rgb(222 218 205);
     --sidebar-ring: rgb(204 120 92);
 
@@ -46,9 +52,10 @@
     --shadow:
       0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 1px 2px -2px rgb(0 0 0 / 0.1);
     --shadow-md:
-      0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 2px 4px -2px rgb(0 0 0 / 0.1);
+      0px 2px 6px -2px rgb(28 25 20 / 0.08), 0px 1px 2px rgb(28 25 20 / 0.05);
     --shadow-lg:
-      0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 4px 6px -2px rgb(0 0 0 / 0.1);
+      0px 8px 24px -6px rgb(28 25 20 / 0.12),
+      0px 2px 6px -2px rgb(28 25 20 / 0.06);
     --shadow-xl:
       0px 4px 8px -1px rgb(0 0 0 / 0.1), 0px 8px 10px -2px rgb(0 0 0 / 0.1);
     --shadow-2xl: 0px 4px 8px -1px rgb(0 0 0 / 0.25);
@@ -87,6 +94,11 @@
     --sidebar-primary-foreground: rgb(20 20 19);
     --sidebar-accent: rgb(43 42 39);
     --sidebar-accent-foreground: rgb(234 231 223);
+    --sidebar-hover: color-mix(
+      in srgb,
+      var(--sidebar-accent) 45%,
+      var(--sidebar)
+    );
     --sidebar-border: rgb(58 56 53);
     --sidebar-ring: rgb(212 150 126);
 

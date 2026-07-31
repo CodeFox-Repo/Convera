@@ -18,6 +18,7 @@ describe("main-process agent tool catalog", () => {
     );
     const adapter: LocalAiProviderAdapter = {
       id: "codex-cli",
+      enforcesSandbox: true,
       getStatus: vi.fn(async () => ({
         ...LOCAL_AI_PROVIDER_DESCRIPTORS["codex-cli"],
         available: true,

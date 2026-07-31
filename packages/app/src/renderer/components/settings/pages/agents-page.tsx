@@ -132,7 +132,7 @@ const AgentFormFields = ({
       </Label>
       <textarea
         id={`${idPrefix}agent-prompt`}
-        className="w-full min-h-[120px] px-3 py-2 border border-border/30 rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground"
+        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
         value={form.systemPrompt}
         onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
         placeholder="Define the agent's personality, behavior, and capabilities..."
@@ -215,7 +215,7 @@ const McpServerItem = ({
     );
 
   return (
-    <div className="border border-border/30 rounded-lg">
+    <div className="border border-border rounded-lg">
       <div className="flex items-center space-x-3 p-4">
         <Checkbox
           id={`mcp-server-${serverId}`}
@@ -254,7 +254,7 @@ const McpServerItem = ({
         )}
       </div>
       {isSelected && (
-        <div className="px-4 pb-4 border-t border-border/20 pt-3">
+        <div className="px-4 pb-4 border-t border-border pt-3">
           {isLoading ? (
             <div className="text-xs text-muted-foreground">
               Loading tools...
@@ -307,7 +307,7 @@ const AgentListItem = ({
   return (
     <div
       className={`flex items-center justify-between py-4 ${
-        !isLast ? "border-b border-border/10" : ""
+        !isLast ? "border-b border-border" : ""
       }`}
     >
       <div className="flex items-center gap-4">
@@ -354,7 +354,7 @@ const AgentListItem = ({
           variant="ghost"
           size="sm"
           onClick={() => onDelete(agent.id, agent.name)}
-          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -655,7 +655,7 @@ export function AgentsSettingsPage({
   const renderMcpConfiguration = () => {
     if (availableMcpServers.length === 0) {
       return (
-        <div className="p-4 border border-border/30 rounded-lg bg-muted/20">
+        <div className="p-4 border border-border rounded-lg bg-muted/20">
           <p className="text-sm text-muted-foreground mb-3">
             No MCP servers configured
           </p>
@@ -672,11 +672,11 @@ export function AgentsSettingsPage({
     return (
       <div className="space-y-4">
         {isPredefinedAgent ? (
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
-            <p className="text-sm font-medium mb-1 text-blue-800 dark:text-blue-200">
+          <div className="bg-muted border-border rounded-lg border p-3">
+            <p className="text-foreground mb-1 text-sm font-medium">
               Predefined Agent Configuration
             </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
+            <p className="text-muted-foreground text-xs">
               All MCP servers are enabled by default. To disable a server, turn
               off all its tools below.
             </p>
@@ -730,7 +730,7 @@ export function AgentsSettingsPage({
           </div>
 
           {mcpServerCount === 0 && (
-            <div className="p-4 bg-muted/30 border border-border/30 rounded-lg">
+            <div className="p-4 bg-muted/30 border border-border rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-foreground">
@@ -807,7 +807,7 @@ export function AgentsSettingsPage({
                     <button
                       key={template.id}
                       onClick={() => handleTemplateSelect(template.id)}
-                      className="p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-muted/20 transition-colors text-left"
+                      className="p-4 border border-border rounded-lg hover:border-primary/30 hover:bg-muted/20 transition-colors text-left"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div className="text-primary">{template.icon}</div>

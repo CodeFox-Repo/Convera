@@ -263,7 +263,7 @@ export function GeneralSettingsPage() {
               variant="outline"
               size="sm"
               onClick={handleResetShortcuts}
-              className="flex items-center gap-2 border-border hover:border-border/80"
+              className="flex items-center gap-2 border-border"
             >
               <RotateCcw className="h-4 w-4" />
               Reset
@@ -369,7 +369,7 @@ export function GeneralSettingsPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded ${
                         isAvailable
-                          ? "text-emerald-600 bg-emerald-500/10"
+                          ? "text-primary bg-primary/10"
                           : "text-muted-foreground bg-muted"
                       }`}
                     >

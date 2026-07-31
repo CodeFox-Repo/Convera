@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import "../shared/localization/i18n";
 import "./global.css";
 import { updateAppLanguage } from "./libs/helper/language_helpers";
+import { ensureStarterTeam } from "./libs/agent-templates";
 import { useFonts } from "./libs/hooks/use-fonts";
 import { useThemeSync } from "./libs/hooks/use-theme-sync";
 import { routeTree } from "./routes/routeTree.gen";
@@ -54,6 +55,11 @@ export default function App() {
   useEffect(() => {
     updateAppLanguage(i18n);
   }, [i18n]);
+
+  // First launch: hire a small starter team so the workspace isn't empty.
+  useEffect(() => {
+    void ensureStarterTeam();
+  }, []);
 
   // Single window - just render the router
   return <RouterProvider router={router} />;

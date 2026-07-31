@@ -10,6 +10,14 @@ export interface TiptapEditorProps {
   disabled?: boolean;
   onSubmit?: () => void;
   autoFocus?: boolean;
+  /**
+   * Runs before the built-in Enter-to-submit handling; return true to consume
+   * the key. Lets the mention autocomplete intercept arrows/Enter/Escape while
+   * it is open.
+   */
+  onKeyDownCapture?: (event: KeyboardEvent) => boolean;
+  /** Caret offset in plain text after each update, for mention detection. */
+  onCaretChange?: (caret: number, text: string) => void;
 }
 
 export interface TiptapEditorRef {
@@ -30,6 +38,8 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       disabled = false,
       onSubmit,
       autoFocus = false,
+      onKeyDownCapture,
+      onCaretChange,
     },
     ref,
   ) => {
@@ -55,9 +65,28 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       injectCSS: false,
       onUpdate: ({ editor }) => {
         onChange(editor.getText());
+        // textBetween with the same separator getText uses keeps offsets aligned.
+        const caret = editor.state.doc.textBetween(
+          0,
+          editor.state.selection.from,
+          "\n\n",
+        ).length;
+        onCaretChange?.(caret, editor.getText());
+      },
+      onSelectionUpdate: ({ editor }) => {
+        const caret = editor.state.doc.textBetween(
+          0,
+          editor.state.selection.from,
+          "\n\n",
+        ).length;
+        onCaretChange?.(caret, editor.getText());
       },
       editorProps: {
         handleKeyDown: (view, event) => {
+          if (onKeyDownCapture?.(event)) {
+            event.preventDefault();
+            return true;
+          }
           // Submit on Enter without Shift key
           if (event.key === "Enter" && !event.shiftKey && onSubmit) {
             event.preventDefault();
@@ -104,6 +133,17 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
         editor.setEditable(!disabled);
       }
     }, [disabled, editor]);
+
+    // The extension captured `placeholder` at creation, so switching rooms
+    // would keep addressing the old one until the editor was remounted.
+    useEffect(() => {
+      const extension = editor?.extensionManager.extensions.find(
+        (candidate) => candidate.name === "placeholder",
+      );
+      if (!editor || !extension) return;
+      extension.options.placeholder = placeholder;
+      editor.view.dispatch(editor.state.tr);
+    }, [placeholder, editor]);
 
     return (
       <div
