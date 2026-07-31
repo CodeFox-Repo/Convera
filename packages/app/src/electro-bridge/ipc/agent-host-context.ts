@@ -1,6 +1,7 @@
 import type {
   AgentHostDispatch,
   AgentHostRendererResponse,
+  AgentHostTaskAction,
 } from "@/shared/types/agent-host";
 import type { AgentHost } from "@/electron/agent-host/host";
 import type { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
@@ -38,6 +39,9 @@ export function setupAgentHostIPC(
     AGENT_HOST_CHANNELS.ENQUEUE,
     AGENT_HOST_CHANNELS.READY,
     AGENT_HOST_CHANNELS.LIST_JOBS,
+    AGENT_HOST_CHANNELS.LIST_TASKS,
+    AGENT_HOST_CHANNELS.CONTROL_TASK,
+    AGENT_HOST_CHANNELS.REDIRECT_TASK,
     AGENT_HOST_CHANNELS.CANCEL,
     AGENT_HOST_CHANNELS.RESPOND,
   ]) {
@@ -89,6 +93,96 @@ export function setupAgentHostIPC(
     }
   });
 
+  mainIPC.handle(
+    AGENT_HOST_CHANNELS.LIST_TASKS,
+    async (event, agentMemberId: unknown) => {
+      if (!allowed(event, options)) {
+        return {
+          success: false,
+          error: "Agent Host IPC sender is not allowed.",
+        };
+      }
+      if (!options.host) {
+        return { success: false, error: "Agent Host is unavailable." };
+      }
+      if (agentMemberId !== undefined && typeof agentMemberId !== "string") {
+        return { success: false, error: "Agent member id must be a string." };
+      }
+      try {
+        return {
+          success: true,
+          tasks: await options.host.listTasks(agentMemberId),
+        };
+      } catch (error) {
+        return { success: false, error: errorMessage(error) };
+      }
+    },
+  );
+
+  mainIPC.handle(
+    AGENT_HOST_CHANNELS.CONTROL_TASK,
+    async (event, taskId: unknown, action: unknown) => {
+      if (!allowed(event, options)) {
+        return {
+          success: false,
+          error: "Agent Host IPC sender is not allowed.",
+        };
+      }
+      if (!options.host) {
+        return { success: false, error: "Agent Host is unavailable." };
+      }
+      if (typeof taskId !== "string" || !taskId) {
+        return { success: false, error: "A task id is required." };
+      }
+      if (!isTaskAction(action)) {
+        return {
+          success: false,
+          error: "Task action must be pause, resume, or cancel.",
+        };
+      }
+      try {
+        const changed =
+          action === "pause"
+            ? await options.host.pauseTask(taskId)
+            : action === "resume"
+              ? await options.host.resumeTask(taskId)
+              : await options.host.cancelTask(taskId);
+        return { success: true, changed };
+      } catch (error) {
+        return { success: false, error: errorMessage(error) };
+      }
+    },
+  );
+
+  mainIPC.handle(
+    AGENT_HOST_CHANNELS.REDIRECT_TASK,
+    async (event, taskId: unknown, instruction: unknown) => {
+      if (!allowed(event, options)) {
+        return {
+          success: false,
+          error: "Agent Host IPC sender is not allowed.",
+        };
+      }
+      if (!options.host) {
+        return { success: false, error: "Agent Host is unavailable." };
+      }
+      if (typeof taskId !== "string" || !taskId) {
+        return { success: false, error: "A task id is required." };
+      }
+      if (typeof instruction !== "string") {
+        return { success: false, error: "Task guidance must be a string." };
+      }
+      try {
+        return {
+          success: true,
+          job: await options.host.redirectTask(taskId, instruction),
+        };
+      } catch (error) {
+        return { success: false, error: errorMessage(error) };
+      }
+    },
+  );
+
   mainIPC.handle(AGENT_HOST_CHANNELS.CANCEL, async (event, jobId: unknown) => {
     if (!allowed(event, options)) {
       return { success: false, error: "Agent Host IPC sender is not allowed." };
@@ -127,4 +221,8 @@ export function setupAgentHostIPC(
       };
     },
   );
+}
+
+function isTaskAction(value: unknown): value is AgentHostTaskAction {
+  return value === "pause" || value === "resume" || value === "cancel";
 }

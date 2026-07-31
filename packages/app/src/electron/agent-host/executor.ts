@@ -31,6 +31,11 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
         ...prepared.request,
         conversationId: job.conversationId,
         concurrent: true,
+        agentHost: {
+          jobId: job.id,
+          taskId: job.taskId,
+          channelKind: job.channelKind,
+        },
         agent: {
           ...prepared.request.agent,
           id: job.agentId,

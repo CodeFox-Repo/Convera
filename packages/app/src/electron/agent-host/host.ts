@@ -3,6 +3,7 @@ import type {
   AgentHostDispatch,
   AgentHostEvent,
   AgentHostJob,
+  AgentHostTaskSummary,
 } from "@/shared/types/agent-host";
 import type { AgentHostJobRepository } from "./repository";
 
@@ -33,6 +34,8 @@ const TERMINAL = new Set<AgentHostJob["status"]>([
 ]);
 const IDENTIFIER = /^[A-Za-z0-9._:-]{1,256}$/;
 const MAX_CONTEXT_MESSAGES = 500;
+const MAX_CONTROL_INSTRUCTIONS = 100;
+const MAX_CONTROL_INSTRUCTION_LENGTH = 4_000;
 
 function actorKey(job: Pick<AgentHostJob, "conversationId" | "agentMemberId">) {
   return `${job.conversationId}\0${job.agentMemberId}`;
@@ -41,6 +44,7 @@ function actorKey(job: Pick<AgentHostJob, "conversationId" | "agentMemberId">) {
 function validateDispatch(dispatch: AgentHostDispatch): void {
   if (
     !IDENTIFIER.test(dispatch.channelId) ||
+    !["channel", "dm"].includes(dispatch.channelKind) ||
     !IDENTIFIER.test(dispatch.conversationId) ||
     !IDENTIFIER.test(dispatch.triggerMessageId) ||
     !Array.isArray(dispatch.contextMessageIds) ||
@@ -76,6 +80,64 @@ function validateDispatch(dispatch: AgentHostDispatch): void {
   }
 }
 
+function byCreation(left: AgentHostJob, right: AgentHostJob): number {
+  return (
+    left.createdAt.localeCompare(right.createdAt) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function currentJob(jobs: AgentHostJob[]): AgentHostJob {
+  const replacedJobIds = new Set(
+    jobs.flatMap((job) => (job.parentJobId ? [job.parentJobId] : [])),
+  );
+  return (
+    jobs.find((job) => !replacedJobIds.has(job.id)) ??
+    ([...jobs].sort(byCreation).at(-1) as AgentHostJob)
+  );
+}
+
+export function summarizeAgentHostTasks(
+  jobs: AgentHostJob[],
+  agentMemberId?: string,
+): AgentHostTaskSummary[] {
+  const grouped = new Map<string, AgentHostJob[]>();
+  for (const job of jobs) {
+    if (agentMemberId && job.agentMemberId !== agentMemberId) continue;
+    const runs = grouped.get(job.taskId);
+    if (runs) runs.push(job);
+    else grouped.set(job.taskId, [job]);
+  }
+  return [...grouped.entries()]
+    .map(([taskId, runs]) => {
+      const current = currentJob(runs);
+      const first = [...runs].sort(byCreation)[0];
+      return {
+        id: taskId,
+        channelId: current.channelId,
+        channelKind: current.channelKind,
+        conversationId: current.conversationId,
+        triggerMessageId: current.triggerMessageId,
+        agentId: current.agentId,
+        agentMemberId: current.agentMemberId,
+        currentJobId: current.id,
+        status: current.status,
+        runCount: runs.length,
+        controlInstructions: [...current.controlInstructions],
+        createdAt: first.createdAt,
+        updatedAt: current.updatedAt,
+        startedAt: current.startedAt,
+        completedAt: current.completedAt,
+        error: current.error,
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt) ||
+        right.id.localeCompare(left.id),
+    );
+}
+
 export class AgentHost {
   private readonly repository: AgentHostJobRepository;
   private readonly executor: AgentHostExecutor;
@@ -85,7 +147,9 @@ export class AgentHost {
   private readonly jobs = new Map<string, AgentHostJob>();
   private readonly listeners = new Set<Listener>();
   private readonly running = new Set<string>();
+  private readonly pausing = new Set<string>();
   private readonly activeActors = new Set<string>();
+  private readonly taskControlQueues = new Map<string, Promise<void>>();
   private ready: Promise<void>;
   private accepting = true;
   private drainQueued = false;
@@ -143,6 +207,11 @@ export class AgentHost {
       .map((job) => structuredClone(job));
   }
 
+  async listTasks(agentMemberId?: string): Promise<AgentHostTaskSummary[]> {
+    await this.ready;
+    return summarizeAgentHostTasks([...this.jobs.values()], agentMemberId);
+  }
+
   async enqueue(dispatch: AgentHostDispatch): Promise<AgentHostJob[]> {
     await this.ready;
     if (!this.accepting) throw new Error("Agent Host is stopping.");
@@ -167,9 +236,12 @@ export class AgentHost {
         created.push(structuredClone(duplicate));
         continue;
       }
+      const id = this.createId();
       const job: AgentHostJob = {
-        id: this.createId(),
+        id,
+        taskId: id,
         channelId: dispatch.channelId,
+        channelKind: dispatch.channelKind,
         conversationId: dispatch.conversationId,
         triggerMessageId: dispatch.triggerMessageId,
         contextMessageIds: [...dispatch.contextMessageIds],
@@ -178,6 +250,7 @@ export class AgentHost {
         agentId: target.agentId,
         agentMemberId: target.memberId,
         chain: structuredClone(dispatch.chain),
+        controlInstructions: [],
         status: "queued",
         attempts: 0,
         createdAt: now,
@@ -204,6 +277,145 @@ export class AgentHost {
     return true;
   }
 
+  pauseTask(taskId: string, agentMemberId?: string): Promise<boolean> {
+    return this.serializeTaskControl(taskId, () =>
+      this.pauseTaskNow(taskId, agentMemberId),
+    );
+  }
+
+  private async pauseTaskNow(
+    taskId: string,
+    agentMemberId?: string,
+  ): Promise<boolean> {
+    await this.ready;
+    const job = this.taskCurrentJob(taskId, agentMemberId);
+    if (!job || TERMINAL.has(job.status) || job.status === "paused") {
+      return false;
+    }
+    if (job.status === "running") {
+      this.pausing.add(job.id);
+      const cancelled = await this.executor.cancel?.(structuredClone(job));
+      if (cancelled === false) {
+        this.pausing.delete(job.id);
+        return false;
+      }
+    }
+    job.status = "paused";
+    job.error = undefined;
+    job.completedAt = undefined;
+    job.updatedAt = this.now().toISOString();
+    await this.repository.put(job);
+    this.emit({ type: "job", job });
+    this.pausing.delete(job.id);
+    return true;
+  }
+
+  resumeTask(taskId: string, agentMemberId?: string): Promise<boolean> {
+    return this.serializeTaskControl(taskId, () =>
+      this.resumeTaskNow(taskId, agentMemberId),
+    );
+  }
+
+  private async resumeTaskNow(
+    taskId: string,
+    agentMemberId?: string,
+  ): Promise<boolean> {
+    await this.ready;
+    const job = this.taskCurrentJob(taskId, agentMemberId);
+    if (!job || job.status !== "paused") return false;
+    job.status = "queued";
+    job.error = undefined;
+    job.completedAt = undefined;
+    job.updatedAt = this.now().toISOString();
+    await this.repository.put(job);
+    this.emit({ type: "job", job });
+    this.scheduleDrain();
+    return true;
+  }
+
+  cancelTask(taskId: string, agentMemberId?: string): Promise<boolean> {
+    return this.serializeTaskControl(taskId, () =>
+      this.cancelTaskNow(taskId, agentMemberId),
+    );
+  }
+
+  private async cancelTaskNow(
+    taskId: string,
+    agentMemberId?: string,
+  ): Promise<boolean> {
+    await this.ready;
+    const job = this.taskCurrentJob(taskId, agentMemberId);
+    return job ? this.cancel(job.id) : false;
+  }
+
+  redirectTask(
+    taskId: string,
+    instruction: string,
+    agentMemberId?: string,
+  ): Promise<AgentHostJob> {
+    return this.serializeTaskControl(taskId, () =>
+      this.redirectTaskNow(taskId, instruction, agentMemberId),
+    );
+  }
+
+  private async redirectTaskNow(
+    taskId: string,
+    instruction: string,
+    agentMemberId?: string,
+  ): Promise<AgentHostJob> {
+    await this.ready;
+    const normalized = instruction.trim();
+    if (!normalized || normalized.length > MAX_CONTROL_INSTRUCTION_LENGTH) {
+      throw new Error(
+        `Task guidance must contain 1-${MAX_CONTROL_INSTRUCTION_LENGTH} characters.`,
+      );
+    }
+    const source = this.taskCurrentJob(taskId, agentMemberId);
+    if (!source)
+      throw new Error(`Task ${taskId} was not found for this agent.`);
+    if (source.controlInstructions.length >= MAX_CONTROL_INSTRUCTIONS) {
+      throw new Error(
+        `Task ${taskId} already has the maximum ${MAX_CONTROL_INSTRUCTIONS} guidance entries.`,
+      );
+    }
+    if (!TERMINAL.has(source.status)) {
+      const cancelled = await this.cancel(source.id);
+      if (!cancelled) {
+        throw new Error(
+          `Task ${taskId} could not stop its current run. Retry after it reaches a safe boundary.`,
+        );
+      }
+    }
+
+    const now = this.now().toISOString();
+    const id = this.createId();
+    const successor: AgentHostJob = {
+      id,
+      taskId: source.taskId,
+      parentJobId: source.id,
+      channelId: source.channelId,
+      channelKind: source.channelKind,
+      conversationId: source.conversationId,
+      triggerMessageId: source.triggerMessageId,
+      contextMessageIds: [...source.contextMessageIds],
+      mode: source.mode,
+      offeredAgentMemberIds: [...source.offeredAgentMemberIds],
+      agentId: source.agentId,
+      agentMemberId: source.agentMemberId,
+      chain: structuredClone(source.chain),
+      controlInstructions: [...source.controlInstructions, normalized],
+      status: "queued",
+      attempts: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.jobs.set(id, successor);
+    await this.repository.put(successor);
+    this.emit({ type: "job", job: successor });
+    this.scheduleDrain();
+    return structuredClone(successor);
+  }
+
   async dispose(): Promise<void> {
     await this.ready;
     this.accepting = false;
@@ -219,6 +431,37 @@ export class AgentHost {
       this.drainQueued = false;
       void this.drain();
     });
+  }
+
+  private taskCurrentJob(
+    taskId: string,
+    agentMemberId?: string,
+  ): AgentHostJob | undefined {
+    const jobs = [...this.jobs.values()].filter(
+      (job) =>
+        job.taskId === taskId &&
+        (!agentMemberId || job.agentMemberId === agentMemberId),
+    );
+    return jobs.length > 0 ? currentJob(jobs) : undefined;
+  }
+
+  private async serializeTaskControl<T>(
+    taskId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.taskControlQueues.get(taskId) ?? Promise.resolve();
+    const result = previous.then(operation, operation);
+    const settled = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.taskControlQueues.set(taskId, settled);
+    void settled.then(() => {
+      if (this.taskControlQueues.get(taskId) === settled) {
+        this.taskControlQueues.delete(taskId);
+      }
+    });
+    return result;
   }
 
   private async drain(): Promise<void> {
@@ -254,10 +497,10 @@ export class AgentHost {
       await this.executor.execute(structuredClone(job), (event) =>
         this.emit(event),
       );
-      if (job.status !== "running") return;
+      if (job.status !== "running" || this.pausing.has(job.id)) return;
       await this.finish(job, "completed");
     } catch (error) {
-      if (job.status === "running") {
+      if (job.status === "running" && !this.pausing.has(job.id)) {
         await this.finish(
           job,
           "failed",

@@ -13,7 +13,9 @@ function job(id: string, status: AgentHostJob["status"]): AgentHostJob {
   ).toISOString();
   return {
     id,
+    taskId: id,
     channelId: "channel",
+    channelKind: "channel",
     conversationId: "conversation",
     triggerMessageId: `message-${id}`,
     contextMessageIds: [`message-${id}`],
@@ -22,6 +24,7 @@ function job(id: string, status: AgentHostJob["status"]): AgentHostJob {
     agentId: "a",
     agentMemberId: "agent:a",
     chain: { hops: 0, invoked: ["agent:a"] },
+    controlInstructions: [],
     status,
     attempts: status === "queued" ? 0 : 1,
     createdAt: timestamp,
@@ -97,6 +100,31 @@ describe("JsonAgentHostJobRepository", () => {
         status: "interrupted",
         contextMessageIds: ["message-1"],
         error: expect.stringContaining("predates frozen offer context"),
+      }),
+    ]);
+  });
+
+  it("migrates version two jobs into stable tasks", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "jobs.json");
+    const current = job("1", "completed");
+    const versionTwoJob: Partial<AgentHostJob> = { ...current };
+    delete versionTwoJob.taskId;
+    delete versionTwoJob.channelKind;
+    delete versionTwoJob.controlInstructions;
+    await writeFile(
+      path,
+      JSON.stringify({ schemaVersion: 2, jobs: [versionTwoJob] }),
+      "utf8",
+    );
+
+    expect(await new JsonAgentHostJobRepository({ path }).list()).toEqual([
+      expect.objectContaining({
+        id: "1",
+        taskId: "1",
+        channelKind: "channel",
+        controlInstructions: [],
       }),
     ]);
   });

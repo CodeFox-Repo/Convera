@@ -16,6 +16,7 @@ import {
 } from "./db/database";
 import {
   dispatchAgentHostOffers,
+  formatTaskGuidance,
   RendererAgentHostService,
 } from "./agent-host-service";
 
@@ -68,7 +69,9 @@ const channel: Channel = {
 };
 const job: AgentHostJob = {
   id: "job",
+  taskId: "job",
   channelId: channel.id,
+  channelKind: "channel",
   conversationId: conversation.id,
   triggerMessageId: "human-message",
   contextMessageIds: ["older-message", "human-message"],
@@ -77,6 +80,7 @@ const job: AgentHostJob = {
   agentId: agent.id,
   agentMemberId: member.id,
   chain: { hops: 0, invoked: [member.id] },
+  controlInstructions: [],
   status: "running",
   attempts: 1,
   createdAt: new Date().toISOString(),
@@ -135,6 +139,12 @@ describe("RendererAgentHostService", () => {
     });
   });
 
+  it("orders private task guidance and marks newer entries authoritative", () => {
+    expect(formatTaskGuidance(["Run tests.", "Show the diff first."])).toMatch(
+      /Newer guidance overrides[\s\S]*1\. Run tests\.[\s\S]*2\. Show the diff first\./,
+    );
+  });
+
   it("prepares a concurrent tool-only turn from the frozen message boundary", async () => {
     const service = new RendererAgentHostService();
     const before = await db.messages.count();
@@ -164,6 +174,7 @@ describe("RendererAgentHostService", () => {
   it("only enqueues a collaboration-layer dispatch", async () => {
     const dispatch: AgentHostDispatch = {
       channelId: channel.id,
+      channelKind: "channel",
       conversationId: conversation.id,
       triggerMessageId: "human-message",
       contextMessageIds: ["human-message"],

@@ -18,6 +18,7 @@ const chainSchema = z.object({
 const statusSchema = z.enum([
   "queued",
   "running",
+  "paused",
   "completed",
   "failed",
   "cancelled",
@@ -42,11 +43,18 @@ const legacyJobSchema = z.object({
   completedAt: z.string().datetime().optional(),
 });
 
-const jobSchema = legacyJobSchema.extend({
+const versionTwoJobSchema = legacyJobSchema.extend({
   contextMessageIds: z.array(z.string().min(1)).min(1).max(500),
   mode: z.enum(["open-floor", "direct"]),
   offeredAgentMemberIds: z.array(z.string().min(1)).max(16),
   agentId: z.string().min(1),
+});
+
+const jobSchema = versionTwoJobSchema.extend({
+  taskId: z.string().min(1),
+  parentJobId: z.string().min(1).optional(),
+  channelKind: z.enum(["channel", "dm"]),
+  controlInstructions: z.array(z.string().min(1).max(4_000)).max(100),
 });
 
 const legacyStateSchema = z.object({
@@ -56,6 +64,11 @@ const legacyStateSchema = z.object({
 
 const stateSchema = z.object({
   schemaVersion: z.literal(2),
+  jobs: z.array(versionTwoJobSchema),
+});
+
+const currentStateSchema = z.object({
+  schemaVersion: z.literal(3),
   jobs: z.array(jobSchema),
 });
 
@@ -65,12 +78,15 @@ function migrateLegacyJob(job: LegacyJob): AgentHostJob {
   const incompatible = job.status === "queued" || job.status === "running";
   return {
     ...job,
+    taskId: job.id,
+    channelKind: "channel",
     agentId: job.agentMemberId.startsWith("agent:")
       ? job.agentMemberId.slice("agent:".length)
       : job.agentMemberId,
     contextMessageIds: [job.triggerMessageId],
     mode: "direct",
     offeredAgentMemberIds: [job.agentMemberId],
+    controlInstructions: [],
     status: incompatible ? "interrupted" : job.status,
     error: incompatible
       ? "This queued Agent Host job predates frozen offer context and was not replayed."
@@ -78,6 +94,17 @@ function migrateLegacyJob(job: LegacyJob): AgentHostJob {
     completedAt: incompatible
       ? (job.completedAt ?? job.updatedAt)
       : job.completedAt,
+  };
+}
+
+function migrateVersionTwoJob(
+  job: z.infer<typeof versionTwoJobSchema>,
+): AgentHostJob {
+  return {
+    ...job,
+    taskId: job.id,
+    channelKind: "channel",
+    controlInstructions: [],
   };
 }
 
@@ -129,29 +156,39 @@ export class JsonAgentHostJobRepository implements AgentHostJobRepository {
 
   private async readState(): Promise<{
     state: {
-      schemaVersion: 2;
+      schemaVersion: 3;
       jobs: AgentHostJob[];
     };
     migrated: boolean;
   }> {
     const value = await this.file.read();
     if (value === undefined) {
-      return { state: { schemaVersion: 2, jobs: [] }, migrated: false };
+      return { state: { schemaVersion: 3, jobs: [] }, migrated: false };
     }
     const version = z.object({ schemaVersion: z.number() }).parse(value);
     if (version.schemaVersion === 1) {
       const legacy = legacyStateSchema.parse(value);
       return {
         state: {
-          schemaVersion: 2,
+          schemaVersion: 3,
           jobs: legacy.jobs.map(migrateLegacyJob),
         },
         migrated: true,
       };
     }
+    if (version.schemaVersion === 2) {
+      const prior = stateSchema.parse(value);
+      return {
+        state: {
+          schemaVersion: 3,
+          jobs: prior.jobs.map(migrateVersionTwoJob),
+        },
+        migrated: true,
+      };
+    }
     return {
-      state: stateSchema.parse(value) as {
-        schemaVersion: 2;
+      state: currentStateSchema.parse(value) as {
+        schemaVersion: 3;
         jobs: AgentHostJob[];
       },
       migrated: false,
@@ -159,10 +196,10 @@ export class JsonAgentHostJobRepository implements AgentHostJobRepository {
   }
 
   private async writeState(state: {
-    schemaVersion: 2;
+    schemaVersion: 3;
     jobs: AgentHostJob[];
   }): Promise<void> {
-    await this.file.write(stateSchema.parse(state));
+    await this.file.write(currentStateSchema.parse(state));
   }
 
   async list(): Promise<AgentHostJob[]> {
@@ -170,7 +207,7 @@ export class JsonAgentHostJobRepository implements AgentHostJobRepository {
       const { state, migrated } = await this.readState();
       const jobs = prune(state.jobs, this.maxTerminalJobs);
       if (migrated || jobs.length !== state.jobs.length) {
-        await this.writeState({ schemaVersion: 2, jobs });
+        await this.writeState({ schemaVersion: 3, jobs });
       }
       return structuredClone(jobs);
     });
