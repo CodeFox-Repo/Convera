@@ -1,3 +1,4 @@
+import { ProfileSection } from "@/renderer/components/settings/profile-section";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
@@ -348,6 +349,8 @@ export function GeneralSettingsPage() {
             Configure keyboard shortcuts and general preferences
           </p>
         </div>
+
+        <ProfileSection />
 
         {/* Keyboard Shortcuts Section */}
         <div className="space-y-4">

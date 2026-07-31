@@ -4,6 +4,7 @@ import {
   buildChannelContext,
   isPass,
   projectFor,
+  projectOpenFloor,
   type ProjectableMessage,
 } from "./agent-projection";
 
@@ -134,6 +135,101 @@ describe("projectFor", () => {
     expect(projected.some((m) => m.content.includes("a".repeat(10)))).toBe(
       false,
     );
+  });
+});
+
+describe("projectOpenFloor", () => {
+  const bean: Member = {
+    id: "m-bean",
+    workspaceId: "w",
+    kind: "agent",
+    name: "Bean",
+    avatar: null,
+    agentId: "a-bean",
+    status: "idle",
+  };
+  const room = [maya, fizz, honey, bean];
+  const offered = [fizz.id, honey.id, bean.id];
+  const question: ProjectableMessage[] = [
+    { id: "1", senderId: maya.id, role: "user", content: "大家能收到消息么" },
+  ];
+
+  it("gives every offered agent a batch without its colleagues' answers", () => {
+    // The parroting bug: turns commit one at a time, so agents 2 and 3 used to
+    // be projected from a transcript that already held agent 1's "能收到。" and
+    // simply repeated it.
+    const answered: ProjectableMessage[] = [
+      ...question,
+      { id: "2", senderId: fizz.id, role: "assistant", content: "能收到。" },
+      { id: "3", senderId: honey.id, role: "assistant", content: "能收到。" },
+    ];
+    const projected = projectOpenFloor(offered, question, room);
+
+    for (const id of offered) {
+      const view = projected.get(id)!;
+      for (const reply of answered.filter((m) => m.role === "assistant")) {
+        expect(view.some((m) => m.content.includes(reply.content))).toBe(false);
+      }
+      expect(view).toEqual([
+        { role: "user", content: "Maya Chen: 大家能收到消息么" },
+      ]);
+    }
+  });
+
+  it("still mirrors each agent's own history as assistant", () => {
+    const projected = projectOpenFloor([fizz.id, honey.id], transcript, room);
+    expect(projected.get(fizz.id)).toEqual(
+      projectFor(fizz.id, transcript, room),
+    );
+    expect(projected.get(honey.id)).toEqual(
+      projectFor(honey.id, transcript, room),
+    );
+  });
+
+  it("keys one entry per offered agent", () => {
+    const projected = projectOpenFloor(offered, question, room);
+    expect([...projected.keys()]).toEqual(offered);
+  });
+
+  /**
+   * The fan-out as the store runs it: one turn at a time, each committing its
+   * reply into the shared transcript before the next agent is invoked. Only
+   * the projection source differs, and that is the whole bug — re-projecting
+   * per turn feeds agent N everything agents 1..N-1 just said.
+   */
+  function runFanOut(
+    project: (
+      id: string,
+      live: ProjectableMessage[],
+    ) => ReturnType<typeof projectFor>,
+  ) {
+    const live = [...question];
+    const seen = new Map<string, ReturnType<typeof projectFor>>();
+    for (const id of offered) {
+      seen.set(id, project(id, live));
+      live.push({
+        id: `r-${id}`,
+        senderId: id,
+        role: "assistant",
+        content: "能收到。",
+      });
+    }
+    return seen;
+  }
+
+  it("survives a serial fan-out that re-projecting per turn does not", () => {
+    const contaminated = (views: Map<string, ReturnType<typeof projectFor>>) =>
+      offered.filter((id) =>
+        views.get(id)!.some((m) => m.content.includes("能收到。")),
+      );
+
+    // Old behaviour, kept as the contrast: agents 2 and 3 read the answers.
+    expect(
+      contaminated(runFanOut((id, live) => projectFor(id, live, room))),
+    ).toEqual([honey.id, bean.id]);
+
+    const frozen = projectOpenFloor(offered, question, room);
+    expect(contaminated(runFanOut((id) => frozen.get(id)!))).toEqual([]);
   });
 });
 

@@ -23,8 +23,9 @@ export type WorkspaceView = "chat" | "inbox" | "agents" | "settings";
 export type SidebarTab = "teams" | "chats";
 export type SettingsTab = "general" | "agents" | "talent" | "org" | "mcp";
 
-export const SIDEBAR_MIN_WIDTH = 320;
+export const SIDEBAR_MIN_WIDTH = 240;
 export const SIDEBAR_MAX_WIDTH = 480;
+const LEGACY_DEFAULT_WIDTH = 320;
 
 interface WorkspaceUIState {
   view: WorkspaceView;
@@ -74,7 +75,12 @@ export function WorkspaceUIProvider({
   );
   const [sidebarWidth, setSidebarWidthState] = useState<number>(() => {
     const stored = Number(storage?.getItem(STORAGE_PREFIX + "sidebar-width"));
-    return stored >= SIDEBAR_MIN_WIDTH && stored <= SIDEBAR_MAX_WIDTH
+    // 320 used to be both the default and the floor, so nobody could have
+    // deliberately picked it — it is the old default, not a choice. Any other
+    // stored width was dragged there on purpose and survives.
+    return stored !== LEGACY_DEFAULT_WIDTH &&
+      stored >= SIDEBAR_MIN_WIDTH &&
+      stored <= SIDEBAR_MAX_WIDTH
       ? stored
       : SIDEBAR_MIN_WIDTH;
   });

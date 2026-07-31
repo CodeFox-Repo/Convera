@@ -1,4 +1,5 @@
 import { ServerInfo, ToolDefinition } from "@/shared/types/mcp";
+import type { LocalAIMessage } from "@/shared/types/local-ai";
 import { AppSettings } from "@/shared/types/settings";
 import type { Attachment, Message, UIMessage } from "@/renderer/types/chat";
 import React, {
@@ -23,7 +24,12 @@ import {
   createConversation,
   deleteConversation as deleteConversationFromDexie,
 } from "../db";
-import { buildChannelContext, isPass, projectFor } from "../agent-projection";
+import {
+  buildChannelContext,
+  isPass,
+  projectFor,
+  projectOpenFloor,
+} from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
 import { parseMentions } from "../mention-parser";
 import {
@@ -80,6 +86,19 @@ function buildResponderPrompt(
 
   const context = buildChannelContext(self, channelName, members, mayPass);
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
+}
+
+/**
+ * One open-floor fan-out, captured before any of it runs.
+ *
+ * `requestMessages` is per-agent because every colleague sees itself as the
+ * assistant, but all of them are projections of the *same* batch. `room` is
+ * carried too so each offer's prompt names the same participants and repeats
+ * the same permission to pass.
+ */
+interface OpenFloorOffer {
+  requestMessages: Map<string, LocalAIMessage[]>;
+  room: Member[];
 }
 
 // Selected content structure
@@ -241,6 +260,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // Agents still owed a turn from a multi-mention or an agent's own mentions.
   const pendingInvokesRef = useRef<string[]>([]);
   const relayActiveRef = useRef(false);
+  // The frozen open-floor offer: what the room looked like when the floor was
+  // opened, plus the prompt each offered agent was to answer it with. Turns
+  // commit one at a time, so without this the second agent would read the
+  // first one's answer and agree with it instead of judging the question.
+  const openFloorOfferRef = useRef<OpenFloorOffer | null>(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -336,6 +360,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingInvokesRef.current = rest;
     if (!nextResponderId) return;
 
+    // An agent still owed a turn from the open floor answers the batch it was
+    // offered, not the transcript its colleagues have since written into. A
+    // mention chain is the opposite case: being named *is* a reply to what was
+    // just said, so it reads live.
+    const offer = openFloorOfferRef.current;
+    const offeredMessages = offer?.requestMessages.get(nextResponderId);
+    if (!pendingInvokesRef.current.length) openFloorOfferRef.current = null;
+
     const nextMember = members.find((m) => m.id === nextResponderId);
     if (!nextMember?.agentId) return;
     const agent = await db.agents.get(nextMember.agentId);
@@ -410,16 +442,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             systemPrompt: buildResponderPrompt(
               agent,
               nextResponderId,
-              members,
+              offeredMessages ? (offer?.room ?? members) : members,
               relayChannel?.name,
+              offeredMessages !== undefined,
             ),
           },
           responderId: nextResponderId,
-          requestMessages: projectFor(
-            nextResponderId,
-            toProjectable(chatAPI.messages),
-            members,
-          ),
+          requestMessages:
+            offeredMessages ??
+            projectFor(
+              nextResponderId,
+              toProjectable(chatAPI.messages),
+              members,
+            ),
         },
         sendContext.messages,
       );
@@ -832,6 +867,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           chainRef.current = routed.chain;
           const [firstResponder, ...queued] = routed.invoke;
           pendingInvokesRef.current = queued;
+          // Everyone offered the floor judges the room as it stands *now* —
+          // before any of them has answered. Projected once, up front, so the
+          // colleague that commits second is not reading the first one's reply.
+          const openFloor = !!channelForSend && mentionedMemberIds.length === 0;
+          openFloorOfferRef.current = openFloor
+            ? {
+                requestMessages: projectOpenFloor(
+                  routed.invoke,
+                  [
+                    ...toProjectable(persistedMessages),
+                    {
+                      senderId: LOCAL_HUMAN_MEMBER_ID,
+                      role: "user",
+                      content: messageText,
+                    },
+                  ],
+                  members,
+                ),
+                room: channelMembers,
+              }
+            : null;
           const responderMember = members.find(
             (member) => member.id === firstResponder,
           );
@@ -883,13 +939,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       responderMemberId,
                       channelMembers,
                       channelForSend?.name,
-                      !!channelForSend && mentionedMemberIds.length === 0,
+                      openFloor,
                     ),
                   }
                 : undefined,
               responderId: responderMemberId,
               requestMessages: responderMemberId
-                ? projectFor(
+                ? (openFloorOfferRef.current?.requestMessages.get(
+                    responderMemberId,
+                  ) ??
+                  projectFor(
                     responderMemberId,
                     [
                       ...toProjectable(persistedMessages),
@@ -900,7 +959,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       },
                     ],
                     members,
-                  )
+                  ))
                 : undefined,
             },
             persistedMessages,
@@ -1146,6 +1205,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     chatAPI.setMessages([]);
     activeConversationIdRef.current = null;
     activeTurnIdRef.current = null;
+    pendingInvokesRef.current = [];
+    openFloorOfferRef.current = null;
     setSelectedContent(null);
     clearAttachments();
     setCurrentConversationId(null);

@@ -79,6 +79,31 @@ export function projectFor(
 }
 
 /**
+ * Projects one open-floor offer for everyone it was offered to, at once.
+ *
+ * The turns still commit one at a time — the runtime serializes per
+ * conversation and only one turn may be pending — so the colleague invoked
+ * second would otherwise be handed a transcript that already contains the
+ * first one's answer. Models agree with what is in the window, and three
+ * agents answer one question with the same sentence. Projecting the batch up
+ * front makes "everyone judges the same room" structural rather than a rule
+ * each call site has to remember.
+ */
+export function projectOpenFloor(
+  targetMemberIds: string[],
+  messages: ProjectableMessage[],
+  members: Member[],
+  options: ProjectOptions = {},
+): Map<string, LocalAIMessage[]> {
+  return new Map(
+    targetMemberIds.map((id) => [
+      id,
+      projectFor(id, messages, members, options),
+    ]),
+  );
+}
+
+/**
  * Drops the oldest non-system messages until the transcript fits.
  *
  * System messages carry the agent's identity and are never dropped; losing them

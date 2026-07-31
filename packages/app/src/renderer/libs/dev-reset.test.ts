@@ -1,11 +1,18 @@
 import "fake-indexeddb/auto";
-import { beforeEach, describe, expect, it } from "vitest";
-import { clearChatHistory, readWorkspaceCounts } from "./dev-reset";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { clearChatHistory } from "./dev-reset";
 import { db, LOCAL_HUMAN_MEMBER_ID } from "./db";
 import { createChannel } from "./stores/channel-store";
 
 describe("dev reset", () => {
+  // Every renderer test file shares one fake-indexeddb instance, and the
+  // populate hook reseeds on open, so absolute counts here are only stable if
+  // the tables are emptied immediately before the assertions run.
   beforeEach(async () => {
+    await Promise.all(db.tables.map((table) => table.clear()));
+  });
+
+  afterEach(async () => {
     await Promise.all(db.tables.map((table) => table.clear()));
   });
 
@@ -36,13 +43,15 @@ describe("dev reset", () => {
 
     await clearChatHistory();
 
-    const counts = await readWorkspaceCounts();
-    expect(counts.messages).toBe(0);
-    expect(counts.channels).toBe(1);
-    expect(counts.agents).toBe(1);
+    // Assert on this test's own rows, not global counts: every renderer test
+    // file shares one fake-indexeddb instance and vitest runs them
+    // concurrently, so a total is whatever the rest of the suite happens to
+    // have written at that instant.
+    expect(await db.messages.get("m1")).toBeUndefined();
+    expect(await db.channels.get(channelId)).toBeDefined();
+    expect(await db.agents.get("a1")).toBeDefined();
     // The channel's conversation must survive as an empty row, or the sidebar
     // points at nothing.
-    expect(counts.conversations).toBe(1);
     expect(await db.conversations.get(channel!.conversationId)).toBeDefined();
   });
 });

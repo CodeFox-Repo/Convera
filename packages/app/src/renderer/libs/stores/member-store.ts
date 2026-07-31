@@ -64,3 +64,14 @@ export async function ensureAgentMember(agentId: string): Promise<Member> {
 export async function upsertAgentMember(agent: Agent): Promise<void> {
   await db.members.put(memberForAgent(agent));
 }
+
+/**
+ * Every surface reads identity off the member row, so editing the row is the
+ * whole update — there is no separate profile record to keep in step.
+ */
+export async function updateMemberProfile(
+  id: string,
+  changes: { name?: string; avatar?: string | null },
+): Promise<void> {
+  await db.members.update(id, changes);
+}
