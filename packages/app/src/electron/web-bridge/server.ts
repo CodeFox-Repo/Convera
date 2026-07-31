@@ -303,9 +303,10 @@ export async function startWebBridge(
       // streaming instead of being orphaned mid-reply.
       const previous = clients.get(clientId);
       previous?.socket.close();
-      const sender = previous?.sender.isDestroyed() === false
-        ? previous.sender
-        : new WebBridgeSender(emit);
+      const sender =
+        previous?.sender.isDestroyed() === false
+          ? previous.sender
+          : new WebBridgeSender(emit);
       sender.rebind(emit);
       const client = { socket: ws, sender };
       clients.set(clientId, client);

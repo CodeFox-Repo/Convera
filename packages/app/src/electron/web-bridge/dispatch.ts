@@ -54,9 +54,7 @@ export class WebBridgeSender extends EventEmitter {
 
   private destroyed = false;
 
-  constructor(
-    private emit_: (channel: string, payload: unknown) => void,
-  ) {
+  constructor(private emit_: (channel: string, payload: unknown) => void) {
     super();
   }
 

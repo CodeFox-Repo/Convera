@@ -261,7 +261,8 @@ export async function ensureStarterTeam(): Promise<void> {
   );
   for (const id of STARTER_TEMPLATE_IDS) {
     const template = AGENT_TEMPLATES.find((t) => t.id === id);
-    if (template && !hiredNames.has(template.name)) await hireTemplate(template);
+    if (template && !hiredNames.has(template.name))
+      await hireTemplate(template);
   }
   await seedStarterChannels();
 }

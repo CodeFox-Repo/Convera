@@ -65,7 +65,6 @@ import {
   composeInputPlaceholder,
 } from "@/renderer/libs/chat-labels";
 
-
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -370,158 +369,158 @@ export function HomePage() {
       {/* Main Content Area — plus the roster as a real second column, so
           opening it narrows the transcript instead of covering it. */}
       <div className="flex-1 flex min-w-0">
-      <div className="flex-1 flex flex-col bg-background relative min-w-0">
-        {activeView === "inbox" ? (
-          <InboxPage
-            onOpenConversation={(conversationId) => {
-              setCurrentConversation(conversationId);
-              setActiveView("chat");
-            }}
-          />
-        ) : activeView === "agents" ? (
-          <div className="flex-1 overflow-y-auto">
-            <AgentsSettingsPage
-              onNavigateToMcp={() => {
-                setActiveView("settings");
-                setActiveSettingsTab("mcp");
+        <div className="flex-1 flex flex-col bg-background relative min-w-0">
+          {activeView === "inbox" ? (
+            <InboxPage
+              onOpenConversation={(conversationId) => {
+                setCurrentConversation(conversationId);
+                setActiveView("chat");
               }}
             />
-          </div>
-        ) : activeView === "chat" ? (
-          <>
-            {currentChannel && (
-              <ChannelHeader
-                channel={currentChannel}
-                rosterOpen={rosterOpen}
-                onToggleRoster={() => setRosterOpen((open) => !open)}
+          ) : activeView === "agents" ? (
+            <div className="flex-1 overflow-y-auto">
+              <AgentsSettingsPage
+                onNavigateToMcp={() => {
+                  setActiveView("settings");
+                  setActiveSettingsTab("mcp");
+                }}
               />
-            )}
+            </div>
+          ) : activeView === "chat" ? (
+            <>
+              {currentChannel && (
+                <ChannelHeader
+                  channel={currentChannel}
+                  rosterOpen={rosterOpen}
+                  onToggleRoster={() => setRosterOpen((open) => !open)}
+                />
+              )}
 
-            {/* Messages Area */}
-            {messages.length > 0 ? (
-              <div className="flex-1 overflow-y-auto relative">
-                {/* Chat area background drag region - avoid button zones */}
-                <div
-                  className="absolute draglayer z-0"
-                  style={{
-                    top: "70px",
-                    left: "0",
-                    right: "0",
-                    bottom: "0",
-                  }}
-                ></div>
+              {/* Messages Area */}
+              {messages.length > 0 ? (
+                <div className="flex-1 overflow-y-auto relative">
+                  {/* Chat area background drag region - avoid button zones */}
+                  <div
+                    className="absolute draglayer z-0"
+                    style={{
+                      top: "70px",
+                      left: "0",
+                      right: "0",
+                      bottom: "0",
+                    }}
+                  ></div>
 
-                <div className="w-full py-4 relative z-10">
-                  <ChatContent
-                    showReactions={!!currentChannel}
-                    messages={messages}
-                    messagesEndRef={messagesEndRef}
-                    isLoading={isLoading}
-                    onEditMessage={editMessage}
-                    onRegenerateMessage={regenerateMessage}
-                    onBranchFromMessage={handleBranchFromMessage}
-                    agentChanged={agentChanged}
-                    onRegenerateWithNewAgent={() => handleAgentChange(true)}
-                    onIgnoreAgentChange={() => handleAgentChange(false)}
+                  <div className="w-full py-4 relative z-10">
+                    <ChatContent
+                      showReactions={!!currentChannel}
+                      messages={messages}
+                      messagesEndRef={messagesEndRef}
+                      isLoading={isLoading}
+                      onEditMessage={editMessage}
+                      onRegenerateMessage={regenerateMessage}
+                      onBranchFromMessage={handleBranchFromMessage}
+                      agentChanged={agentChanged}
+                      onRegenerateWithNewAgent={() => handleAgentChange(true)}
+                      onIgnoreAgentChange={() => handleAgentChange(false)}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center relative">
+                  {/* Welcome page background drag areas - multiple regions avoiding buttons */}
+
+                  {/* Top area - avoid both left and right button zones */}
+                  <div
+                    className="absolute top-0 draglayer z-0"
+                    style={{
+                      left: "0",
+                      right: "80px",
+                      height: "70px",
+                    }}
+                  ></div>
+
+                  {/* Main center area - full width below buttons */}
+                  <div
+                    className="absolute draglayer z-0"
+                    style={{
+                      top: "70px",
+                      left: "0",
+                      right: "0",
+                      bottom: "120px",
+                    }}
+                  ></div>
+
+                  <div className="text-center space-y-6 max-w-md relative z-10">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
+                      {currentChannel ? (
+                        <ChannelGlyph
+                          size={48}
+                          className="text-muted-foreground"
+                        />
+                      ) : (
+                        <BaseLogo size={64} />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-foreground mb-2">
+                        {currentChannel
+                          ? `Welcome to #${currentChannel.name}`
+                          : "Welcome to Convera"}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {currentChannel
+                          ? `This is the start of #${currentChannel.name}.`
+                          : "Start a conversation by typing a message below"}
+                      </p>
+                      {channelAgentLine && (
+                        <p className="text-muted-foreground mt-1">
+                          {channelAgentLine}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Display */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="px-4 mb-3"
+                  >
+                    <div>
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                        <p className="text-destructive text-sm">
+                          {error.message ||
+                            "Something went wrong. Please try again."}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Input Area */}
+              <div className="px-4 pb-4 relative pointer-events-auto">
+                <div className="relative z-10">
+                  <ChatInputContainer
+                    ref={chatInputRef}
+                    placeholder={inputPlaceholder}
+                    variant={currentChannel ? "channel" : "chat"}
                   />
                 </div>
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center relative">
-                {/* Welcome page background drag areas - multiple regions avoiding buttons */}
-
-                {/* Top area - avoid both left and right button zones */}
-                <div
-                  className="absolute top-0 draglayer z-0"
-                  style={{
-                    left: "0",
-                    right: "80px",
-                    height: "70px",
-                  }}
-                ></div>
-
-                {/* Main center area - full width below buttons */}
-                <div
-                  className="absolute draglayer z-0"
-                  style={{
-                    top: "70px",
-                    left: "0",
-                    right: "0",
-                    bottom: "120px",
-                  }}
-                ></div>
-
-                <div className="text-center space-y-6 max-w-md relative z-10">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
-                    {currentChannel ? (
-                      <ChannelGlyph
-                        size={48}
-                        className="text-muted-foreground"
-                      />
-                    ) : (
-                      <BaseLogo size={64} />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-foreground mb-2">
-                      {currentChannel
-                        ? `Welcome to #${currentChannel.name}`
-                        : "Welcome to Convera"}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      {currentChannel
-                        ? `This is the start of #${currentChannel.name}.`
-                        : "Start a conversation by typing a message below"}
-                    </p>
-                    {channelAgentLine && (
-                      <p className="text-muted-foreground mt-1">
-                        {channelAgentLine}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Error Display */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="px-4 mb-3"
-                >
-                  <div>
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-                      <p className="text-destructive text-sm">
-                        {error.message ||
-                          "Something went wrong. Please try again."}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Input Area */}
-            <div className="px-4 pb-4 relative pointer-events-auto">
-              <div className="relative z-10">
-                <ChatInputContainer
-                  ref={chatInputRef}
-                  placeholder={inputPlaceholder}
-                  variant={currentChannel ? "channel" : "chat"}
-                />
-              </div>
+            </>
+          ) : (
+            /* Settings View - Content only, navigation is in sidebar */
+            <div className="flex-1 overflow-y-auto">
+              {renderSettingsContent()}
             </div>
-          </>
-        ) : (
-          /* Settings View - Content only, navigation is in sidebar */
-          <div className="flex-1 overflow-y-auto">
-            {renderSettingsContent()}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
         {activeView === "chat" && currentChannel && rosterOpen && (
           <ChannelRoster
             channel={currentChannel}

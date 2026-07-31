@@ -111,90 +111,90 @@ const AgentFormFields = ({
     : INHERIT_MODEL_VALUE;
 
   return (
-  <div className="space-y-4">
-    <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
-        Name
-      </Label>
-      <Input
-        id={`${idPrefix}agent-name`}
-        value={form.name}
-        className="text-foreground"
-        onChange={(e) => onChange({ ...form, name: e.target.value })}
-        placeholder="Enter agent name"
-        maxLength={50}
-      />
-    </div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
+          Name
+        </Label>
+        <Input
+          id={`${idPrefix}agent-name`}
+          value={form.name}
+          className="text-foreground"
+          onChange={(e) => onChange({ ...form, name: e.target.value })}
+          placeholder="Enter agent name"
+          maxLength={50}
+        />
+      </div>
 
-    <div className="space-y-2">
-      <Label
-        htmlFor={`${idPrefix}agent-description`}
-        className="text-foreground"
-      >
-        Description
-      </Label>
-      <Input
-        id={`${idPrefix}agent-description`}
-        value={form.description}
-        className="text-foreground"
-        onChange={(e) => onChange({ ...form, description: e.target.value })}
-        placeholder="Brief description of what this agent does"
-        maxLength={100}
-      />
-    </div>
+      <div className="space-y-2">
+        <Label
+          htmlFor={`${idPrefix}agent-description`}
+          className="text-foreground"
+        >
+          Description
+        </Label>
+        <Input
+          id={`${idPrefix}agent-description`}
+          value={form.description}
+          className="text-foreground"
+          onChange={(e) => onChange({ ...form, description: e.target.value })}
+          placeholder="Brief description of what this agent does"
+          maxLength={100}
+        />
+      </div>
 
-    <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}agent-prompt`} className="text-foreground">
-        System Prompt
-      </Label>
-      <textarea
-        id={`${idPrefix}agent-prompt`}
-        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
-        value={form.systemPrompt}
-        onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
-        placeholder="Define the agent's personality, behavior, and capabilities..."
-      />
-    </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-prompt`} className="text-foreground">
+          System Prompt
+        </Label>
+        <textarea
+          id={`${idPrefix}agent-prompt`}
+          className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+          value={form.systemPrompt}
+          onChange={(e) => onChange({ ...form, systemPrompt: e.target.value })}
+          placeholder="Define the agent's personality, behavior, and capabilities..."
+        />
+      </div>
 
-    <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}agent-model`} className="text-foreground">
-        Model
-      </Label>
-      <select
-        id={`${idPrefix}agent-model`}
-        className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-[3px]"
-        value={modelValue}
-        onChange={(event) => {
-          const [providerId = "", modelId = ""] =
-            event.target.value === INHERIT_MODEL_VALUE
-              ? []
-              : event.target.value.split(MODEL_VALUE_SEPARATOR);
-          onChange({ ...form, providerId, modelId });
-        }}
-      >
-        <option value={INHERIT_MODEL_VALUE}>
-          Follow the conversation&apos;s model
-        </option>
-        {providers.map((provider) =>
-          (provider.models ?? []).map((model) => {
-            const id = typeof model === "string" ? model : model.id;
-            return (
-              <option
-                key={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
-                value={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
-              >
-                {provider.name} · {id}
-              </option>
-            );
-          }),
-        )}
-      </select>
-      <p className="text-xs text-muted-foreground">
-        Each colleague can run on its own model — a reviewer on a stronger one,
-        a note-taker on something cheap.
-      </p>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}agent-model`} className="text-foreground">
+          Model
+        </Label>
+        <select
+          id={`${idPrefix}agent-model`}
+          className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-[3px]"
+          value={modelValue}
+          onChange={(event) => {
+            const [providerId = "", modelId = ""] =
+              event.target.value === INHERIT_MODEL_VALUE
+                ? []
+                : event.target.value.split(MODEL_VALUE_SEPARATOR);
+            onChange({ ...form, providerId, modelId });
+          }}
+        >
+          <option value={INHERIT_MODEL_VALUE}>
+            Follow the conversation&apos;s model
+          </option>
+          {providers.map((provider) =>
+            (provider.models ?? []).map((model) => {
+              const id = typeof model === "string" ? model : model.id;
+              return (
+                <option
+                  key={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+                  value={`${provider.id}${MODEL_VALUE_SEPARATOR}${id}`}
+                >
+                  {provider.name} · {id}
+                </option>
+              );
+            }),
+          )}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Each colleague can run on its own model — a reviewer on a stronger
+          one, a note-taker on something cheap.
+        </p>
+      </div>
     </div>
-  </div>
   );
 };
 
