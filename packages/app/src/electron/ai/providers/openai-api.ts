@@ -79,13 +79,13 @@ export class OpenAIApiAdapter implements LocalAiProviderAdapter {
     return {
       model,
       tools: Object.keys(tools).length > 0 ? tools : undefined,
-      // Chat latency is the product here. These models default to medium
-      // reasoning, which spends seconds deliberating over "hey" before the
-      // first token — a colleague who pauses ten seconds to say hello reads as
-      // broken, not thoughtful. "none" is the 5.6 spelling of the old
-      // "minimal"; sending "minimal" to a 5.6 model is a hard 400.
+      // Deciding whether to speak in a room, and then reaching for the right
+      // tool to do it, is a judgement: with reasoning switched off the cheapest
+      // path is to answer into the void and never call the tool at all.
+      // (There is no "auto" — the ladder is none/minimal/low/medium/high/xhigh/max,
+      // and "minimal" is a hard 400 on the 5.6 family.)
       providerOptions: {
-        openai: { reasoningEffort: "none", textVerbosity: "low" },
+        openai: { reasoningEffort: "medium", textVerbosity: "low" },
       },
       getNativeSessionId: () => `openai-api:${request.requestId}`,
     };

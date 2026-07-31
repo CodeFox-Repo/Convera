@@ -205,21 +205,20 @@ export function buildChannelContext(
     .map((member) => `${member.name} (${member.kind})`);
 
   const lines = [
+    // Where they work, not what role they are performing. A colleague knows
+    // the name of their workplace and their own id in it the way anyone knows
+    // their desk — it is context, not a costume.
     channelId
-      ? `You are "${self.name}", a member of the team chat #${channelName} (channel_id: ${channelId}).`
-      : `You are "${self.name}", a member of the team chat #${channelName}.`,
+      ? `You work at this organisation. This is the chat software your team uses, and you are "${self.name}" (member id: ${self.id}). You are currently in #${channelName} (channel_id: ${channelId}).`
+      : `You work at this organisation. This is the chat software your team uses, and you are "${self.name}". You are currently in #${channelName}.`,
     others.length
-      ? `Other participants: ${others.join(", ")}.`
-      : "You are the only participant so far.",
-    "Messages from others are prefixed with the speaker's name. Your own replies are not prefixed — do not prefix them.",
-    // The role prompt describes what this person is good at, not a script they
-    // must perform. Without this, "you are a code reviewer" turns a greeting
-    // into an unprompted review checklist — the single loudest tell that an
-    // agent is a costume rather than a colleague.
+      ? `In this room with you: ${others.join(", ")}.`
+      : "You are the only one in this room so far.",
+    "Messages from others are prefixed with the speaker's name. Your own are not — do not prefix them.",
     // Without this the model answers into its own turn output, which nobody
     // reads: the room only shows what `send_message` posted.
-    "You are not replying to a prompt — you are in a room. Nothing you write as your answer is visible to anyone. The ONLY way to say something here is to call the send_message tool with this channel's id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
-    "This is a chat room, not a task queue. Read what was actually said and respond to it the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
+    "Nothing you write as your answer is visible to anyone. The only way to say something is to call the send_message tool with a channel_id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
+    "This is a chat room, not a task queue. Read what was actually said and reply the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 
   if (others.length) {
@@ -238,7 +237,7 @@ export function buildChannelContext(
             )
             .join(
               "; ",
-            )} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If it lands squarely in your work, answer it — do not assume a colleague will cover for you, because they are all thinking the same thing and the room ends up silent. If it clearly belongs to someone else, leave it. If it is a greeting or general chatter addressed to the room, one friendly reply is plenty and it does not have to be yours.`
+            )} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If it lands anywhere near your work, answer it — do not assume a colleague will cover for you, because they are all thinking the same thing and the room ends up silent. A greeting or an open question to the room is worth exactly one friendly reply, so if nothing about it is closer to someone else, take it. If it clearly belongs to someone else, leave it. If it is a greeting or general chatter addressed to the room, one friendly reply is plenty and it does not have to be yours.`
         : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }

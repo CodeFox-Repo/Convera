@@ -300,7 +300,7 @@ describe("projectOpenFloor", () => {
 describe("buildChannelContext", () => {
   it("names the agent, its peers, and the prefix convention", () => {
     const context = buildChannelContext(fizz, "flight-path", members);
-    expect(context).toContain('You are "Fizz"');
+    expect(context).toContain('you are "Fizz"');
     expect(context).toContain("#flight-path");
     expect(context).toContain("Maya Chen (human)");
     expect(context).toContain("Honey (agent)");
@@ -310,7 +310,7 @@ describe("buildChannelContext", () => {
 
   it("handles a channel with no other participants", () => {
     const context = buildChannelContext(fizz, "solo", [fizz]);
-    expect(context).toContain("only participant");
+    expect(context).toContain("only one in this room");
     expect(context).not.toContain("@Name");
   });
 });

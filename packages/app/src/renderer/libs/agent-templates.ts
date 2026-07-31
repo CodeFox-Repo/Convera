@@ -174,34 +174,28 @@ async function upgradeEmojiAvatars(): Promise<void> {
 const STARTER_CHANNELS: Array<{
   name: string;
   agentTemplateIds: string[];
-  defaultAgentTemplateId: string;
 }> = [
   {
     // The onboarding hall: project intros and direction land here, and every
     // agent carries it as shared org context into every other room.
     name: "announcements",
     agentTemplateIds: ["sage", "patch", "quill"],
-    defaultAgentTemplateId: "sage",
   },
   {
     name: "general",
     agentTemplateIds: ["sage", "patch", "quill"],
-    defaultAgentTemplateId: "sage",
   },
   {
     name: "code-review",
     agentTemplateIds: ["sage"],
-    defaultAgentTemplateId: "sage",
   },
   {
     name: "debugging",
     agentTemplateIds: ["patch"],
-    defaultAgentTemplateId: "patch",
   },
   {
     name: "docs",
     agentTemplateIds: ["quill"],
-    defaultAgentTemplateId: "quill",
   },
 ];
 
@@ -225,7 +219,6 @@ async function seedStarterChannels(): Promise<void> {
       name: spec.name,
       groupId: null,
       memberIds: [LOCAL_HUMAN_MEMBER_ID, ...agentMemberIds],
-      defaultAgentMemberId: memberIdForTemplate(spec.defaultAgentTemplateId),
     });
   }
 }

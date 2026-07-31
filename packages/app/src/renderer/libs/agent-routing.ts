@@ -11,8 +11,10 @@ import { parseMentions } from "./mention-parser";
  * colleagues, and the platform does not pick who talks). An agent declines by
  * replying with nothing but the pass token, which the caller drops.
  *
- * `defaultAgentMemberId` remains for 1:1 chats, where there is exactly one
- * counterpart and silence would just look broken.
+ * `defaultAgentMemberId` remains ONLY for 1:1 chats, where there is exactly one
+ * counterpart and silence would just look broken. A channel never uses it: a
+ * room does not have an assigned answerer, and posting there simply tells
+ * everyone present that something was said.
  *
  * Agents can @ each other, so a single human message can start a chain. Two
  * agents mentioning each other would otherwise burn tokens forever, hence two
