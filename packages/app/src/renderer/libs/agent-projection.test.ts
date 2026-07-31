@@ -260,3 +260,38 @@ describe("isPass", () => {
     expect(isPass("Sure, here's the fix")).toBe(false);
   });
 });
+
+describe("open-floor peer awareness", () => {
+  const quill: Member = {
+    id: "m-quill",
+    workspaceId: "w",
+    kind: "agent",
+    name: "Quill",
+    avatar: null,
+    agentId: "a-quill",
+    status: "idle",
+  };
+  const room = [maya, fizz, quill];
+
+  it("names the colleagues who got the same message, with what they do", () => {
+    // Without this an agent only knows IT was asked, concludes it should
+    // answer, and three colleagues each post the same sentence.
+    const context = buildChannelContext(fizz, "docs", room, true, [
+      { id: fizz.id, name: "Fizz" },
+      { id: quill.id, name: "Quill", description: "Writes the docs" },
+    ]);
+
+    expect(context).toContain("Quill (Writes the docs)");
+    expect(context).not.toContain("Fizz (");
+    expect(context).toContain("am I the right one to");
+  });
+
+  it("does not claim company when nobody else was offered", () => {
+    const context = buildChannelContext(fizz, "docs", room, true, [
+      { id: fizz.id, name: "Fizz" },
+    ]);
+
+    expect(context).not.toContain("at the same time as you");
+    expect(context).toContain("yours to answer or leave");
+  });
+});

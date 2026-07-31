@@ -137,11 +137,30 @@ function truncateToBudget(
  * Without it the agent treats the "Name: " prefixes as part of the message body
  * and has no idea that @-mentioning a peer is an available move.
  */
+/**
+ * A colleague who was offered the same message. The description is what makes
+ * "closer to their work than mine" answerable — a bare name says nothing about
+ * who writes the docs.
+ */
+export interface OfferedPeer {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export function buildChannelContext(
   self: Member,
   channelName: string,
   members: Member[],
   mayPass = false,
+  /**
+   * Who else received this same message. An agent that only knows it was asked
+   * concludes it should answer — three colleagues each reasoned that way and
+   * posted the same sentence. A person in a room can see the question went to
+   * everyone, and that is what makes "someone else is better placed" a judgement
+   * they can actually make.
+   */
+  alsoOffered: OfferedPeer[] = [],
 ): string {
   const others = members
     .filter((member) => member.id !== self.id)
@@ -165,8 +184,15 @@ export function buildChannelContext(
   }
 
   if (mayPass) {
+    const peers = alsoOffered.filter((member) => member.id !== self.id);
     lines.push(
-      `Nobody was addressed by name, so this message was offered to everyone in the room. Speak only if you actually have something to add: if someone else here is the better person to answer, or the message needs no reply from you, respond with exactly ${PASS_TOKEN} and nothing else. Passing is normal and costs nothing — a room where everyone answers every message is noise.`,
+      peers.length
+        ? `Nobody was addressed by name. This same message went to ${peers
+            .map((peer) =>
+              peer.description ? `${peer.name} (${peer.description})` : peer.name,
+            )
+            .join("; ")} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If this sits closer to someone else's work than yours, leave it to them; assume they will. If two of you answer the same question the room gets a duplicate, and duplicates are worse than silence. Say nothing unless you would still speak knowing everyone else was asked too.`
+        : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }
 

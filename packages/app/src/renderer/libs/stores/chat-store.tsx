@@ -29,6 +29,7 @@ import {
   isPass,
   projectFor,
   projectOpenFloor,
+  type OfferedPeer,
 } from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
 import { parseMentions } from "../mention-parser";
@@ -80,11 +81,18 @@ function buildResponderPrompt(
   members: Member[],
   channelName = "chat",
   mayPass = false,
+  alsoOffered: OfferedPeer[] = [],
 ): string {
   const self = members.find((member) => member.id === responderMemberId);
   if (!self) return agent.systemPrompt;
 
-  const context = buildChannelContext(self, channelName, members, mayPass);
+  const context = buildChannelContext(
+    self,
+    channelName,
+    members,
+    mayPass,
+    alsoOffered,
+  );
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
 }
 
@@ -99,6 +107,8 @@ function buildResponderPrompt(
 interface OpenFloorOffer {
   requestMessages: Map<string, LocalAIMessage[]>;
   room: Member[];
+  /** Everyone this batch went to, so each knows it was not asked alone. */
+  offered: OfferedPeer[];
 }
 
 // Selected content structure
@@ -445,6 +455,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               offeredMessages ? (offer?.room ?? members) : members,
               relayChannel?.name,
               offeredMessages !== undefined,
+              offer?.offered ?? [],
             ),
           },
           responderId: nextResponderId,
@@ -871,6 +882,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           // before any of them has answered. Projected once, up front, so the
           // colleague that commits second is not reading the first one's reply.
           const openFloor = !!channelForSend && mentionedMemberIds.length === 0;
+          const offeredPeers: OfferedPeer[] = openFloor
+            ? await Promise.all(
+                routed.invoke.map(async (id) => {
+                  const peer = members.find((member) => member.id === id);
+                  const peerAgent = peer?.agentId
+                    ? await db.agents.get(peer.agentId)
+                    : undefined;
+                  return {
+                    id,
+                    name: peer?.name ?? "A colleague",
+                    description: peerAgent?.description || undefined,
+                  };
+                }),
+              )
+            : [];
           openFloorOfferRef.current = openFloor
             ? {
                 requestMessages: projectOpenFloor(
@@ -886,6 +912,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                   members,
                 ),
                 room: channelMembers,
+                offered: offeredPeers,
               }
             : null;
           const responderMember = members.find(
@@ -940,6 +967,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                       channelMembers,
                       channelForSend?.name,
                       openFloor,
+                      offeredPeers,
                     ),
                   }
                 : undefined,
