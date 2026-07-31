@@ -987,7 +987,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               chatAPI.setInput("");
               clearAttachments();
               pendingInvokesRef.current = [];
-              void dispatchOpenFloor(turns);
+              void dispatchOpenFloor(turns).then((results) => {
+                const failed = results.filter((r) => r.error);
+                if (failed.length) {
+                  console.error("Open floor turns failed:", failed);
+                }
+              });
               return;
             }
           }

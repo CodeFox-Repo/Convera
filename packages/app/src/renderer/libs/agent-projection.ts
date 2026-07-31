@@ -198,7 +198,7 @@ export function buildChannelContext(
             .map((peer) =>
               peer.description ? `${peer.name} (${peer.description})` : peer.name,
             )
-            .join("; ")} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If this sits closer to someone else's work than yours, leave it to them; assume they will. If two of you answer the same question the room gets a duplicate, and duplicates are worse than silence. Say nothing unless you would still speak knowing everyone else was asked too.`
+            .join("; ")} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If it lands squarely in your work, answer it — do not assume a colleague will cover for you, because they are all thinking the same thing and the room ends up silent. If it clearly belongs to someone else, leave it. If it is a greeting or general chatter addressed to the room, one friendly reply is plenty and it does not have to be yours.`
         : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }
