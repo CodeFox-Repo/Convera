@@ -3,6 +3,7 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import type { ILocalAIAPI } from "./local-ai";
 import type { IMcpAPI } from "./mcp";
+import type { IAgentHostAPI } from "./agent-host";
 
 // Enum for window types
 export type WindowType = "settings" | "history" | "main" | "chat";
@@ -109,5 +110,6 @@ declare global {
     envApi: IEnvAPI;
     logger: WindowLogger;
     localAI: ILocalAIAPI;
+    agentHost?: IAgentHostAPI;
   }
 }

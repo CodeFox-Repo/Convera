@@ -81,6 +81,22 @@ export interface LocalAIChatRequest {
     memberId?: string;
     systemPrompt?: string;
   };
+  /**
+   * Main-process Agent Host context. The renderer may propose these opaque ids,
+   * but every channel tool revalidates membership and injects `agentMemberId`
+   * as the author before touching channel state.
+   */
+  agentHost?: {
+    jobId: string;
+    channelId: string;
+    conversationId: string;
+    triggerMessageId: string;
+    agentMemberId: string;
+    chain: {
+      hops: number;
+      invoked: string[];
+    };
+  };
   options?: {
     temperature?: number;
     maxOutputTokens?: number;

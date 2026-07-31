@@ -242,6 +242,10 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     }
   }
 
+  // Agent Host capabilities are main-owned. Renderer chat requests must never
+  // self-assert this context; the durable host calls LocalAiRuntime directly.
+  if (request.agentHost !== undefined) return false;
+
   if (request.options !== undefined) {
     if (!isRecord(request.options)) return false;
     if (!isOptionalString(request.options.cwd, MAX_CWD_CHARS)) return false;

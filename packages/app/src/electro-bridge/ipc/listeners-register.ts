@@ -2,6 +2,8 @@
 import { WindowSizeConfig } from "@/electron/windows/window-size";
 import { ThemeMode } from "@/shared/types/electron";
 import type { LocalAIRuntimeService } from "@/shared/types/local-ai";
+import type { AgentHost } from "@/electron/agent-host/host";
+import type { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
 import {
   BrowserWindow,
   ipcMain,
@@ -34,6 +36,7 @@ import {
 import { setupLoggerIPC } from "./logger-context";
 import { setupLocalAIIPC } from "./local-ai-context";
 import { setupMCPIPC } from "./mcp-context";
+import { setupAgentHostIPC } from "./agent-host-context";
 
 // Extended interface that includes additional methods beyond IPCServer
 interface ElectronAPI extends IPCServer {
@@ -97,6 +100,8 @@ export interface ListenerOptions {
   mainWindow?: () => BrowserWindow | null;
   registerGlobalShortcuts?: () => void;
   localAIRuntime?: LocalAIRuntimeService;
+  agentHost?: AgentHost;
+  agentHostBridge?: AgentHostRendererBridge;
   /** Extra senders (currently the web bridge) allowed to drive local AI. */
   extraLocalAISenders?: () => WebContents[];
   /** Registration target; the web bridge swaps in a recording proxy. */
@@ -248,6 +253,19 @@ export function registerListeners(options: ListenerOptions = {}) {
   setupLocalAIIPC(
     {
       runtime: options.localAIRuntime,
+      getAllowedWebContents: () => {
+        const window = options.mainWindow?.();
+        const renderer =
+          window && !window.isDestroyed() ? [window.webContents] : [];
+        return [...renderer, ...(options.extraLocalAISenders?.() ?? [])];
+      },
+    },
+    ipc,
+  );
+  setupAgentHostIPC(
+    {
+      host: options.agentHost,
+      bridge: options.agentHostBridge,
       getAllowedWebContents: () => {
         const window = options.mainWindow?.();
         const renderer =
