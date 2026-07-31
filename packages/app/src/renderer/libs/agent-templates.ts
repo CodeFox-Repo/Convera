@@ -16,6 +16,10 @@ import {
   type Agent,
 } from "./db";
 import { createAgent, deleteAgent } from "./stores/agent-store";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  DEFAULT_LOCAL_AI_PROVIDER_ID,
+} from "./local-ai";
 import { createChannel } from "./stores/channel-store";
 import { upsertAgentMember } from "./stores/member-store";
 
@@ -267,6 +271,11 @@ export async function hireTemplate(template: AgentTemplate): Promise<Agent> {
     systemPrompt: template.systemPrompt,
     disableToolReferences: [],
     selectedMCPs: [],
+    // Pinned rather than inherited: a colleague that follows whatever model the
+    // conversation happens to be on can land on a CLI provider, which never
+    // returns in the browser build and leaves it stuck at "working".
+    providerId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+    modelId: DEFAULT_LOCAL_AI_MODEL_ID,
   });
   await upsertAgentMember(agent);
   await db.members.update(memberIdForAgent(agent.id), {

@@ -3,6 +3,10 @@ import {
   resolveConversationProviderSelection,
   resolveNativeProviderSelection,
 } from "./provider-selection";
+import {
+  DEFAULT_LOCAL_AI_MODEL_ID,
+  DEFAULT_LOCAL_AI_PROVIDER_ID,
+} from "./local-ai";
 
 describe("conversation provider selection", () => {
   const defaultSelection = {
@@ -38,8 +42,10 @@ describe("conversation provider selection", () => {
     expect(
       resolveNativeProviderSelection("legacy-cloud", "gpt-custom"),
     ).toEqual({
-      configId: "claude-code",
-      modelId: "default",
+      // Derived, not spelled out: this asserts "falls back to the system
+      // default", and hardcoding the name made it fail when that default moved.
+      configId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+      modelId: DEFAULT_LOCAL_AI_MODEL_ID,
     });
   });
 });
