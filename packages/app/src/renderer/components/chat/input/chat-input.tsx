@@ -177,7 +177,10 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 content={editorContent || input}
                 onChange={handleEditorChange}
                 placeholder={placeholder}
-                disabled={isLoading}
+                // Typing stays open while a reply streams: in a chat you draft
+                // your next line while the other person is still talking, and
+                // freezing the box loses whatever was half-typed.
+                disabled={false}
                 onSubmit={handleSubmit}
                 autoFocus={true}
                 onCaretChange={handleCaretChange}

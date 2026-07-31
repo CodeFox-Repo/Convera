@@ -13,7 +13,8 @@ import { Check, Search } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./confirm-dialog";
-import { TalentAvatar } from "./talent-avatar";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { TEMPLATE_AVATARS } from "@/renderer/libs/template-avatars";
 
 function TalentCard({
   template,
@@ -27,7 +28,18 @@ function TalentCard({
   return (
     <div className="bg-card text-card-foreground border border-border rounded-lg p-4 flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        <TalentAvatar emoji={template.avatar} kind="agent" />
+        <MemberAvatar
+          member={{
+            id: template.id,
+            workspaceId: "",
+            kind: "agent",
+            name: template.name,
+            avatar: TEMPLATE_AVATARS[template.id] ?? template.avatar,
+            agentId: null,
+            status: "idle",
+          }}
+          className="size-10 text-base"
+        />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium truncate">{template.name}</h3>
           <p className="text-xs text-muted-foreground truncate">

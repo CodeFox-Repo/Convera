@@ -11,7 +11,7 @@ import { UserMinus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./confirm-dialog";
-import { TalentAvatar } from "./talent-avatar";
+import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 
 const ORG_NAME = "Personal Workspace";
 
@@ -28,7 +28,7 @@ function RosterRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border last:border-b-0">
-      <TalentAvatar emoji={member.avatar} kind={member.kind} size={36} />
+      <MemberAvatar member={member} className="size-9 text-sm" />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

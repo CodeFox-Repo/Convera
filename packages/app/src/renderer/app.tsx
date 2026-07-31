@@ -13,6 +13,7 @@ import { ensureStarterTeam } from "./libs/agent-templates";
 import { useFonts } from "./libs/hooks/use-fonts";
 import { useThemeSync } from "./libs/hooks/use-theme-sync";
 import { routeTree } from "./routes/routeTree.gen";
+import { WorkspaceUIProvider } from "./libs/stores/workspace-ui-context";
 
 // Router type declarations
 declare module "@tanstack/react-router" {
@@ -62,7 +63,11 @@ export default function App() {
   }, []);
 
   // Single window - just render the router
-  return <RouterProvider router={router} />;
+  return (
+    <WorkspaceUIProvider>
+      <RouterProvider router={router} />
+    </WorkspaceUIProvider>
+  );
 }
 
 const root = createRoot(document.getElementById("app")!);

@@ -17,6 +17,8 @@ import React, { useMemo, useState } from "react";
 
 interface ChannelHeaderProps {
   channel: Channel;
+  rosterOpen: boolean;
+  onToggleRoster: () => void;
 }
 
 /**
@@ -24,10 +26,12 @@ interface ChannelHeaderProps {
  * `@` names the input will accept. The roster opens as a side pane sliding in
  * from the right, Slack-style, not a floating popover.
  */
-export function ChannelHeader({ channel }: ChannelHeaderProps) {
+export function ChannelHeader({
+  channel,
+  rosterOpen,
+  onToggleRoster,
+}: ChannelHeaderProps) {
   const allMembers = useMembers();
-  const [paneOpen, setPaneOpen] = useState(false);
-  const [inviting, setInviting] = useState(false);
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {
@@ -37,33 +41,22 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
       .filter((m): m is Member => m !== undefined);
   }, [allMembers, channel.memberIds]);
 
-  // Only agents can be invited: there is exactly one human on this install.
-  const available = useMemo(
-    () =>
-      (allMembers ?? []).filter(
-        (m) => m.kind === "agent" && !channel.memberIds.includes(m.id),
-      ),
-    [allMembers, channel.memberIds],
-  );
-
   return (
-    <>
-      <div className="no-drag-region flex items-center gap-2 border-b border-border px-6 py-2">
-        <Icon size={15} className="flex-shrink-0 text-muted-foreground" />
-        <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
-          {channel.name}
-        </h2>
-
-        <button
-          onClick={() => setPaneOpen((open) => !open)}
+    <div className="no-drag-region flex items-center gap-2 border-b border-border px-6 py-2">
+      <Icon size={15} className="flex-shrink-0 text-muted-foreground" />
+      <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
+        {channel.name}
+      </h2>
+      <button
+          onClick={onToggleRoster}
           className={cn(
             "ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors pointer-events-auto",
-            paneOpen
+            rosterOpen
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           )}
           aria-label={`${members.length} members`}
-          aria-expanded={paneOpen}
+          aria-expanded={rosterOpen}
           title="Members"
         >
           <span className="flex items-center -space-x-1.5">
@@ -77,18 +70,48 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
           </span>
           <span className="text-xs">{members.length}</span>
         </button>
-      </div>
+    </div>
+  );
+}
 
-      <AnimatePresence>
-        {paneOpen && (
-          <motion.aside
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+/**
+ * The roster is a column of the layout, not a sheet floating over the
+ * transcript: opening it should narrow the messages, the way Slack and Discord
+ * do, instead of hiding the conversation you are reading it against.
+ */
+export function ChannelRoster({
+  channel,
+  onClose,
+}: {
+  channel: Channel;
+  onClose: () => void;
+}) {
+  const allMembers = useMembers();
+  const [inviting, setInviting] = useState(false);
+
+  const members = useMemo(() => {
+    const byId = new Map((allMembers ?? []).map((m) => [m.id, m]));
+    return channel.memberIds
+      .map((id) => byId.get(id))
+      .filter((m): m is Member => m !== undefined);
+  }, [allMembers, channel.memberIds]);
+
+  const available = useMemo(
+    () =>
+      (allMembers ?? []).filter(
+        (m) => m.kind === "agent" && !channel.memberIds.includes(m.id),
+      ),
+    [allMembers, channel.memberIds],
+  );
+
+  return (
+    <AnimatePresence>
+      <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 288, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            // Sits above the message list, below dialogs. Sidebar material, not
-            // popover white — this is furniture, not a floating hint.
-            className="no-drag-region absolute inset-y-0 right-0 z-30 flex w-72 flex-col border-l border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg"
+            className="no-drag-region flex flex-shrink-0 flex-col overflow-hidden border-l border-sidebar-border bg-sidebar text-sidebar-foreground"
             aria-label="Channel members"
           >
             <div className="flex items-center gap-2 px-4 pb-2 pt-4">
@@ -113,7 +136,7 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
                 <Plus size={15} />
               </button>
               <button
-                onClick={() => setPaneOpen(false)}
+                onClick={onClose}
                 className="rounded-md p-1.5 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
                 title="Close"
                 aria-label="Close members pane"
@@ -201,9 +224,7 @@ export function ChannelHeader({ channel }: ChannelHeaderProps) {
                 );
               })}
             </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-    </>
+      </motion.aside>
+    </AnimatePresence>
   );
 }

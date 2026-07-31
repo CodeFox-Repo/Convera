@@ -38,10 +38,12 @@ export function MemberAvatar({
         ) : (
           <span className="text-[1.1em] leading-none">{member.avatar}</span>
         )
-      ) : member ? (
-        member.name.charAt(0)
       ) : (
-        (fallback ?? <User size={12} />)
+        // A member without a portrait still prefers the caller's fallback (the
+        // product logo for the built-in assistant) over its bare initial —
+        // otherwise the same speaker renders as a logo in one row and a letter
+        // in the next, depending only on whether its member row had loaded.
+        (fallback ?? (member ? member.name.charAt(0) : <User size={12} />))
       )}
     </span>
   );

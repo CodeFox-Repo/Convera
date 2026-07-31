@@ -33,6 +33,12 @@ export {
 
 // ==================== Selection State ====================
 
+const CURRENT_CONVERSATION_KEY = "current-conversation-id";
+
+// Node-env tests import this store without a DOM.
+const storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | undefined =
+  typeof localStorage === "undefined" ? undefined : localStorage;
+
 interface SelectionState {
   // Currently selected items
   currentConversationId: string | null;
@@ -51,7 +57,8 @@ interface SelectionState {
 }
 
 export const useSelectionStore = create<SelectionState>((set, get) => ({
-  currentConversationId: null,
+  // Restored on load: a reload should reopen the room you were standing in.
+  currentConversationId: storage?.getItem(CURRENT_CONVERSATION_KEY) ?? null,
   conversationSelectionVersion: 0,
   selectedAgentId: null,
   selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
@@ -60,6 +67,8 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
   defaultModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
   setCurrentConversation: (id) => {
+    if (id) storage?.setItem(CURRENT_CONVERSATION_KEY, id);
+    else storage?.removeItem(CURRENT_CONVERSATION_KEY);
     set((state) => ({
       currentConversationId: id,
       conversationSelectionVersion: state.conversationSelectionVersion + 1,
