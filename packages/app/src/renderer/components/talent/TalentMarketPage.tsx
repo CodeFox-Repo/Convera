@@ -9,7 +9,7 @@ import {
   type AgentTemplate,
 } from "@/renderer/libs/agent-templates";
 import { useAgents } from "@/renderer/libs/db";
-import { Check, Search } from "lucide-react";
+import { Check, Search, SearchX, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -70,7 +70,10 @@ function TalentCard({
             Hired
           </>
         ) : (
-          "Hire"
+          <>
+            <UserPlus className="h-4 w-4" />
+            Hire
+          </>
         )}
       </Button>
     </div>
@@ -128,9 +131,12 @@ export function TalentMarketPage() {
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No talent matches “{query}”.
-        </p>
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <SearchX size={28} className="text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            No talent matches “{query}”.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((template) => (

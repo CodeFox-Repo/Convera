@@ -6,7 +6,7 @@ import {
   updateMemberProfile,
   useMember,
 } from "@/renderer/libs/stores/member-store";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserRound } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { fileToAvatarDataUrl, normalizeDisplayName } from "./profile-avatar";
 
@@ -56,7 +56,10 @@ export function ProfileSection() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-medium text-foreground">Profile</h2>
+        <div className="flex items-center gap-2">
+          <UserRound className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-medium text-foreground">Profile</h2>
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           How you appear in channels and chats. Stored only on this device.
         </p>

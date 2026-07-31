@@ -410,6 +410,8 @@ const AgentListItem = ({
           size="sm"
           onClick={() => onEdit(agent)}
           className="h-8 w-8 p-0"
+          aria-label={`Configure ${agent.name}`}
+          title="Configure"
         >
           <Settings className="h-4 w-4" />
         </Button>
@@ -418,6 +420,8 @@ const AgentListItem = ({
           size="sm"
           onClick={() => onDelete(agent.id, agent.name)}
           className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+          aria-label={`Delete ${agent.name}`}
+          title="Delete"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -740,7 +744,13 @@ export function AgentsSettingsPage({
           <p className="text-sm text-muted-foreground mb-3">
             No MCP servers configured
           </p>
-          <Button variant="outline" size="sm" onClick={onNavigateToMcp}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNavigateToMcp}
+            className="flex items-center gap-2"
+          >
+            <Server className="h-4 w-4" />
             Setup MCP Servers
           </Button>
         </div>
@@ -812,16 +822,24 @@ export function AgentsSettingsPage({
 
           {mcpServerCount === 0 && (
             <div className="p-4 bg-muted/30 border border-border rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-foreground">
-                    Connect Tools First
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add MCP servers to give your agents powerful capabilities
-                  </p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <Server className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-foreground">
+                      Connect Tools First
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Add MCP servers to give your agents powerful capabilities
+                    </p>
+                  </div>
                 </div>
-                <Button variant="outline" onClick={onNavigateToMcp}>
+                <Button
+                  variant="outline"
+                  onClick={onNavigateToMcp}
+                  className="flex items-center gap-2"
+                >
+                  <Server className="h-4 w-4" />
                   Setup MCP Servers
                 </Button>
               </div>

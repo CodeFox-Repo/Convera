@@ -182,7 +182,14 @@ export function ChannelRoster({
                   <span className="block truncate leading-tight">
                     {member.name}
                   </span>
-                  <span className="block truncate text-xs leading-tight text-muted-foreground">
+                  <span className="flex items-center gap-1 truncate text-xs leading-tight text-muted-foreground">
+                    {isDefault && (
+                      <Star
+                        size={11}
+                        className="flex-shrink-0 fill-current text-primary"
+                        aria-hidden="true"
+                      />
+                    )}
                     {isDefault ? "Default responder" : member.kind}
                   </span>
                 </span>

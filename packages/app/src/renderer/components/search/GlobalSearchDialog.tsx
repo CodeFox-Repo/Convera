@@ -11,7 +11,7 @@ import {
   useSearchUIState,
 } from "@/renderer/libs/db/ui-state";
 import { useConversationSearch } from "@/renderer/libs/hooks/use-conversation-search";
-import { Loader2, MessageSquare, Search } from "lucide-react";
+import { Loader2, MessageSquare, Search, SearchX } from "lucide-react";
 import { HighlightedText } from "./HighlightedText";
 
 interface GlobalSearchDialogProps {
@@ -122,11 +122,13 @@ export function GlobalSearchDialog({
               ))}
             </div>
           ) : query.trim() ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+              <SearchX size={24} />
               No results found
             </div>
           ) : (
-            <div className="py-8 text-center text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+              <Search size={24} />
               Type to search...
             </div>
           )}
