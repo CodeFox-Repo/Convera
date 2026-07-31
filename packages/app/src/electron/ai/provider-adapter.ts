@@ -18,9 +18,17 @@ export interface LocalAiProviderRun {
   getNativeSessionId(metadata: ProviderMetadata | undefined): string;
 }
 
+/**
+ * Host-owned capability boundary for a provider turn. Unlike prompt
+ * instructions, this policy is applied by the provider adapter before the
+ * model sees its available tools.
+ */
+export type LocalAiProviderExecutionPolicy = "interactive" | "text-only";
+
 export interface LocalAiProviderRunContext {
   session?: ProviderSessionBinding;
   tools: AgentTool[];
+  executionPolicy?: LocalAiProviderExecutionPolicy;
   requestInteraction(
     interaction: AgentToolInteraction,
   ): Promise<{ approved?: boolean; value?: string }>;

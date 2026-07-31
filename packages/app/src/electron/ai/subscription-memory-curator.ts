@@ -17,6 +17,7 @@ import type {
   RestrictedMemoryCurator as RestrictedMemoryCuratorContract,
 } from "../memory/subconscious-worker";
 import { LocalAiRuntime } from "./runtime";
+import type { LocalAiProviderExecutionPolicy } from "./provider-adapter";
 import type { SessionStateRepository } from "./session/types";
 import type { LocalAiProviderId } from "./types";
 
@@ -61,6 +62,7 @@ Output contract:
 `.trim();
 
 export interface SubscriptionMemoryRuntime {
+  readonly executionPolicy: LocalAiProviderExecutionPolicy;
   startChat(
     request: LocalAIChatRequest,
     emit: (event: LocalAIStreamEvent) => void,
@@ -234,7 +236,13 @@ export class RestrictedMemoryCurator
         sessionRepository: options.sessionRepository,
         workingDirectory: options.workingDirectory,
         getToolGroups: () => [],
+        executionPolicy: "text-only",
       });
+    if (this.runtime.executionPolicy !== "text-only") {
+      throw new TypeError(
+        "RestrictedMemoryCurator requires a text-only subscription runtime.",
+      );
+    }
     this.ownsRuntime = !options.runtime;
     this.provider = options.provider;
     this.getActiveProviderId = options.getActiveProviderId;
@@ -326,11 +334,17 @@ export class RestrictedMemoryCurator
     let providerError: LocalAISerializableError | undefined;
     let finishReason: string | undefined;
     let restrictedInteraction: string | undefined;
+    let restrictedToolEvent: string | undefined;
     const interactionResponses: Array<Promise<unknown>> = [];
 
     await this.runtime.startChat(request, (event) => {
       if (event.type === "ui-message" && event.chunk.type === "text-delta") {
         output += event.chunk.delta;
+      } else if (
+        event.type === "ui-message" &&
+        event.chunk.type.startsWith("tool-")
+      ) {
+        restrictedToolEvent = event.chunk.type;
       } else if (event.type === "error") {
         providerError = event.error;
       } else if (event.type === "finish") {
@@ -350,9 +364,11 @@ export class RestrictedMemoryCurator
     });
     await Promise.allSettled(interactionResponses);
 
-    if (restrictedInteraction) {
+    if (restrictedInteraction || restrictedToolEvent) {
       throw curatorError(
-        `Restricted memory curator refused provider capability request: ${restrictedInteraction}`,
+        `Restricted memory curator refused provider capability request: ${
+          restrictedInteraction ?? restrictedToolEvent
+        }`,
         "LOCAL_AI_MEMORY_CURATOR_CAPABILITY_REFUSED",
       );
     }

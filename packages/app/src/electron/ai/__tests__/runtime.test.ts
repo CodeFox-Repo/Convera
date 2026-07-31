@@ -63,9 +63,7 @@ async function flushMicrotasks(iterations = 20): Promise<void> {
 }
 
 const enabledMemorySettings: LocalAIMemorySettings = {
-  provider: "letta",
-  baseURL: "http://localhost:8283",
-  apiKeyConfigured: true,
+  provider: "local",
   subconsciousProvider: "codex-cli",
   schedule: "every-turn",
   batchSize: 5,
@@ -258,6 +256,46 @@ describe("LocalAiRuntime", () => {
         })
       )?.assistantText,
     ).toBeUndefined();
+  });
+
+  it("enforces text-only policy before provider tool preparation", async () => {
+    const adapter = fakeAdapter("codex-cli");
+    const getToolGroups = vi.fn(async () => {
+      throw new Error("Text-only runtime must not enumerate tools.");
+    });
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      executionPolicy: "text-only",
+      getToolGroups,
+      sessionRepository: new InMemorySessionStateRepository(),
+      streamInvoker: () => ({
+        toUIMessageStream: async function* () {
+          yield { type: "finish" as const, finishReason: "stop" as const };
+        },
+        finishReason: Promise.resolve("stop"),
+      }),
+    });
+
+    await runtime.startChat(
+      request({
+        providerId: "codex-cli",
+        conversationId: "memory-curator",
+        turnId: "memory-turn",
+      }),
+      vi.fn(),
+    );
+
+    expect(runtime.executionPolicy).toBe("text-only");
+    expect(getToolGroups).not.toHaveBeenCalled();
+    expect(adapter.prepareRun).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({
+        executionPolicy: "text-only",
+        tools: [],
+      }),
+    );
+    await runtime.dispose();
   });
 
   it("aborts an active stream and reports an aborted terminal event", async () => {
@@ -1966,7 +2004,7 @@ describe("LocalAiRuntime", () => {
     let configured = false;
     const replay = vi.fn(async () => {
       if (!configured) {
-        throw Object.assign(new Error("Letta is not configured."), {
+        throw Object.assign(new Error("Local memory is not configured."), {
           code: "CONFIGURATION",
           retryable: false,
         });
@@ -2094,7 +2132,7 @@ describe("LocalAiRuntime", () => {
     });
     await vi.waitFor(() => expect(order).toEqual(["replay:1:start"]));
 
-    const updating = runtime.updateMemorySettings({ baseURL: "new-url" });
+    const updating = runtime.updateMemorySettings({ schedule: "batch" });
     await flushMicrotasks();
     expect(updateSettings).not.toHaveBeenCalled();
     releaseReplay();

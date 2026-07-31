@@ -33,7 +33,10 @@ import {
   type AgentToolInteraction,
 } from "./agent-tools";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "./provider-descriptors";
-import type { LocalAiProviderAdapter } from "./provider-adapter";
+import type {
+  LocalAiProviderAdapter,
+  LocalAiProviderExecutionPolicy,
+} from "./provider-adapter";
 import { ClaudeCodeAdapter } from "./providers/claude-code";
 import { CodexCliAdapter } from "./providers/codex-cli";
 import {
@@ -343,8 +346,6 @@ export interface LocalAiMemoryRuntimeService {
 
 const DISABLED_MEMORY_SETTINGS: LocalAIMemorySettings = {
   provider: "off",
-  baseURL: "",
-  apiKeyConfigured: false,
   subconsciousProvider: "off",
   schedule: "every-turn",
   batchSize: 5,
@@ -359,6 +360,7 @@ const DISABLED_MEMORY_STATUS: LocalAIMemoryStatus = {
 };
 
 export class LocalAiRuntime implements LocalAIRuntimeService {
+  readonly executionPolicy: LocalAiProviderExecutionPolicy;
   private readonly adapters = new Map<
     LocalAiProviderId,
     LocalAiProviderAdapter
@@ -395,6 +397,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       turnHooks?: LocalAiTurnHooks;
       memoryService?: LocalAiMemoryRuntimeService;
       quiesceTimeoutMs?: number;
+      executionPolicy?: LocalAiProviderExecutionPolicy;
     } = {},
   ) {
     const adapters = options.adapters ?? [
@@ -408,6 +411,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     this.turnHooks = options.turnHooks ?? {};
     this.memoryService = options.memoryService;
     this.quiesceTimeoutMs = options.quiesceTimeoutMs ?? 5_000;
+    this.executionPolicy = options.executionPolicy ?? "interactive";
     this.executeTool =
       options.executeTool ??
       (async (serverName, toolName) => {
@@ -669,19 +673,22 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           );
         }
 
-        const toolGroups = await this.getToolGroups();
+        const tools =
+          this.executionPolicy === "text-only"
+            ? []
+            : this.mergeTools(
+                createAgentToolCatalog({
+                  groups: await this.getToolGroups(),
+                  executeTool: this.executeTool,
+                  requestInteraction,
+                }),
+                turnContext?.additionalTools ?? [],
+              );
         controller.signal.throwIfAborted();
-        const tools = this.mergeTools(
-          createAgentToolCatalog({
-            groups: toolGroups,
-            executeTool: this.executeTool,
-            requestInteraction,
-          }),
-          turnContext?.additionalTools ?? [],
-        );
         const run = await adapter.prepareRun(trustedRequest, probeStatus, {
           session: resumableBinding,
           tools,
+          executionPolicy: this.executionPolicy,
           requestInteraction,
         });
         controller.signal.throwIfAborted();
@@ -1363,7 +1370,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         if (this.disposing) return;
         const settings = await this.memoryService?.getMemorySettings();
         if (
-          settings?.provider === "letta" &&
+          settings?.provider === "local" &&
           settings.subconsciousProvider !== "off"
         ) {
           await this.getSessionRepository().resetTurnHookRetries(

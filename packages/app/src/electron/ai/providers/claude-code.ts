@@ -45,7 +45,9 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
     status: LocalAiProviderStatus,
     context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
   ): Promise<LocalAiProviderRun> {
-    const tools = context.tools.map((definition) =>
+    const textOnly = context.executionPolicy === "text-only";
+    const exposedTools = textOnly ? [] : context.tools;
+    const tools = exposedTools.map((definition) =>
       createClaudeTool(
         definition.name,
         definition.description,
@@ -79,10 +81,28 @@ export class ClaudeCodeAdapter implements LocalAiProviderAdapter {
         pathToClaudeCodeExecutable: status.executablePath,
         cwd: request.options?.cwd,
         resume: context.session?.nativeSessionId,
-        mcpServers: mcpServer ? { convera: mcpServer } : undefined,
-        allowedTools: context.tools.map(
+        mcpServers: textOnly
+          ? {}
+          : mcpServer
+            ? { convera: mcpServer }
+            : undefined,
+        allowedTools: exposedTools.map(
           (definition) => `mcp__convera__${definition.name}`,
         ),
+        ...(textOnly
+          ? {
+              permissionMode: "dontAsk" as const,
+              tools: [],
+              settingSources: [],
+              plugins: [],
+              canUseTool: async () => ({
+                behavior: "deny" as const,
+                message:
+                  "This subscription turn is restricted to text generation.",
+                interrupt: true,
+              }),
+            }
+          : {}),
       },
     );
     return {

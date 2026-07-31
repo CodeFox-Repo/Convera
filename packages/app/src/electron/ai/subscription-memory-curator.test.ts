@@ -68,13 +68,17 @@ function patchFor(value: CuratorInput, providerId = "codex-cli"): MemoryPatch {
 
 class FakeRuntime implements SubscriptionMemoryRuntime {
   readonly requests: LocalAIChatRequest[] = [];
+  readonly executionPolicy;
 
   constructor(
     private readonly run: (
       request: LocalAIChatRequest,
       emit: (event: LocalAIStreamEvent) => void,
     ) => void | Promise<void>,
-  ) {}
+    executionPolicy: SubscriptionMemoryRuntime["executionPolicy"] = "text-only",
+  ) {
+    this.executionPolicy = executionPolicy;
+  }
 
   async startChat(
     request: LocalAIChatRequest,
@@ -108,6 +112,16 @@ function successfulRuntime(
 }
 
 describe("RestrictedMemoryCurator", () => {
+  it("rejects an injected runtime that is not host-enforced text-only", () => {
+    expect(
+      () =>
+        new RestrictedMemoryCurator({
+          provider: "codex-cli",
+          runtime: new FakeRuntime(() => undefined, "interactive"),
+        }),
+    ).toThrow("requires a text-only subscription runtime");
+  });
+
   it.each([
     ["codex-cli", "codex-cli"],
     ["claude-code", "claude-code"],
@@ -359,6 +373,45 @@ describe("RestrictedMemoryCurator", () => {
     });
     await expect(incompleteCurator.curate(input())).rejects.toMatchObject({
       code: "LOCAL_AI_MEMORY_CURATOR_INCOMPLETE",
+    });
+  });
+
+  it("rejects any native tool event even when no approval interaction occurs", async () => {
+    const curatorInput = input();
+    const runtime = new FakeRuntime((request, emit) => {
+      emit({
+        type: "ui-message",
+        requestId: request.requestId,
+        chunk: {
+          type: "tool-input-start",
+          toolCallId: "native-tool",
+          toolName: "shell",
+          dynamic: true,
+        },
+      });
+      emit({
+        type: "ui-message",
+        requestId: request.requestId,
+        chunk: {
+          type: "text-delta",
+          id: "text-1",
+          delta: JSON.stringify(patchFor(curatorInput)),
+        },
+      });
+      emit({
+        type: "finish",
+        requestId: request.requestId,
+        finishReason: "stop",
+      });
+    });
+    const curator = new RestrictedMemoryCurator({
+      provider: "codex-cli",
+      runtime,
+    });
+
+    await expect(curator.curate(curatorInput)).rejects.toMatchObject({
+      code: "LOCAL_AI_MEMORY_CURATOR_CAPABILITY_REFUSED",
+      message: expect.stringContaining("tool-input-start"),
     });
   });
 

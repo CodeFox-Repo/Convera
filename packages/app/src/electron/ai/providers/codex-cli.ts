@@ -3,6 +3,8 @@ import type {
   CodexAppServerProvider,
   CodexAppServerRequestHandlers,
 } from "ai-sdk-provider-codex-cli";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 import type { ZodEffects, ZodTypeAny } from "zod";
 import { probeCliProvider } from "../cli-probe";
 import {
@@ -13,15 +15,119 @@ import {
 import type { LocalAiProviderStatus } from "../types";
 import { createCodexMcpServer } from "./codex-mcp-server";
 
+const execFile = promisify(execFileCallback);
+
+type CodexConfigOverride = string | number | boolean | object;
+
+const CODEX_TEXT_ONLY_FEATURES = [
+  "apps",
+  "browser_use",
+  "browser_use_external",
+  "browser_use_full_cdp_access",
+  "chronicle",
+  "code_mode",
+  "code_mode_host",
+  "computer_use",
+  "deferred_executor",
+  "enable_mcp_apps",
+  "executor_capability_discovery",
+  "goals",
+  "hooks",
+  "image_generation",
+  "in_app_browser",
+  "mcp_2026_07_28",
+  "memories",
+  "multi_agent",
+  "plugins",
+  "remote_plugin",
+  "rmcp_client",
+  "shell_snapshot",
+  "shell_tool",
+  "skill_mcp_dependency_install",
+  "skill_search",
+  "tool_call_mcp_elicitation",
+  "tool_suggest",
+  "unified_exec",
+  "workspace_dependencies",
+] as const;
+
+export function createCodexTextOnlyConfigOverrides(
+  mcpServerNames: readonly string[],
+): Record<string, CodexConfigOverride> {
+  return {
+    ...Object.fromEntries(
+      CODEX_TEXT_ONLY_FEATURES.map((feature) => [`features.${feature}`, false]),
+    ),
+    "agents.enabled": false,
+    "tools.view_image": false,
+    "tools.web_search": false,
+    web_search: "disabled",
+    mcp_servers: Object.fromEntries(
+      mcpServerNames.map((name) => [name, { enabled: false }]),
+    ),
+  };
+}
+
+interface CodexMcpListEntry {
+  name?: unknown;
+}
+
+async function listConfiguredCodexMcpServers(
+  executablePath?: string,
+): Promise<string[]> {
+  try {
+    const { stdout } = await execFile(
+      executablePath || "codex",
+      ["mcp", "list", "--json"],
+      {
+        timeout: 5_000,
+        maxBuffer: 2 * 1024 * 1024,
+      },
+    );
+    const parsed: unknown = JSON.parse(stdout);
+    if (!Array.isArray(parsed)) {
+      throw new TypeError("Codex MCP list was not an array.");
+    }
+    return parsed.map((entry) => {
+      const name = (entry as CodexMcpListEntry)?.name;
+      if (typeof name !== "string" || name.trim().length === 0) {
+        throw new TypeError("Codex MCP list contained an invalid server name.");
+      }
+      return name;
+    });
+  } catch (error) {
+    throw Object.assign(
+      new Error(
+        `Cannot establish the Codex text-only boundary because configured MCP servers could not be enumerated: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+      { code: "LOCAL_AI_TEXT_ONLY_POLICY_UNAVAILABLE" },
+    );
+  }
+}
+
+export interface CodexCliAdapterOptions {
+  listConfiguredMcpServers?: (executablePath?: string) => Promise<string[]>;
+}
+
 export class CodexCliAdapter implements LocalAiProviderAdapter {
   readonly id = "codex-cli" as const;
 
+  private readonly listConfiguredMcpServers: (
+    executablePath?: string,
+  ) => Promise<string[]>;
   private provider?: CodexAppServerProvider;
   private providerExecutablePath?: string;
   private modelCatalog?: {
     defaultModel: string;
     models: string[];
   };
+
+  constructor(options: CodexCliAdapterOptions = {}) {
+    this.listConfiguredMcpServers =
+      options.listConfiguredMcpServers ?? listConfiguredCodexMcpServers;
+  }
 
   async getStatus(): Promise<LocalAiProviderStatus> {
     const status = await probeCliProvider(this.id);
@@ -57,8 +163,10 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
     context: Parameters<LocalAiProviderAdapter["prepareRun"]>[2],
   ): Promise<LocalAiProviderRun> {
     await this.ensureProvider(status.executablePath);
+    const textOnly = context.executionPolicy === "text-only";
     const { tool } = await importCodexProviderWithZod3Compatibility();
-    const tools = context.tools.map((definition) =>
+    const exposedTools = textOnly ? [] : context.tools;
+    const tools = exposedTools.map((definition) =>
       tool({
         name: definition.name,
         description: definition.description,
@@ -89,7 +197,7 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           options: ["Allow once", "Deny"],
         })
       ).approved === true;
-    const serverRequests: CodexAppServerRequestHandlers = {
+    const interactiveServerRequests: CodexAppServerRequestHandlers = {
       onCommandExecutionApproval: async ({ params }) => ({
         decision: (await requestApproval(
           "codex:command_execution",
@@ -114,7 +222,24 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
           ? { action: "accept", content: {} }
           : { action: "decline", content: null },
     };
+    const textOnlyServerRequests: CodexAppServerRequestHandlers = {
+      onCommandExecutionApproval: async () => ({ decision: "decline" }),
+      onFileChangeApproval: async () => ({ decision: "decline" }),
+      onSkillApproval: async () => ({ decision: "decline" }),
+      onMcpElicitation: async () => ({
+        action: "decline",
+        content: null,
+      }),
+    };
+    const serverRequests = textOnly
+      ? textOnlyServerRequests
+      : interactiveServerRequests;
     const cwd = request.options?.cwd;
+    const configOverrides = textOnly
+      ? createCodexTextOnlyConfigOverrides(
+          await this.listConfiguredMcpServers(status.executablePath),
+        )
+      : undefined;
 
     const model = this.provider!(
       resolveLocalModelId(request.modelId, status.defaultModel),
@@ -122,12 +247,15 @@ export class CodexCliAdapter implements LocalAiProviderAdapter {
         cwd,
         mcpServers: mcpServer ? { convera: mcpServer } : undefined,
         serverRequests,
-        approvalPolicy: "on-request",
-        sandboxPolicy: {
-          type: "workspaceWrite",
-          writableRoots: cwd ? [cwd] : [],
-          networkAccess: false,
-        },
+        approvalPolicy: textOnly ? "never" : "on-request",
+        sandboxPolicy: textOnly
+          ? "read-only"
+          : {
+              type: "workspaceWrite",
+              writableRoots: cwd ? [cwd] : [],
+              networkAccess: false,
+            },
+        configOverrides,
       },
     );
     const providerOptions = context.session

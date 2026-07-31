@@ -94,4 +94,41 @@ describe("ClaudeCodeAdapter sessions", () => {
     ).toBe("session-second");
     expect(() => resumed.getNativeSessionId(undefined)).toThrow("session id");
   });
+
+  it("uses an explicit empty tool allowlist for text-only turns", async () => {
+    const adapter = new ClaudeCodeAdapter();
+    const run = await adapter.prepareRun(request(), status(), {
+      tools: [],
+      executionPolicy: "text-only",
+      requestInteraction: async () => ({ approved: false }),
+    });
+
+    expect(run.model).toBe(mocks.model);
+    expect(mocks.provider).toHaveBeenLastCalledWith(
+      "sonnet",
+      expect.objectContaining({
+        allowedTools: [],
+        mcpServers: {},
+        permissionMode: "dontAsk",
+        tools: [],
+        settingSources: [],
+        plugins: [],
+        canUseTool: expect.any(Function),
+      }),
+    );
+    const calls = mocks.provider.mock.calls as unknown as Array<
+      [
+        string,
+        {
+          canUseTool?: () => Promise<unknown>;
+        },
+      ]
+    >;
+    const settings = calls.at(-1)?.[1];
+    await expect(settings?.canUseTool?.()).resolves.toEqual({
+      behavior: "deny",
+      message: "This subscription turn is restricted to text generation.",
+      interrupt: true,
+    });
+  });
 });
