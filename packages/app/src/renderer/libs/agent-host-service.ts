@@ -301,7 +301,11 @@ export class RendererAgentHostService {
       ) {
         useTypingStore
           .getState()
-          .startTyping(event.requestId, active.job.agentMemberId);
+          .startTyping(
+            event.requestId,
+            active.job.agentMemberId,
+            active.job.conversationId,
+          );
       }
       return;
     }

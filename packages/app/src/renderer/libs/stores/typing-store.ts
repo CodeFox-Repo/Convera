@@ -14,18 +14,27 @@ import { create } from "zustand";
  * starts a turn is also responsible for clearing it.
  */
 interface TypingState {
-  /** requestId -> the member id that is composing a message. */
-  typing: Record<string, string>;
-  startTyping: (requestId: string, memberId: string) => void;
+  /** requestId -> who is composing and which conversation may display it. */
+  typing: Record<string, { memberId: string; conversationId: string }>;
+  startTyping: (
+    requestId: string,
+    memberId: string,
+    conversationId: string,
+  ) => void;
   stopTyping: (requestId: string) => void;
-  typingMemberIds: () => string[];
+  typingMemberIds: (conversationId: string) => string[];
 }
 
 export const useTypingStore = create<TypingState>((set, get) => ({
   typing: {},
 
-  startTyping: (requestId, memberId) =>
-    set((state) => ({ typing: { ...state.typing, [requestId]: memberId } })),
+  startTyping: (requestId, memberId, conversationId) =>
+    set((state) => ({
+      typing: {
+        ...state.typing,
+        [requestId]: { memberId, conversationId },
+      },
+    })),
 
   stopTyping: (requestId) =>
     set((state) => {
@@ -35,5 +44,11 @@ export const useTypingStore = create<TypingState>((set, get) => ({
       return { typing: next };
     }),
 
-  typingMemberIds: () => [...new Set(Object.values(get().typing))],
+  typingMemberIds: (conversationId) => [
+    ...new Set(
+      Object.values(get().typing)
+        .filter((entry) => entry.conversationId === conversationId)
+        .map((entry) => entry.memberId),
+    ),
+  ],
 }));

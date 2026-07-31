@@ -527,7 +527,7 @@ export function HomePage() {
               {/* Input Area */}
               <div className="px-4 pb-4 relative pointer-events-auto">
                 <div className="relative z-10">
-                  <TypingIndicator />
+                  <TypingIndicator conversationId={currentConversationId} />
                   <ChatInputContainer
                     ref={chatInputRef}
                     placeholder={inputPlaceholder}
