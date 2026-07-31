@@ -15,6 +15,7 @@ import { config as loadDotenv } from "dotenv";
 loadDotenv();
 
 import { LocalAiRuntime } from "@/electron/ai";
+import { withWorkspacePerception } from "@/electron/ai/workspace-tools";
 import { setupLocalAIIPC } from "@/electro-bridge/ipc/local-ai-context";
 import {
   createRecordingIpcMain,
@@ -49,6 +50,9 @@ const runtime = new LocalAiRuntime({
   executeTool: async () => {
     throw new Error("MCP tools require the full Electron app");
   },
+  // The browser build has no memory coordinator to wrap, but an agent without
+  // eyes here would look like a bug in the tools rather than a missing host.
+  turnHooks: withWorkspacePerception({}),
 });
 
 const recordingIPC = createRecordingIpcMain({

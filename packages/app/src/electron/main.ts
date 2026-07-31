@@ -12,6 +12,7 @@ import {
   mcpToolCall,
 } from "@/electron/mcp";
 import { LocalAiRuntime } from "@/electron/ai";
+import { withWorkspacePerception } from "@/electron/ai/workspace-tools";
 import { JsonSessionStateRepository } from "@/electron/ai/session/repository";
 import {
   createElectronMemoryIntegration,
@@ -138,7 +139,7 @@ app.whenReady().then(async () => {
     });
     localAIRuntime = new LocalAiRuntime({
       sessionRepository,
-      turnHooks: memoryCoordinator,
+      turnHooks: withWorkspacePerception(memoryCoordinator),
       memoryService: memoryCoordinator,
       resolveSandbox: async (request) => {
         const agentId = request.agent?.id?.trim();
