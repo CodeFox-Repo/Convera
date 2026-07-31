@@ -217,7 +217,7 @@ export function buildChannelContext(
     "Messages from others are prefixed with the speaker's name. Your own are not — do not prefix them.",
     // Without this the model answers into its own turn output, which nobody
     // reads: the room only shows what `send_message` posted.
-    "Nothing you write as your answer is visible to anyone. The only way to say something is to call the send_message tool with a channel_id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
+    "Nothing you write as your answer is visible to anyone. The ONLY way to say something here is to call the send_message tool with a channel_id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
     "This is a chat room, not a task queue. Read what was actually said and reply the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 

@@ -32,6 +32,14 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   "local-ai:start-chat",
   "local-ai:abort",
   "local-ai:respond-interaction",
+  "agent-host:enqueue",
+  "agent-host:ready",
+  "agent-host:list-jobs",
+  "agent-host:list-tasks",
+  "agent-host:control-task",
+  "agent-host:redirect-task",
+  "agent-host:cancel",
+  "agent-host:respond",
   "local-ai:get-conversation-runtime-state",
   "local-ai:get-turn-runtime-state",
   "local-ai:acknowledge-turn-persistence",
@@ -57,7 +65,13 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
 ]);
 
 /** Channels the main process may push to the browser. */
-const ALLOWED_EVENT_CHANNELS = new Set(["local-ai:event"]);
+const ALLOWED_EVENT_CHANNELS = new Set([
+  "local-ai:event",
+  // Agents only act when the host tells the renderer to run them, so a browser
+  // session without this receives no work at all.
+  "agent-host:event",
+  "agent-host:request",
+]);
 
 /** How long a dropped tab may reconnect before its stream is abandoned. */
 const DEFAULT_RECONNECT_GRACE_MS = 15_000;

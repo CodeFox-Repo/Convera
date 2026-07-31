@@ -17,6 +17,14 @@ loadDotenv();
 import { LocalAiRuntime } from "@/electron/ai";
 import { withWorkspacePerception } from "@/electron/ai/workspace-tools";
 import { setupLocalAIIPC } from "@/electro-bridge/ipc/local-ai-context";
+import { setupAgentHostIPC } from "@/electro-bridge/ipc/agent-host-context";
+import { AgentHost } from "@/electron/agent-host/host";
+import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
+import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
+import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
+import { withAgentHostTools } from "@/electron/ai/agent-host-tools";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   createRecordingIpcMain,
   createWebBridgeEvent,
@@ -52,8 +60,25 @@ const runtime = new LocalAiRuntime({
   },
   // The browser build has no memory coordinator to wrap, but an agent without
   // eyes here would look like a bug in the tools rather than a missing host.
-  turnHooks: withWorkspacePerception({}),
+  // Same composition as the Electron host: without the agent-host tools a
+  // browser session reports "Agent Host unavailable" and nobody ever runs.
+  turnHooks: withAgentHostTools(withWorkspacePerception({}), () => agentHost),
 });
+
+// The bridge owns one sender per connected tab; the host talks to whichever
+// one is live.
+const agentHostBridge = new AgentHostRendererBridge(
+  () => handle.bridge?.senders()[0] as never,
+);
+const agentHost = new AgentHost({
+  repository: new JsonAgentHostJobRepository({
+    path: join(tmpdir(), "convera-dev-agent-host-jobs.json"),
+  }),
+  executor: new LocalAiAgentHostExecutor(runtime, agentHostBridge),
+  startPaused: true,
+});
+agentHost.subscribe((event) => agentHostBridge.emit(event));
+await agentHost.initialize();
 
 const recordingIPC = createRecordingIpcMain({
   handle: () => {},
@@ -67,6 +92,16 @@ const recordingIPC = createRecordingIpcMain({
 // A holder rather than a bare `let`: the closure below reads it after the
 // bridge exists, but nothing reassigns the binding itself.
 const handle: { bridge?: WebBridgeHandle } = {};
+
+setupAgentHostIPC(
+  {
+    host: agentHost,
+    bridge: agentHostBridge,
+    getAllowedWebContents: () =>
+      (handle.bridge?.senders() ?? []).map((sender) => sender as never),
+  },
+  recordingIPC,
+);
 
 setupLocalAIIPC(
   {

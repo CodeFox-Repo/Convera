@@ -1,5 +1,6 @@
 import { createLocalAIAPI } from "@/electro-bridge/ipc/local-ai-api";
 import { createMcpAPI } from "@/electro-bridge/ipc/mcp-api";
+import { createAgentHostAPI } from "@/electro-bridge/ipc/agent-host-api";
 import { createWebBridgeIPC, readWebBridgeConfig } from "./ipc-shim";
 
 /**
@@ -31,6 +32,9 @@ export function installWebBridge(): boolean {
   const ipc = createWebBridgeIPC(config);
   window.localAI = createLocalAIAPI(ipc);
   window.mcpAPI = createMcpAPI(ipc);
+  // Without this the browser build reports "Agent Host unavailable" and no
+  // agent ever runs — the backend is there, only the client half was missing.
+  window.agentHost = createAgentHostAPI(ipc);
 
   if (!window.logger) {
     // ponytail: console is the browser's logger; no round trip to the main process.
