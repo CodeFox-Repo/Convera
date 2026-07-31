@@ -4,8 +4,8 @@ import {
   createEmptyMemoryScopeIndex,
   InMemoryMemoryIndexRepository,
 } from "./index-repository";
-import { LettaMemoryStore } from "./store";
-import { FakeLettaApi } from "./testing/fake-letta-api";
+import { LocalMemoryStore } from "./store";
+import { InMemoryMemoryBackend } from "./testing/in-memory-memory-backend";
 import type { MemoryPatch, MemoryScope } from "./types";
 
 const scope: MemoryScope = { kind: "conversation", id: "conversation-1" };
@@ -34,20 +34,20 @@ function patch(overrides: Partial<MemoryPatch> = {}): MemoryPatch {
 }
 
 function setup() {
-  const api = new FakeLettaApi();
+  const backend = new InMemoryMemoryBackend();
   const index = createEmptyMemoryScopeIndex(scope);
   const indexes = new InMemoryMemoryIndexRepository([index]);
-  const store = new LettaMemoryStore({
-    api,
+  const store = new LocalMemoryStore({
+    backend,
     indexRepository: indexes,
     now,
   });
-  return { api, indexes, store };
+  return { backend, indexes, store };
 }
 
-describe("LettaMemoryStore", () => {
+describe("LocalMemoryStore", () => {
   it("applies versioned patches and treats a repeated turn as idempotent", async () => {
-    const { api, store } = setup();
+    const { backend, store } = setup();
     const first = await store.applyPatch(
       patch({
         operations: [
@@ -58,7 +58,7 @@ describe("LettaMemoryStore", () => {
           },
           {
             type: "insert_passage",
-            content: "The user selected Letta blocks plus native sessions.",
+            content: "The user selected local blocks plus native sessions.",
             tags: ["decision"],
           },
         ],
@@ -69,13 +69,13 @@ describe("LettaMemoryStore", () => {
     expect(first.status).toBe("applied");
     expect(first.version).toBe(1);
     expect(duplicate.status).toBe("duplicate");
-    expect(api.blocks.size).toBe(1);
-    expect(api.archives.size).toBe(1);
-    expect([...api.archivePassages.values()][0]?.size).toBe(1);
+    expect(backend.blocks.size).toBe(1);
+    expect(backend.archives.size).toBe(1);
+    expect([...backend.archivePassages.values()][0]?.size).toBe(1);
   });
 
-  it("rejects stale base versions without mutating Letta", async () => {
-    const { api, store } = setup();
+  it("rejects stale base versions without mutating local memory", async () => {
+    const { backend, store } = setup();
     await store.applyPatch(patch());
     const result = await store.applyPatch(
       patch({ turnId: "turn-2", baseVersion: 0 }),
@@ -86,11 +86,11 @@ describe("LettaMemoryStore", () => {
       version: 1,
       expectedVersion: 1,
     });
-    expect(api.blocks.size).toBe(1);
+    expect(backend.blocks.size).toBe(1);
   });
 
   it("supersedes corrections in search without deleting audit history", async () => {
-    const { api, store } = setup();
+    const { backend, store } = setup();
     await store.applyPatch(
       patch({
         turnId: "turn-original",
@@ -103,9 +103,9 @@ describe("LettaMemoryStore", () => {
         ],
       }),
     );
-    const archive = [...api.archives.values()][0];
+    const archive = [...backend.archives.values()][0];
     const original = archive
-      ? [...(api.archivePassages.get(archive.id)?.values() ?? [])][0]
+      ? [...(backend.archivePassages.get(archive.id)?.values() ?? [])][0]
       : undefined;
     if (!archive || !original) throw new Error("missing test passage");
     await store.applyPatch(
@@ -131,7 +131,7 @@ describe("LettaMemoryStore", () => {
     expect(result.hits.map((hit) => hit.content)).toEqual([
       "The preferred provider is Codex.",
     ]);
-    expect(api.archivePassages.get(archive.id)?.size).toBe(2);
+    expect(backend.archivePassages.get(archive.id)?.size).toBe(2);
   });
 
   it("rejects corrections outside the managed scope instead of retrying them", async () => {
@@ -156,11 +156,11 @@ describe("LettaMemoryStore", () => {
     expect((await indexes.get(scope))?.pendingWrites).toEqual([]);
   });
 
-  it("uses last-known-good snapshot while Letta is offline", async () => {
-    const { api, store } = setup();
+  it("uses last-known-good snapshot while local memory is offline", async () => {
+    const { backend, store } = setup();
     await store.applyPatch(patch());
     const fresh = await store.getSnapshot(scope);
-    api.available = false;
+    backend.available = false;
     const stale = await store.getSnapshot(scope);
 
     expect(fresh.stale).toBe(false);
@@ -169,7 +169,7 @@ describe("LettaMemoryStore", () => {
   });
 
   it("retains the previous validated snapshot after a newer write until it can refresh", async () => {
-    const { api, store } = setup();
+    const { backend, store } = setup();
     await store.applyPatch(patch());
     const validated = await store.getSnapshot(scope);
     await store.applyPatch(
@@ -185,7 +185,7 @@ describe("LettaMemoryStore", () => {
         ],
       }),
     );
-    api.available = false;
+    backend.available = false;
 
     const stale = await store.getSnapshot(scope);
 
@@ -201,8 +201,8 @@ describe("LettaMemoryStore", () => {
   });
 
   it("queues failed writes and flushes them idempotently", async () => {
-    const { api, store } = setup();
-    api.failWrites = 1;
+    const { backend, store } = setup();
+    backend.failWrites = 1;
     const queued = await store.applyPatch(patch());
     const flushed = await store.flushPending(scope);
     const snapshot = await store.getSnapshot(scope);
@@ -215,8 +215,8 @@ describe("LettaMemoryStore", () => {
   });
 
   it("replays older pending intents before newer writes without starving on stale versions", async () => {
-    const { api, indexes, store } = setup();
-    api.failWrites = 1;
+    const { backend, indexes, store } = setup();
+    backend.failWrites = 1;
     const queued = await store.applyPatch(
       patch({
         turnId: "offline-turn",
@@ -252,9 +252,9 @@ describe("LettaMemoryStore", () => {
   });
 
   it("orders a later write after an earlier queued forget", async () => {
-    const { api, indexes, store } = setup();
+    const { backend, indexes, store } = setup();
     await store.applyPatch(patch());
-    api.failWrites = 1;
+    backend.failWrites = 1;
     await expect(
       store.forget({
         scope,
@@ -292,14 +292,14 @@ describe("LettaMemoryStore", () => {
   });
 
   it("recovers a persisted write-ahead intent during store initialization", async () => {
-    const { api, indexes, store } = setup();
-    api.failWrites = 1;
+    const { backend, indexes, store } = setup();
+    backend.failWrites = 1;
     await expect(store.applyPatch(patch())).resolves.toMatchObject({
       status: "queued",
     });
 
-    const restarted = new LettaMemoryStore({
-      api,
+    const restarted = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       now,
     });
@@ -312,18 +312,18 @@ describe("LettaMemoryStore", () => {
   });
 
   it("reconciles a block created remotely before its response was lost", async () => {
-    const { api, indexes, store } = setup();
-    api.failAfterWriteMethods.add("createBlock");
+    const { backend, indexes, store } = setup();
+    backend.failAfterWriteMethods.add("createBlock");
 
     await expect(store.applyPatch(patch())).resolves.toMatchObject({
       status: "queued",
     });
-    expect(api.blocks.size).toBe(1);
+    expect(backend.blocks.size).toBe(1);
     expect((await indexes.get(scope))?.blockIds).toEqual({});
 
     await store.initialize();
 
-    expect(api.blocks.size).toBe(1);
+    expect(backend.blocks.size).toBe(1);
     expect((await indexes.get(scope))?.blockIds).toEqual({
       current_goal: "block-1",
     });
@@ -331,12 +331,12 @@ describe("LettaMemoryStore", () => {
   });
 
   it("reconciles uncertain remote creates before committing a scope forget", async () => {
-    const { api, indexes, store } = setup();
-    api.failAfterWriteMethods.add("createBlock");
+    const { backend, indexes, store } = setup();
+    backend.failAfterWriteMethods.add("createBlock");
     await expect(store.applyPatch(patch())).resolves.toMatchObject({
       status: "queued",
     });
-    expect(api.blocks.size).toBe(1);
+    expect(backend.blocks.size).toBe(1);
     expect((await indexes.get(scope))?.blockIds).toEqual({});
 
     const result = await store.forget({
@@ -348,7 +348,7 @@ describe("LettaMemoryStore", () => {
     });
 
     expect(result.status).toBe("forgotten");
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
     expect(await indexes.get(scope)).toMatchObject({
       pendingWrites: [],
       pendingForgets: [],
@@ -357,8 +357,8 @@ describe("LettaMemoryStore", () => {
     });
   });
 
-  it("preflights every correction before any operation mutates Letta", async () => {
-    const { api, indexes, store } = setup();
+  it("preflights every correction before any operation mutates local memory", async () => {
+    const { backend, indexes, store } = setup();
 
     await expect(
       store.applyPatch(
@@ -380,7 +380,7 @@ describe("LettaMemoryStore", () => {
       ),
     ).rejects.toMatchObject({ code: "NOT_FOUND", retryable: false });
 
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
     expect(await indexes.get(scope)).toMatchObject({
       version: 0,
       blockIds: {},
@@ -390,7 +390,7 @@ describe("LettaMemoryStore", () => {
 
   it("reconciles a remote archive and passage across response-loss windows", async () => {
     const archiveSetup = setup();
-    archiveSetup.api.failAfterWriteMethods.add("createArchive");
+    archiveSetup.backend.failAfterWriteMethods.add("createArchive");
     await archiveSetup.store.applyPatch(
       patch({
         operations: [
@@ -402,11 +402,11 @@ describe("LettaMemoryStore", () => {
       }),
     );
     await archiveSetup.store.initialize();
-    expect(archiveSetup.api.archives.size).toBe(1);
-    expect([...archiveSetup.api.archivePassages.values()][0]?.size).toBe(1);
+    expect(archiveSetup.backend.archives.size).toBe(1);
+    expect([...archiveSetup.backend.archivePassages.values()][0]?.size).toBe(1);
 
     const passageSetup = setup();
-    passageSetup.api.failAfterWriteMethods.add("createArchivePassage");
+    passageSetup.backend.failAfterWriteMethods.add("createArchivePassage");
     await passageSetup.store.applyPatch(
       patch({
         operations: [
@@ -418,13 +418,13 @@ describe("LettaMemoryStore", () => {
       }),
     );
     await passageSetup.store.initialize();
-    expect(passageSetup.api.archives.size).toBe(1);
-    expect([...passageSetup.api.archivePassages.values()][0]?.size).toBe(1);
+    expect(passageSetup.backend.archives.size).toBe(1);
+    expect([...passageSetup.backend.archivePassages.values()][0]?.size).toBe(1);
     expect((await passageSetup.indexes.get(scope))?.pendingWrites).toEqual([]);
   });
 
   it("requires approval before destructive forgetting", async () => {
-    const { api, store } = setup();
+    const { backend, store } = setup();
     await store.applyPatch(patch());
     const denied = await store.forget({
       scope,
@@ -442,18 +442,18 @@ describe("LettaMemoryStore", () => {
     });
 
     expect(denied.status).toBe("approval_required");
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
     expect(approved.status).toBe("forgotten");
   });
 
   it("rotates curator sessions after a block and passage forget", async () => {
     const forgotten: MemoryScope[] = [];
-    const api = new FakeLettaApi();
+    const backend = new InMemoryMemoryBackend();
     const indexes = new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]);
-    const store = new LettaMemoryStore({
-      api,
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       now,
       onScopeForgotten: (forgottenScope) => {
@@ -475,7 +475,7 @@ describe("LettaMemoryStore", () => {
         ],
       }),
     );
-    const passageId = [...api.archivePassages.values()][0]?.values().next()
+    const passageId = [...backend.archivePassages.values()][0]?.values().next()
       .value?.id;
     if (!passageId) throw new Error("missing test passage");
 
@@ -498,13 +498,13 @@ describe("LettaMemoryStore", () => {
   });
 
   it("retries block forget when session rotation is interrupted", async () => {
-    const api = new FakeLettaApi();
+    const backend = new InMemoryMemoryBackend();
     const indexes = new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]);
     let hookAttempts = 0;
-    const store = new LettaMemoryStore({
-      api,
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       now,
       onScopeForgotten: () => {
@@ -534,23 +534,23 @@ describe("LettaMemoryStore", () => {
     });
   });
 
-  it("never sends source-bound remote ids to another Letta source", async () => {
+  it("never sends source-bound remote ids to another local memory source", async () => {
     const indexes = new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]);
-    const firstApi = new FakeLettaApi();
-    const first = new LettaMemoryStore({
-      api: firstApi,
+    const firstApi = new InMemoryMemoryBackend();
+    const first = new LocalMemoryStore({
+      backend: firstApi,
       indexRepository: indexes,
-      sourceId: "letta:source-a",
+      sourceId: "source:a",
       now,
     });
     await first.applyPatch(patch());
-    const secondApi = new FakeLettaApi();
-    const second = new LettaMemoryStore({
-      api: secondApi,
+    const secondApi = new InMemoryMemoryBackend();
+    const second = new LocalMemoryStore({
+      backend: secondApi,
       indexRepository: indexes,
-      sourceId: "letta:source-b",
+      sourceId: "source:b",
       now,
     });
 
@@ -565,25 +565,25 @@ describe("LettaMemoryStore", () => {
     const legacy = createEmptyMemoryScopeIndex(scope);
     legacy.blockIds.current_goal = "legacy-block-id";
     const indexes = new InMemoryMemoryIndexRepository([legacy]);
-    const api = new FakeLettaApi();
-    const store = new LettaMemoryStore({
-      api,
+    const backend = new InMemoryMemoryBackend();
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
-      sourceId: "letta:current-source",
+      sourceId: "local:v1",
       now,
     });
 
     await expect(store.getSnapshot(scope)).rejects.toMatchObject({
       code: "CONFIGURATION",
     });
-    expect(api.calls).not.toContain("retrieveBlock");
+    expect(backend.calls).not.toContain("retrieveBlock");
     expect((await indexes.get(scope))?.sourceId).toBeUndefined();
   });
 
   it("replays a prewritten forget intent after a remote delete response is lost", async () => {
-    const { api, indexes, store } = setup();
+    const { backend, indexes, store } = setup();
     await store.applyPatch(patch());
-    api.failAfterWriteMethods.add("deleteBlock");
+    backend.failAfterWriteMethods.add("deleteBlock");
 
     const queued = await store.forget({
       scope,
@@ -593,7 +593,7 @@ describe("LettaMemoryStore", () => {
       approved: true,
     });
     expect(queued.status).toBe("queued");
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
     expect((await indexes.get(scope))?.pendingForgets).toHaveLength(1);
 
     await store.initialize();
@@ -603,9 +603,9 @@ describe("LettaMemoryStore", () => {
   });
 
   it("forgets a known passage directly from a large dedicated archive", async () => {
-    const { api, indexes, store } = setup();
+    const { backend, indexes, store } = setup();
     const archiveId = "archive-large";
-    api.archives.set(archiveId, {
+    backend.archives.set(archiveId, {
       id: archiveId,
       name: "large",
       description: "large dedicated test archive",
@@ -623,7 +623,7 @@ describe("LettaMemoryStore", () => {
         ];
       }),
     );
-    api.archivePassages.set(archiveId, passages);
+    backend.archivePassages.set(archiveId, passages);
     const index = (await indexes.get(scope))!;
     index.archiveId = archiveId;
     await indexes.put(index);
@@ -637,9 +637,11 @@ describe("LettaMemoryStore", () => {
     });
 
     expect(result.status).toBe("forgotten");
-    expect(api.archivePassages.get(archiveId)?.has("passage-101")).toBe(false);
-    expect(api.calls).not.toContain("listArchivePassages");
-    expect(api.calls).not.toContain("searchArchivePassages");
+    expect(backend.archivePassages.get(archiveId)?.has("passage-101")).toBe(
+      false,
+    );
+    expect(backend.calls).not.toContain("listArchivePassages");
+    expect(backend.calls).not.toContain("searchArchivePassages");
   });
 
   it("retains an incremented tombstone epoch after scope forget", async () => {
@@ -681,7 +683,7 @@ describe("LettaMemoryStore", () => {
   });
 
   it("notifies the runtime before clearing the durable scope-forget intent", async () => {
-    const api = new FakeLettaApi();
+    const backend = new InMemoryMemoryBackend();
     const indexes = new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]);
@@ -690,8 +692,8 @@ describe("LettaMemoryStore", () => {
       pendingForgets: number;
       blockIds: number;
     }> = [];
-    const store = new LettaMemoryStore({
-      api,
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       now,
       onScopeForgotten: async (forgottenScope) => {
@@ -727,8 +729,8 @@ describe("LettaMemoryStore", () => {
   it("notifies scope forget even when no local memory index exists", async () => {
     const forgotten: MemoryScope[] = [];
     const indexes = new InMemoryMemoryIndexRepository();
-    const store = new LettaMemoryStore({
-      api: new FakeLettaApi(),
+    const store = new LocalMemoryStore({
+      backend: new InMemoryMemoryBackend(),
       indexRepository: indexes,
       now,
       onScopeForgotten: (forgottenScope) => {
@@ -754,13 +756,13 @@ describe("LettaMemoryStore", () => {
   });
 
   it("replays scope cleanup when the session-forget hook fails", async () => {
-    const api = new FakeLettaApi();
+    const backend = new InMemoryMemoryBackend();
     const indexes = new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]);
     let hookAttempts = 0;
-    const store = new LettaMemoryStore({
-      api,
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       now,
       onScopeForgotten: () => {

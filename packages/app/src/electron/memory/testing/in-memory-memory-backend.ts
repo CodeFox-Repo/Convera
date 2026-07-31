@@ -1,29 +1,32 @@
 import type {
-  LettaApi,
-  LettaAgentCreate,
-  LettaAgentRecord,
-  LettaArchiveRecord,
-  LettaBlockCreate,
-  LettaBlockRecord,
-  LettaBlockUpdate,
-  LettaPassageCreate,
-  LettaPassageRecord,
-  LettaPassageSearch,
-} from "../letta-api";
+  BackendAgentCreate,
+  BackendAgentRecord,
+  BackendArchiveRecord,
+  BackendBlockCreate,
+  BackendBlockRecord,
+  BackendBlockUpdate,
+  BackendPassageCreate,
+  BackendPassageRecord,
+  BackendPassageSearch,
+  MemoryBackend,
+} from "../memory-backend";
 
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-export class FakeLettaApi implements LettaApi {
-  readonly agents = new Map<string, LettaAgentRecord>();
-  readonly blocks = new Map<string, LettaBlockRecord>();
-  readonly passages = new Map<string, Map<string, LettaPassageRecord>>();
+export class InMemoryMemoryBackend implements MemoryBackend {
+  readonly agents = new Map<string, BackendAgentRecord>();
+  readonly blocks = new Map<string, BackendBlockRecord>();
+  readonly passages = new Map<string, Map<string, BackendPassageRecord>>();
   readonly archives = new Map<
     string,
     { id: string; name: string; description?: string }
   >();
-  readonly archivePassages = new Map<string, Map<string, LettaPassageRecord>>();
+  readonly archivePassages = new Map<
+    string,
+    Map<string, BackendPassageRecord>
+  >();
   readonly calls: string[] = [];
   available = true;
   failWrites = 0;
@@ -36,13 +39,13 @@ export class FakeLettaApi implements LettaApi {
 
   async health(): Promise<void> {
     this.calls.push("health");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
   }
 
-  async createAgent(input: LettaAgentCreate): Promise<LettaAgentRecord> {
+  async createAgent(input: BackendAgentCreate): Promise<BackendAgentRecord> {
     await this.beforeWrite("createAgent");
     this.agentSequence += 1;
-    const agent: LettaAgentRecord = {
+    const agent: BackendAgentRecord = {
       id: `agent-${this.agentSequence}`,
       name: input.name,
       tags: input.tags ?? [],
@@ -56,9 +59,9 @@ export class FakeLettaApi implements LettaApi {
     name?: string;
     tags?: string[];
     matchAllTags?: boolean;
-  }): Promise<LettaAgentRecord[]> {
+  }): Promise<BackendAgentRecord[]> {
     this.calls.push("listAgents");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return [...this.agents.values()]
       .filter((agent) => {
         if (filter?.name && agent.name !== filter.name) return false;
@@ -75,7 +78,7 @@ export class FakeLettaApi implements LettaApi {
     if (this.writeDelay) await this.writeDelay();
     if (this.failWrites > 0) {
       this.failWrites -= 1;
-      throw new Error("Injected Letta write failure");
+      throw new Error("Injected memory backend write failure");
     }
   }
 
@@ -84,10 +87,10 @@ export class FakeLettaApi implements LettaApi {
     throw new Error(`Injected response loss after ${name}`);
   }
 
-  async createBlock(input: LettaBlockCreate): Promise<LettaBlockRecord> {
+  async createBlock(input: BackendBlockCreate): Promise<BackendBlockRecord> {
     await this.beforeWrite("createBlock");
     this.blockSequence += 1;
-    const block: LettaBlockRecord = {
+    const block: BackendBlockRecord = {
       id: `block-${this.blockSequence}`,
       ...clone(input),
     };
@@ -96,9 +99,9 @@ export class FakeLettaApi implements LettaApi {
     return clone(block);
   }
 
-  async retrieveBlock(blockId: string): Promise<LettaBlockRecord> {
+  async retrieveBlock(blockId: string): Promise<BackendBlockRecord> {
     this.calls.push("retrieveBlock");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     const block = this.blocks.get(blockId);
     if (!block)
       throw Object.assign(new Error("Block not found"), { status: 404 });
@@ -107,8 +110,8 @@ export class FakeLettaApi implements LettaApi {
 
   async updateBlock(
     blockId: string,
-    input: LettaBlockUpdate,
-  ): Promise<LettaBlockRecord> {
+    input: BackendBlockUpdate,
+  ): Promise<BackendBlockRecord> {
     await this.beforeWrite("updateBlock");
     const block = this.blocks.get(blockId);
     if (!block)
@@ -122,9 +125,9 @@ export class FakeLettaApi implements LettaApi {
   async listBlocks(filter?: {
     tags?: string[];
     matchAllTags?: boolean;
-  }): Promise<LettaBlockRecord[]> {
+  }): Promise<BackendBlockRecord[]> {
     this.calls.push("listBlocks");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return [...this.blocks.values()]
       .filter((block) => {
         if (!filter?.tags?.length) return true;
@@ -147,7 +150,7 @@ export class FakeLettaApi implements LettaApi {
   async createArchive(input: {
     name: string;
     description?: string;
-  }): Promise<LettaArchiveRecord> {
+  }): Promise<BackendArchiveRecord> {
     await this.beforeWrite("createArchive");
     this.archiveSequence += 1;
     const archive = {
@@ -162,9 +165,9 @@ export class FakeLettaApi implements LettaApi {
 
   async listArchives(filter?: {
     name?: string;
-  }): Promise<LettaArchiveRecord[]> {
+  }): Promise<BackendArchiveRecord[]> {
     this.calls.push("listArchives");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return [...this.archives.values()]
       .filter((archive) => !filter?.name || archive.name === filter.name)
       .map(clone);
@@ -181,14 +184,14 @@ export class FakeLettaApi implements LettaApi {
 
   async createArchivePassage(
     archiveId: string,
-    input: LettaPassageCreate,
-  ): Promise<LettaPassageRecord> {
+    input: BackendPassageCreate,
+  ): Promise<BackendPassageRecord> {
     await this.beforeWrite("createArchivePassage");
     if (!this.archives.has(archiveId)) {
       throw Object.assign(new Error("Archive not found"), { status: 404 });
     }
     this.passageSequence += 1;
-    const passage: LettaPassageRecord = {
+    const passage: BackendPassageRecord = {
       id: `passage-${this.passageSequence}`,
       content: input.content,
       tags: input.tags ?? [],
@@ -196,16 +199,18 @@ export class FakeLettaApi implements LettaApi {
     };
     const passages =
       this.archivePassages.get(archiveId) ??
-      new Map<string, LettaPassageRecord>();
+      new Map<string, BackendPassageRecord>();
     passages.set(passage.id, passage);
     this.archivePassages.set(archiveId, passages);
     this.afterWrite("createArchivePassage");
     return clone(passage);
   }
 
-  async listArchivePassages(archiveId: string): Promise<LettaPassageRecord[]> {
+  async listArchivePassages(
+    archiveId: string,
+  ): Promise<BackendPassageRecord[]> {
     this.calls.push("listArchivePassages");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return [...(this.archivePassages.get(archiveId)?.values() ?? [])].map(
       clone,
     );
@@ -224,10 +229,10 @@ export class FakeLettaApi implements LettaApi {
 
   async searchArchivePassages(
     archiveId: string,
-    input: LettaPassageSearch,
-  ): Promise<LettaPassageRecord[]> {
+    input: BackendPassageSearch,
+  ): Promise<BackendPassageRecord[]> {
     this.calls.push("searchArchivePassages");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return this.filterPassages(
       [...(this.archivePassages.get(archiveId)?.values() ?? [])],
       input,
@@ -236,26 +241,26 @@ export class FakeLettaApi implements LettaApi {
 
   async createPassage(
     agentId: string,
-    input: LettaPassageCreate,
-  ): Promise<LettaPassageRecord> {
+    input: BackendPassageCreate,
+  ): Promise<BackendPassageRecord> {
     await this.beforeWrite("createPassage");
     this.passageSequence += 1;
-    const passage: LettaPassageRecord = {
+    const passage: BackendPassageRecord = {
       id: `passage-${this.passageSequence}`,
       content: input.content,
       tags: input.tags ?? [],
       createdAt: input.createdAt,
     };
     const agentPassages =
-      this.passages.get(agentId) ?? new Map<string, LettaPassageRecord>();
+      this.passages.get(agentId) ?? new Map<string, BackendPassageRecord>();
     agentPassages.set(passage.id, passage);
     this.passages.set(agentId, agentPassages);
     return clone(passage);
   }
 
-  async listPassages(agentId: string): Promise<LettaPassageRecord[]> {
+  async listPassages(agentId: string): Promise<BackendPassageRecord[]> {
     this.calls.push("listPassages");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return [...(this.passages.get(agentId)?.values() ?? [])].map(clone);
   }
 
@@ -269,10 +274,10 @@ export class FakeLettaApi implements LettaApi {
 
   async searchPassages(
     agentId: string,
-    input: LettaPassageSearch,
-  ): Promise<LettaPassageRecord[]> {
+    input: BackendPassageSearch,
+  ): Promise<BackendPassageRecord[]> {
     this.calls.push("searchPassages");
-    if (!this.available) throw new Error("Letta is offline");
+    if (!this.available) throw new Error("Memory backend is offline");
     return this.filterPassages(
       [...(this.passages.get(agentId)?.values() ?? [])],
       input,
@@ -280,9 +285,9 @@ export class FakeLettaApi implements LettaApi {
   }
 
   private filterPassages(
-    records: LettaPassageRecord[],
-    input: LettaPassageSearch,
-  ): LettaPassageRecord[] {
+    records: BackendPassageRecord[],
+    input: BackendPassageSearch,
+  ): BackendPassageRecord[] {
     const terms = (input.query ?? "")
       .toLowerCase()
       .split(/\s+/)

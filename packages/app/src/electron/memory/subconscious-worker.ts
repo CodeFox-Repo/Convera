@@ -20,7 +20,7 @@ export type SubconsciousSchedule = "every-turn" | "batch" | "idle";
 export interface CompletedMemoryTurn {
   turnId: string;
   /**
-   * Stable Letta endpoint/account fingerprint. Optional only for legacy jobs
+   * Stable memory backend identity. Optional only for legacy jobs
    * and isolated unit workers; production workers require an exact match.
    */
   sourceId?: string;
@@ -238,7 +238,7 @@ export class SubconsciousWorker {
     }
     if (this.sourceId !== undefined && turn.sourceId !== this.sourceId) {
       throw new MemoryError(
-        "Subconscious memory work belongs to a different Letta source.",
+        "Subconscious memory work belongs to a different memory source.",
         "CONFIGURATION",
         false,
       );

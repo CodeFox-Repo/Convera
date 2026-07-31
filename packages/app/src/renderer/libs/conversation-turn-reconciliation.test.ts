@@ -651,13 +651,13 @@ describe("durable turn reconciliation", () => {
     installDeletionRuntime(async () => ({
       success: false,
       error: {
-        message: "Enable Letta before forgetting persisted memory.",
+        message: "Repair local memory before forgetting persisted memory.",
         retryable: false,
       },
     }));
 
     await expect(deleteConversationWithRuntime(conversationId)).rejects.toThrow(
-      "Enable Letta",
+      "Repair local memory",
     );
     expect(
       await db.pendingConversationDeletions.get(conversationId),
@@ -665,7 +665,7 @@ describe("durable turn reconciliation", () => {
       state: "failed",
       attempts: 1,
       retryable: false,
-      lastError: "Enable Letta before forgetting persisted memory.",
+      lastError: "Repair local memory before forgetting persisted memory.",
     });
     expect(
       (await db.pendingConversationDeletions.get(conversationId))
@@ -685,7 +685,7 @@ describe("durable turn reconciliation", () => {
         skipped: true,
         retryable: false,
         error: expect.objectContaining({
-          message: "Enable Letta before forgetting persisted memory.",
+          message: "Repair local memory before forgetting persisted memory.",
         }),
       }),
     ]);

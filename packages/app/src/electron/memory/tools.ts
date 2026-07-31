@@ -107,7 +107,7 @@ const MEMORY_TOOL_DESCRIPTIONS = {
   memory_forget:
     "Permanently remove a block, archival passage, or all Convera-managed memory in one allowed scope. This is destructive: call it only for an explicit user request, and execution always pauses for fresh approval.",
   memory_status:
-    "Report Letta availability, memory versions, epochs, cached snapshots, and pending writes. Use this to diagnose stale or unavailable memory before retrying; it does not read or mutate memory content.",
+    "Report local memory availability, memory versions, epochs, cached snapshots, and pending writes. Use this to diagnose stale or unavailable memory before retrying; it does not read or mutate memory content.",
 } as const;
 
 export interface MemoryToolApprovalRequest {

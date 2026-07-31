@@ -6,7 +6,7 @@ import {
   createEmptyMemoryScopeIndex,
   InMemoryMemoryIndexRepository,
 } from "./index-repository";
-import { LettaMemoryStore } from "./store";
+import { LocalMemoryStore } from "./store";
 import {
   InMemorySubconsciousJobRepository,
   JsonSubconsciousJobRepository,
@@ -18,7 +18,7 @@ import {
   type CuratorInput,
   type RestrictedMemoryCurator,
 } from "./subconscious-worker";
-import { FakeLettaApi } from "./testing/fake-letta-api";
+import { InMemoryMemoryBackend } from "./testing/in-memory-memory-backend";
 
 const scope = { kind: "conversation" as const, id: "conversation-1" };
 const timestamp = "2026-07-31T00:00:00.000Z";
@@ -26,17 +26,18 @@ const timestamp = "2026-07-31T00:00:00.000Z";
 function turn(id: string): CompletedMemoryTurn {
   return {
     turnId: id,
-    sourceId: "letta:source-a",
+    sourceId: "source:a",
     scope,
     userContent: "Remember the selected architecture.",
-    assistantContent: "Letta stores memory and native sessions store history.",
+    assistantContent:
+      "Local storage keeps memory and native sessions store history.",
     completedAt: timestamp,
   };
 }
 
 function setup() {
-  const store = new LettaMemoryStore({
-    api: new FakeLettaApi(),
+  const store = new LocalMemoryStore({
+    backend: new InMemoryMemoryBackend(),
     indexRepository: new InMemoryMemoryIndexRepository([
       createEmptyMemoryScopeIndex(scope),
     ]),
@@ -353,7 +354,7 @@ describe("SubconsciousWorker", () => {
     const foreignWorker = new SubconsciousWorker({
       store: setup(),
       curator: { curate: foreignCurator },
-      sourceId: "letta:source-b",
+      sourceId: "source:b",
       schedule: "every-turn",
       jobRepository: jobs,
       retryBaseMs: 0,
@@ -371,7 +372,7 @@ describe("SubconsciousWorker", () => {
     const matchingWorker = new SubconsciousWorker({
       store: setup(),
       curator: { curate: matchingCurator },
-      sourceId: "letta:source-a",
+      sourceId: "source:a",
       schedule: "every-turn",
       jobRepository: jobs,
       retryBaseMs: 0,

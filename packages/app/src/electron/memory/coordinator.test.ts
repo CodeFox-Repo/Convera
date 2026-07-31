@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { LocalAiRuntime } from "../ai/runtime";
 import { InMemorySessionStateRepository } from "../ai/session/repository";
 import {
@@ -13,21 +16,14 @@ import {
 import {
   InMemoryMemorySettingsPersistence,
   MemorySettingsRepository,
-  type SecretCodec,
 } from "./settings-repository";
-import { LettaMemoryStore } from "./store";
+import { LocalMemoryStore } from "./store";
 import { InMemorySubconsciousJobRepository } from "./subconscious-job-repository";
 import type { CuratorInput } from "./subconscious-worker";
-import { FakeLettaApi } from "./testing/fake-letta-api";
+import { InMemoryMemoryBackend } from "./testing/in-memory-memory-backend";
+import { JsonLocalMemoryBackend } from "./local-memory-backend";
 
 const timestamp = "2026-07-31T00:00:00.000Z";
-
-function secretCodec(): SecretCodec {
-  return {
-    encrypt: async (value) => `encrypted:${value}`,
-    decrypt: async (value) => value.replace(/^encrypted:/, ""),
-  };
-}
 
 function setup(
   callbacks: Pick<
@@ -39,13 +35,12 @@ function setup(
 ) {
   const settings = new MemorySettingsRepository(
     new InMemoryMemorySettingsPersistence(),
-    secretCodec(),
   );
   const indexes: MemoryIndexRepository = new InMemoryMemoryIndexRepository();
   const candidates: MemoryCandidateRepository =
     new InMemoryMemoryCandidateRepository();
   const jobs = new InMemorySubconsciousJobRepository();
-  const api = new FakeLettaApi();
+  const backend = new InMemoryMemoryBackend();
   const curate = vi.fn(async (input: CuratorInput) => {
     void input;
     return {
@@ -61,12 +56,12 @@ function setup(
     curatorFactory: {
       create: async () => ({ curate }),
     },
-    apiFactory: async () => api,
+    backendFactory: async () => backend,
     now: () => new Date(timestamp),
     ...callbacks,
   });
   return {
-    api,
+    backend,
     candidates,
     coordinator,
     curate,
@@ -90,22 +85,23 @@ function prepare(coordinator: MemoryIntegrationCoordinator, turnId: string) {
 
 describe("MemoryIntegrationCoordinator", () => {
   it("does not create a client or tools until memory is explicitly enabled", async () => {
-    const { api, coordinator } = setup();
+    const { backend, coordinator, settings } = setup();
+    await settings.update({ provider: "off" });
 
     const prepared = await prepare(coordinator, "turn-off");
 
     expect(prepared.additionalTools).toEqual([]);
     expect(prepared.systemContext).toBeUndefined();
-    expect(api.calls).toEqual([]);
+    expect(backend.calls).toEqual([]);
     expect(await coordinator.getMemoryStatus()).toMatchObject({
       health: "disabled",
     });
   });
 
-  it("injects all six memory tools when Letta is enabled", async () => {
+  it("injects all six memory tools when local memory is enabled", async () => {
     const { coordinator, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
     });
 
@@ -130,19 +126,20 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
-  it("replays durable write intents when the Letta runtime starts", async () => {
-    const { api, coordinator, indexes, settings } = setup();
+  it("replays durable write intents when the local memory runtime starts", async () => {
+    const { backend, coordinator, indexes, settings } = setup();
+    await settings.update({ provider: "local", curator: "off" });
     const scope = {
       kind: "conversation" as const,
       id: "conversation-1",
     };
-    const offlineStore = new LettaMemoryStore({
-      api,
+    const offlineStore = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       sourceId: await settings.getSourceId(),
       now: () => new Date(timestamp),
     });
-    api.available = false;
+    backend.available = false;
     await expect(
       offlineStore.applyPatch({
         scope,
@@ -163,8 +160,7 @@ describe("MemoryIntegrationCoordinator", () => {
       }),
     ).resolves.toMatchObject({ status: "queued" });
 
-    api.available = true;
-    await settings.update({ provider: "letta", curator: "off" });
+    backend.available = true;
     await prepare(coordinator, "startup-turn");
 
     await expect(offlineStore.getSnapshot(scope)).resolves.toMatchObject({
@@ -182,7 +178,7 @@ describe("MemoryIntegrationCoordinator", () => {
   it("curates the conversation once and only adds other scopes with explicit candidates", async () => {
     const { candidates, coordinator, curate, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "every-turn",
     });
@@ -241,7 +237,7 @@ describe("MemoryIntegrationCoordinator", () => {
   it("uses the durable terminal time when replaying completion curation", async () => {
     const { coordinator, jobs, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "batch",
       batchSize: 10,
@@ -276,70 +272,10 @@ describe("MemoryIntegrationCoordinator", () => {
     expect((await jobs.list())[0]?.turn.completedAt).toBe(terminalAt);
   });
 
-  it("pauses a durable hook across Letta source changes and resumes it only for its original source", async () => {
-    const { coordinator, jobs, settings } = setup();
-    await settings.update({
-      provider: "letta",
-      curator: "codex-cli",
-      schedule: "batch",
-      batchSize: 10,
-    });
-    const originalSettings = await coordinator.getMemorySettings();
-    const prepared = await prepare(coordinator, "turn-source-bound-hook");
-    const sourceId = prepared.contextToken!.sourceId;
-    const hook = {
-      hookId: "turn-source-bound-hook",
-      turnId: "turn-source-bound-hook",
-      conversationId: "conversation-1",
-      outcome: "completed" as const,
-      status: "pending" as const,
-      payload: {
-        kind: "memory-turn" as const,
-        sourceId,
-        turnId: "turn-source-bound-hook",
-        conversationId: "conversation-1",
-        revision: 0,
-        providerId: "codex-cli" as const,
-        scopes: prepared.contextToken!.scopes,
-        userContent: "Keep this work bound to its original Letta source.",
-        assistantContent: "Do not replay it into replacement storage.",
-      },
-      attempts: 0,
-      retryable: true,
-      createdAt: timestamp,
-      terminalAt: timestamp,
-      updatedAt: timestamp,
-    };
-
-    await coordinator.updateMemorySettings({
-      baseURL: "http://127.0.0.1:9999",
-    });
-    await expect(coordinator.replayDurableTurnHook(hook)).rejects.toMatchObject(
-      {
-        code: "CONFIGURATION",
-        retryable: false,
-      },
-    );
-    expect(await jobs.list()).toEqual([]);
-
-    await coordinator.updateMemorySettings({
-      baseURL: originalSettings.baseURL,
-    });
-    await coordinator.replayDurableTurnHook(hook);
-    expect(await jobs.list()).toEqual([
-      expect.objectContaining({
-        turn: expect.objectContaining({
-          sourceId,
-          turnId: "turn-source-bound-hook:conversation",
-        }),
-      }),
-    ]);
-  });
-
   it("retains durable curation while memory is disabled and resumes after settings repair", async () => {
     const { coordinator, jobs, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "batch",
       batchSize: 10,
@@ -379,7 +315,7 @@ describe("MemoryIntegrationCoordinator", () => {
     );
     expect(await jobs.list()).toEqual([]);
 
-    await coordinator.updateMemorySettings({ provider: "letta" });
+    await coordinator.updateMemorySettings({ provider: "local" });
     await coordinator.replayDurableTurnHook(hook);
     expect(await jobs.list()).toEqual([
       expect.objectContaining({
@@ -391,14 +327,14 @@ describe("MemoryIntegrationCoordinator", () => {
   it("curates and removes only exact-source candidates when sources share a turn id", async () => {
     const { candidates, coordinator, jobs, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "batch",
       batchSize: 10,
     });
     const prepared = await prepare(coordinator, "turn-shared");
     const sourceId = prepared.contextToken!.sourceId as string;
-    const foreignSourceId = "letta:foreign-source";
+    const foreignSourceId = "source:foreign-source";
     const candidate = {
       id: "turn-shared:memory:1",
       scope: { kind: "conversation" as const, id: "conversation-1" },
@@ -456,8 +392,8 @@ describe("MemoryIntegrationCoordinator", () => {
 
   it("cleans a failed turn only inside the hook source", async () => {
     const { candidates, coordinator } = setup();
-    const sourceId = "letta:source-a";
-    const foreignSourceId = "letta:source-b";
+    const sourceId = "source:source-a";
+    const foreignSourceId = "source:source-b";
     const candidate = {
       id: "turn-failed-shared:memory:1",
       scope: { kind: "conversation" as const, id: "conversation-1" },
@@ -537,14 +473,14 @@ describe("MemoryIntegrationCoordinator", () => {
     ).resolves.toHaveLength(1);
   });
 
-  it("reports observed conversation memory and rotates sessions when the context source changes", async () => {
+  it("reports observed conversation memory and rotates sessions when memory is paused", async () => {
     const observed = vi.fn();
     const rotated = vi.fn();
     const { coordinator, settings } = setup({
       onConversationMemoryObserved: observed,
       onMemoryContextChanged: rotated,
     });
-    await settings.update({ provider: "letta" });
+    await settings.update({ provider: "local" });
 
     await prepare(coordinator, "turn-observed");
     expect(observed).toHaveBeenCalledWith("conversation-1", {
@@ -555,57 +491,21 @@ describe("MemoryIntegrationCoordinator", () => {
     await coordinator.updateMemorySettings({ schedule: "batch" });
     expect(rotated).not.toHaveBeenCalled();
 
-    await coordinator.updateMemorySettings({
-      baseURL: "http://127.0.0.1:8284",
-    });
+    await coordinator.updateMemorySettings({ provider: "off" });
     expect(rotated).toHaveBeenCalledOnce();
-  });
-
-  it("rejects a Letta source switch while remote memory is still bound", async () => {
-    const { api, coordinator, indexes, settings } = setup();
-    await settings.update({ provider: "letta", curator: "off" });
-    const store = new LettaMemoryStore({
-      api,
-      indexRepository: indexes,
-      sourceId: await settings.getSourceId(),
-      now: () => new Date(timestamp),
-    });
-    await store.applyPatch({
-      scope: { kind: "conversation", id: "conversation-1" },
-      baseVersion: 0,
-      turnId: "source-bound-memory",
-      provenance: {
-        actor: "system",
-        turnId: "source-bound-memory",
-        timestamp,
-      },
-      operations: [
-        {
-          type: "upsert_block",
-          label: "source_bound",
-          value: "This remote id belongs to the current source.",
-        },
-      ],
-    });
-
-    await expect(
-      coordinator.updateMemorySettings({
-        baseURL: "http://127.0.0.1:9999",
-      }),
-    ).rejects.toMatchObject({ code: "CONFIGURATION" });
-    expect(await coordinator.getMemorySettings()).toMatchObject({
-      baseURL: "http://127.0.0.1:8283",
-    });
   });
 
   it("keeps old settings when native context rotation fails", async () => {
     const rotation = vi.fn(async () => {
       throw new Error("session repository unavailable");
     });
-    const { coordinator } = setup({ onMemoryContextChanged: rotation });
+    const { coordinator, settings } = setup({
+      onMemoryContextChanged: rotation,
+    });
+    await settings.update({ provider: "off" });
 
     await expect(
-      coordinator.updateMemorySettings({ provider: "letta" }),
+      coordinator.updateMemorySettings({ provider: "local" }),
     ).rejects.toThrow("session repository unavailable");
 
     expect(rotation).toHaveBeenCalledOnce();
@@ -617,7 +517,7 @@ describe("MemoryIntegrationCoordinator", () => {
   it("serializes worker creation with a concurrent settings switch", async () => {
     const { candidates, coordinator, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "every-turn",
     });
@@ -670,7 +570,7 @@ describe("MemoryIntegrationCoordinator", () => {
 
   it("rejects tools prepared by an invalidated runtime generation", async () => {
     const { coordinator, settings } = setup();
-    await settings.update({ provider: "letta", curator: "off" });
+    await settings.update({ provider: "local", curator: "off" });
     const oldPrepared = await prepare(coordinator, "turn-old-generation");
     const oldContext = oldPrepared.additionalTools.find(
       (tool) => tool.qualifiedName === "memory:get_context",
@@ -694,59 +594,10 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
-  it("keeps a late candidate from an old tool closure bound to its prepared source", async () => {
-    const { candidates, coordinator, settings } = setup();
-    await settings.update({ provider: "letta", curator: "off" });
-    const prepared = await prepare(coordinator, "turn-late-tool");
-    const originalSourceId = prepared.contextToken!.sourceId as string;
-    const learn = prepared.additionalTools.find(
-      (tool) => tool.qualifiedName === "memory:learn",
-    );
-    const originalEnqueue = candidates.enqueue.bind(candidates);
-    let markStarted: (() => void) | undefined;
-    let release: (() => void) | undefined;
-    const started = new Promise<void>((resolve) => {
-      markStarted = resolve;
-    });
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    candidates.enqueue = vi.fn(async (candidate) => {
-      markStarted?.();
-      await gate;
-      await originalEnqueue(candidate);
-    });
-
-    const executing = learn!.execute({
-      storage: "block",
-      label: "late",
-      content: "This candidate started before the source switch.",
-    });
-    await started;
-    await coordinator.updateMemorySettings({
-      baseURL: "http://127.0.0.1:9999",
-    });
-    const replacementSourceId = await settings.getSourceId();
-    release?.();
-    await expect(executing).resolves.toMatchObject({
-      ok: true,
-      status: "queued",
-    });
-
-    await expect(
-      candidates.listByTurn("turn-late-tool", originalSourceId),
-    ).resolves.toEqual([
-      expect.objectContaining({ sourceId: originalSourceId }),
-    ]);
-    await expect(
-      candidates.listByTurn("turn-late-tool", replacementSourceId),
-    ).resolves.toEqual([]);
-  });
-
   it("hydrates and flushes persisted jobs without requiring a new turn", async () => {
     const { coordinator, curate, jobs, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "idle",
     });
@@ -781,7 +632,7 @@ describe("MemoryIntegrationCoordinator", () => {
   it("hydrates persisted jobs when status is the first post-restart call", async () => {
     const { coordinator, jobs, settings } = setup();
     await settings.update({
-      provider: "letta",
+      provider: "local",
       curator: "codex-cli",
       schedule: "idle",
     });
@@ -814,10 +665,10 @@ describe("MemoryIntegrationCoordinator", () => {
   });
 
   it("rebuilds branch memory only from the transcript at the branch point", async () => {
-    const { api, coordinator, indexes, settings } = setup();
-    await settings.update({ provider: "letta", curator: "off" });
-    const store = new LettaMemoryStore({
-      api,
+    const { backend, coordinator, indexes, settings } = setup();
+    await settings.update({ provider: "local", curator: "off" });
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       sourceId: await settings.getSourceId(),
       now: () => new Date(timestamp),
@@ -873,16 +724,16 @@ describe("MemoryIntegrationCoordinator", () => {
     );
   });
 
-  it("requires Letta only for an existing remote memory and retains a tombstone epoch", async () => {
-    const { api, coordinator, indexes, settings } = setup();
+  it("forgets local memory while paused and retains a tombstone epoch", async () => {
+    const { backend, coordinator, indexes, settings } = setup();
     await coordinator.deleteConversation({
       conversationId: "never-persisted",
       forgetConversationMemory: true,
     });
 
-    await settings.update({ provider: "letta", curator: "off" });
-    const store = new LettaMemoryStore({
-      api,
+    await settings.update({ provider: "local", curator: "off" });
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       sourceId: await settings.getSourceId(),
       now: () => new Date(timestamp),
@@ -909,20 +760,12 @@ describe("MemoryIntegrationCoordinator", () => {
       ],
     });
     await settings.update({ provider: "off" });
-    await expect(
-      coordinator.deleteConversation({
-        conversationId: "conversation-1",
-        forgetConversationMemory: true,
-      }),
-    ).rejects.toMatchObject({ code: "CONFIGURATION" });
-
-    await settings.update({ provider: "letta" });
     await coordinator.deleteConversation({
       conversationId: "conversation-1",
       forgetConversationMemory: true,
     });
 
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
     expect(await indexes.get(scope)).toMatchObject({
       version: 2,
       epoch: 1,
@@ -941,18 +784,141 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
+  it("forgets blocks and passages from the persistent local backend", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-local-forget-"));
+    const path = join(directory, "memory.json");
+    const backend = new JsonLocalMemoryBackend({ path });
+    const settings = new MemorySettingsRepository(
+      new InMemoryMemorySettingsPersistence(),
+    );
+    const indexes = new InMemoryMemoryIndexRepository();
+    const candidates = new InMemoryMemoryCandidateRepository();
+    const jobs = new InMemorySubconsciousJobRepository();
+    const onMemoryScopeForgotten = vi.fn(async () => undefined);
+    const coordinator = new MemoryIntegrationCoordinator({
+      settingsRepository: settings,
+      indexRepository: indexes,
+      candidateRepository: candidates,
+      jobRepository: jobs,
+      curatorFactory: {
+        create: async () => ({
+          curate: async () => ({
+            action: "noop" as const,
+            reason: "Not used.",
+          }),
+        }),
+      },
+      backendFactory: async () => backend,
+      onMemoryScopeForgotten,
+      now: () => new Date(timestamp),
+    });
+    await settings.update({ provider: "local", curator: "off" });
+    const scope = {
+      kind: "conversation" as const,
+      id: "local-conversation",
+    };
+    const store = new LocalMemoryStore({
+      backend,
+      indexRepository: indexes,
+      sourceId: await settings.getSourceId(),
+      now: () => new Date(timestamp),
+    });
+    await store.applyPatch({
+      scope,
+      baseVersion: 0,
+      turnId: "seed-local-delete",
+      provenance: {
+        actor: "system",
+        turnId: "seed-local-delete",
+        timestamp,
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "working_state",
+          value: "Delete this local block.",
+        },
+        {
+          type: "insert_passage",
+          content: "Delete this local passage.",
+        },
+      ],
+    });
+
+    await coordinator.deleteConversation({
+      conversationId: scope.id,
+      forgetConversationMemory: true,
+      operationId: "local-delete",
+    });
+
+    const recovered = new JsonLocalMemoryBackend({ path });
+    expect(await recovered.listBlocks()).toEqual([]);
+    expect(await recovered.listArchives()).toEqual([]);
+    expect(await indexes.get(scope)).toMatchObject({
+      sourceId: "local:v1",
+      blockIds: {},
+    });
+    expect((await indexes.get(scope))?.archiveId).toBeUndefined();
+    expect((await indexes.get(scope))?.checkpoint).toBeUndefined();
+    expect(onMemoryScopeForgotten).toHaveBeenCalledOnce();
+  });
+
+  it("pauses and resumes local memory without changing source or deleting data", async () => {
+    const { backend, coordinator, indexes, settings } = setup();
+    await settings.update({ provider: "local", curator: "off" });
+    const sourceId = await settings.getSourceId();
+    const scope = {
+      kind: "conversation" as const,
+      id: "conversation-1",
+    };
+    const store = new LocalMemoryStore({
+      backend,
+      indexRepository: indexes,
+      sourceId,
+      now: () => new Date(timestamp),
+    });
+    await store.applyPatch({
+      scope,
+      baseVersion: 0,
+      turnId: "seed-local-pause",
+      provenance: {
+        actor: "system",
+        turnId: "seed-local-pause",
+        timestamp,
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "durable",
+          value: "Keep this while memory is off.",
+        },
+      ],
+    });
+
+    await coordinator.updateMemorySettings({ provider: "off" });
+    expect((await prepare(coordinator, "paused")).additionalTools).toEqual([]);
+    await coordinator.updateMemorySettings({ provider: "local" });
+    const resumed = await prepare(coordinator, "resumed");
+
+    expect(resumed.contextToken?.sourceId).toBe(sourceId);
+    expect(resumed.systemContext).toContain("Keep this while memory is off.");
+    expect(backend.blocks.size).toBe(1);
+  });
+
   it("replays deletion after response loss without forgetting an empty tombstone twice", async () => {
     const onMemoryScopeForgotten = vi.fn(async () => undefined);
-    const { api, candidates, coordinator, indexes, jobs, settings } = setup({
-      onMemoryScopeForgotten,
-    });
+    const { backend, candidates, coordinator, indexes, jobs, settings } = setup(
+      {
+        onMemoryScopeForgotten,
+      },
+    );
     const scope = {
       kind: "conversation" as const,
       id: "response-loss-conversation",
     };
-    await settings.update({ provider: "letta", curator: "off" });
-    const store = new LettaMemoryStore({
-      api,
+    await settings.update({ provider: "local", curator: "off" });
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: indexes,
       sourceId: await settings.getSourceId(),
       now: () => new Date(timestamp),
@@ -1009,7 +975,9 @@ describe("MemoryIntegrationCoordinator", () => {
       blockIds: {},
     });
     expect(onMemoryScopeForgotten).toHaveBeenCalledOnce();
-    expect(api.calls.filter((call) => call === "deleteBlock")).toHaveLength(1);
+    expect(backend.calls.filter((call) => call === "deleteBlock")).toHaveLength(
+      1,
+    );
 
     await candidates.enqueue({
       id: "late-candidate",
@@ -1076,6 +1044,8 @@ describe("MemoryIntegrationCoordinator", () => {
       blockIds: {},
     });
     expect(onMemoryScopeForgotten).toHaveBeenCalledOnce();
-    expect(api.calls.filter((call) => call === "deleteBlock")).toHaveLength(1);
+    expect(backend.calls.filter((call) => call === "deleteBlock")).toHaveLength(
+      1,
+    );
   });
 });

@@ -24,7 +24,7 @@ afterEach(async () => {
 
 function candidate(
   id: string,
-  sourceId: string | undefined = "letta:source-a",
+  sourceId: string | undefined = "source:a",
 ): MemoryCandidate {
   return {
     id,
@@ -55,9 +55,9 @@ describe("JsonMemoryCandidateRepository", () => {
     ]);
 
     const recovered = new JsonMemoryCandidateRepository({ path });
-    expect(await recovered.listByTurn("turn-1", "letta:source-a")).toEqual([
-      expect.objectContaining({ sourceId: "letta:source-a" }),
-      expect.objectContaining({ sourceId: "letta:source-a" }),
+    expect(await recovered.listByTurn("turn-1", "source:a")).toEqual([
+      expect.objectContaining({ sourceId: "source:a" }),
+      expect.objectContaining({ sourceId: "source:a" }),
     ]);
     expect(await readdir(join(path, ".."))).toEqual(["candidates.json"]);
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
@@ -68,7 +68,7 @@ describe("JsonMemoryCandidateRepository", () => {
       kind: "conversation",
       id: "conversation-1",
     });
-    expect(await recovered.listByTurn("turn-1", "letta:source-a")).toEqual([]);
+    expect(await recovered.listByTurn("turn-1", "source:a")).toEqual([]);
   });
 
   it("rejects an unsupported schema instead of overwriting it", async () => {
@@ -87,23 +87,23 @@ describe("JsonMemoryCandidateRepository", () => {
   it("isolates duplicate turn and candidate ids by source while quarantining legacy records", async () => {
     const path = await candidatePath();
     const repository = new JsonMemoryCandidateRepository({ path });
-    await repository.enqueue(candidate("same", "letta:source-a"));
-    await repository.enqueue(candidate("same", "letta:source-b"));
+    await repository.enqueue(candidate("same", "source:a"));
+    await repository.enqueue(candidate("same", "source:b"));
     await repository.enqueue({ ...candidate("same"), sourceId: undefined });
 
     await expect(
-      repository.listByTurn("turn-1", "letta:source-a"),
+      repository.listByTurn("turn-1", "source:a"),
     ).resolves.toHaveLength(1);
     await expect(
-      repository.listByTurn("turn-1", "letta:source-b"),
+      repository.listByTurn("turn-1", "source:b"),
     ).resolves.toHaveLength(1);
 
-    await repository.deleteByIds(["same"], "letta:source-a");
+    await repository.deleteByIds(["same"], "source:a");
+    await expect(repository.listByTurn("turn-1", "source:a")).resolves.toEqual(
+      [],
+    );
     await expect(
-      repository.listByTurn("turn-1", "letta:source-a"),
-    ).resolves.toEqual([]);
-    await expect(
-      repository.listByTurn("turn-1", "letta:source-b"),
+      repository.listByTurn("turn-1", "source:b"),
     ).resolves.toHaveLength(1);
     expect(
       (
@@ -113,7 +113,7 @@ describe("JsonMemoryCandidateRepository", () => {
       ).candidates,
     ).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ sourceId: "letta:source-b" }),
+        expect.objectContaining({ sourceId: "source:b" }),
         expect.not.objectContaining({ sourceId: expect.any(String) }),
       ]),
     );

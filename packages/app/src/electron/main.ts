@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, safeStorage } from "electron";
+import { app, BrowserWindow, globalShortcut } from "electron";
 import { join } from "node:path";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
@@ -117,7 +117,6 @@ app.whenReady().then(async () => {
     memoryCoordinator = createElectronMemoryIntegration({
       userDataPath,
       workingDirectory: process.cwd(),
-      safeStorage,
       sessionRepository,
     });
     localAIRuntime = new LocalAiRuntime({

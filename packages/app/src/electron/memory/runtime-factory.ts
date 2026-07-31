@@ -8,17 +8,13 @@ import {
   JsonMemoryIndexRepository,
   type MemoryIndexRepository,
 } from "./index-repository";
-import {
-  OfficialLettaApiAdapter,
-  type LettaApi,
-  type OfficialLettaApiConfig,
-} from "./letta-api";
+import { JsonLocalMemoryBackend } from "./local-memory-backend";
+import type { MemoryBackend } from "./memory-backend";
 import {
   JsonMemorySettingsPersistence,
   MemorySettingsRepository,
-  type SecretCodec,
 } from "./settings-repository";
-import { LettaMemoryStore, type LettaMemoryStoreOptions } from "./store";
+import { LocalMemoryStore, type LocalMemoryStoreOptions } from "./store";
 import {
   SubconsciousWorker,
   type RestrictedMemoryCurator,
@@ -30,7 +26,7 @@ import {
 } from "./subconscious-job-repository";
 
 export interface MemoryRuntime {
-  store: LettaMemoryStore;
+  store: LocalMemoryStore;
   contextCompiler: MemoryContextCompiler;
   createSubconsciousWorker(
     curator: RestrictedMemoryCurator,
@@ -47,14 +43,12 @@ export interface PersistentMemoryRepositories {
 
 export function createPersistentMemoryRepositories(options: {
   directory: string;
-  secretCodec: SecretCodec;
 }): PersistentMemoryRepositories {
   return {
     settings: new MemorySettingsRepository(
       new JsonMemorySettingsPersistence({
         path: join(options.directory, "settings.json"),
       }),
-      options.secretCodec,
     ),
     indexes: new JsonMemoryIndexRepository({
       path: join(options.directory, "indexes.json"),
@@ -68,23 +62,17 @@ export function createPersistentMemoryRepositories(options: {
   };
 }
 
-export function createLettaApi(config: OfficialLettaApiConfig): LettaApi {
-  return new OfficialLettaApiAdapter(config);
-}
-
-export async function createConfiguredLettaApi(
-  settings: MemorySettingsRepository,
-): Promise<LettaApi> {
-  return settings.createLettaApi((config) => createLettaApi(config));
+export function createLocalMemoryBackend(path: string): MemoryBackend {
+  return new JsonLocalMemoryBackend({ path });
 }
 
 export function createMemoryRuntime(options: {
-  api: LettaApi;
+  backend: MemoryBackend;
   indexRepository: MemoryIndexRepository;
-  storeOptions?: Omit<LettaMemoryStoreOptions, "api" | "indexRepository">;
+  storeOptions?: Omit<LocalMemoryStoreOptions, "backend" | "indexRepository">;
 }): MemoryRuntime {
-  const store = new LettaMemoryStore({
-    api: options.api,
+  const store = new LocalMemoryStore({
+    backend: options.backend,
     indexRepository: options.indexRepository,
     ...options.storeOptions,
   });

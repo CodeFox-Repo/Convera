@@ -30,7 +30,7 @@ describe("JsonMemoryIndexRepository", () => {
     const filePath = await temporaryFile();
     const scope = { kind: "conversation" as const, id: "conversation-1" };
     const index = createEmptyMemoryScopeIndex(scope);
-    index.sourceId = "letta:source-fingerprint";
+    index.sourceId = "local:v1";
     index.nextJournalSequence = 5;
     index.archiveId = "archive-1";
     index.blockIds.current_goal = "block-1";
@@ -67,7 +67,7 @@ describe("JsonMemoryIndexRepository", () => {
 
     expect(recovered).toMatchObject({
       archiveId: "archive-1",
-      sourceId: "letta:source-fingerprint",
+      sourceId: "local:v1",
       nextJournalSequence: 5,
       version: 3,
       blockIds: { current_goal: "block-1" },

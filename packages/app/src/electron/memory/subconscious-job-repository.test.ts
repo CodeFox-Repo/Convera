@@ -29,7 +29,7 @@ function job(
     },
     turn: {
       turnId: `turn-${id}`,
-      sourceId: "letta:source-a",
+      sourceId: "source:a",
       conversationId: scope.id,
       scope,
       userContent: "user",
@@ -100,7 +100,7 @@ describe("SubconsciousJobRepository retention", () => {
       expect(persisted).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            turn: expect.objectContaining({ sourceId: "letta:source-a" }),
+            turn: expect.objectContaining({ sourceId: "source:a" }),
           }),
         ]),
       );

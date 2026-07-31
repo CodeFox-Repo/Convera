@@ -95,8 +95,8 @@ export interface DurableMemoryScope {
 export interface DurableMemoryTurnHookPayload {
   kind: "memory-turn";
   /**
-   * Stable Letta endpoint/account fingerprint. Optional only for reading
-   * pre-source-binding state; replay must pause legacy records.
+   * Stable memory-backend identifier. Optional only for reading
+   * pre-source-binding state; replay must pause unbound legacy records.
    */
   sourceId?: string;
   turnId: string;

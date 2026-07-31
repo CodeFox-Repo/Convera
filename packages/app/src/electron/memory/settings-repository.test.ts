@@ -1,109 +1,138 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   InMemoryMemorySettingsPersistence,
   MemorySettingsRepository,
-  type SecretCodec,
 } from "./settings-repository";
 
-function codec(): SecretCodec {
-  return {
-    encrypt: vi.fn(async (value) => `encrypted:${value}`),
-    decrypt: vi.fn(async (value) => value.replace(/^encrypted:/, "")),
-  };
-}
-
 describe("MemorySettingsRepository", () => {
-  it("persists settings but exposes only apiKeyConfigured", async () => {
+  it("defaults to paused memory and persists scheduling settings", async () => {
     const persistence = new InMemoryMemorySettingsPersistence();
-    const secrets = codec();
-    const repository = new MemorySettingsRepository(persistence, secrets);
+    const repository = new MemorySettingsRepository(persistence);
 
-    const updated = await repository.update({
-      provider: "letta",
-      baseURL: "http://127.0.0.1:8283",
-      curator: "claude-code",
-      schedule: "batch",
-      batchSize: 7,
-      idleMs: 9_000,
-      apiKey: "top-secret",
-    });
-    const raw = await persistence.read();
-
-    expect(updated).toEqual({
-      provider: "letta",
-      baseURL: "http://127.0.0.1:8283",
-      curator: "claude-code",
-      schedule: "batch",
-      batchSize: 7,
-      idleMs: 9_000,
-      apiKeyConfigured: true,
-    });
-    expect(JSON.stringify(updated)).not.toContain("top-secret");
-    expect(JSON.stringify(raw)).not.toContain('"top-secret"');
-  });
-
-  it("decrypts the key only inside the Letta factory and can clear it", async () => {
-    const repository = new MemorySettingsRepository(
-      new InMemoryMemorySettingsPersistence(),
-      codec(),
-    );
-    await repository.update({ provider: "letta", apiKey: "secret" });
-    const factory = vi.fn(() => ({
-      health: vi.fn(),
-    }));
-
-    await repository.createLettaApi(factory as never);
-    expect(factory).toHaveBeenCalledWith({
-      baseURL: "http://127.0.0.1:8283",
-      apiKey: "secret",
-    });
-
-    expect((await repository.update({ apiKey: null })).apiKeyConfigured).toBe(
-      false,
-    );
-    expect(await repository.clear()).toEqual({
+    expect(await repository.get()).toEqual({
       provider: "off",
-      baseURL: "http://127.0.0.1:8283",
       curator: "off",
       schedule: "every-turn",
       batchSize: 5,
       idleMs: 5_000,
-      apiKeyConfigured: false,
+    });
+    await expect(
+      repository.update({
+        provider: "off",
+        curator: "claude-code",
+        schedule: "batch",
+        batchSize: 7,
+        idleMs: 9_000,
+      }),
+    ).resolves.toEqual({
+      provider: "off",
+      curator: "claude-code",
+      schedule: "batch",
+      batchSize: 7,
+      idleMs: 9_000,
+    });
+    expect(await persistence.read()).toEqual({
+      schemaVersion: 3,
+      provider: "off",
+      curator: "claude-code",
+      schedule: "batch",
+      batchSize: 7,
+      idleMs: 9_000,
+    });
+  });
+
+  it("keeps one stable local source while memory is paused", async () => {
+    const repository = new MemorySettingsRepository(
+      new InMemoryMemorySettingsPersistence(),
+    );
+
+    const sourceId = repository.getSourceId();
+    await repository.update({ provider: "off" });
+
+    expect(sourceId).toBe("local:v1");
+    expect(repository.getSourceId()).toBe(sourceId);
+    await repository.update({ provider: "local" });
+    expect(repository.getSourceId()).toBe(sourceId);
+  });
+
+  it("ignores omitted IPC fields represented as explicit undefined", async () => {
+    const repository = new MemorySettingsRepository(
+      new InMemoryMemorySettingsPersistence(),
+    );
+
+    await expect(
+      repository.update({
+        provider: "off",
+        curator: undefined,
+        schedule: undefined,
+        batchSize: undefined,
+        idleMs: undefined,
+      }),
+    ).resolves.toEqual({
+      provider: "off",
+      curator: "off",
+      schedule: "every-turn",
+      batchSize: 5,
+      idleMs: 5_000,
+    });
+  });
+
+  it("migrates old settings without retaining removed connection fields", async () => {
+    const persistence = new InMemoryMemorySettingsPersistence({
+      schemaVersion: 2,
+      provider: "local",
+      curator: "codex-cli",
+      schedule: "idle",
+      batchSize: 6,
+      idleMs: 8_000,
+      endpoint: "https://removed.invalid",
+      credential: "removed-secret",
+    });
+    const repository = new MemorySettingsRepository(persistence);
+
+    expect(await repository.get()).toEqual({
+      provider: "local",
+      curator: "codex-cli",
+      schedule: "idle",
+      batchSize: 6,
+      idleMs: 8_000,
+    });
+    expect(await persistence.read()).toEqual({
+      schemaVersion: 3,
+      provider: "local",
+      curator: "codex-cli",
+      schedule: "idle",
+      batchSize: 6,
+      idleMs: 8_000,
+    });
+  });
+
+  it("migrates an unsupported old provider to paused local memory", async () => {
+    const persistence = new InMemoryMemorySettingsPersistence({
+      schemaVersion: 1,
+      provider: "removed-provider",
+      curator: "off",
+      schedule: "every-turn",
+      batchSize: 5,
+      idleMs: 5_000,
+    });
+    const repository = new MemorySettingsRepository(persistence);
+
+    expect(await repository.get()).toMatchObject({ provider: "off" });
+    expect(await persistence.read()).toMatchObject({
+      schemaVersion: 3,
+      provider: "off",
     });
   });
 
   it("keeps batch scheduling aligned with the IPC minimum", async () => {
     const repository = new MemorySettingsRepository(
       new InMemoryMemorySettingsPersistence(),
-      codec(),
     );
 
     await expect(repository.update({ batchSize: 1 })).rejects.toThrow();
     await expect(repository.update({ batchSize: 2 })).resolves.toMatchObject({
       batchSize: 2,
     });
-  });
-
-  it("derives a stable source fingerprint without exposing the API key", async () => {
-    const repository = new MemorySettingsRepository(
-      new InMemoryMemorySettingsPersistence(),
-      codec(),
-    );
-    await repository.update({
-      provider: "letta",
-      baseURL: "http://127.0.0.1:8283",
-      apiKey: "secret-a",
-    });
-
-    const current = await repository.getSourceId();
-    expect(current).toMatch(/^letta:[a-f0-9]{64}$/);
-    expect(current).not.toContain("secret-a");
-    expect(await repository.getSourceId({ apiKey: "secret-a" })).toBe(current);
-    expect(await repository.getSourceId({ apiKey: "secret-b" })).not.toBe(
-      current,
-    );
-    expect(
-      await repository.getSourceId({ baseURL: "http://127.0.0.1:9999" }),
-    ).not.toBe(current);
   });
 });

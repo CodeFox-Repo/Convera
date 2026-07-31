@@ -5,10 +5,10 @@ import {
   type MemoryScopeIndex,
 } from "./index-repository";
 import type {
-  LettaApi,
-  LettaBlockRecord,
-  LettaPassageRecord,
-} from "./letta-api";
+  MemoryBackend,
+  BackendBlockRecord,
+  BackendPassageRecord,
+} from "./memory-backend";
 import { SerialTaskQueue } from "./serial-queue";
 import {
   type ApplyPatchResult,
@@ -30,8 +30,8 @@ import {
   validateMemoryPatch,
 } from "./types";
 
-export interface LettaMemoryStoreOptions {
-  api: LettaApi;
+export interface LocalMemoryStoreOptions {
+  backend: MemoryBackend;
   indexRepository: MemoryIndexRepository;
   sourceId?: string;
   isActive?: () => boolean;
@@ -87,7 +87,7 @@ function metadataString(
 }
 
 function provenanceFromBlock(
-  block: LettaBlockRecord,
+  block: BackendBlockRecord,
   now: () => Date,
 ): MemoryProvenance {
   const metadata = block.metadata;
@@ -126,7 +126,7 @@ function blockMetadata(
 }
 
 function memoryBlock(
-  record: LettaBlockRecord,
+  record: BackendBlockRecord,
   scope: MemoryScope,
   index: MemoryScopeIndex,
   now: () => Date,
@@ -179,8 +179,8 @@ function isNotFoundError(error: unknown): boolean {
   return error.status === 404 || error.statusCode === 404;
 }
 
-export class LettaMemoryStore implements MemoryStore {
-  private readonly api: LettaApi;
+export class LocalMemoryStore implements MemoryStore {
+  private readonly backend: MemoryBackend;
   private readonly indexes: MemoryIndexRepository;
   private readonly sourceId?: string;
   private readonly isActive?: () => boolean;
@@ -193,8 +193,8 @@ export class LettaMemoryStore implements MemoryStore {
   private readonly writes = new SerialTaskQueue();
   private quiescing = false;
 
-  constructor(options: LettaMemoryStoreOptions) {
-    this.api = options.api;
+  constructor(options: LocalMemoryStoreOptions) {
+    this.backend = options.backend;
     this.indexes = options.indexRepository;
     this.sourceId = options.sourceId;
     this.isActive = options.isActive;
@@ -207,7 +207,7 @@ export class LettaMemoryStore implements MemoryStore {
   private assertActive(): void {
     if (this.quiescing || (this.isActive && !this.isActive())) {
       throw new MemoryError(
-        "This Letta memory runtime was superseded by a settings change.",
+        "This memory runtime was superseded by a settings change.",
         "CONFLICT",
         false,
       );
@@ -235,8 +235,8 @@ export class LettaMemoryStore implements MemoryStore {
     if (this.hasSourceState(index)) {
       throw new MemoryError(
         index.sourceId
-          ? `Memory scope ${memoryScopeKey(index.scope)} belongs to a different Letta source. Forget or migrate it with the original source before switching.`
-          : `Memory scope ${memoryScopeKey(index.scope)} predates Letta source binding and still contains remote or pending state. Explicitly migrate it from the verified original source before using these remote IDs.`,
+          ? `Memory scope ${memoryScopeKey(index.scope)} belongs to a different memory source. Forget or migrate it with the original source before switching.`
+          : `Memory scope ${memoryScopeKey(index.scope)} predates memory source binding and still contains backend or pending state. Explicitly migrate it from the verified original source before using these backend IDs.`,
         "CONFIGURATION",
         false,
       );
@@ -295,7 +295,7 @@ export class LettaMemoryStore implements MemoryStore {
     const started = Date.now();
     try {
       this.assertActive();
-      await this.api.health();
+      await this.backend.health();
       return {
         available: true,
         checkedAt: toIso(this.now),
@@ -319,7 +319,7 @@ export class LettaMemoryStore implements MemoryStore {
       try {
         const records = await Promise.all(
           Object.values(index.blockIds).map((blockId) =>
-            this.api.retrieveBlock(blockId),
+            this.backend.retrieveBlock(blockId),
           ),
         );
         const snapshot: MemorySnapshot = {
@@ -374,14 +374,14 @@ export class LettaMemoryStore implements MemoryStore {
         try {
           await this.ensureIndexSource(index);
           const records = index.archiveId
-            ? await this.api.searchArchivePassages(index.archiveId, {
+            ? await this.backend.searchArchivePassages(index.archiveId, {
                 query: query.query,
                 tags: query.tags,
                 maxResults,
                 startDate: query.startDate,
                 endDate: query.endDate,
               })
-            : await this.api.searchPassages(index.agentId as string, {
+            : await this.backend.searchPassages(index.agentId as string, {
                 query: query.query,
                 tags: query.tags,
                 maxResults,
@@ -592,7 +592,7 @@ export class LettaMemoryStore implements MemoryStore {
         scope: patch.scope,
         version: index.version,
         turnId: patch.turnId,
-        message: `Letta write failed and was queued for retry: ${errorMessage(error)}`,
+        message: `Memory write failed and was queued for retry: ${errorMessage(error)}`,
       };
     }
   }
@@ -723,24 +723,24 @@ export class LettaMemoryStore implements MemoryStore {
           metadata,
           tags,
         };
-        let record: LettaBlockRecord | undefined;
+        let record: BackendBlockRecord | undefined;
         if (blockId) {
           try {
-            record = await this.api.updateBlock(blockId, input);
+            record = await this.backend.updateBlock(blockId, input);
           } catch (error) {
             if (!isNotFoundError(error)) throw error;
           }
         }
         if (!record) {
           const reconciled = (
-            await this.api.listBlocks({
+            await this.backend.listBlocks({
               tags,
               matchAllTags: true,
             })
           ).find((block) => block.label === operation.label);
           record = reconciled
-            ? await this.api.updateBlock(reconciled.id, input)
-            : await this.api.createBlock({
+            ? await this.backend.updateBlock(reconciled.id, input)
+            : await this.backend.createBlock({
                 label: operation.label,
                 value: operation.value,
                 description: operation.description,
@@ -802,7 +802,7 @@ export class LettaMemoryStore implements MemoryStore {
   private requireAgentId(index: MemoryScopeIndex): string {
     if (!index.agentId) {
       throw new MemoryError(
-        `No Letta archival container agent is mapped for ${memoryScopeKey(index.scope)}. Provision and persist an agentId before writing archival memory.`,
+        `No archival container agent is mapped for ${memoryScopeKey(index.scope)}. Provision and persist an agentId before writing archival memory.`,
         "CONFIGURATION",
         false,
       );
@@ -815,10 +815,10 @@ export class LettaMemoryStore implements MemoryStore {
     patch: MemoryPatch,
     operationIndex: number,
     input: { content: string; tags?: string[] },
-  ): Promise<LettaPassageRecord> {
+  ): Promise<BackendPassageRecord> {
     const idempotencyTag = mutationTag(patch.turnId, operationIndex);
     const archiveId = await this.ensureArchive(index);
-    const passages = await this.api.searchArchivePassages(archiveId, {
+    const passages = await this.backend.searchArchivePassages(archiveId, {
       tags: [idempotencyTag],
       maxResults: 10,
     });
@@ -826,7 +826,7 @@ export class LettaMemoryStore implements MemoryStore {
       passage.tags.includes(idempotencyTag),
     );
     if (existing) return existing;
-    return this.api.createArchivePassage(archiveId, {
+    return this.backend.createArchivePassage(archiveId, {
       content: input.content,
       createdAt: patch.provenance.timestamp,
       tags: [
@@ -845,11 +845,11 @@ export class LettaMemoryStore implements MemoryStore {
     const name = `convera_${index.scope.kind}_${stableHash(index.scope.id)}`;
     const description = `Convera-managed archival memory for ${key}.`;
     const archive =
-      (await this.api.listArchives({ name })).find(
+      (await this.backend.listArchives({ name })).find(
         (candidate) =>
           candidate.name === name && candidate.description === description,
       ) ??
-      (await this.api.createArchive({
+      (await this.backend.createArchive({
         name,
         description,
       }));
@@ -862,14 +862,14 @@ export class LettaMemoryStore implements MemoryStore {
   private async findManagedPassage(
     index: MemoryScopeIndex,
     memoryId: string,
-  ): Promise<LettaPassageRecord | undefined> {
+  ): Promise<BackendPassageRecord | undefined> {
     const passages = index.archiveId
-      ? await this.api.searchArchivePassages(index.archiveId, {
+      ? await this.backend.searchArchivePassages(index.archiveId, {
           tags: [PASSAGE_TAG, scopeTag(index.scope)],
           maxResults: 1_000,
         })
       : index.agentId
-        ? await this.api.listPassages(index.agentId)
+        ? await this.backend.listPassages(index.agentId)
         : [];
     const requiredScopeTag = scopeTag(index.scope);
     return passages.find(
@@ -1002,7 +1002,7 @@ export class LettaMemoryStore implements MemoryStore {
           await this.deleteManagedScopeObjects(index);
           // Rotate hidden native/curator sessions before clearing the durable
           // intent. If this hook fails or the process exits, replay repeats
-          // the idempotent remote deletes and callback.
+          // the idempotent backend deletes and callback.
           await this.onScopeForgotten?.(structuredClone(request.scope));
           index.version += 1;
           index.epoch += 1;
@@ -1075,7 +1075,7 @@ export class LettaMemoryStore implements MemoryStore {
 
   private async deleteBlockIfPresent(blockId: string): Promise<void> {
     try {
-      await this.api.deleteBlock(blockId);
+      await this.backend.deleteBlock(blockId);
     } catch (error) {
       if (!isNotFoundError(error)) throw error;
     }
@@ -1084,7 +1084,7 @@ export class LettaMemoryStore implements MemoryStore {
   private async deleteManagedScopeObjects(
     index: MemoryScopeIndex,
   ): Promise<void> {
-    const discoveredBlocks = await this.api.listBlocks({
+    const discoveredBlocks = await this.backend.listBlocks({
       tags: [BLOCK_TAG, scopeTag(index.scope)],
       matchAllTags: true,
     });
@@ -1099,7 +1099,7 @@ export class LettaMemoryStore implements MemoryStore {
     const key = memoryScopeKey(index.scope);
     const archiveName = `convera_${index.scope.kind}_${stableHash(index.scope.id)}`;
     const archiveDescription = `Convera-managed archival memory for ${key}.`;
-    const discoveredArchives = await this.api.listArchives({
+    const discoveredArchives = await this.backend.listArchives({
       name: archiveName,
     });
     const archiveIds = new Set([
@@ -1117,7 +1117,7 @@ export class LettaMemoryStore implements MemoryStore {
     }
 
     if (index.agentId) {
-      const passages = await this.api.listPassages(index.agentId);
+      const passages = await this.backend.listPassages(index.agentId);
       for (const passage of passages) {
         if (
           passage.tags.includes(PASSAGE_TAG) &&
@@ -1134,7 +1134,7 @@ export class LettaMemoryStore implements MemoryStore {
     passageId: string,
   ): Promise<void> {
     try {
-      await this.api.deletePassage(agentId, passageId);
+      await this.backend.deletePassage(agentId, passageId);
     } catch (error) {
       if (!isNotFoundError(error)) throw error;
     }
@@ -1145,7 +1145,7 @@ export class LettaMemoryStore implements MemoryStore {
     passageId: string,
   ): Promise<void> {
     try {
-      await this.api.deleteArchivePassage(archiveId, passageId);
+      await this.backend.deleteArchivePassage(archiveId, passageId);
     } catch (error) {
       if (!isNotFoundError(error)) throw error;
     }
@@ -1153,7 +1153,7 @@ export class LettaMemoryStore implements MemoryStore {
 
   private async deleteArchiveIfPresent(archiveId: string): Promise<void> {
     try {
-      await this.api.deleteArchive(archiveId);
+      await this.backend.deleteArchive(archiveId);
     } catch (error) {
       if (!isNotFoundError(error)) throw error;
     }
@@ -1215,7 +1215,7 @@ export class LettaMemoryStore implements MemoryStore {
       const index =
         (await this.indexes.get(scope)) ?? createEmptyMemoryScopeIndex(scope);
       await this.ensureIndexSource(index);
-      const records = await this.api.listBlocks({
+      const records = await this.backend.listBlocks({
         tags: [BLOCK_TAG, scopeTag(scope)],
         matchAllTags: true,
       });

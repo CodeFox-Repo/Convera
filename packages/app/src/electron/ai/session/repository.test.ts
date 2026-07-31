@@ -1048,7 +1048,7 @@ describe("SessionStateRepository", () => {
     });
     await repository.armTurnHook("turn-memory-outbox", {
       kind: "memory-turn",
-      sourceId: "letta:source-a",
+      sourceId: "local:v1",
       turnId: "turn-memory-outbox",
       conversationId: "conversation",
       revision: 0,
@@ -1080,7 +1080,7 @@ describe("SessionStateRepository", () => {
       outcome: "completed",
       status: "pending",
       payload: {
-        sourceId: "letta:source-a",
+        sourceId: "local:v1",
         userContentTruncated: true,
         assistantContentTruncated: true,
       },
@@ -1154,7 +1154,7 @@ describe("SessionStateRepository", () => {
     now = new Date("2026-07-31T02:00:00.000Z");
     await repository.failTurnHook(
       "turn-chronology",
-      "temporary Letta outage",
+      "temporary local memory failure",
       true,
     );
 

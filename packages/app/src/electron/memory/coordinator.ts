@@ -26,11 +26,7 @@ import type {
   MemoryScopeIndex,
 } from "./index-repository";
 import { MemoryError } from "./errors";
-import {
-  createConfiguredLettaApi,
-  createMemoryRuntime,
-  type MemoryRuntime,
-} from "./runtime-factory";
+import { createMemoryRuntime, type MemoryRuntime } from "./runtime-factory";
 import {
   type MemorySettingsRepository,
   type PublicMemorySettings,
@@ -44,7 +40,7 @@ import {
 import { SerialTaskQueue } from "./serial-queue";
 import { createMemoryAgentTools } from "./tools";
 import { sameMemoryScope, type MemoryScope } from "./types";
-import type { LettaApi } from "./letta-api";
+import type { MemoryBackend } from "./memory-backend";
 
 export interface SubscriptionCuratorFactory {
   create(
@@ -71,7 +67,7 @@ export interface MemoryIntegrationCoordinatorOptions {
     maxTokens: number;
     charactersPerToken?: number;
   };
-  apiFactory?: (settings: MemorySettingsRepository) => Promise<LettaApi>;
+  backendFactory: () => Promise<MemoryBackend>;
   onConversationMemoryObserved?: (
     conversationId: string,
     state: { memoryVersion: number; memoryEpoch: number },
@@ -115,10 +111,7 @@ export interface CompleteMemoryTurnInput {
 
 export interface MemoryTurnContextToken {
   kind: "convera-memory-turn";
-  /**
-   * Stable Letta endpoint/account fingerprint. Optional only for legacy
-   * serialized work, which is paused rather than replayed.
-   */
+  /** Stable backend identity. Missing only on quarantined legacy work. */
   sourceId?: string;
   turnId: string;
   conversationId: string;
@@ -139,8 +132,6 @@ function providerId(value: string): LocalAiProviderId | undefined {
 function publicSettings(settings: PublicMemorySettings): LocalAIMemorySettings {
   return {
     provider: settings.provider,
-    baseURL: settings.baseURL,
-    apiKeyConfigured: settings.apiKeyConfigured,
     subconsciousProvider: settings.curator,
     schedule: settings.schedule,
     batchSize: settings.batchSize,
@@ -168,7 +159,7 @@ function isMemoryToken(value: unknown): value is MemoryTurnContextToken {
   );
 }
 
-function hasRemoteMemory(index: MemoryScopeIndex): boolean {
+function hasBackendMemory(index: MemoryScopeIndex): boolean {
   return (
     Object.keys(index.blockIds).length > 0 ||
     index.archiveId !== undefined ||
@@ -180,7 +171,7 @@ function hasRemoteMemory(index: MemoryScopeIndex): boolean {
 
 function isEmptyMemoryTombstone(index: MemoryScopeIndex): boolean {
   return (
-    !hasRemoteMemory(index) &&
+    !hasBackendMemory(index) &&
     index.checkpoint === undefined &&
     index.lastKnownGood === undefined &&
     Object.keys(index.appliedTurns).length === 0 &&
@@ -199,9 +190,7 @@ export class MemoryIntegrationCoordinator
   private readonly jobs: SubconsciousJobRepository;
   private readonly candidates: MemoryCandidateRepository;
   private readonly curatorFactory: SubscriptionCuratorFactory;
-  private readonly apiFactory: (
-    settings: MemorySettingsRepository,
-  ) => Promise<LettaApi>;
+  private readonly backendFactory: () => Promise<MemoryBackend>;
   private readonly now: () => Date;
   private readonly budget: MemoryIntegrationCoordinatorOptions["contextBudget"];
   private readonly userScopeId: () => string;
@@ -227,8 +216,7 @@ export class MemoryIntegrationCoordinator
     this.jobs = options.jobRepository;
     this.candidates = options.candidateRepository;
     this.curatorFactory = options.curatorFactory;
-    this.apiFactory =
-      options.apiFactory ?? ((settings) => createConfiguredLettaApi(settings));
+    this.backendFactory = options.backendFactory;
     this.now = options.now ?? (() => new Date());
     this.budget = options.contextBudget ?? DEFAULT_CONTEXT_BUDGET;
     const configuredUserScopeId = options.userScopeId;
@@ -260,12 +248,12 @@ export class MemoryIntegrationCoordinator
       return this.runtime;
     }
     const runtimeGeneration = this.generation;
-    const [api, sourceId] = await Promise.all([
-      this.apiFactory(this.settings),
+    const [backend, sourceId] = await Promise.all([
+      this.backendFactory(),
       this.settings.getSourceId(),
     ]);
     const runtime = createMemoryRuntime({
-      api,
+      backend,
       indexRepository: this.indexes,
       storeOptions: {
         sourceId,
@@ -276,7 +264,7 @@ export class MemoryIntegrationCoordinator
     await runtime.store.initialize();
     if (this.generation !== runtimeGeneration) {
       throw new MemoryError(
-        "Memory settings changed while the Letta runtime was starting.",
+        "Memory settings changed while the memory runtime was starting.",
         "CONFLICT",
         true,
       );
@@ -441,7 +429,7 @@ export class MemoryIntegrationCoordinator
     const sourceId = input.token.sourceId;
     if (!sourceId || sourceId !== currentSourceId) {
       throw new MemoryError(
-        "Durable memory work belongs to a different or legacy Letta source.",
+        "Durable memory work belongs to a different or legacy memory source.",
         "CONFIGURATION",
         false,
       );
@@ -553,7 +541,7 @@ export class MemoryIntegrationCoordinator
     if (hook.outcome === "failed") {
       if (!hook.payload.sourceId) {
         throw new MemoryError(
-          "Legacy memory cleanup has no Letta source and remains quarantined.",
+          "Legacy memory cleanup has no source identity and remains quarantined.",
           "CONFIGURATION",
           false,
         );
@@ -605,45 +593,15 @@ export class MemoryIntegrationCoordinator
       const previous = await this.settings.get();
       const settingsUpdate = {
         provider: update.provider,
-        baseURL:
-          update.baseURL === undefined
-            ? undefined
-            : update.baseURL.trim() || null,
         curator: update.subconsciousProvider,
         schedule: update.schedule,
         batchSize: update.batchSize,
         idleMs: update.idleDelayMs,
-        apiKey: update.clearApiKey ? null : update.apiKey,
       };
-      const [previousSourceId, nextSourceId, indexes] = await Promise.all([
-        this.settings.getSourceId(),
-        this.settings.getSourceId(settingsUpdate),
-        this.indexes.list(),
-      ]);
-      const sourceChanged = previousSourceId !== nextSourceId;
-      if (sourceChanged && indexes.some(hasRemoteMemory)) {
-        throw new MemoryError(
-          "This Letta source still owns remote or pending memory. Forget it with the current source before changing the base URL or API key.",
-          "CONFIGURATION",
-          false,
-        );
-      }
       const contextSourceChanged =
-        previous.provider !== (update.provider ?? previous.provider) ||
-        sourceChanged;
+        previous.provider !== (update.provider ?? previous.provider);
       await this.stopWorker(false);
       await this.runtime?.store.quiesce();
-      if (sourceChanged && (await this.indexes.list()).some(hasRemoteMemory)) {
-        this.generation += 1;
-        this.runtime = undefined;
-        this.runtimeGeneration = -1;
-        await this.disposeCurators();
-        throw new MemoryError(
-          "Memory changed while the Letta source switch was quiescing. Retry only after forgetting it with the current source.",
-          "CONFIGURATION",
-          false,
-        );
-      }
       this.generation += 1;
       this.runtime = undefined;
       this.runtimeGeneration = -1;
@@ -816,20 +774,7 @@ export class MemoryIntegrationCoordinator
       kind: "conversation",
       id: request.conversationId,
     };
-    const settings = await this.settings.get();
     const indexedMemory = await this.indexes.get(scope);
-    if (
-      request.forgetConversationMemory &&
-      settings.provider !== "letta" &&
-      indexedMemory !== undefined &&
-      hasRemoteMemory(indexedMemory)
-    ) {
-      throw new MemoryError(
-        "This conversation has persisted memory. Enable its Letta provider before deleting it so the remote memory can also be forgotten.",
-        "CONFIGURATION",
-        false,
-      );
-    }
     const worker = this.worker;
     this.worker = undefined;
     if (worker) {
@@ -848,10 +793,10 @@ export class MemoryIntegrationCoordinator
       // A renderer can replay deletion after losing the main-process response,
       // including after memory forget committed but session deletion failed.
       // Candidate/job cleanup above remains repeatable, while the durable empty
-      // tombstone proves remote deletion and native-session rotation completed.
+      // tombstone proves backend deletion and native-session rotation completed.
       return;
     }
-    if (request.forgetConversationMemory && settings.provider === "letta") {
+    if (request.forgetConversationMemory) {
       const runtime = await this.ensureRuntimeUnlocked();
       await runtime.store.forget({
         scope,
@@ -862,30 +807,6 @@ export class MemoryIntegrationCoordinator
           : `delete:${request.conversationId}:${this.now().getTime()}`,
         approved: true,
       });
-    } else if (
-      request.forgetConversationMemory &&
-      indexedMemory &&
-      !isEmptyMemoryTombstone(indexedMemory)
-    ) {
-      await this.indexes.put({
-        ...indexedMemory,
-        revision: indexedMemory.revision + 1,
-        version: indexedMemory.version + 1,
-        epoch: indexedMemory.epoch + 1,
-        blockIds: {},
-        checkpoint: undefined,
-        lastKnownGood: undefined,
-        appliedTurns: {},
-        corrections: [],
-        deltas: [],
-        pendingWrites: [],
-        pendingForgets: [],
-        agentId: undefined,
-        archiveId: undefined,
-      });
-    }
-    if (request.forgetConversationMemory && settings.provider !== "letta") {
-      await this.onMemoryScopeForgotten?.(scope);
     }
   }
 

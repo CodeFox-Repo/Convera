@@ -4,8 +4,8 @@ import {
   createEmptyMemoryScopeIndex,
   InMemoryMemoryIndexRepository,
 } from "./index-repository";
-import { LettaMemoryStore } from "./store";
-import { FakeLettaApi } from "./testing/fake-letta-api";
+import { LocalMemoryStore } from "./store";
+import { InMemoryMemoryBackend } from "./testing/in-memory-memory-backend";
 import { createMemoryAgentTools, createMemoryTools } from "./tools";
 
 const scope = { kind: "conversation" as const, id: "conversation-1" };
@@ -19,12 +19,12 @@ function toolExecutor(tool: unknown) {
 }
 
 function setup(approved: boolean) {
-  const sourceId = "letta:source-a";
-  const api = new FakeLettaApi();
+  const sourceId = "source:a";
+  const backend = new InMemoryMemoryBackend();
   const indexes = new InMemoryMemoryIndexRepository([
     createEmptyMemoryScopeIndex(scope),
   ]);
-  const store = new LettaMemoryStore({ api, indexRepository: indexes });
+  const store = new LocalMemoryStore({ backend, indexRepository: indexes });
   const candidates = new InMemoryMemoryCandidateRepository();
   const requestApproval = vi.fn(async () => ({ approved }));
   const tools = createMemoryTools({
@@ -36,12 +36,12 @@ function setup(approved: boolean) {
     requestApproval,
     now: () => new Date("2026-07-31T00:00:00.000Z"),
   });
-  return { api, candidates, requestApproval, sourceId, store, tools };
+  return { backend, candidates, requestApproval, sourceId, store, tools };
 }
 
 describe("memory tools", () => {
   it("queues learn and correction candidates without canonical writes", async () => {
-    const { api, candidates, sourceId, store, tools } = setup(true);
+    const { backend, candidates, sourceId, store, tools } = setup(true);
     const learn = await toolExecutor(tools.memory_learn)({
       storage: "block",
       label: "preferences",
@@ -60,7 +60,7 @@ describe("memory tools", () => {
       expect.objectContaining({ sourceId }),
     ]);
     expect((await store.getSnapshot(scope)).version).toBe(0);
-    expect(api.blocks.size).toBe(0);
+    expect(backend.blocks.size).toBe(0);
   });
 
   it("requires fresh explicit approval for memory_forget", async () => {
@@ -77,9 +77,9 @@ describe("memory tools", () => {
   });
 
   it("exports provider-native AgentTool definitions with shared validation", async () => {
-    const api = new FakeLettaApi();
-    const store = new LettaMemoryStore({
-      api,
+    const backend = new InMemoryMemoryBackend();
+    const store = new LocalMemoryStore({
+      backend,
       indexRepository: new InMemoryMemoryIndexRepository([
         createEmptyMemoryScopeIndex(scope),
       ]),
@@ -87,7 +87,7 @@ describe("memory tools", () => {
     const candidates = new InMemoryMemoryCandidateRepository();
     const tools = createMemoryAgentTools({
       store,
-      sourceId: "letta:source-a",
+      sourceId: "source:a",
       activeScope: scope,
       turnId: "turn-agent",
       candidateSink: candidates,
@@ -116,8 +116,8 @@ describe("memory tools", () => {
         content: "Native tools share the candidate pipeline.",
       }),
     ).resolves.toMatchObject({ ok: true, status: "queued" });
-    expect(await candidates.listByTurn("turn-agent", "letta:source-a")).toEqual(
-      [expect.objectContaining({ sourceId: "letta:source-a" })],
-    );
+    expect(await candidates.listByTurn("turn-agent", "source:a")).toEqual([
+      expect.objectContaining({ sourceId: "source:a" }),
+    ]);
   });
 });

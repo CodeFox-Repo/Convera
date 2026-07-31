@@ -13,7 +13,7 @@ function snapshot(overrides: Partial<MemorySnapshot> = {}): MemorySnapshot {
         id: "block-1",
         scope: { kind: "conversation", id: "conversation-1" },
         label: "current_goal",
-        value: "Implement Letta-backed memory.",
+        value: "Implement local memory.",
         version: 2,
         provenance: {
           actor: "subconscious",
