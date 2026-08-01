@@ -927,7 +927,8 @@ export function useAvailableModels(): GroupedModel[] {
  * Initialize database, ensuring default agent exists
  */
 export async function initializeDatabase(): Promise<void> {
-  await db.transaction("rw", [db.agents, db.members], async () => {
+  // channels is in scope because syncAgentMember renames the agent's DM room.
+  await db.transaction("rw", [db.agents, db.members, db.channels], async () => {
     const defaultAgent = await db.agents.get(DEFAULT_AGENT.id);
     const agent = defaultAgent ?? DEFAULT_AGENT;
     if (!defaultAgent) {

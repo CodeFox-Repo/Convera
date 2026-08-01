@@ -7,7 +7,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent } from "../db";
-import { createAgent, updateAgent } from "../db/hooks";
+import { createAgent, initializeDatabase, updateAgent } from "../db/hooks";
 import { describeAgentRemoval } from "../agent-templates";
 import { ensureAgentDM } from "../agent-dm";
 import { createChannel } from "../stores/channel-store";
@@ -68,6 +68,16 @@ describe("custom agent identity", () => {
     await updateAgent(id, { name: "Rosalind" });
 
     expect((await db.channels.get(channelId))?.name).toBe("Rosalind");
+  });
+
+  // The first boot writes the member row and stops there; every boot after it
+  // takes the update branch, which reaches into `channels` to rename the DM.
+  // Leave that table out of the transaction and only the second boot throws —
+  // and the throw lands in a `.catch(console.error)`, so the default agent
+  // silently stops syncing instead of failing loudly.
+  it("survives a second boot, when the member row already exists", async () => {
+    await initializeDatabase();
+    await expect(initializeDatabase()).resolves.toBeUndefined();
   });
 
   it("leaves a shared channel's own name alone", async () => {
