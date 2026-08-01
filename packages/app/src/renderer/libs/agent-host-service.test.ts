@@ -184,7 +184,7 @@ describe("RendererAgentHostService", () => {
       agent: { id: agent.id, memberId: member.id },
     });
     expect(prepared.request.agent?.systemPrompt).toContain(
-      "The ONLY way to say something here is to call the send_message tool",
+      "You have a send_message tool",
     );
     expect(await db.messages.count()).toBe(before);
     expect(await db.pendingTurns.count()).toBe(0);
@@ -289,6 +289,59 @@ describe("RendererAgentHostService", () => {
     expect(useTypingStore.getState().typingMemberIds(conversation.id)).toEqual(
       [],
     );
+  });
+
+  it("keeps the indicator up while a silent direct offer is asked again", async () => {
+    useTypingStore.setState({ typing: {} });
+    const listeners: Array<(event: AgentHostEvent) => void> = [];
+    Object.assign(window, {
+      agentHost: {
+        enqueue,
+        ready: async () => ({ success: true }),
+        onRequest: () => () => {},
+        onEvent: (callback: (event: AgentHostEvent) => void) => {
+          listeners.push(callback);
+          return () => {};
+        },
+      } as unknown as IAgentHostAPI,
+    });
+    const service = new RendererAgentHostService();
+    service.start();
+    const prepared = await service.prepareTurn(job);
+    const requestId = prepared.request.requestId;
+    const typing = () =>
+      useTypingStore.getState().typingMemberIds(conversation.id);
+    const chunk = (chunk: Record<string, unknown>) =>
+      stream(service, {
+        type: "ui-message",
+        requestId,
+        chunk,
+      } as LocalAIStreamEvent);
+
+    // First turn opens the speech tool and closes it having said nothing.
+    await chunk({
+      type: "tool-input-start",
+      toolCallId: "call-1",
+      toolName: "workspace:send_message",
+    });
+    await chunk({ type: "tool-output-available", toolCallId: "call-1" });
+    expect(typing()).toEqual([]);
+
+    // The executor announces the re-ask before the next turn starts.
+    for (const listener of listeners) {
+      listener({ type: "retrying", jobId: job.id });
+    }
+    expect(typing()).toEqual([member.id]);
+
+    // The second turn's own call takes over, and ends the indicator once.
+    await chunk({
+      type: "tool-input-start",
+      toolCallId: "call-2",
+      toolName: "workspace:send_message",
+    });
+    expect(typing()).toEqual([member.id]);
+    await chunk({ type: "tool-output-available", toolCallId: "call-2" });
+    expect(typing()).toEqual([]);
   });
 
   it("only enqueues a collaboration-layer dispatch", async () => {

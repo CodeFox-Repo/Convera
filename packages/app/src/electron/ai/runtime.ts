@@ -19,7 +19,9 @@ import type {
   LocalAIUsage,
 } from "@/shared/types/local-ai";
 import type { AgentSandbox } from "@/shared/types/workspace";
+import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
 import {
+  hasToolCall,
   stepCountIs,
   streamText,
   type LanguageModel,
@@ -84,7 +86,7 @@ interface RuntimeStreamOptions {
   maxOutputTokens?: number;
   providerOptions?: Record<string, Record<string, unknown>>;
   tools?: ToolSet;
-  stopWhen?: StopCondition<ToolSet>;
+  stopWhen?: StopCondition<ToolSet> | Array<StopCondition<ToolSet>>;
 }
 
 export type RuntimeStreamInvoker = (
@@ -826,9 +828,18 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           maxOutputTokens: request.options?.maxOutputTokens,
           providerOptions: run.providerOptions,
           tools: run.tools,
-          // Tools passed here are executed by the AI SDK, so the loop has to be
-          // stepped explicitly or the turn ends at the first tool call.
-          stopWhen: run.tools ? stepCountIs(12) : undefined,
+          // Tools passed here are executed by the AI SDK, so the loop has to
+          // be stepped explicitly or the turn ends at the first tool call.
+          //
+          // Saying something ends the turn. Without that, a model that had
+          // already posted would keep its remaining steps and sometimes reach
+          // for the speech tool a second time — the room saw one colleague
+          // start typing, stop, and start again for a single message. Looking
+          // around first (`read_channel`, reasoning) still costs steps and is
+          // unaffected: `hasToolCall` only inspects the step just finished.
+          stopWhen: run.tools
+            ? [hasToolCall(WORKSPACE_SEND_MESSAGE_TOOL), stepCountIs(12)]
+            : undefined,
         });
         const forwarded = await this.forwardStream(
           request.requestId,

@@ -42,6 +42,18 @@ describe("typingTransition", () => {
     expect(typingTransition(undefined)).toBeUndefined();
     expect(typingTransition({ type: "tool-input-start" })).toBeUndefined();
   });
+
+  it("ignores the later stages of a call it already opened", () => {
+    // Opening is what starts the indicator; `tool-input-available` arrives
+    // just before the message posts and would only make it flash.
+    expect(
+      typingTransition({
+        type: "tool-input-available",
+        toolCallId: "call-9",
+        toolName: "workspace:send_message",
+      }),
+    ).toBeUndefined();
+  });
 });
 
 describe("typing store conversation isolation", () => {

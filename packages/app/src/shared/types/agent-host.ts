@@ -115,6 +115,19 @@ export type AgentHostEvent =
       type: "stream";
       jobId: string;
       event: LocalAIStreamEvent;
+    }
+  | {
+      /**
+       * A direct offer ended without speaking and is being asked again.
+       *
+       * The room should not see this as the colleague giving up: its first
+       * turn closed the speech tool without producing anything, and the next
+       * one is about to open a different tool call. Without this the
+       * indicator went out and came back for what is, to everyone watching,
+       * one agent answering once.
+       */
+      type: "retrying";
+      jobId: string;
     };
 
 export interface IAgentHostAPI {

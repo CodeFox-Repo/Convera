@@ -2,23 +2,26 @@ import { create } from "zustand";
 import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
 
 /**
- * Who is about to say something.
+ * Who is composing a message, right now.
  *
- * Speaking is a tool call now, so there is no reply slot to show while an agent
- * thinks — and pre-creating one is exactly what we removed: an empty bubble is
- * a claim that someone spoke. A typing indicator makes the wait visible without
- * making that claim.
- *
- * It is driven by the stream and nothing else. An agent that is merely working
- * — reading channels, thinking, deciding to stay quiet — is not typing, and
- * showing it as typing is a claim that a message is coming when none is. Only
- * the speech tool actually opening counts, which the stream reports as
- * `tool-input-start` for `send_message`.
+ * One state, two transitions: the speech tool opens and the member is typing;
+ * it closes and they are not. Nothing is inferred and nothing is smoothed —
+ * the indicator is up for exactly as long as the tool call it reports, which
+ * is the whole time the model spends writing the message.
  *
  * Keyed by `toolCallId`, the stream's own identity for one call: it survives a
  * turn being re-asked, distinguishes two calls by the same agent, and is
  * carried by the very chunks that retire it.
  */
+
+/**
+ * Safety net, not a timing rule. A turn that dies between opening the tool and
+ * closing it never sends the chunk that would clear the indicator, and whoever
+ * started it may be gone too. Far longer than any real call so it never cuts
+ * one short — it only guarantees a stuck one eventually disappears.
+ */
+export const TYPING_MAX_MS = 5 * 60 * 1000;
+
 interface TypingState {
   /** toolCallId -> who is composing and which conversation may display it. */
   typing: Record<string, { memberId: string; conversationId: string }>;
@@ -31,24 +34,42 @@ interface TypingState {
   typingMemberIds: (conversationId: string) => string[];
 }
 
+const expiries = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearExpiry(toolCallId: string): void {
+  const timer = expiries.get(toolCallId);
+  if (timer) {
+    clearTimeout(timer);
+    expiries.delete(toolCallId);
+  }
+}
+
 export const useTypingStore = create<TypingState>((set, get) => ({
   typing: {},
 
-  startTyping: (toolCallId, memberId, conversationId) =>
+  startTyping: (toolCallId, memberId, conversationId) => {
+    clearExpiry(toolCallId);
+    expiries.set(
+      toolCallId,
+      setTimeout(() => get().stopTyping(toolCallId), TYPING_MAX_MS),
+    );
     set((state) => ({
       typing: {
         ...state.typing,
         [toolCallId]: { memberId, conversationId },
       },
-    })),
+    }));
+  },
 
-  stopTyping: (toolCallId) =>
+  stopTyping: (toolCallId) => {
+    clearExpiry(toolCallId);
     set((state) => {
       if (!(toolCallId in state.typing)) return state;
       const next = { ...state.typing };
       delete next[toolCallId];
       return { typing: next };
-    }),
+    });
+  },
 
   typingMemberIds: (conversationId) => [
     ...new Set(
@@ -81,7 +102,10 @@ export function typingTransition(
   };
   if (typeof toolCallId !== "string" || !toolCallId) return undefined;
   if (type === "tool-input-start") {
-    // Tool names reach the renderer qualified ("workspace:send_message").
+    // `tool-input-start`, not `tool-input-available`: the latter only fires
+    // once the whole call has been written, which for a real reply is the
+    // moment before it posts — the indicator would flash rather than cover
+    // the compose. Tool names arrive qualified ("workspace:send_message").
     return toolName?.endsWith(WORKSPACE_SEND_MESSAGE_TOOL)
       ? { open: true, toolCallId }
       : undefined;

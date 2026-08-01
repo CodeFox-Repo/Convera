@@ -25,6 +25,7 @@ import { DEFAULT_LOCAL_AI_MODEL_ID } from "./local-ai";
 import { handleWorkspaceQueryInteraction } from "./workspace-perception";
 import { typingTransition, useTypingStore } from "./stores/typing-store";
 import { useUserInputStore } from "./stores/user-input-store";
+import { beginTrace, endTrace, noteRetry, recordTrace } from "./agent-trace";
 
 interface ActiveOffer {
   job: AgentHostJob;
@@ -168,6 +169,12 @@ export class RendererAgentHostService {
         void this.handleStream(event.jobId, event.event);
         return;
       }
+      if (event.type === "retrying") {
+        this.holdTyping(event.jobId);
+        const active = this.active.get(event.jobId);
+        if (active) noteRetry(active.requestId);
+        return;
+      }
       // Anything that is not still in flight retires the offer. Stated as
       // "not queued or running" rather than by listing the terminal states:
       // pausing a mid-turn agent aborts its stream and then deliberately
@@ -213,9 +220,33 @@ export class RendererAgentHostService {
     }
   }
 
+  /**
+   * Keeps the colleague shown as typing while its turn is asked again.
+   *
+   * The first turn's speech tool has already closed, so nothing in the stream
+   * is holding the indicator up; the next turn will open a different
+   * `toolCallId` a moment later. Bridging the gap with a placeholder keyed to
+   * the job means the room sees one person answering once, which is what
+   * happened, instead of an agent that changed its mind.
+   */
+  private holdTyping(jobId: string): void {
+    const active = this.active.get(jobId);
+    if (!active) return;
+    const placeholder = `retry:${jobId}`;
+    active.typing.add(placeholder);
+    useTypingStore
+      .getState()
+      .startTyping(
+        placeholder,
+        active.job.agentMemberId,
+        active.job.conversationId,
+      );
+  }
+
   private clearOffer(jobId: string): void {
     const active = this.active.get(jobId);
     if (!active) return;
+    void endTrace(active.requestId);
     // A turn that opens the speech tool and then dies never sends the chunk
     // that would retire the indicator, so whoever started one owns clearing it.
     const typing = useTypingStore.getState();
@@ -309,6 +340,12 @@ export class RendererAgentHostService {
       },
     };
     this.active.set(job.id, { job, requestId, typing: new Set() });
+    beginTrace({
+      requestId,
+      conversationId: job.conversationId,
+      memberId: job.agentMemberId,
+      jobId: job.id,
+    });
     // No typing here. Being offered a message is not composing one — every
     // colleague in the room gets the offer, and lighting all of them up the
     // instant anyone posts claims three replies are coming when most will
@@ -339,6 +376,7 @@ export class RendererAgentHostService {
   ): Promise<void> {
     const active = this.active.get(jobId);
     if (!active || event.requestId !== active.requestId) return;
+    recordTrace(event);
 
     // The only thing the channel path takes from the UI-message stream: a
     // colleague opening its speech tool is the one honest signal that a
@@ -349,6 +387,10 @@ export class RendererAgentHostService {
       if (!transition) return;
       const store = useTypingStore.getState();
       if (transition.open) {
+        // The retry placeholder has done its job the moment a real call takes
+        // over; leaving it would keep the indicator up past the reply.
+        const placeholder = `retry:${active.job.id}`;
+        if (active.typing.delete(placeholder)) store.stopTyping(placeholder);
         active.typing.add(transition.toolCallId);
         store.startTyping(
           transition.toolCallId,
