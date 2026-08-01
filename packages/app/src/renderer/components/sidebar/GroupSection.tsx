@@ -29,7 +29,7 @@ interface GroupSectionProps {
   label: string;
   channels: Channel[];
   currentConversationId: string | null;
-  isChannelUnread: (channel: Channel) => boolean;
+  channelUnreadCount: (channel: Channel) => number;
   onSelectChannel: (channel: Channel) => void;
   drag?: ChannelDrag;
   groupDrag?: GroupDrag;
@@ -46,7 +46,7 @@ export function GroupSection({
   label,
   channels,
   currentConversationId,
-  isChannelUnread,
+  channelUnreadCount,
   onSelectChannel,
   drag,
   groupDrag,
@@ -70,7 +70,7 @@ export function GroupSection({
   const visibleChannels = collapsed
     ? ordered.filter(
         (channel) =>
-          isChannelUnread(channel) ||
+          channelUnreadCount(channel) > 0 ||
           channel.conversationId === currentConversationId,
       )
     : ordered;
@@ -213,7 +213,7 @@ export function GroupSection({
                 key={channel.id}
                 channel={channel}
                 isActive={currentConversationId === channel.conversationId}
-                isUnread={isChannelUnread(channel)}
+                unreadCount={channelUnreadCount(channel)}
                 onSelect={() => onSelectChannel(channel)}
                 isDragging={drag?.draggingId === channel.id}
                 {...(drag?.itemHandlers(channel) ?? {})}

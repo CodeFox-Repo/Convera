@@ -12,6 +12,7 @@ import { deleteConversationWithRuntime } from "@/renderer/libs/conversation-life
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { notifyDeferredDeletion } from "@/renderer/libs/stores/chat-history-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { UnreadBadge } from "./UnreadBadge";
 import {
   Archive,
   ArchiveRestore,
@@ -25,7 +26,7 @@ import {
 interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
-  isUnread: boolean;
+  unreadCount: number;
   onSelect: () => void;
 }
 
@@ -46,9 +47,10 @@ function formatRelativeTime(date: Date): string {
 export function ConversationItem({
   conversation,
   isActive,
-  isUnread,
+  unreadCount,
   onSelect,
 }: ConversationItemProps) {
+  const isUnread = unreadCount > 0;
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(conversation.title || "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -162,9 +164,16 @@ export function ConversationItem({
                 {displayTitle}
               </span>
             )}
-            <span className="flex-shrink-0 text-xs text-muted-foreground">
-              {formatRelativeTime(conversation.updatedAt)}
-            </span>
+            {/* The count replaces the timestamp rather than crowding beside
+                it: "3 waiting" is the more useful of the two, and both at once
+                pushed the title into an ellipsis. */}
+            {isUnread && !isActive ? (
+              <UnreadBadge count={unreadCount} />
+            ) : (
+              <span className="flex-shrink-0 text-xs text-muted-foreground">
+                {formatRelativeTime(conversation.updatedAt)}
+              </span>
+            )}
           </button>
         </div>
       </ContextMenuTrigger>

@@ -19,11 +19,12 @@ import { useMember } from "@/renderer/libs/stores/member-store";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { CHANNEL_ROW_ATTR } from "./use-channel-drag";
 import { ChannelVisibilityDialog } from "./ChannelVisibilityDialog";
+import { UnreadBadge } from "./UnreadBadge";
 
 interface ChannelItemProps {
   channel: Channel;
   isActive: boolean;
-  isUnread: boolean;
+  unreadCount: number;
   onSelect: () => void;
   onDragStart?: (event: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -33,12 +34,13 @@ interface ChannelItemProps {
 export function ChannelItem({
   channel,
   isActive,
-  isUnread,
+  unreadCount,
   onSelect,
   onDragStart,
   onDragEnd,
   isDragging,
 }: ChannelItemProps) {
+  const isUnread = unreadCount > 0;
   const [isRenaming, setIsRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isEditingVisibility, setIsEditingVisibility] = useState(false);
@@ -120,6 +122,7 @@ export function ChannelItem({
           >
             {directMessageAgent?.name ?? channel.name}
           </span>
+          <UnreadBadge count={unreadCount} />
         </button>
       </div>
     </motion.div>

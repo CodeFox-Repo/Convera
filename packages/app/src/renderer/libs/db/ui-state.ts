@@ -173,44 +173,68 @@ void Promise.all([
 // ==================== Unread State ====================
 
 const LAST_SEEN_KEY = "conversation-last-seen";
+const UNREAD_EPOCH_KEY = "conversation-unread-epoch";
 
 function loadLastSeen(): Record<string, number> {
   try {
-    const raw = localStorage.getItem(LAST_SEEN_KEY);
+    const raw = storage?.getItem(LAST_SEEN_KEY);
     return raw ? (JSON.parse(raw) as Record<string, number>) : {};
   } catch {
     return {};
   }
 }
 
+/**
+ * When this workspace started counting. A room you have never opened still
+ * has to be able to go unread — that is the whole point of the badge — but
+ * without a floor, the first launch after this shipped would count every
+ * message ever sent and light up the entire sidebar.
+ */
+function loadEpoch(): number {
+  const stored = Number(storage?.getItem(UNREAD_EPOCH_KEY));
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  const now = Date.now();
+  storage?.setItem(UNREAD_EPOCH_KEY, String(now));
+  return now;
+}
+
 interface UnreadState {
   /** conversationId -> epoch ms of the last time the user looked at it. */
   lastSeen: Record<string, number>;
+  epoch: number;
   markSeen: (conversationId: string) => void;
 }
 
-/**
- * A conversation with no entry counts as seen: every existing conversation
- * predates this store, and opening the app to an all-bold sidebar is noise.
- */
 export const useUnreadStore = create<UnreadState>((set, get) => ({
   lastSeen: loadLastSeen(),
+  epoch: loadEpoch(),
   markSeen: (conversationId) => {
     const lastSeen = { ...get().lastSeen, [conversationId]: Date.now() };
     set({ lastSeen });
-    localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));
+    storage?.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));
   },
 }));
 
-export function isUnread(
-  lastSeen: Record<string, number>,
+/** The moment a conversation's unread run begins. */
+export function seenAt(
+  state: Pick<UnreadState, "lastSeen" | "epoch">,
   conversationId: string,
-  updatedAt: Date | undefined,
-): boolean {
-  const seenAt = lastSeen[conversationId];
-  return seenAt !== undefined && updatedAt !== undefined
-    ? updatedAt.getTime() > seenAt
-    : false;
+): number {
+  return state.lastSeen[conversationId] ?? state.epoch;
+}
+
+// Reading a room in one window clears its badge in the others.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== LAST_SEEN_KEY || !event.newValue) return;
+    try {
+      useUnreadStore.setState({
+        lastSeen: JSON.parse(event.newValue) as Record<string, number>,
+      });
+    } catch {
+      // A corrupt write is not worth losing the current state over.
+    }
+  });
 }
 
 // ==================== Chat UI State ====================

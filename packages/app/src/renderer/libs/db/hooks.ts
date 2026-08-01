@@ -15,9 +15,11 @@ import {
   type PendingTurnJournal,
   type PendingTurnJournalState,
   DEFAULT_AGENT,
+  LOCAL_HUMAN_MEMBER_ID,
   memberForAgent,
   memberIdForAgent,
 } from "./database";
+import { seenAt, useUnreadStore } from "./ui-state";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   LOCAL_AI_PROVIDER_NAMES,
@@ -104,6 +106,68 @@ export async function getRecentMessagesForSearch(
   ]);
   const hidden = new Set(deletions.map((deletion) => deletion.conversationId));
   return messages.filter((message) => !hidden.has(message.conversationId));
+}
+
+/**
+ * How many messages have arrived in each conversation since the user last
+ * looked at it. Absent from the map means zero.
+ *
+ * One query for the whole sidebar rather than one per row: the badge is read
+ * by every channel, every DM and both tab headers, and a live query per row
+ * would re-run all of them on every keystroke an agent streams.
+ */
+export function countUnread(
+  messages: ReadonlyArray<
+    Pick<Message, "conversationId" | "createdAt" | "senderId" | "role">
+  >,
+  seenAtFor: (conversationId: string) => number,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const message of messages) {
+    // Your own messages are read by definition. Rows predating multi-agent
+    // identity carry no senderId, so `role` is the fallback the renderer
+    // already uses everywhere else.
+    const mine = message.senderId
+      ? message.senderId === LOCAL_HUMAN_MEMBER_ID
+      : message.role === "user";
+    // Nobody reads a tool result or a system note; they are transcript
+    // plumbing, and counting them makes the badge lie.
+    const readable = message.role === "assistant" || message.role === "user";
+    if (mine || !readable) continue;
+    // ponytail: millisecond boundary. A message written in the same
+    // millisecond as the mark reads as already-seen and never badges. Move to
+    // a per-conversation last-read message id if that 1ms ever matters.
+    if (message.createdAt.getTime() <= seenAtFor(message.conversationId)) {
+      continue;
+    }
+    counts[message.conversationId] = (counts[message.conversationId] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export function useUnreadCounts(): Record<string, number> {
+  const { lastSeen, epoch } = useUnreadStore();
+  // The oldest boundary any conversation could care about, so the index scan
+  // starts there instead of at the beginning of history.
+  const floor = Math.min(epoch, ...Object.values(lastSeen));
+  const counts = useLiveQuery(
+    async () => {
+      const [messages, deletions] = await Promise.all([
+        db.messages.where("createdAt").above(new Date(floor)).toArray(),
+        db.pendingConversationDeletions.toArray(),
+      ]);
+      const hidden = new Set(
+        deletions.map((deletion) => deletion.conversationId),
+      );
+      return countUnread(
+        messages.filter((message) => !hidden.has(message.conversationId)),
+        (conversationId) => seenAt({ lastSeen, epoch }, conversationId),
+      );
+    },
+    [lastSeen, epoch, floor],
+    {} as Record<string, number>,
+  );
+  return counts;
 }
 
 /**
@@ -655,9 +719,22 @@ export async function deleteAgent(id: string): Promise<void> {
     // Cannot delete built-in agent
     return;
   }
-  await db.transaction("rw", [db.agents, db.members], async () => {
+  const memberId = memberIdForAgent(id);
+  await db.transaction("rw", [db.agents, db.members, db.channels], async () => {
     await db.agents.delete(id);
-    await db.members.delete(memberIdForAgent(id));
+    await db.members.delete(memberId);
+    // Their desk goes with them. A DM whose only counterpart no longer
+    // exists can never be answered, and nothing removes it: the row has no
+    // rename or delete menu precisely because the relationship is supposed
+    // to be durable. The conversation is left alone — history is kept the
+    // same way deleteChannel keeps it, so re-hiring reopens the transcript.
+    const stranded = await db.channels
+      .filter(
+        (channel) =>
+          channel.kind === "dm" && channel.memberIds.includes(memberId),
+      )
+      .toArray();
+    await db.channels.bulkDelete(stranded.map((channel) => channel.id));
   });
 }
 

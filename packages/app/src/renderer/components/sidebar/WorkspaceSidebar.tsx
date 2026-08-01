@@ -5,12 +5,11 @@ import {
   Plus,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { useActiveConversations } from "@/renderer/libs/db/hooks";
 import {
-  isUnread,
-  useSelectionStore,
-  useUnreadStore,
-} from "@/renderer/libs/db/ui-state";
+  useActiveConversations,
+  useUnreadCounts,
+} from "@/renderer/libs/db/hooks";
+import { useSelectionStore, useUnreadStore } from "@/renderer/libs/db/ui-state";
 import {
   createChannel,
   createGroup,
@@ -27,6 +26,7 @@ import { ConversationItem } from "./ConversationItem";
 import { ChannelItem } from "./ChannelItem";
 import { GroupSection } from "./GroupSection";
 import { InlineNameInput } from "./InlineNameInput";
+import { formatUnread } from "./UnreadBadge";
 import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
 import { useChannelDrag } from "./use-channel-drag";
 import { useGroupDrag } from "./use-group-drag";
@@ -49,7 +49,8 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const members = useMembers();
   const conversations = useActiveConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
-  const { lastSeen, markSeen } = useUnreadStore();
+  const { markSeen } = useUnreadStore();
+  const unreadCounts = useUnreadCounts();
   const {
     sidebarTab: activeTab,
     setSidebarTab: setActiveTab,
@@ -59,17 +60,24 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const [isAddingFirstChannel, setIsAddingFirstChannel] = useState(false);
   const [isStartingDM, setIsStartingDM] = useState(false);
 
-  const conversationById = useMemo(
-    () => new Map((conversations ?? []).map((c) => [c.id, c])),
-    [conversations],
-  );
+  const unreadCountFor = (conversationId: string) =>
+    // The room you are standing in is read as it arrives, so it never wears a
+    // badge for messages you are watching land.
+    conversationId === currentConversationId
+      ? 0
+      : (unreadCounts[conversationId] ?? 0);
 
-  const isChannelUnread = (channel: Channel) =>
-    isUnread(
-      lastSeen,
-      channel.conversationId,
-      conversationById.get(channel.conversationId)?.updatedAt,
-    );
+  const channelUnreadCount = (channel: Channel) =>
+    unreadCountFor(channel.conversationId);
+
+  // Watching a channel keeps it read: without this the boundary would stay
+  // where it was when you clicked, and everything said while you sat there
+  // would go bold the moment you looked away.
+  useEffect(() => {
+    if (!currentConversationId) return;
+    if ((unreadCounts[currentConversationId] ?? 0) === 0) return;
+    markSeen(currentConversationId);
+  }, [currentConversationId, unreadCounts, markSeen]);
 
   const select = (conversationId: string) => {
     markSeen(conversationId);
@@ -178,10 +186,11 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   ]);
 
   // Unread indicators on the INACTIVE tab, so nothing gets lost while hidden.
-  const teamsHaveUnread = teamChannels.some(isChannelUnread);
-  const chatsHaveUnread =
-    directMessages.some(isChannelUnread) ||
-    plainConversations.some((c) => isUnread(lastSeen, c.id, c.updatedAt));
+  const sum = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
+  const teamsUnread = sum(teamChannels.map(channelUnreadCount));
+  const chatsUnread =
+    sum(directMessages.map(channelUnreadCount)) +
+    sum(plainConversations.map((c) => unreadCountFor(c.id)));
 
   return (
     <div className="flex h-full flex-col">
@@ -190,8 +199,8 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         <div className="flex gap-0.5 rounded-lg bg-sidebar-accent p-0.5">
           {(
             [
-              { id: "teams", label: "Teams", unread: teamsHaveUnread },
-              { id: "chats", label: "Chats", unread: chatsHaveUnread },
+              { id: "teams", label: "Teams", unread: teamsUnread },
+              { id: "chats", label: "Chats", unread: chatsUnread },
             ] as const
           ).map((tab) => (
             <button
@@ -205,8 +214,13 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
               )}
             >
               {tab.label}
-              {tab.unread && activeTab !== tab.id && (
-                <span className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary" />
+              {tab.unread > 0 && activeTab !== tab.id && (
+                <span
+                  className="absolute right-1 top-1/2 min-w-4 -translate-y-1/2 rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground"
+                  aria-label={`${tab.unread} unread`}
+                >
+                  {formatUnread(tab.unread)}
+                </span>
               )}
             </button>
           ))}
@@ -232,7 +246,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
                     label="General"
                     channels={channelsByGroup.get(null) ?? []}
                     currentConversationId={currentConversationId}
-                    isChannelUnread={isChannelUnread}
+                    channelUnreadCount={channelUnreadCount}
                     onSelectChannel={selectChannel}
                     drag={drag}
                     onNewGroup={() => setIsAddingGroup(true)}
@@ -255,7 +269,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
                       label={group.name}
                       channels={channelsByGroup.get(group.id) ?? []}
                       currentConversationId={currentConversationId}
-                      isChannelUnread={isChannelUnread}
+                      channelUnreadCount={channelUnreadCount}
                       onSelectChannel={selectChannel}
                       drag={drag}
                       groupDrag={groupDrag}
@@ -388,7 +402,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
                         isActive={
                           currentConversationId === channel.conversationId
                         }
-                        isUnread={isChannelUnread(channel)}
+                        unreadCount={channelUnreadCount(channel)}
                         onSelect={() => selectChannel(channel)}
                       />
                     ))}
@@ -409,11 +423,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
                       key={conversation.id}
                       conversation={conversation}
                       isActive={currentConversationId === conversation.id}
-                      isUnread={isUnread(
-                        lastSeen,
-                        conversation.id,
-                        conversation.updatedAt,
-                      )}
+                      unreadCount={unreadCountFor(conversation.id)}
                       onSelect={() => select(conversation.id)}
                     />
                   ))}

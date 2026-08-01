@@ -1,10 +1,14 @@
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import type { Conversation, Message } from "@/renderer/libs/db/database";
 import { LOCAL_HUMAN_MEMBER_ID, db } from "@/renderer/libs/db";
-import { useActiveConversations } from "@/renderer/libs/db/hooks";
-import { isUnread, useUnreadStore } from "@/renderer/libs/db/ui-state";
+import {
+  useActiveConversations,
+  useUnreadCounts,
+} from "@/renderer/libs/db/hooks";
+import { seenAt, useUnreadStore } from "@/renderer/libs/db/ui-state";
 import { useVisibleChannels } from "@/renderer/libs/stores/channel-store";
 import { useMembers } from "@/renderer/libs/stores/member-store";
+import { UnreadBadge } from "@/renderer/components/sidebar/UnreadBadge";
 import { AtSign, Hash, Inbox, MessageSquare } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import React, { useMemo } from "react";
@@ -14,6 +18,7 @@ interface InboxEntry {
   channelName: string | null;
   lastMessage: Message | undefined;
   mentionsMe: boolean;
+  unreadCount: number;
 }
 
 /**
@@ -28,14 +33,12 @@ export function InboxPage({
   const conversations = useActiveConversations();
   const channels = useVisibleChannels();
   const members = useMembers();
-  const { lastSeen, markSeen } = useUnreadStore();
+  const { lastSeen, epoch, markSeen } = useUnreadStore();
+  const unreadCounts = useUnreadCounts();
 
   const unread = useMemo(
-    () =>
-      (conversations ?? []).filter((c) =>
-        isUnread(lastSeen, c.id, c.updatedAt),
-      ),
-    [conversations, lastSeen],
+    () => (conversations ?? []).filter((c) => (unreadCounts[c.id] ?? 0) > 0),
+    [conversations, unreadCounts],
   );
 
   const entries = useLiveQuery(async (): Promise<InboxEntry[]> => {
@@ -48,14 +51,14 @@ export function InboxPage({
         .where("conversationId")
         .equals(conversation.id)
         .last();
-      const seenAt = lastSeen[conversation.id] ?? 0;
+      const boundary = seenAt({ lastSeen, epoch }, conversation.id);
       // "Mentions me" only counts messages that arrived since I last looked.
       const mentionsMe = await db.messages
         .where("conversationId")
         .equals(conversation.id)
         .filter(
           (m) =>
-            m.createdAt.getTime() > seenAt &&
+            m.createdAt.getTime() > boundary &&
             (m.mentions ?? []).includes(LOCAL_HUMAN_MEMBER_ID),
         )
         .count()
@@ -65,6 +68,7 @@ export function InboxPage({
         channelName: channelByConversation.get(conversation.id) ?? null,
         lastMessage,
         mentionsMe,
+        unreadCount: unreadCounts[conversation.id] ?? 0,
       });
     }
     // Mentions first, then most recent.
@@ -73,7 +77,7 @@ export function InboxPage({
         Number(b.mentionsMe) - Number(a.mentionsMe) ||
         b.conversation.updatedAt.getTime() - a.conversation.updatedAt.getTime(),
     );
-  }, [unread, channels, lastSeen]);
+  }, [unread, channels, lastSeen, epoch, unreadCounts]);
 
   const membersById = useMemo(
     () => new Map((members ?? []).map((m) => [m.id, m])),
@@ -92,7 +96,8 @@ export function InboxPage({
         <h2 className="text-sm font-semibold text-foreground">Inbox</h2>
         {(entries?.length ?? 0) > 0 && (
           <span className="text-xs text-muted-foreground">
-            {entries?.length} unread
+            {entries?.reduce((total, entry) => total + entry.unreadCount, 0)}{" "}
+            unread
           </span>
         )}
       </div>
@@ -101,7 +106,13 @@ export function InboxPage({
         {entries && entries.length > 0 ? (
           <div className="space-y-1">
             {entries.map(
-              ({ conversation, channelName, lastMessage, mentionsMe }) => {
+              ({
+                conversation,
+                channelName,
+                lastMessage,
+                mentionsMe,
+                unreadCount,
+              }) => {
                 const sender = lastMessage?.senderId
                   ? membersById.get(lastMessage.senderId)
                   : undefined;
@@ -142,6 +153,7 @@ export function InboxPage({
                             you
                           </span>
                         )}
+                        <UnreadBadge count={unreadCount} />
                       </span>
                       <span className="mt-0.5 block truncate text-sm text-muted-foreground">
                         {sender ? `${sender.name}: ` : ""}

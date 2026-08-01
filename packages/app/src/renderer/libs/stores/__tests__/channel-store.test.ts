@@ -5,8 +5,9 @@
 
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db, LOCAL_HUMAN_MEMBER_ID } from "../../db";
-import { isUnread } from "../../db/ui-state";
+import { db, LOCAL_HUMAN_MEMBER_ID, type Message } from "../../db";
+import { countUnread } from "../../db/hooks";
+import { seenAt } from "../../db/ui-state";
 import {
   addChannelMember,
   createChannel,
@@ -150,15 +151,69 @@ describe("channel store", () => {
   });
 });
 
-describe("unread", () => {
-  const seen = { c1: 1000 };
+describe("unread counts", () => {
+  const AGENT = "member-agent";
+  const seenAtFor = (conversationId: string) =>
+    conversationId === "c1" ? 1000 : 0;
 
-  it("marks a conversation unread only when it changed after it was last seen", () => {
-    expect(isUnread(seen, "c1", new Date(2000))).toBe(true);
-    expect(isUnread(seen, "c1", new Date(500))).toBe(false);
+  const message = (over: Partial<Message> = {}): Message =>
+    ({
+      id: crypto.randomUUID(),
+      conversationId: "c1",
+      role: "assistant",
+      content: "hi",
+      senderId: AGENT,
+      createdAt: new Date(2000),
+      ...over,
+    }) as Message;
+
+  it("counts only what arrived after the conversation was last seen", () => {
+    const counts = countUnread(
+      [
+        message({ createdAt: new Date(2000) }),
+        message({ createdAt: new Date(3000) }),
+        message({ createdAt: new Date(500) }),
+      ],
+      seenAtFor,
+    );
+    expect(counts.c1).toBe(2);
   });
 
-  it("treats a never-seen conversation as read, so the sidebar isn't all bold on first launch", () => {
-    expect(isUnread(seen, "unknown", new Date(9999))).toBe(false);
+  it("never counts your own messages", () => {
+    const counts = countUnread(
+      [
+        message({ senderId: LOCAL_HUMAN_MEMBER_ID, role: "user" }),
+        // Pre-multi-agent rows carry no senderId, so role is the fallback.
+        message({ senderId: undefined, role: "user" }),
+      ],
+      seenAtFor,
+    );
+    expect(counts.c1).toBeUndefined();
+  });
+
+  it("ignores transcript plumbing nobody reads", () => {
+    const counts = countUnread(
+      [message({ role: "tool" }), message({ role: "system" })],
+      seenAtFor,
+    );
+    expect(counts.c1).toBeUndefined();
+  });
+
+  it("counts each conversation separately", () => {
+    const counts = countUnread(
+      [
+        message({ conversationId: "c1", createdAt: new Date(3000) }),
+        message({ conversationId: "c2", createdAt: new Date(3000) }),
+        message({ conversationId: "c2", createdAt: new Date(4000) }),
+      ],
+      seenAtFor,
+    );
+    expect(counts).toEqual({ c1: 1, c2: 2 });
+  });
+
+  it("falls back to the workspace epoch for a conversation never opened", () => {
+    const state = { lastSeen: { c1: 1000 }, epoch: 500 };
+    expect(seenAt(state, "c1")).toBe(1000);
+    expect(seenAt(state, "never-opened")).toBe(500);
   });
 });
