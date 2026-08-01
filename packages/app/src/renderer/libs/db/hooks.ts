@@ -728,13 +728,27 @@ export async function deleteAgent(id: string): Promise<void> {
     // rename or delete menu precisely because the relationship is supposed
     // to be durable. The conversation is left alone — history is kept the
     // same way deleteChannel keeps it, so re-hiring reopens the transcript.
-    const stranded = await db.channels
-      .filter(
-        (channel) =>
-          channel.kind === "dm" && channel.memberIds.includes(memberId),
-      )
+    const rooms = await db.channels
+      .filter((channel) => channel.memberIds.includes(memberId))
       .toArray();
-    await db.channels.bulkDelete(stranded.map((channel) => channel.id));
+    await db.channels.bulkDelete(
+      rooms.filter((channel) => channel.kind === "dm").map((c) => c.id),
+    );
+    // Everywhere else they simply stop being in the room. Left behind, the id
+    // names nobody: the roster renders one member fewer than it counts, and
+    // `list_channels` reports the inflated count to every agent reading it.
+    const now = new Date();
+    for (const channel of rooms) {
+      if (channel.kind === "dm") continue;
+      await db.channels.update(channel.id, {
+        memberIds: channel.memberIds.filter((id) => id !== memberId),
+        defaultAgentMemberId:
+          channel.defaultAgentMemberId === memberId
+            ? null
+            : channel.defaultAgentMemberId,
+        updatedAt: now,
+      });
+    }
   });
 }
 

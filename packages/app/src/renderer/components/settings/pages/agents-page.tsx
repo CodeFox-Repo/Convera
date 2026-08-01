@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/renderer/components/ui/tooltip";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { ConfirmDialog } from "@/renderer/components/talent/confirm-dialog";
 import { memberIdForAgent } from "@/renderer/libs/db";
 import { useMember } from "@/renderer/libs/stores/member-store";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
@@ -357,7 +358,7 @@ const AgentListItem = ({
   enabledToolsCount: number;
   isLast: boolean;
   onEdit: (agent: Agent) => void;
-  onDelete: (agentId: string, agentName: string) => void;
+  onDelete: (agent: Agent) => void;
 }) => {
   // Portraits live on the Member, not the Agent — this row renders the same
   // identity as every channel does.
@@ -418,7 +419,7 @@ const AgentListItem = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDelete(agent.id, agent.name)}
+          onClick={() => onDelete(agent)}
           className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
           aria-label={`Delete ${agent.name}`}
           title="Delete"
@@ -436,6 +437,7 @@ export function AgentsSettingsPage({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Agent | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedMcpServers, setSelectedMcpServers] = useState<string[]>([]);
   const [disabledTools, setDisabledTools] = useState<DisabledTool[]>([]);
@@ -628,15 +630,14 @@ export function AgentsSettingsPage({
     }
   };
 
-  const handleDeleteAgent = async (agentId: string, agentName: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${agentName}"?`)) {
-      return;
-    }
-
+  const confirmDeleteAgent = async () => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target) return;
     try {
-      const success = await deleteAgent(agentId);
+      const success = await deleteAgent(target.id);
       if (success) {
-        toast.success(`Agent "${agentName}" deleted successfully`);
+        toast.success(`Agent "${target.name}" deleted successfully`);
       } else {
         throw new Error("Failed to delete agent");
       }
@@ -871,7 +872,7 @@ export function AgentsSettingsPage({
                   enabledToolsCount={getEnabledToolsCount(agent)}
                   isLast={index === availableAgents.length - 1}
                   onEdit={handleEditAgent}
-                  onDelete={handleDeleteAgent}
+                  onDelete={setPendingDelete}
                 />
               ))}
             </div>
@@ -1014,6 +1015,18 @@ export function AgentsSettingsPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Delete ${pendingDelete?.name ?? ""}?`}
+        description={`${pendingDelete?.name ?? ""} is removed from this workspace along with their identity, their channel memberships and their 1:1 chat. Messages they already sent keep their history.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => void confirmDeleteAgent()}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      />
     </TooltipProvider>
   );
 }

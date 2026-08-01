@@ -9,6 +9,7 @@ import { TEMPLATE_AVATARS } from "./template-avatars";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   AGENT_TEMPLATES,
+  dedupeHiredAgents,
   ensureLocalHumanMember,
   ensureStarterTeam,
   fireAgent,
@@ -18,6 +19,7 @@ import {
 } from "./agent-templates";
 import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent } from "./db";
 import { createAgent } from "./stores/agent-store";
+import { createChannel, setChannelDefaultAgent } from "./stores/channel-store";
 
 const elena = AGENT_TEMPLATES[0];
 
@@ -99,6 +101,83 @@ describe("hire flow", () => {
 
     expect(await db.agents.get(agent.id)).toBeUndefined();
     expect(await db.members.get(memberIdForAgent(agent.id))).toBeUndefined();
+  });
+});
+
+/**
+ * A colleague's desk is their channel membership: routing only ever considers
+ * the roster of the room a message landed in, so an agent in zero channels is
+ * hired into a workspace that can never reach them. These lock down both ends —
+ * arriving into rooms, and leaving them behind on the way out.
+ */
+describe("hire and fire move channel membership", () => {
+  beforeEach(async () => {
+    await db.open();
+    await Promise.all([
+      db.agents.clear(),
+      db.members.clear(),
+      db.channels.clear(),
+      db.conversations.clear(),
+      db.settings.clear(),
+    ]);
+  });
+
+  const room = (name: string) =>
+    createChannel({ name, groupId: null, memberIds: [LOCAL_HUMAN_MEMBER_ID] });
+
+  it("puts the new hire in exactly the rooms they were given", async () => {
+    const joined = await room("#review");
+    const skipped = await room("#random");
+
+    const agent = await hireTemplate(elena, [joined]);
+    const memberId = memberIdForAgent(agent.id);
+
+    expect((await db.channels.get(joined))?.memberIds).toContain(memberId);
+    expect((await db.channels.get(skipped))?.memberIds).not.toContain(memberId);
+  });
+
+  it("hires into no room when none is offered, leaving the rosters untouched", async () => {
+    const only = await room("#review");
+    const agent = await hireTemplate(elena);
+
+    expect((await db.channels.get(only))?.memberIds).toEqual([
+      LOCAL_HUMAN_MEMBER_ID,
+    ]);
+    expect(await db.members.get(memberIdForAgent(agent.id))).toBeDefined();
+  });
+
+  it("takes a fired agent out of every roster, default responder included", async () => {
+    const channelId = await room("#review");
+    const agent = await hireTemplate(elena, [channelId]);
+    const memberId = memberIdForAgent(agent.id);
+    await setChannelDefaultAgent(channelId, memberId);
+
+    await fireAgent(agent.id);
+
+    const after = await db.channels.get(channelId);
+    // A roster naming someone who no longer exists renders one member fewer
+    // than it counts, and reports the inflated count to every agent that reads
+    // the channel list.
+    expect(after?.memberIds).toEqual([LOCAL_HUMAN_MEMBER_ID]);
+    expect(after?.defaultAgentMemberId).toBeNull();
+  });
+
+  it("heals rosters left pointing at agents fired before the cleanup existed", async () => {
+    const channelId = await room("#review");
+    const agent = await hireTemplate(elena, [channelId]);
+    const memberId = memberIdForAgent(agent.id);
+
+    // Exactly what the old fire path left behind: agent and member gone, the
+    // channel still naming them.
+    await db.agents.delete(agent.id);
+    await db.members.delete(memberId);
+    expect((await db.channels.get(channelId))?.memberIds).toContain(memberId);
+
+    await dedupeHiredAgents();
+
+    expect((await db.channels.get(channelId))?.memberIds).toEqual([
+      LOCAL_HUMAN_MEMBER_ID,
+    ]);
   });
 });
 

@@ -12,7 +12,7 @@ import { useAgents } from "@/renderer/libs/db";
 import { Check, Search, SearchX, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "./confirm-dialog";
+import { HireDialog } from "./hire-dialog";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { TEMPLATE_AVATARS } from "@/renderer/libs/template-avatars";
 
@@ -87,13 +87,19 @@ export function TalentMarketPage() {
 
   const visible = AGENT_TEMPLATES.filter((t) => matchesQuery(t, query));
 
-  const confirmHire = async () => {
+  const confirmHire = async (channelIds: string[]) => {
     if (!pending) return;
     const template = pending;
     setPending(null);
     try {
-      await hireTemplate(template);
-      toast.success(`${template.name} joined your workspace`);
+      await hireTemplate(template, channelIds);
+      toast.success(
+        channelIds.length
+          ? `${template.name} joined ${channelIds.length} channel${
+              channelIds.length === 1 ? "" : "s"
+            }`
+          : `${template.name} joined your workspace`,
+      );
     } catch (err) {
       toast.error(
         `Could not hire ${template.name}: ${
@@ -150,14 +156,9 @@ export function TalentMarketPage() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={pending !== null}
-        title={`Hire ${pending?.name ?? ""}?`}
-        description={`${pending?.name ?? ""} joins this workspace as ${
-          pending?.role.toLowerCase() ?? "an agent"
-        } and becomes available to mention in channels.`}
-        confirmLabel="Hire"
-        onConfirm={confirmHire}
+      <HireDialog
+        template={pending}
+        onConfirm={(channelIds) => void confirmHire(channelIds)}
         onOpenChange={(open) => {
           if (!open) setPending(null);
         }}

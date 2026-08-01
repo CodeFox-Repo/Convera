@@ -20,7 +20,7 @@ import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   DEFAULT_LOCAL_AI_PROVIDER_ID,
 } from "./local-ai";
-import { createChannel } from "./stores/channel-store";
+import { addChannelMember, createChannel } from "./stores/channel-store";
 import { upsertAgentMember } from "./stores/member-store";
 
 export type { AgentTemplate };
@@ -127,7 +127,7 @@ const STARTER_TEMPLATE_IDS = ["sage", "patch", "quill"] as const;
  * Keeps the oldest of each duplicate name so channel references stay valid.
  */
 export async function dedupeHiredAgents(): Promise<void> {
-  await db.transaction("rw", [db.agents, db.members], async () => {
+  await db.transaction("rw", [db.agents, db.members, db.channels], async () => {
     const agents = await db.agents.toArray();
     const keptByName = new Map<string, Agent>();
     for (const agent of agents.sort(
@@ -154,6 +154,31 @@ export async function dedupeHiredAgents(): Promise<void> {
       ) {
         await db.members.delete(member.id);
       }
+    }
+
+    // Rosters that still name someone who left. Firing used to delete the
+    // member row and stop there, so those ids sit in channels from before the
+    // fix — and a channel counting a member it cannot render tells every agent
+    // reading `list_channels` that the room is fuller than it is.
+    // The local human is never dropped, even when their row is missing: on a
+    // fresh install it has not been written yet (`ensureLocalHumanMember` runs
+    // separately), and evicting them would leave rooms nobody can speak in.
+    const liveMemberIds = new Set([
+      LOCAL_HUMAN_MEMBER_ID,
+      ...(await db.members.toArray()).map((m) => m.id),
+    ]);
+    for (const channel of await db.channels.toArray()) {
+      const present = channel.memberIds.filter((id) => liveMemberIds.has(id));
+      if (present.length === channel.memberIds.length) continue;
+      await db.channels.update(channel.id, {
+        memberIds: present,
+        defaultAgentMemberId:
+          channel.defaultAgentMemberId &&
+          !liveMemberIds.has(channel.defaultAgentMemberId)
+            ? null
+            : channel.defaultAgentMemberId,
+        updatedAt: new Date(),
+      });
     }
   });
 }
@@ -376,7 +401,15 @@ export async function ensureStarterTeam(): Promise<void> {
   await seedStarterChannels();
 }
 
-export async function hireTemplate(template: AgentTemplate): Promise<Agent> {
+/**
+ * Hiring without a room is hiring nobody: an agent in zero channels never sees
+ * a message, because every route starts from a channel roster. `channelIds` is
+ * where they are given a desk, and the caller is expected to offer at least one.
+ */
+export async function hireTemplate(
+  template: AgentTemplate,
+  channelIds: string[] = [],
+): Promise<Agent> {
   const agent = await createAgent({
     name: template.name,
     description: template.description,
@@ -390,10 +423,14 @@ export async function hireTemplate(template: AgentTemplate): Promise<Agent> {
     modelId: DEFAULT_LOCAL_AI_MODEL_ID,
   });
   await upsertAgentMember(agent);
-  await db.members.update(memberIdForAgent(agent.id), {
+  const memberId = memberIdForAgent(agent.id);
+  await db.members.update(memberId, {
     // Portrait when we have one; the template emoji otherwise.
     avatar: TEMPLATE_AVATARS[template.id] ?? template.avatar,
   });
+  for (const channelId of channelIds) {
+    await addChannelMember(channelId, memberId);
+  }
   return agent;
 }
 
