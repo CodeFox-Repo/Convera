@@ -62,11 +62,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # A release with zero artifacts must fail loudly, not ship a tag
-          # with nothing attached — that already happened once.
+          # with nothing attached — that already happened once. DMG only:
+          # the darwin maker list produces no zip.
           fail_on_unmatched_files: true
           files: |
             packages/app/out/make/**/*.dmg
-            packages/app/out/make/**/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
