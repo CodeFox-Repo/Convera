@@ -383,7 +383,7 @@ describe("open-floor peer awareness", () => {
     // "话说mika你今天过得怎么样" went to everyone because it lacked an @ —
     // the prompt is what keeps the other two from answering for Mika.
     expect(context).toContain("even casually, without an @");
-    expect(context).toContain("it is theirs: stay out");
+    expect(context).toContain("it is theirs alone");
     expect(context).not.toContain("designated responder");
   });
 
