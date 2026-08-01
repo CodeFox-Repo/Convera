@@ -16,6 +16,13 @@ pnpm install
 pnpm start
 ```
 
+To run the renderer in a browser instead of Electron (faster iteration, no
+native shell):
+
+```
+pnpm dev:web
+```
+
 ### Development Utilities
 
 ```bash
