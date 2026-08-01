@@ -76,7 +76,7 @@ const Download = () => {
         setError(null);
 
         const response = await fetch(
-          "https://api.github.com/repos/CodeFox-Repo/homebrew-codefox/releases/latest",
+          "https://api.github.com/repos/CodeFox-Repo/Convera/releases/latest",
           {
             headers: {
               Accept: "application/vnd.github.v3+json",
@@ -585,11 +585,20 @@ const Download = () => {
                     <div className="bg-primary/10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
                       <span className="text-primary text-xs font-semibold">2</span>
                     </div>
-                    <div>
-                      <h4 className="mb-1 text-sm font-medium">Launch Application</h4>
-                      <p className="text-muted-foreground text-xs">
-                        Open Convera and complete the initial setup
+                    <div className="min-w-0">
+                      <h4 className="mb-1 text-sm font-medium">
+                        Allow the app to open
+                      </h4>
+                      <p className="text-muted-foreground mb-2 text-xs">
+                        The build isn&apos;t notarized yet, so macOS will say
+                        the app &ldquo;is damaged&rdquo;. It isn&apos;t — run
+                        this once in Terminal after moving Convera to
+                        Applications:
                       </p>
+                      <code className="bg-well border-rule block overflow-x-auto rounded-md border px-2.5 py-1.5 font-mono text-[11px]">
+                        sudo xattr -rd com.apple.quarantine
+                        /Applications/Convera.app
+                      </code>
                     </div>
                   </div>
 
@@ -598,9 +607,9 @@ const Download = () => {
                       <span className="text-primary text-xs font-semibold">3</span>
                     </div>
                     <div>
-                      <h4 className="mb-1 text-sm font-medium">Start Automating</h4>
+                      <h4 className="mb-1 text-sm font-medium">Launch Application</h4>
                       <p className="text-muted-foreground text-xs">
-                        Begin using AI-powered desktop automation
+                        Open Convera and meet your starter colleagues
                       </p>
                     </div>
                   </div>
