@@ -1,11 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentHostJob } from "@/shared/types/agent-host";
 import type {
+  LocalAIChatRequest,
   LocalAIRuntimeService,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import type { AgentHostRendererBridge } from "./renderer-bridge";
 import { LocalAiAgentHostExecutor } from "./executor";
+
+/** Prepares a turn whose transcript is one direct question, unanswered. */
+function silentBridge(): AgentHostRendererBridge {
+  return {
+    request: vi.fn(async () => ({
+      request: {
+        requestId: "request",
+        turnId: "turn",
+        conversationId: "trusted-conversation",
+        providerId: "codex-cli",
+        operation: {
+          kind: "bootstrap",
+          messages: [{ role: "user", content: "@trusted are you there?" }],
+        },
+        agent: { id: "trusted", memberId: "agent:trusted" },
+      },
+    })),
+  } as unknown as AgentHostRendererBridge;
+}
 
 const job: AgentHostJob = {
   id: "job",
@@ -112,28 +132,73 @@ describe("LocalAiAgentHostExecutor", () => {
   });
 
   it("rejects a silent direct offer but permits an open-floor pass", async () => {
-    const runtime = {
-      startChat: async () => undefined,
-    } as unknown as LocalAIRuntimeService;
-    const bridge = {
-      request: vi.fn(async () => ({
-        request: {
-          requestId: "request",
-          turnId: "turn",
-          conversationId: "trusted-conversation",
-          providerId: "codex-cli",
-          operation: { kind: "bootstrap", messages: [] },
-          agent: { id: "trusted", memberId: "agent:trusted" },
-        },
-      })),
-    } as unknown as AgentHostRendererBridge;
-    const executor = new LocalAiAgentHostExecutor(runtime, bridge);
+    const startChat = vi.fn(async () => undefined);
+    const runtime = { startChat } as unknown as LocalAIRuntimeService;
+    const executor = new LocalAiAgentHostExecutor(runtime, silentBridge());
 
     await expect(executor.execute(job, vi.fn())).rejects.toThrow(
       "completed a direct offer without sending a message",
     );
+    // Asked twice before giving up; an open floor is asked once.
+    expect(startChat).toHaveBeenCalledTimes(2);
+    startChat.mockClear();
     await expect(
       executor.execute({ ...job, mode: "open-floor" }, vi.fn()),
     ).resolves.toBeUndefined();
+    expect(startChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-asks a silent direct offer and accepts a message the second time", async () => {
+    const requests: LocalAIChatRequest[] = [];
+    const startChat = vi.fn(
+      async (
+        request: LocalAIChatRequest,
+        emit: (event: LocalAIStreamEvent) => void,
+      ) => {
+        requests.push(request);
+        if (requests.length === 1) return;
+        emit({
+          type: "interaction",
+          requestId: request.requestId,
+          interactionId: "interaction",
+          kind: "input",
+          name: "workspace:query",
+          prompt: "Send a message",
+          input: {
+            kind: "send_message",
+            viewerMemberId: "agent:trusted",
+            channelId: "channel",
+            content: "heard you",
+          },
+        });
+      },
+    );
+    const runtime = { startChat } as unknown as LocalAIRuntimeService;
+
+    await expect(
+      new LocalAiAgentHostExecutor(runtime, silentBridge()).execute(
+        job,
+        vi.fn(),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(requests).toHaveLength(2);
+    // Same request id — the renderer routes tool answers and the typing
+    // indicator by it — but a new turn, and a rebase, because the first turn
+    // already advanced the shared transcript.
+    expect(requests[1].requestId).toBe(requests[0].requestId);
+    expect(requests[1].turnId).not.toBe(requests[0].turnId);
+    expect(requests[1].operation).toMatchObject({
+      kind: "rebase",
+      reason: "regenerate",
+    });
+    const messages =
+      requests[1].operation.kind === "rebase"
+        ? requests[1].operation.messages
+        : [];
+    expect(messages.at(-1)?.content).toContain("nobody heard you");
+    expect(messages.slice(0, -1)).toEqual([
+      { role: "user", content: "@trusted are you there?" },
+    ]);
   });
 });
