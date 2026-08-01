@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FolderPlus,
   MessageCircle,
@@ -20,6 +20,7 @@ import {
 import { useMember, useMembers } from "@/renderer/libs/stores/member-store";
 import { db, LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db";
 import { ensureAgentDM } from "@/renderer/libs/agent-dm";
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { ConversationItem } from "./ConversationItem";
 import { ChannelItem } from "./ChannelItem";
@@ -138,8 +139,17 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   // happened to be open last. #announcements wins when it exists, since that
   // is the room a workspace puts its direction in; otherwise the first
   // channel in sidebar order.
+  // Landing is a boot-time gesture: once anything has been selected this
+  // session, a null selection is the user's own doing (New conversation
+  // clears it on purpose) and must not bounce back to #announcements.
+  const hasLandedRef = useRef(false);
+  useEffect(() => {
+    if (currentConversationId !== null) hasLandedRef.current = true;
+  }, [currentConversationId]);
+
   useEffect(() => {
     if (!channels || !conversations) return;
+    if (currentConversationId === null && hasLandedRef.current) return;
     const known = new Set(conversations.map((conversation) => conversation.id));
     // Not "is something selected" but "is the selection real". The id is
     // restored from storage, so resetting the workspace leaves one pointing
@@ -373,18 +383,24 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
               )}
             </div>
 
-            {/* Drafts: 1:1 chats with the built-in assistant — scratch
-                conversations no channel points at. The header stays even when
-                empty because the + is the only way to start one. */}
+            {/* Convera, the built-in assistant. Not a colleague: colleagues
+                get one durable DM each, while the assistant carries many
+                parallel conversations, each its own topic — which is why this
+                is a named section with its own + rather than one more row
+                under Direct messages. The identity row makes "who am I
+                talking to in these" visible instead of implied. */}
             <div className="space-y-1 px-1 pt-2">
-              <div className="flex items-center px-1">
-                <span className={`${SECTION_LABEL} flex-1`}>Drafts</span>
+              <div className="flex items-center gap-2 px-1">
+                <span className="flex size-5 items-center justify-center">
+                  <BaseLogo size={16} />
+                </span>
+                <span className={`${SECTION_LABEL} flex-1`}>Convera</span>
                 <button
                   type="button"
                   onClick={onNewChat}
                   className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
-                  title="New draft chat"
-                  aria-label="New draft chat"
+                  title="New conversation with Convera"
+                  aria-label="New conversation with Convera"
                 >
                   <Plus size={13} />
                 </button>
