@@ -64,17 +64,37 @@ function failure(code: string, message: string, recovery: string) {
   return { ok: false, error: { code, message, recovery } };
 }
 
-function taskTool(host: AgentHost, agentMemberId: string): AgentTool {
+const CONTROL_DESCRIPTION =
+  "Inspect or control this agent's background tasks while speaking privately with the user. Use list when the user refers to a task by channel, topic, or relative time. Pause, resume, cancel, and redirect change real Agent Host state; do not claim success unless the returned ok field is true. Redirect stops the current run and starts a replacement run with the supplied private guidance.";
+
+const READ_ONLY_DESCRIPTION =
+  "Look up this agent's own background tasks. Use list to see every task and inspect for one task's detail, including its run count and latest guidance. Only list and inspect work here: pause, resume, cancel, and redirect are refused outside the agent's direct conversation with the user, because lifecycle changes carry the user's private guidance and one of the listed tasks is the run currently speaking.";
+
+function taskTool(
+  host: AgentHost,
+  agentMemberId: string,
+  canControl: boolean,
+): AgentTool {
   return {
     name: "manage_task",
     qualifiedName: "task:manage_task",
-    description:
-      "Inspect or control this agent's background tasks while speaking privately with the user. Use list when the user refers to a task by channel, topic, or relative time. Pause, resume, cancel, and redirect change real Agent Host state; do not claim success unless the returned ok field is true. Redirect stops the current run and starts a replacement run with the supplied private guidance.",
+    description: canControl ? CONTROL_DESCRIPTION : READ_ONLY_DESCRIPTION,
     inputSchema: jsonSchema(),
     inputShape: inputSchema.shape,
     inputValidator: inputSchema,
     execute: async (raw) => {
       const input = inputSchema.parse(raw) as Input;
+      if (
+        !canControl &&
+        input.action !== "list" &&
+        input.action !== "inspect"
+      ) {
+        return failure(
+          "TASK_CONTROL_UNAVAILABLE",
+          `The ${input.action} action is only available in this agent's direct conversation with the user.`,
+          "Use action=list or action=inspect here, and ask the user to change the task from your direct conversation.",
+        );
+      }
       const visible = (await host.listTasks(agentMemberId)).filter(
         (task) => task.channelKind !== "dm",
       );
@@ -169,20 +189,22 @@ export function withAgentHostTools(
       const prepared = await hooks.prepareTurnContext?.(input);
       const memberId = input.request.agent?.memberId?.trim();
       const host = getHost();
-      if (!memberId || !host || input.request.agentHost?.channelKind !== "dm") {
-        return prepared;
-      }
+      const channelKind = input.request.agentHost?.channelKind;
+      if (!memberId || !host || !channelKind) return prepared;
+      const canControl = channelKind === "dm";
       return {
         ...prepared,
         systemContext: [
           prepared?.systemContext,
-          "This is your private direct conversation with the user. You may inspect and control your background channel tasks with task:manage_task. Work state comes from that tool; do not guess from chat history.",
+          canControl
+            ? "This is your private direct conversation with the user. You may inspect and control your background channel tasks with task:manage_task. Work state comes from that tool; do not guess from chat history."
+            : "You may look up your own background tasks with task:manage_task (list and inspect only). Work state comes from that tool; do not guess from chat history.",
         ]
           .filter(Boolean)
           .join("\n\n"),
         additionalTools: [
           ...(prepared?.additionalTools ?? []),
-          taskTool(host, memberId),
+          taskTool(host, memberId, canControl),
         ],
       };
     },

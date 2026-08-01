@@ -43,7 +43,7 @@ function input(channelKind: "channel" | "dm"): LocalAiTurnHookInput {
 }
 
 describe("Agent Host task tools", () => {
-  it("injects one private task tool only into agent DMs", async () => {
+  it("injects one task tool wherever the agent is standing", async () => {
     const host = {
       listTasks: vi.fn(async () => [task]),
     } as unknown as AgentHost;
@@ -52,11 +52,52 @@ describe("Agent Host task tools", () => {
     const dm = await hooks.prepareTurnContext?.(input("dm"));
     const channel = await hooks.prepareTurnContext?.(input("channel"));
 
-    expect(dm?.additionalTools?.map((tool) => tool.qualifiedName)).toEqual([
-      "task:manage_task",
-    ]);
+    for (const prepared of [dm, channel]) {
+      expect(
+        prepared?.additionalTools?.map((tool) => tool.qualifiedName),
+      ).toEqual(["task:manage_task"]);
+    }
     expect(dm?.systemContext).toContain("private direct conversation");
-    expect(channel).toBeUndefined();
+    expect(dm?.additionalTools?.[0]?.description).toContain("Redirect stops");
+    expect(channel?.systemContext).toContain("list and inspect only");
+    expect(channel?.additionalTools?.[0]?.description).toContain(
+      "Only list and inspect work here",
+    );
+  });
+
+  it("reads its own workload from a channel but refuses lifecycle verbs there", async () => {
+    const host = {
+      listTasks: vi.fn(async () => [task]),
+      cancelTask: vi.fn(async () => true),
+      redirectTask: vi.fn(),
+    } as unknown as AgentHost;
+    const prepared = await withAgentHostTools(
+      {},
+      () => host,
+    ).prepareTurnContext?.(input("channel"));
+    const tool = prepared?.additionalTools?.[0];
+
+    expect(await tool?.execute({ action: "list" })).toMatchObject({
+      ok: true,
+      tasks: [{ task_id: "task-1" }],
+    });
+    expect(
+      await tool?.execute({ action: "inspect", task_id: "task-1" }),
+    ).toMatchObject({ ok: true, task: { id: "task-1" } });
+    for (const action of ["pause", "resume", "cancel", "redirect"]) {
+      expect(
+        await tool?.execute({
+          action,
+          task_id: "task-1",
+          instruction: "Stop early.",
+        }),
+      ).toMatchObject({
+        ok: false,
+        error: { code: "TASK_CONTROL_UNAVAILABLE" },
+      });
+    }
+    expect(host.cancelTask).not.toHaveBeenCalled();
+    expect(host.redirectTask).not.toHaveBeenCalled();
   });
 
   it("lists only non-DM tasks owned by the speaking agent", async () => {
