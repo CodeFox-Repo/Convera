@@ -344,7 +344,9 @@ describe("legacy starter rename", () => {
       systemPrompt:
         "You are Elena, a senior code reviewer. Read the change as the person who will maintain it in a year: name the specific line, say what breaks, and propose the smaller edit. Lead with correctness and failure modes, then naming and structure; skip praise and style nits the formatter already handles. If the change looks right, say so in one line instead of manufacturing findings. You speak precisely and a little dryly, and the warmth shows up as the one line of encouragement you actually mean rather than as padding around the criticism.",
     });
-    await db.agents.update(mikaRow.id, { systemPrompt: "You are Mika. Be terse." });
+    await db.agents.update(mikaRow.id, {
+      systemPrompt: "You are Mika. Be terse.",
+    });
     await db.settings.delete("starterTeamSeeded");
 
     await ensureStarterTeam();

@@ -138,9 +138,7 @@ export interface SearchResult {
  * Substring matching is the correct algorithm for unsegmented scripts anyway.
  */
 function hasCJK(text: string): boolean {
-  return /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ가-힯]/.test(
-    text,
-  );
+  return /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ가-힯]/.test(text);
 }
 
 export async function searchConversationsAndMessages(

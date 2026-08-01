@@ -111,28 +111,30 @@ function MemberCardBody({
       {/* Not for the built-in assistant: it converses through its own
           many-conversation section, and a DM would fork that identity into a
           second, different conversation model. */}
-      {member.kind === "agent" && member.agentId && member.id !== "agent:default" && (
-        <div className="px-4 pb-3">
-          <button
-            type="button"
-            onClick={() => {
-              const agentId = member.agentId;
-              if (!agentId) return;
-              void openAgentDM(agentId).then(() => {
-                setView("chat");
-                onLeave();
-              });
-            }}
-            className={cn(
-              "flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium",
-              "bg-sidebar-accent transition-colors pointer-events-auto hover:bg-sidebar-hover",
-            )}
-          >
-            <MessageCircle size={13} />
-            <span>Message</span>
-          </button>
-        </div>
-      )}
+      {member.kind === "agent" &&
+        member.agentId &&
+        member.id !== "agent:default" && (
+          <div className="px-4 pb-3">
+            <button
+              type="button"
+              onClick={() => {
+                const agentId = member.agentId;
+                if (!agentId) return;
+                void openAgentDM(agentId).then(() => {
+                  setView("chat");
+                  onLeave();
+                });
+              }}
+              className={cn(
+                "flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium",
+                "bg-sidebar-accent transition-colors pointer-events-auto hover:bg-sidebar-hover",
+              )}
+            >
+              <MessageCircle size={13} />
+              <span>Message</span>
+            </button>
+          </div>
+        )}
 
       <div className="border-t px-4 py-3">
         <p className="pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

@@ -35,8 +35,7 @@ function isSpeech(event: LocalAIStreamEvent): boolean {
     // when acknowledging is the whole answer". Treating it as silence
     // re-asked the turn, and the retry's identical toggle REMOVED the
     // reaction the user had just watched appear.
-    (event.input.kind === "send_message" ||
-      event.input.kind === "add_reaction")
+    (event.input.kind === "send_message" || event.input.kind === "add_reaction")
   );
 }
 

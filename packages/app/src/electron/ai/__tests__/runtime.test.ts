@@ -99,12 +99,15 @@ describe("LocalAiRuntime", () => {
           networkAccess: true,
         }),
       });
-      return { runtime, systemContent: () => {
-        const system = streamOptions?.messages.find(
-          (message) => message.role === "system",
-        );
-        return typeof system?.content === "string" ? system.content : "";
-      } };
+      return {
+        runtime,
+        systemContent: () => {
+          const system = streamOptions?.messages.find(
+            (message) => message.role === "system",
+          );
+          return typeof system?.content === "string" ? system.content : "";
+        },
+      };
     };
 
     // An API provider gets the basic file tools, so the promise is real.

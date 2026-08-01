@@ -154,9 +154,7 @@ export function countUnread(
  * still on screen — its boundary must keep advancing or everything said
  * meanwhile goes bold, the exact bug counted unread was built to fix.
  */
-export function useKeepCurrentRead(
-  currentConversationId: string | null,
-): void {
+export function useKeepCurrentRead(currentConversationId: string | null): void {
   const { markSeen } = useUnreadStore();
   const unreadCounts = useUnreadCounts();
   useEffect(() => {
@@ -176,7 +174,9 @@ export function useUnreadCounts(): Record<string, number> {
       // forever — a full-table scan on every message write. A conversation
       // never opened still holds the floor at the epoch, by design: its
       // unread run genuinely starts there.
-      const conversationIds = await db.conversations.toCollection().primaryKeys();
+      const conversationIds = await db.conversations
+        .toCollection()
+        .primaryKeys();
       const floor = conversationIds.length
         ? Math.min(
             ...conversationIds.map((id) =>
