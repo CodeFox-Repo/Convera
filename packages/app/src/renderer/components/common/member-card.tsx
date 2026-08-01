@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { MessageCircle, Plus, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -16,6 +16,8 @@ import {
 } from "@/renderer/libs/stores/tag-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { AgentTraceSection } from "@/renderer/components/chat/AgentTraceSection";
+import { openAgentDM } from "@/renderer/libs/agent-dm";
+import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
 
 /**
  * Who someone is, and what they are — wrapped around whatever shows them.
@@ -42,18 +44,25 @@ export function MemberCard({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent side={side} align={align} className="w-72 p-0">
-        <MemberCardBody member={member} />
+        <MemberCardBody member={member} onLeave={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
   );
 }
 
-function MemberCardBody({ member }: { member: Member }) {
+function MemberCardBody({
+  member,
+  onLeave,
+}: {
+  member: Member;
+  onLeave: () => void;
+}) {
   const agent = useLiveQuery(
     () => (member.agentId ? db.agents.get(member.agentId) : undefined),
     [member.agentId],
   );
   const tags = useTags();
+  const { setView, setSidebarTab } = useWorkspaceUI();
   const [isAdding, setIsAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -91,6 +100,33 @@ function MemberCardBody({ member }: { member: Member }) {
         <p className="px-4 pb-3 text-xs leading-relaxed text-muted-foreground">
           {agent.description}
         </p>
+      )}
+
+      {/* Walking to their desk, from wherever you happened to be looking at
+          them. Only agents: a DM with the local human is a note to self, and
+          there is no second person to open one with. */}
+      {member.kind === "agent" && member.agentId && (
+        <div className="px-4 pb-3">
+          <button
+            type="button"
+            onClick={() => {
+              const agentId = member.agentId;
+              if (!agentId) return;
+              void openAgentDM(agentId).then(() => {
+                setSidebarTab("chats");
+                setView("chat");
+                onLeave();
+              });
+            }}
+            className={cn(
+              "flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium",
+              "bg-sidebar-accent transition-colors pointer-events-auto hover:bg-sidebar-hover",
+            )}
+          >
+            <MessageCircle size={13} />
+            <span>Message</span>
+          </button>
+        </div>
       )}
 
       <div className="border-t px-4 py-3">

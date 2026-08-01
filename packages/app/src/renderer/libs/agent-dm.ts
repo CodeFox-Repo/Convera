@@ -4,6 +4,8 @@ import {
   LOCAL_WORKSPACE_ID,
   memberForAgent,
   memberIdForAgent,
+  useSelectionStore,
+  useUnreadStore,
   type Channel,
   type Conversation,
 } from "./db";
@@ -140,4 +142,22 @@ export async function ensureAgentDM(
       return { channelId: deterministicChannelId, conversationId };
     },
   );
+}
+
+/**
+ * Walk to a colleague's desk: open their one DM and stand in it.
+ *
+ * Selecting is deliberately here rather than in each caller — the roster, the
+ * member card and the sidebar all mean the same thing by "message them", and
+ * a caller that forgot `markSeen` would leave the room it just opened marked
+ * unread. The view and sidebar tab stay with the component: they are React
+ * context, and non-UI code has no business deciding which pane is showing.
+ */
+export async function openAgentDM(
+  agentId: string,
+): Promise<AgentDirectMessage> {
+  const dm = await ensureAgentDM(agentId);
+  useUnreadStore.getState().markSeen(dm.conversationId);
+  useSelectionStore.getState().setCurrentConversation(dm.conversationId);
+  return dm;
 }

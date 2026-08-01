@@ -1,10 +1,19 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent, type Agent } from "./db";
+import {
+  db,
+  deleteAgent,
+  LOCAL_HUMAN_MEMBER_ID,
+  memberIdForAgent,
+  useSelectionStore,
+  useUnreadStore,
+  type Agent,
+} from "./db";
 import {
   agentDMChannelId,
   agentDMConversationId,
   ensureAgentDM,
+  openAgentDM,
 } from "./agent-dm";
 
 const AGENT: Agent = {
@@ -118,5 +127,54 @@ describe("agent direct messages", () => {
     );
     expect(await db.channels.count()).toBe(0);
     expect(await db.conversations.count()).toBe(0);
+  });
+
+  it("stands the user in the room it opened, already read", async () => {
+    useSelectionStore.setState({ currentConversationId: null });
+    useUnreadStore.setState({ lastSeen: {} });
+
+    const dm = await openAgentDM(AGENT.id);
+
+    expect(useSelectionStore.getState().currentConversationId).toBe(
+      dm.conversationId,
+    );
+    // Opening a room is reading it: without this the DM you just walked into
+    // sits in the sidebar wearing an unread dot.
+    expect(useUnreadStore.getState().lastSeen[dm.conversationId]).toEqual(
+      expect.any(Number),
+    );
+  });
+
+  it("takes the direct message with the agent when the agent is fired", async () => {
+    const dm = await ensureAgentDM(AGENT.id);
+    await db.messages.add({
+      id: "said",
+      conversationId: dm.conversationId,
+      role: "user",
+      content: "morning",
+      createdAt: new Date(),
+    });
+
+    await deleteAgent(AGENT.id);
+
+    // Nobody left to answer, and the DM row carries no delete action — it
+    // would have sat in Chats forever, silent.
+    expect(await db.channels.get(dm.channelId)).toBeUndefined();
+    expect(await db.members.get(memberIdForAgent(AGENT.id))).toBeUndefined();
+    // History outlives the room, exactly as deleting a channel leaves it.
+    expect(await db.messages.get("said")).toBeDefined();
+    expect(await db.conversations.get(dm.conversationId)).toBeDefined();
+  });
+
+  it("leaves other people's rooms alone when one agent is fired", async () => {
+    const other: Agent = { ...AGENT, id: "raj", name: "Raj" };
+    await db.agents.put(other);
+    const fired = await ensureAgentDM(AGENT.id);
+    const kept = await ensureAgentDM(other.id);
+
+    await deleteAgent(AGENT.id);
+
+    expect(await db.channels.get(fired.channelId)).toBeUndefined();
+    expect(await db.channels.get(kept.channelId)).toBeDefined();
   });
 });
