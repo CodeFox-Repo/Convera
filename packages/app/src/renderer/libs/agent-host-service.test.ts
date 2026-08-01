@@ -2,10 +2,11 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentHostDispatch,
+  AgentHostEvent,
   AgentHostJob,
   IAgentHostAPI,
 } from "@/shared/types/agent-host";
-import type { ILocalAIAPI } from "@/shared/types/local-ai";
+import type { ILocalAIAPI, LocalAIStreamEvent } from "@/shared/types/local-ai";
 import type { Member } from "@/shared/types/workspace";
 import {
   db,
@@ -19,6 +20,24 @@ import {
   formatTaskGuidance,
   RendererAgentHostService,
 } from "./agent-host-service";
+import { useTypingStore } from "./stores/typing-store";
+
+/**
+ * Feeds one stream event in as the host would. `handleStream` is private
+ * because the host owns the wiring, but the wiring is exactly what broke:
+ * the channel path used to drop every `ui-message`, so the speech tool's own
+ * chunks never reached the indicator.
+ */
+function stream(
+  service: RendererAgentHostService,
+  event: LocalAIStreamEvent,
+): Promise<void> {
+  return (
+    service as unknown as {
+      handleStream(jobId: string, event: LocalAIStreamEvent): Promise<void>;
+    }
+  ).handleStream(job.id, event);
+}
 
 const agent: Agent = {
   id: "fizz",
@@ -169,6 +188,107 @@ describe("RendererAgentHostService", () => {
     );
     expect(await db.messages.count()).toBe(before);
     expect(await db.pendingTurns.count()).toBe(0);
+  });
+
+  it("shows typing only while the speech tool is open, never on being offered", async () => {
+    useTypingStore.setState({ typing: {} });
+    const service = new RendererAgentHostService();
+    const prepared = await service.prepareTurn(job);
+    const requestId = prepared.request.requestId;
+    const typing = () =>
+      useTypingStore.getState().typingMemberIds(conversation.id);
+    const chunk = (chunk: Record<string, unknown>) =>
+      stream(service, {
+        type: "ui-message",
+        requestId,
+        chunk,
+      } as LocalAIStreamEvent);
+
+    // Being handed the offer is not composing: everyone in the room gets one.
+    expect(typing()).toEqual([]);
+
+    // Neither is looking around, or thinking.
+    await chunk({
+      type: "tool-input-start",
+      toolCallId: "call-read",
+      toolName: "workspace:read_channel",
+    });
+    await chunk({ type: "reasoning-delta", delta: "should I answer?" });
+    expect(typing()).toEqual([]);
+
+    await chunk({
+      type: "tool-input-start",
+      toolCallId: "call-speak",
+      toolName: "workspace:send_message",
+    });
+    expect(typing()).toEqual([member.id]);
+
+    await chunk({ type: "tool-output-available", toolCallId: "call-speak" });
+    expect(typing()).toEqual([]);
+  });
+
+  it("retires an indicator left open by a turn that died mid-call", async () => {
+    useTypingStore.setState({ typing: {} });
+    const service = new RendererAgentHostService();
+    const prepared = await service.prepareTurn(job);
+    await stream(service, {
+      type: "ui-message",
+      requestId: prepared.request.requestId,
+      chunk: {
+        type: "tool-input-start",
+        toolCallId: "call-speak",
+        toolName: "workspace:send_message",
+      },
+    } as LocalAIStreamEvent);
+    expect(useTypingStore.getState().typingMemberIds(conversation.id)).toEqual([
+      member.id,
+    ]);
+
+    // No closing chunk ever arrives — the job just ends.
+    service.dispose();
+    expect(useTypingStore.getState().typingMemberIds(conversation.id)).toEqual(
+      [],
+    );
+  });
+
+  it("retires an indicator when a mid-turn agent is paused", async () => {
+    useTypingStore.setState({ typing: {} });
+    const listeners: Array<(event: AgentHostEvent) => void> = [];
+    Object.assign(window, {
+      agentHost: {
+        enqueue,
+        ready: async () => ({ success: true }),
+        onRequest: () => () => {},
+        onEvent: (callback: (event: AgentHostEvent) => void) => {
+          listeners.push(callback);
+          return () => {};
+        },
+      } as unknown as IAgentHostAPI,
+    });
+    const service = new RendererAgentHostService();
+    service.start();
+    const prepared = await service.prepareTurn(job);
+    await stream(service, {
+      type: "ui-message",
+      requestId: prepared.request.requestId,
+      chunk: {
+        type: "tool-input-start",
+        toolCallId: "call-speak",
+        toolName: "workspace:send_message",
+      },
+    } as LocalAIStreamEvent);
+    expect(useTypingStore.getState().typingMemberIds(conversation.id)).toEqual([
+      member.id,
+    ]);
+
+    // Pausing aborts the stream, so no closing chunk arrives — and the host
+    // deliberately stops at `paused` without ever reaching a terminal status.
+    for (const listener of listeners) {
+      listener({ type: "job", job: { ...job, status: "paused" } });
+    }
+    expect(useTypingStore.getState().typingMemberIds(conversation.id)).toEqual(
+      [],
+    );
   });
 
   it("only enqueues a collaboration-layer dispatch", async () => {

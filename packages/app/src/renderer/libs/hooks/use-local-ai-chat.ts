@@ -8,8 +8,7 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import { handleWorkspaceQueryInteraction } from "../workspace-perception";
-import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
-import { useTypingStore } from "../stores/typing-store";
+import { typingTransition, useTypingStore } from "../stores/typing-store";
 import {
   createLocalAIUIMessageStream,
   type LocalAIUIMessageStream,
@@ -163,11 +162,16 @@ export function useLocalAIChat(): UseLocalAIChatResult {
   // Who the active request speaks as, so a tool-call signal can be attributed.
   const activeResponderIdRef = useRef<string | undefined>(undefined);
   const activeConversationIdRef = useRef<string | undefined>(undefined);
+  /** Speech tool calls this request opened, keyed as the stream keys them. */
+  const activeTypingRef = useRef(new Set<string>());
 
   /** Any exit from a request retires its indicator, including a failed one. */
   const clearTyping = useCallback(() => {
-    const requestId = activeRequestIdRef.current;
-    if (requestId) useTypingStore.getState().stopTyping(requestId);
+    const typing = useTypingStore.getState();
+    for (const toolCallId of activeTypingRef.current) {
+      typing.stopTyping(toolCallId);
+    }
+    activeTypingRef.current.clear();
     activeResponderIdRef.current = undefined;
     activeConversationIdRef.current = undefined;
   }, []);
@@ -178,23 +182,27 @@ export function useLocalAIChat(): UseLocalAIChatResult {
 
       if (event.type === "ui-message") {
         setStatus("streaming");
-        // The stream already reports when a tool opens, so "who is typing"
-        // comes from the agent actually reaching for the speech tool rather
-        // than from a slot allocated before it decided anything.
-        const chunk = event.chunk as { type?: string; toolName?: string };
-        if (
-          chunk.type === "tool-input-start" &&
-          chunk.toolName?.endsWith(WORKSPACE_SEND_MESSAGE_TOOL) &&
-          activeResponderIdRef.current &&
-          activeConversationIdRef.current
-        ) {
-          useTypingStore
-            .getState()
-            .startTyping(
-              event.requestId,
+        // The stream reports when a tool opens and when it closes, so "who is
+        // typing" comes from the agent actually reaching for the speech tool
+        // rather than from a slot allocated before it decided anything.
+        const transition = typingTransition(event.chunk);
+        if (transition) {
+          const typing = useTypingStore.getState();
+          if (
+            transition.open &&
+            activeResponderIdRef.current &&
+            activeConversationIdRef.current
+          ) {
+            activeTypingRef.current.add(transition.toolCallId);
+            typing.startTyping(
+              transition.toolCallId,
               activeResponderIdRef.current,
               activeConversationIdRef.current,
             );
+          } else if (!transition.open) {
+            activeTypingRef.current.delete(transition.toolCallId);
+            typing.stopTyping(transition.toolCallId);
+          }
         }
         activeUIMessageStreamRef.current?.push(event.chunk);
         return;
@@ -555,6 +563,12 @@ export function useLocalAIChat(): UseLocalAIChatResult {
       activeUIMessageStreamRef.current?.close();
       activeUIMessageStreamRef.current = undefined;
       activeTurnRef.current = undefined;
+      // Unmount is an exit like any other, and the last one that can retire
+      // this request's indicator: the subscription is already gone, so the
+      // terminal event that would otherwise clear it is never observed. The
+      // store is a module-level singleton shared with the channel path, so a
+      // stranded entry outlives this hook entirely.
+      clearTyping();
       if (requestId && localAI) {
         useUserInputStore.getState().dismissRequest(requestId);
         void localAI.abort(requestId);
@@ -571,7 +585,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
           });
       }
     },
-    [releaseSubscription],
+    [clearTyping, releaseSubscription],
   );
 
   return {

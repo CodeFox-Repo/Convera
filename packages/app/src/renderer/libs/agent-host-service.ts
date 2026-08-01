@@ -23,12 +23,14 @@ import {
 import { resolveLocalAIProviderId } from "./stores/model-config-store";
 import { DEFAULT_LOCAL_AI_MODEL_ID } from "./local-ai";
 import { handleWorkspaceQueryInteraction } from "./workspace-perception";
-import { useTypingStore } from "./stores/typing-store";
+import { typingTransition, useTypingStore } from "./stores/typing-store";
 import { useUserInputStore } from "./stores/user-input-store";
 
 interface ActiveOffer {
   job: AgentHostJob;
   requestId: string;
+  /** Speech tool calls this offer opened, so a dead job cannot leave one lit. */
+  typing: Set<string>;
 }
 
 /**
@@ -166,12 +168,13 @@ export class RendererAgentHostService {
         void this.handleStream(event.jobId, event.event);
         return;
       }
-      if (
-        event.job.status === "completed" ||
-        event.job.status === "failed" ||
-        event.job.status === "cancelled" ||
-        event.job.status === "interrupted"
-      ) {
+      // Anything that is not still in flight retires the offer. Stated as
+      // "not queued or running" rather than by listing the terminal states:
+      // pausing a mid-turn agent aborts its stream and then deliberately
+      // never reaches a terminal status, so an enumeration missed it and left
+      // the room typing forever with no way back — the resumed task replaces
+      // `active`, so the leaked tool call became unreachable.
+      if (event.job.status !== "queued" && event.job.status !== "running") {
         this.clearOffer(event.job.id);
       }
     });
@@ -184,7 +187,8 @@ export class RendererAgentHostService {
     this.disposeRequest = undefined;
     this.disposeEvent = undefined;
     for (const offer of this.active.values()) {
-      useTypingStore.getState().stopTyping(offer.requestId);
+      const typing = useTypingStore.getState();
+      for (const toolCallId of offer.typing) typing.stopTyping(toolCallId);
       useUserInputStore.getState().dismissRequest(offer.requestId);
     }
     this.active.clear();
@@ -212,7 +216,10 @@ export class RendererAgentHostService {
   private clearOffer(jobId: string): void {
     const active = this.active.get(jobId);
     if (!active) return;
-    useTypingStore.getState().stopTyping(active.requestId);
+    // A turn that opens the speech tool and then dies never sends the chunk
+    // that would retire the indicator, so whoever started one owns clearing it.
+    const typing = useTypingStore.getState();
+    for (const toolCallId of active.typing) typing.stopTyping(toolCallId);
     useUserInputStore.getState().dismissRequest(active.requestId);
     this.active.delete(jobId);
   }
@@ -301,15 +308,11 @@ export class RendererAgentHostService {
         },
       },
     };
-    this.active.set(job.id, { job, requestId });
-    // Typing from the moment the colleague starts on the offer, not from the
-    // instant the speech tool streams its input — fast models compose the call
-    // in one chunk, so the old trigger showed nothing at all and messages
-    // appeared out of thin air. Everyone working shows as everyone typing;
-    // clearOffer retires it when the job ends, spoken or not.
-    useTypingStore
-      .getState()
-      .startTyping(requestId, job.agentMemberId, job.conversationId);
+    this.active.set(job.id, { job, requestId, typing: new Set() });
+    // No typing here. Being offered a message is not composing one — every
+    // colleague in the room gets the offer, and lighting all of them up the
+    // instant anyone posts claims three replies are coming when most will
+    // stay quiet. The indicator is driven by the stream: see handleStream.
     return prepared;
   }
 
@@ -337,7 +340,27 @@ export class RendererAgentHostService {
     const active = this.active.get(jobId);
     if (!active || event.requestId !== active.requestId) return;
 
-    if (event.type === "ui-message") return;
+    // The only thing the channel path takes from the UI-message stream: a
+    // colleague opening its speech tool is the one honest signal that a
+    // message is actually coming. Everything else in this stream is that
+    // agent's private turn, which nobody in the room can see.
+    if (event.type === "ui-message") {
+      const transition = typingTransition(event.chunk);
+      if (!transition) return;
+      const store = useTypingStore.getState();
+      if (transition.open) {
+        active.typing.add(transition.toolCallId);
+        store.startTyping(
+          transition.toolCallId,
+          active.job.agentMemberId,
+          active.job.conversationId,
+        );
+      } else {
+        active.typing.delete(transition.toolCallId);
+        store.stopTyping(transition.toolCallId);
+      }
+      return;
+    }
 
     if (event.type === "interaction") {
       const respond = (response: LocalAIInteractionResponse) =>
@@ -365,10 +388,10 @@ export class RendererAgentHostService {
       useUserInputStore.getState().registerInteraction(event, respond);
       return;
     }
-
-    if (event.type === "finish" || event.type === "error") {
-      this.clearOffer(jobId);
-    }
+    // A finished turn is not a finished offer: a direct offer that ended
+    // without speaking is asked once more on the same requestId, and dropping
+    // the offer here would leave that second turn's send_message unanswered.
+    // The job's own terminal status retires it — see start().
   }
 }
 
