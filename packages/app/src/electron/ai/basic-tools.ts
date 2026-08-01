@@ -1,5 +1,8 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
+import { execFile } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import { z } from "zod";
 import type { AgentTool } from "./agent-tools";
@@ -19,6 +22,73 @@ import { parseToolInput } from "./tool-input";
  */
 
 const MAX_READ_BYTES = 200_000;
+const MAX_COMMAND_OUTPUT_BYTES = 1024 * 1024;
+
+function realpathIfExists(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * macOS seatbelt profile: read anywhere, write only inside the sandbox's
+ * writable roots (plus tmp and /dev basics every shell needs), network per
+ * the sandbox flag. Later rules win, so the allows carve out of the denies.
+ */
+function darwinSandboxProfile(sandbox: AgentSandbox): string {
+  const writable = sandbox.writableRoots
+    .map((root) => `(subpath ${JSON.stringify(realpathIfExists(root))})`)
+    .join(" ");
+  return [
+    "(version 1)",
+    "(allow default)",
+    "(deny file-write*)",
+    `(allow file-write* ${writable}`,
+    `  (subpath "/private/tmp") (subpath "/private/var/tmp")`,
+    `  (subpath ${JSON.stringify(realpathIfExists(tmpdir()))})`,
+    `  (literal "/dev/null") (literal "/dev/stdout") (literal "/dev/stderr")`,
+    `  (subpath "/dev/fd") (literal "/dev/tty") (literal "/dev/dtracehelper"))`,
+    ...(sandbox.networkAccess ? [] : ["(deny network*)"]),
+  ].join("\n");
+}
+
+function runShell(
+  sandbox: AgentSandbox,
+  command: string,
+  timeout: number,
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  const cwd = realpathIfExists(sandbox.writableRoots[0] ?? sandbox.root);
+  const [file, args] =
+    process.platform === "darwin"
+      ? ([
+          "/usr/bin/sandbox-exec",
+          ["-p", darwinSandboxProfile(sandbox), "/bin/sh", "-c", command],
+        ] as const)
+      : // ponytail: no OS enforcement off-macOS (cwd only); bubblewrap when Linux ships
+        (["/bin/sh", ["-c", command]] as const);
+
+  return new Promise((resolvePromise) => {
+    execFile(
+      file,
+      [...args],
+      { cwd, timeout, maxBuffer: MAX_COMMAND_OUTPUT_BYTES },
+      (error, stdout, stderr) => {
+        resolvePromise({
+          stdout: stdout.toString(),
+          stderr: stderr.toString(),
+          exitCode:
+            error && typeof error.code === "number"
+              ? error.code
+              : error
+                ? 1
+                : 0,
+        });
+      },
+    );
+  });
+}
 
 function schemaOf(shape: z.ZodRawShape): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
@@ -86,6 +156,31 @@ export function createBasicAgentTools(sandbox: AgentSandbox): AgentTool[] {
         return entries.map(
           (entry) => entry.name + (entry.isDirectory() ? "/" : ""),
         );
+      },
+    ),
+    tool(
+      "run_command",
+      "Run a shell command inside your own workspace (git clone, build, tests). The working directory is your workspace root; writes outside it are blocked by the OS.",
+      {
+        command: z.string().min(1),
+        timeout: z.number().min(1000).max(600_000).optional(),
+      },
+      async ({ command, timeout }) => {
+        const result = await runShell(
+          sandbox,
+          command as string,
+          (timeout as number | undefined) ?? 60_000,
+        );
+        const clip = (text: string) =>
+          text.length > MAX_READ_BYTES
+            ? text.slice(0, MAX_READ_BYTES) + "\n[truncated]"
+            : text;
+        return {
+          success: result.exitCode === 0,
+          exitCode: result.exitCode,
+          stdout: clip(result.stdout),
+          stderr: clip(result.stderr),
+        };
       },
     ),
   ];

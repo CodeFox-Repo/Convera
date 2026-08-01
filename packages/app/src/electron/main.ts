@@ -181,7 +181,9 @@ app.whenReady().then(async () => {
         return {
           root,
           writableRoots: [workspace],
-          networkAccess: false,
+          // A colleague clones repos and installs deps in its workspace;
+          // the filesystem boundary, not the network, is the guarantee.
+          networkAccess: true,
         };
       },
       getToolGroups: async () => {

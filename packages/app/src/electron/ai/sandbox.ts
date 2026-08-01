@@ -244,9 +244,11 @@ export function canonicalizeToolInputForSandbox(options: {
         }
         return { input, pathCount: 0 };
       case "execute_command":
+        // The unsandboxed host shell stays refused; agents get the seatbelt-
+        // wrapped `run_command` from basic-tools instead.
         throw new SandboxToolPolicyError(
           qualifiedName,
-          "host shell execution has no enforceable OS sandbox",
+          "host shell execution has no enforceable OS sandbox — use run_command",
         );
       default:
         throw new SandboxToolPolicyError(

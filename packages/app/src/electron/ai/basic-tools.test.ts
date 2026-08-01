@@ -1,7 +1,6 @@
-import { mkdtemp, readFile, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdtemp, readFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createBasicAgentTools } from "./basic-tools";
 
 let sandbox: { root: string; writableRoots: string[]; networkAccess: boolean };
@@ -9,11 +8,23 @@ let tools: ReturnType<typeof createBasicAgentTools>;
 const toolNamed = (name: string) => tools.find((tool) => tool.name === name)!;
 
 beforeAll(async () => {
-  const root = await mkdtemp(join(tmpdir(), "convera-basic-tools-"));
+  // Deliberately NOT under os.tmpdir(): the seatbelt profile allows tmp, so a
+  // sandbox root inside it would make the write-blocking test vacuous. The
+  // production root lives under userData, which tmp never contains.
+  const scratch = join(process.cwd(), ".vitest-sandbox");
+  await mkdir(scratch, { recursive: true });
+  const root = await mkdtemp(join(scratch, "convera-basic-tools-"));
   const workspace = join(root, "workspace");
   await mkdir(workspace, { recursive: true });
   sandbox = { root, writableRoots: [workspace], networkAccess: false };
   tools = createBasicAgentTools(sandbox);
+});
+
+afterAll(async () => {
+  await rm(join(process.cwd(), ".vitest-sandbox"), {
+    recursive: true,
+    force: true,
+  });
 });
 
 describe("createBasicAgentTools", () => {
@@ -41,5 +52,49 @@ describe("createBasicAgentTools", () => {
     await expect(
       toolNamed("write_file").execute({ path: "escaped.txt", content: "x" }),
     ).rejects.toThrow(/not writable/);
+  });
+
+  describe("run_command", () => {
+    it("runs in the workspace and its writes land there", async () => {
+      const result = (await toolNamed("run_command").execute({
+        command: "pwd && echo made > made.txt",
+      })) as { success: boolean; stdout: string };
+      expect(result.success).toBe(true);
+      await expect(
+        readFile(join(sandbox.writableRoots[0], "made.txt"), "utf8"),
+      ).resolves.toBe("made\n");
+    });
+
+    it("reports failure with stderr and exit code instead of throwing", async () => {
+      const result = (await toolNamed("run_command").execute({
+        command: "exit 3",
+      })) as { success: boolean; exitCode: number };
+      expect(result.success).toBe(false);
+      expect(result.exitCode).toBe(3);
+    });
+
+    // The OS boundary only exists on macOS today; cwd is best-effort elsewhere.
+    it.runIf(process.platform === "darwin")(
+      "blocks shell writes outside the writable roots",
+      async () => {
+        const outside = join(sandbox.root, "smuggled.txt");
+        const result = (await toolNamed("run_command").execute({
+          command: `echo x > ${JSON.stringify(outside)}`,
+        })) as { success: boolean };
+        expect(result.success).toBe(false);
+        await expect(readFile(outside, "utf8")).rejects.toThrow();
+      },
+    );
+
+    it.runIf(process.platform === "darwin")(
+      "denies the network when the sandbox says so",
+      async () => {
+        const result = (await toolNamed("run_command").execute({
+          command:
+            "curl -s --max-time 3 https://example.com >/dev/null && echo reached || echo blocked",
+        })) as { stdout: string };
+        expect(result.stdout).toContain("blocked");
+      },
+    );
   });
 });
