@@ -4,7 +4,7 @@ import { useTypingStore } from "@/renderer/libs/stores/typing-store";
 import React from "react";
 
 /**
- * "Sage is typing…", driven by an agent actually reaching for its speech tool.
+ * "Elena is typing…", driven by an agent actually reaching for its speech tool.
  *
  * This exists because nothing is placed in the transcript until the agent
  * commits to speaking: without it a room would sit silent while somebody

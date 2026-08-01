@@ -8,8 +8,8 @@ import {
 } from "./agent-dm";
 
 const AGENT: Agent = {
-  id: "sage",
-  name: "Sage",
+  id: "elena",
+  name: "Elena",
   description: "Researcher",
   systemPrompt: "Investigate carefully.",
   disableToolReferences: [],
@@ -46,7 +46,7 @@ describe("agent direct messages", () => {
     expect(await db.channels.count()).toBe(1);
     expect(await db.conversations.count()).toBe(1);
     expect(await db.channels.get(first.channelId)).toMatchObject({
-      name: "Sage",
+      name: "Elena",
       kind: "dm",
       isPrivate: true,
       memberIds: [LOCAL_HUMAN_MEMBER_ID, memberIdForAgent(AGENT.id)],
@@ -70,7 +70,7 @@ describe("agent direct messages", () => {
     const now = new Date();
     await db.conversations.add({
       id: "legacy-conversation",
-      title: "Old Sage chat",
+      title: "Old Elena chat",
       agentId: AGENT.id,
       modelId: null,
       activeRevision: 0,
@@ -85,7 +85,7 @@ describe("agent direct messages", () => {
       id: "legacy-dm",
       workspaceId: "personal",
       groupId: null,
-      name: "Old Sage",
+      name: "Old Elena",
       kind: "dm",
       isPrivate: true,
       memberIds: [LOCAL_HUMAN_MEMBER_ID, memberIdForAgent(AGENT.id)],

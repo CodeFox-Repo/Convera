@@ -32,7 +32,7 @@ describe("dev reset", () => {
     });
     await db.agents.add({
       id: "a1",
-      name: "Sage",
+      name: "Elena",
       description: "",
       systemPrompt: "",
       disableToolReferences: [],

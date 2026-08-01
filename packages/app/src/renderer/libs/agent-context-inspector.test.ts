@@ -11,8 +11,8 @@ import { ensureAgentDM } from "./agent-dm";
 import { inspectAgentDMContext } from "./agent-context-inspector";
 
 const AGENT: Agent = {
-  id: "sage",
-  name: "Sage",
+  id: "elena",
+  name: "Elena",
   description: "Researcher",
   systemPrompt: "Investigate carefully.",
   disableToolReferences: [
@@ -103,8 +103,8 @@ describe("agent context inspector", () => {
       { role: "assistant", content: "I will check." },
     ]);
     expect(context.available.visibleChannels.map((room) => room.name)).toEqual([
+      "Elena",
       "public-room",
-      "Sage",
     ]);
     expect(context.available.configuredMcpServerIds).toEqual(["files"]);
     expect(context.opaque.map((entry) => entry.label)).toContain(

@@ -17,7 +17,7 @@ import {
 } from "./agent-templates";
 import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent } from "./db";
 
-const sage = AGENT_TEMPLATES[0];
+const elena = AGENT_TEMPLATES[0];
 
 describe("agent templates", () => {
   it("ships templates with a real persona, not a placeholder", () => {
@@ -36,11 +36,11 @@ describe("agent templates", () => {
   });
 
   it("matches on name, role and tag but not on the description", () => {
-    expect(matchesQuery(sage, "")).toBe(true);
-    expect(matchesQuery(sage, "sage")).toBe(true);
-    expect(matchesQuery(sage, "Code Reviewer")).toBe(true);
-    expect(matchesQuery(sage, "refactor")).toBe(true);
-    expect(matchesQuery(sage, "zzz")).toBe(false);
+    expect(matchesQuery(elena, "")).toBe(true);
+    expect(matchesQuery(elena, "elena")).toBe(true);
+    expect(matchesQuery(elena, "Code Reviewer")).toBe(true);
+    expect(matchesQuery(elena, "refactor")).toBe(true);
+    expect(matchesQuery(elena, "zzz")).toBe(false);
   });
 });
 
@@ -52,31 +52,31 @@ describe("hire flow", () => {
   });
 
   it("creates the agent and its member together", async () => {
-    const agent = await hireTemplate(sage);
+    const agent = await hireTemplate(elena);
 
     const stored = await db.agents.get(agent.id);
     expect(stored).toMatchObject({
-      name: sage.name,
-      description: sage.description,
-      systemPrompt: sage.systemPrompt,
+      name: elena.name,
+      description: elena.description,
+      systemPrompt: elena.systemPrompt,
       isBuiltIn: false,
     });
 
     const member = await db.members.get(memberIdForAgent(agent.id));
     expect(member).toMatchObject({
       kind: "agent",
-      name: sage.name,
+      name: elena.name,
       agentId: agent.id,
       // Hire prefers the settled portrait over the template emoji.
-      avatar: TEMPLATE_AVATARS[sage.id] ?? sage.avatar,
+      avatar: TEMPLATE_AVATARS[elena.id] ?? elena.avatar,
       status: "idle",
     });
   });
 
   it("reports a template as hired once an agent carries its name", async () => {
-    expect(isHired(sage, await db.agents.toArray())).toBe(false);
-    await hireTemplate(sage);
-    expect(isHired(sage, await db.agents.toArray())).toBe(true);
+    expect(isHired(elena, await db.agents.toArray())).toBe(false);
+    await hireTemplate(elena);
+    expect(isHired(elena, await db.agents.toArray())).toBe(true);
     expect(isHired(AGENT_TEMPLATES[1], await db.agents.toArray())).toBe(false);
   });
 
@@ -92,7 +92,7 @@ describe("hire flow", () => {
   });
 
   it("firing removes both rows", async () => {
-    const agent = await hireTemplate(sage);
+    const agent = await hireTemplate(elena);
     expect(await fireAgent(agent.id)).toBe(true);
 
     expect(await db.agents.get(agent.id)).toBeUndefined();
