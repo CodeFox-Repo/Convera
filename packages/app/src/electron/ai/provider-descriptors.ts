@@ -26,7 +26,8 @@ export const LOCAL_AI_PROVIDER_DESCRIPTORS: Record<
     id: "fireworks-api",
     label: "Fireworks",
     // DeepSeek V4 Flash: open-weights, reasoning built in, and cheap enough to
-    // leave several colleagues thinking at once in a room.
+    // leave several colleagues thinking at once in a room — at max effort, see
+    // the adapter.
     defaultModel: "accounts/fireworks/models/deepseek-v4-flash-0731",
     models: ["accounts/fireworks/models/deepseek-v4-flash-0731"],
     transport: "fireworks-api",

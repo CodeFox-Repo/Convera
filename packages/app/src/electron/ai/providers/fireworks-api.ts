@@ -61,9 +61,10 @@ export class FireworksApiAdapter implements LocalAiProviderAdapter {
     const modelId = status.models.includes(requested)
       ? requested
       : status.defaultModel;
-    // .chat() and not the callable provider: that default targets OpenAI's
-    // Responses API, which Fireworks does not implement — only /chat/completions.
-    const model = this.provider.chat(modelId);
+    // The callable provider targets the Responses API, which Fireworks
+    // implements at this baseURL — and which is what surfaces this model's
+    // reasoning rather than folding it into the answer text.
+    const model = this.provider(modelId);
     const exposed =
       context.executionPolicy === "text-only" ? [] : context.tools;
     const tools: ToolSet = Object.fromEntries(
@@ -77,12 +78,24 @@ export class FireworksApiAdapter implements LocalAiProviderAdapter {
         }),
       ]),
     );
-    // Stateless HTTP API: no provider-native session to resume, so the
-    // request id doubles as the session marker. No providerOptions either —
-    // reasoning is intrinsic to this model, not a knob on the request.
+    // Stateless as far as we are concerned: this runtime owns the transcript
+    // and rebases it per turn, so there is no provider-native session to
+    // resume and the request id doubles as the session marker.
+    //
+    // `store: false` — the Responses API keeps conversations server-side by
+    // default under a different retention policy than chat completions, and a
+    // workspace transcript is not ours to leave there.
+    //
+    // `max` reasoning: deciding whether to speak in a room, and then reaching
+    // for the right tool to do it, is the judgement this whole design rests
+    // on, and it is exactly what a turn skimps on first — at `none` the model
+    // writes its answer straight into turn output that nobody can read.
+    // Fireworks honours the knob (verified: `none` returns no reasoning at
+    // all), and this model is cheap enough not to ration it.
     return {
       model,
       tools: Object.keys(tools).length > 0 ? tools : undefined,
+      providerOptions: { openai: { store: false, reasoningEffort: "max" } },
       getNativeSessionId: () => `fireworks-api:${request.requestId}`,
     };
   }
