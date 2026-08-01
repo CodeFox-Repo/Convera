@@ -197,7 +197,11 @@ app.whenReady().then(async () => {
       repository: new JsonAgentHostJobRepository({
         path: join(userDataPath, "agent-host-jobs.json"),
       }),
-      executor: new LocalAiAgentHostExecutor(localAIRuntime, agentHostBridge),
+      executor: new LocalAiAgentHostExecutor(
+        localAIRuntime,
+        agentHostBridge,
+        join(userDataPath, "agent-turns.jsonl"),
+      ),
       startPaused: true,
     });
     unsubscribeAgentHost = agentHost.subscribe((event) =>
