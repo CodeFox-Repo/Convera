@@ -1,6 +1,7 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { CornerUpLeft } from "lucide-react";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { MemberCard } from "@/renderer/components/common/member-card";
 import {
   Popover,
   PopoverContent,
@@ -204,12 +205,30 @@ const MessageRow = memo(
           >
             {!isGrouped && (
               <div className="flex-shrink-0">
-                <MemberAvatar
-                  member={sender}
-                  isHuman={isHuman}
-                  className="size-9 text-sm"
-                  fallback={isHuman ? undefined : <BaseLogo size={24} />}
-                />
+                {sender ? (
+                  // The avatar is where the eye already is when "who is this?"
+                  // arrives — same card as the roster, one click closer.
+                  <MemberCard member={sender} side="right" align="start">
+                    <button
+                      type="button"
+                      className="block rounded-md"
+                      aria-label={`About ${sender.name}`}
+                    >
+                      <MemberAvatar
+                        member={sender}
+                        isHuman={isHuman}
+                        className="size-9 text-sm"
+                      />
+                    </button>
+                  </MemberCard>
+                ) : (
+                  <MemberAvatar
+                    member={sender}
+                    isHuman={isHuman}
+                    className="size-9 text-sm"
+                    fallback={isHuman ? undefined : <BaseLogo size={24} />}
+                  />
+                )}
               </div>
             )}
 
