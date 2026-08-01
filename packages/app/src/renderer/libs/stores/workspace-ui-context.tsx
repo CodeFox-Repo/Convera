@@ -20,7 +20,6 @@ import React, {
  */
 
 export type WorkspaceView = "chat" | "inbox" | "agents" | "settings";
-export type SidebarTab = "teams" | "chats";
 export type SettingsTab = "general" | "agents" | "talent" | "org" | "mcp";
 
 export const SIDEBAR_MIN_WIDTH = 240;
@@ -30,8 +29,6 @@ const LEGACY_DEFAULT_WIDTH = 320;
 interface WorkspaceUIState {
   view: WorkspaceView;
   setView: (view: WorkspaceView) => void;
-  sidebarTab: SidebarTab;
-  setSidebarTab: (tab: SidebarTab) => void;
   settingsTab: SettingsTab;
   setSettingsTab: (tab: SettingsTab) => void;
   sidebarWidth: number;
@@ -54,7 +51,6 @@ function restore<T extends string>(
 }
 
 const VIEWS = ["chat", "inbox", "agents", "settings"] as const;
-const SIDEBAR_TABS = ["teams", "chats"] as const;
 const SETTINGS_TABS = ["general", "agents", "talent", "org", "mcp"] as const;
 
 const WorkspaceUIContext = createContext<WorkspaceUIState | null>(null);
@@ -66,9 +62,6 @@ export function WorkspaceUIProvider({
 }) {
   const [view, setView] = useState<WorkspaceView>(() =>
     restore("view", VIEWS, "chat"),
-  );
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>(() =>
-    restore("sidebar-tab", SIDEBAR_TABS, "teams"),
   );
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(() =>
     restore("settings-tab", SETTINGS_TABS, "general"),
@@ -89,9 +82,6 @@ export function WorkspaceUIProvider({
     storage?.setItem(STORAGE_PREFIX + "view", view);
   }, [view]);
   useEffect(() => {
-    storage?.setItem(STORAGE_PREFIX + "sidebar-tab", sidebarTab);
-  }, [sidebarTab]);
-  useEffect(() => {
     storage?.setItem(STORAGE_PREFIX + "settings-tab", settingsTab);
   }, [settingsTab]);
 
@@ -110,14 +100,12 @@ export function WorkspaceUIProvider({
     () => ({
       view,
       setView,
-      sidebarTab,
-      setSidebarTab,
       settingsTab,
       setSettingsTab,
       sidebarWidth,
       setSidebarWidth,
     }),
-    [view, sidebarTab, settingsTab, sidebarWidth, setSidebarWidth],
+    [view, settingsTab, sidebarWidth, setSidebarWidth],
   );
 
   return (

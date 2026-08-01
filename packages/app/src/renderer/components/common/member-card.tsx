@@ -65,7 +65,7 @@ function MemberCardBody({
     [member.agentId],
   );
   const tags = useTags();
-  const { setView, setSidebarTab } = useWorkspaceUI();
+  const { setView } = useWorkspaceUI();
   const [isAdding, setIsAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -116,7 +116,6 @@ function MemberCardBody({
               const agentId = member.agentId;
               if (!agentId) return;
               void openAgentDM(agentId).then(() => {
-                setSidebarTab("chats");
                 setView("chat");
                 onLeave();
               });
