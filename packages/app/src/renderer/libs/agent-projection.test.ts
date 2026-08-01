@@ -407,8 +407,11 @@ describe("open-floor peer awareness", () => {
     const context = buildChannelContext(fizz, "docs", room, true, offered);
     // "话说mika你今天过得怎么样" went to everyone because it lacked an @ —
     // the prompt is what keeps the other two from answering for Mika.
-    expect(context).toContain("even casually, without an @");
-    expect(context).toContain("it is theirs alone");
+    // The check is explicit and mechanical: scan for names first, any
+    // language, no @ required — the CJK name-drop was the case that slipped.
+    expect(context).toContain("with or without an @");
+    expect(context).toContain("elena 最近在忙什么");
+    expect(context).toContain("the message is theirs alone");
     expect(context).not.toContain("designated responder");
   });
 
