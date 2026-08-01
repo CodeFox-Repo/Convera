@@ -235,8 +235,10 @@ export function HomePage() {
           {/* Sidebar Header */}
           {
             <div className="px-3 pb-1">
-              {/* Traffic-light clearance — the OS buttons live in this strip. */}
-              <div className="h-8" />
+              {/* Traffic-light clearance — the OS buttons live in this strip.
+                  Just tall enough to clear them; a full row of height above
+                  the workspace name read as a rendering gap. */}
+              <div className="h-5" />
               {/* Workspace row: identity on the left, its actions on the right */}
               <div className="flex items-center gap-2 h-8">
                 {activeView !== "settings" ? (
@@ -282,14 +284,14 @@ export function HomePage() {
                   onClick={() =>
                     setActiveView(activeView === "inbox" ? "chat" : "inbox")
                   }
-                  className={`mt-1.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors pointer-events-auto ${
+                  className={`mt-1.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors pointer-events-auto ${
                     activeView === "inbox"
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
                   }`}
                   aria-label="Inbox"
                 >
-                  <InboxIcon size={12} className="flex-shrink-0" />
+                  <InboxIcon size={14} className="flex-shrink-0" />
                   <span className="flex-1 truncate">Inbox</span>
                 </button>
               )}
@@ -301,14 +303,14 @@ export function HomePage() {
                   onClick={() =>
                     setActiveView(activeView === "agents" ? "chat" : "agents")
                   }
-                  className={`mt-0.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors pointer-events-auto ${
+                  className={`mt-0.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors pointer-events-auto ${
                     activeView === "agents"
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
                   }`}
                   aria-label="Agents"
                 >
-                  <Bot size={12} className="flex-shrink-0" />
+                  <Bot size={14} className="flex-shrink-0" />
                   <span className="flex-1 truncate">Agents</span>
                 </button>
               )}

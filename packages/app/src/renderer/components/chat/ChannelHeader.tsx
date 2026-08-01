@@ -9,6 +9,7 @@ import {
   useMembers,
 } from "@/renderer/libs/stores/member-store";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
+import { MemberCard } from "@/renderer/components/common/member-card";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { useAgentHostJobs } from "@/renderer/libs/hooks/use-agent-host-jobs";
 import type { Member } from "@/shared/types/workspace";
@@ -246,33 +247,43 @@ export function ChannelRoster({
                 key={member.id}
                 className="group/member flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-hover"
               >
-                <MemberAvatar member={member} className="size-7" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate leading-tight">
-                    {member.name}
-                  </span>
-                  <span className="flex items-center gap-1 truncate text-xs leading-tight text-muted-foreground">
-                    {isDefault && (
-                      <Star
-                        size={11}
-                        className="flex-shrink-0 fill-current text-primary"
-                        aria-hidden="true"
-                      />
-                    )}
-                    {memberJobs.length > 0 ? (
-                      <>
-                        <LoaderCircle size={11} className="animate-spin" />
-                        {memberJobs.some((job) => job.status === "running")
-                          ? "Working"
-                          : "Queued"}
-                      </>
-                    ) : isDefault ? (
-                      "Default responder"
-                    ) : (
-                      member.kind
-                    )}
-                  </span>
-                </span>
+                {/* The avatar and name open the member card: who they are
+                    and, more usefully, which tags they hold. */}
+                <MemberCard member={member}>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left pointer-events-auto"
+                    aria-label={`About ${member.name}`}
+                  >
+                    <MemberAvatar member={member} className="size-7" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate leading-tight">
+                        {member.name}
+                      </span>
+                      <span className="flex items-center gap-1 truncate text-xs leading-tight text-muted-foreground">
+                        {isDefault && (
+                          <Star
+                            size={11}
+                            className="flex-shrink-0 fill-current text-primary"
+                            aria-hidden="true"
+                          />
+                        )}
+                        {memberJobs.length > 0 ? (
+                          <>
+                            <LoaderCircle size={11} className="animate-spin" />
+                            {memberJobs.some((job) => job.status === "running")
+                              ? "Working"
+                              : "Queued"}
+                          </>
+                        ) : isDefault ? (
+                          "Default responder"
+                        ) : (
+                          member.kind
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                </MemberCard>
 
                 {memberJobs.length > 0 && (
                   <button

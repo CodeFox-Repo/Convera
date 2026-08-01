@@ -3,6 +3,7 @@ import {
   type AgentContextInspection,
 } from "@/renderer/libs/agent-context-inspector";
 import { cn } from "@/renderer/libs/utils/tailwind";
+import { AgentTraceSection } from "./AgentTraceSection";
 import { useAgentHostTasks } from "@/renderer/libs/hooks/use-agent-host-jobs";
 import { memberIdForAgent } from "@/renderer/libs/db";
 import { useChannels } from "@/renderer/libs/stores/channel-store";
@@ -11,6 +12,7 @@ import {
   Activity,
   Brain,
   Eye,
+  ListTree,
   Loader2,
   LockKeyhole,
   Pause,
@@ -330,6 +332,10 @@ export function AgentContextPanel({
             </div>
 
             <AgentWorkSection agentId={inspection.agent.id} />
+
+            <Section icon={ListTree} title="Recent turns">
+              <AgentTraceSection memberId={inspection.agent.memberId} />
+            </Section>
 
             <Section icon={Brain} title="Injected / session identity">
               <p className="text-xs leading-relaxed text-muted-foreground">
