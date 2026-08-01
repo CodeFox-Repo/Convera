@@ -1,5 +1,10 @@
-import React, { useMemo, useState } from "react";
-import { MessageCircle, Plus, Settings as SettingsIcon } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FolderPlus,
+  MessageCircle,
+  Plus,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { useActiveConversations } from "@/renderer/libs/db/hooks";
 import {
   isUnread,
@@ -9,7 +14,7 @@ import {
 import {
   createChannel,
   createGroup,
-  useChannels,
+  useVisibleChannels,
   useGroups,
   type Channel,
 } from "@/renderer/libs/stores/channel-store";
@@ -24,13 +29,23 @@ import { GroupSection } from "./GroupSection";
 import { InlineNameInput } from "./InlineNameInput";
 import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
 import { useChannelDrag } from "./use-channel-drag";
+import { useGroupDrag } from "./use-group-drag";
+import { motion } from "framer-motion";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/renderer/components/ui/context-menu";
 
 const SECTION_LABEL =
   "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 
 export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const groups = useGroups();
-  const channels = useChannels();
+  // The same rule an agent's list_channels uses: a tag hides a room from
+  // people too, not only from colleagues.
+  const channels = useVisibleChannels();
   const members = useMembers();
   const conversations = useActiveConversations();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
@@ -87,6 +102,13 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   }, [directMessages, members]);
 
   const drag = useChannelDrag(teamChannels);
+  const groupDrag = useGroupDrag(groups ?? []);
+  // Groups in the order a drop would produce, for the same reason the channel
+  // list previews itself: the gap that opens is the drop indicator.
+  const orderedGroups = useMemo(
+    () => groupDrag.preview(groups ?? []),
+    [groupDrag, groups],
+  );
 
   const channelsByGroup = useMemo(() => {
     const byGroup = new Map<string | null, Channel[]>();
@@ -110,6 +132,30 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const selectChannel = (channel: Channel) => select(channel.conversationId);
   const hasChannels = teamChannels.length > 0;
 
+  // Land somewhere real. The selection is restored from storage, so a first
+  // run — or a reload after the remembered room was deleted — left the pane
+  // on a generic welcome screen while the sidebar plainly listed channels.
+  // Only fills a genuinely empty selection: it must not steal focus from a
+  // 1:1 chat, which is a conversation with no channel pointing at it.
+  useEffect(() => {
+    if (currentConversationId !== null || !channels || !conversations) return;
+    const known = new Set(conversations.map((conversation) => conversation.id));
+    const landing = channelsByGroup
+      .get(null)
+      ?.concat(
+        (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
+      )
+      .find((channel) => known.has(channel.conversationId));
+    if (landing) setCurrentConversation(landing.conversationId);
+  }, [
+    currentConversationId,
+    channels,
+    conversations,
+    channelsByGroup,
+    groups,
+    setCurrentConversation,
+  ]);
+
   // Unread indicators on the INACTIVE tab, so nothing gets lost while hidden.
   const teamsHaveUnread = teamChannels.some(isChannelUnread);
   const chatsHaveUnread =
@@ -131,7 +177,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "relative flex-1 rounded-md px-2 py-1 text-sm transition-colors pointer-events-auto",
+                "relative flex-1 rounded-md px-2 py-1.5 text-sm transition-colors pointer-events-auto",
                 activeTab === tab.id
                   ? "bg-sidebar font-medium text-sidebar-foreground shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground",
@@ -146,200 +192,240 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
         </div>
       </div>
 
-      <div
-        className="flex-1 min-h-0 overflow-y-auto space-y-2"
-        onContextMenu={(event) => {
-          // Right-click on empty sidebar space is the create affordance, so a
-          // workspace with no groups still has a way to make one.
-          if (event.target !== event.currentTarget || activeTab !== "teams")
-            return;
-          event.preventDefault();
-          setIsAddingGroup(true);
-        }}
-      >
-        {activeTab === "teams" && (
-          <>
-            {isAddingGroup && (
-              <div className="px-2">
-                <InlineNameInput
-                  placeholder="Group name"
-                  onSubmit={(name) => {
-                    void createGroup(name);
-                    setIsAddingGroup(false);
-                  }}
-                  onCancel={() => setIsAddingGroup(false)}
-                />
-              </div>
-            )}
-
-            {/* Ungrouped first: with no groups it is the whole sidebar, and a
-                lone heading over every channel is just noise. Real groups
-                below always show their name — that is what a group is. */}
-            {(channelsByGroup.get(null)?.length ?? 0) > 0 && (
-              <GroupSection
-                group={null}
-                label="Channels"
-                channels={channelsByGroup.get(null) ?? []}
-                currentConversationId={currentConversationId}
-                isChannelUnread={isChannelUnread}
-                onSelectChannel={selectChannel}
-                drag={drag}
-                showHeader={(groups?.length ?? 0) > 0}
-                onNewGroup={() => setIsAddingGroup(true)}
-              />
-            )}
-
-            {(groups ?? []).map((group) => (
-              <GroupSection
-                key={group.id}
-                group={group}
-                label={group.name}
-                channels={channelsByGroup.get(group.id) ?? []}
-                currentConversationId={currentConversationId}
-                isChannelUnread={isChannelUnread}
-                onSelectChannel={selectChannel}
-                drag={drag}
-                onNewGroup={() => setIsAddingGroup(true)}
-              />
-            ))}
-
-            {!hasChannels &&
-              (isAddingFirstChannel ? (
-                <div className="px-2">
-                  <InlineNameInput
-                    placeholder="Channel name"
-                    onSubmit={(name) => {
-                      void createChannel({ name, groupId: null });
-                      setIsAddingFirstChannel(false);
-                    }}
-                    onCancel={() => setIsAddingFirstChannel(false)}
+      <ContextMenu>
+        {/* Right-clicking the empty run of sidebar below the list offers what
+            can be created there, at the cursor. Channels and group headers
+            have their own menus and stop the event before it reaches here. */}
+        <ContextMenuTrigger asChild disabled={activeTab !== "teams"}>
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+            {activeTab === "teams" && (
+              <>
+                {/* Every channel lives under a named heading, including the ones
+                nobody filed: "General" is a real place to drag out of, where
+                an unlabelled list was somewhere channels merely sat. It is
+                the only heading that cannot be renamed or deleted — a channel
+                with no group has to land somewhere. */}
+                {(channelsByGroup.get(null)?.length ?? 0) > 0 && (
+                  <GroupSection
+                    group={null}
+                    label="General"
+                    channels={channelsByGroup.get(null) ?? []}
+                    currentConversationId={currentConversationId}
+                    isChannelUnread={isChannelUnread}
+                    onSelectChannel={selectChannel}
+                    drag={drag}
+                    onNewGroup={() => setIsAddingGroup(true)}
                   />
-                </div>
-              ) : (
-                <div className="flex flex-col items-start gap-2 px-2 pt-6">
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Channels are rooms where you and your
-                    <br />
-                    agents work together.
-                  </p>
-                  <button
-                    onClick={() => setIsAddingFirstChannel(true)}
-                    className="flex items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-hover transition-colors pointer-events-auto"
+                )}
+
+                {orderedGroups.map((group) => (
+                  <motion.div
+                    key={group.id}
+                    layout
+                    transition={{
+                      type: "spring",
+                      stiffness: 620,
+                      damping: 34,
+                      mass: 0.55,
+                    }}
                   >
-                    <Plus size={12} />
-                    <span>New channel</span>
+                    <GroupSection
+                      group={group}
+                      label={group.name}
+                      channels={channelsByGroup.get(group.id) ?? []}
+                      currentConversationId={currentConversationId}
+                      isChannelUnread={isChannelUnread}
+                      onSelectChannel={selectChannel}
+                      drag={drag}
+                      groupDrag={groupDrag}
+                      groupDragging={groupDrag.draggingId === group.id}
+                      onNewGroup={() => setIsAddingGroup(true)}
+                    />
+                  </motion.div>
+                ))}
+
+                {!hasChannels &&
+                  (isAddingFirstChannel ? (
+                    <div className="px-2">
+                      <InlineNameInput
+                        placeholder="Channel name"
+                        onSubmit={(name) => {
+                          void createChannel({ name, groupId: null });
+                          setIsAddingFirstChannel(false);
+                        }}
+                        onCancel={() => setIsAddingFirstChannel(false)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-start gap-2 px-2 pt-6">
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Channels are rooms where you and your
+                        <br />
+                        agents work together.
+                      </p>
+                      <button
+                        onClick={() => setIsAddingFirstChannel(true)}
+                        className="flex items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-hover transition-colors pointer-events-auto"
+                      >
+                        <Plus size={12} />
+                        <span>New channel</span>
+                      </button>
+                    </div>
+                  ))}
+
+                {/* Below the groups, where the new one is about to appear. Naming
+                it at the top of the list meant typing in one place and
+                watching the result land somewhere else. */}
+                {isAddingGroup && (
+                  <div className="px-2 pt-1">
+                    <InlineNameInput
+                      placeholder="Group name"
+                      onSubmit={(name) => {
+                        void createGroup(name);
+                        setIsAddingGroup(false);
+                      }}
+                      onCancel={() => setIsAddingGroup(false)}
+                    />
+                  </div>
+                )}
+
+                {hasChannels && isAddingFirstChannel && (
+                  <div className="px-2 pt-1">
+                    <InlineNameInput
+                      placeholder="Channel name"
+                      onSubmit={(name) => {
+                        void createChannel({ name, groupId: null });
+                        setIsAddingFirstChannel(false);
+                      }}
+                      onCancel={() => setIsAddingFirstChannel(false)}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === "chats" && (
+              <div className="space-y-1 px-1">
+                <div className="flex items-center px-1">
+                  <span className={`${SECTION_LABEL} flex-1`}>
+                    Direct messages
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsStartingDM((open) => !open)}
+                    className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                    title="Message an agent"
+                    aria-label="Message an agent"
+                    aria-expanded={isStartingDM}
+                  >
+                    <Plus size={13} />
                   </button>
                 </div>
-              ))}
-          </>
-        )}
 
-        {activeTab === "chats" && (
-          <div className="space-y-1 px-1">
-            <div className="flex items-center px-1">
-              <span className={`${SECTION_LABEL} flex-1`}>Direct messages</span>
-              <button
-                type="button"
-                onClick={() => setIsStartingDM((open) => !open)}
-                className="rounded p-1 text-muted-foreground transition-colors pointer-events-auto hover:bg-sidebar-hover hover:text-sidebar-foreground"
-                title="Message an agent"
-                aria-label="Message an agent"
-                aria-expanded={isStartingDM}
-              >
-                <Plus size={13} />
-              </button>
-            </div>
+                {isStartingDM && (
+                  <div className="rounded-lg bg-sidebar-accent p-1">
+                    {agentsWithoutDM.length > 0 ? (
+                      agentsWithoutDM.map((member) => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors pointer-events-auto hover:bg-sidebar-hover"
+                          onClick={() => {
+                            if (!member.agentId) return;
+                            void ensureAgentDM(member.agentId).then((dm) => {
+                              setIsStartingDM(false);
+                              select(dm.conversationId);
+                            });
+                          }}
+                        >
+                          <MemberAvatar member={member} className="size-6" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {member.name}
+                          </span>
+                          <MessageCircle
+                            size={13}
+                            className="text-muted-foreground"
+                          />
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+                        {directMessages.length > 0
+                          ? "Every agent already has a direct message."
+                          : "Hire an agent before starting a direct message."}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-            {isStartingDM && (
-              <div className="rounded-lg bg-sidebar-accent p-1">
-                {agentsWithoutDM.length > 0 ? (
-                  agentsWithoutDM.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors pointer-events-auto hover:bg-sidebar-hover"
-                      onClick={() => {
-                        if (!member.agentId) return;
-                        void ensureAgentDM(member.agentId).then((dm) => {
-                          setIsStartingDM(false);
-                          select(dm.conversationId);
-                        });
-                      }}
-                    >
-                      <MemberAvatar member={member} className="size-6" />
-                      <span className="min-w-0 flex-1 truncate">
-                        {member.name}
-                      </span>
-                      <MessageCircle
-                        size={13}
-                        className="text-muted-foreground"
+                {directMessages.length > 0 && (
+                  <div className="space-y-0.5">
+                    {directMessages.map((channel) => (
+                      <ChannelItem
+                        key={channel.id}
+                        channel={channel}
+                        isActive={
+                          currentConversationId === channel.conversationId
+                        }
+                        isUnread={isChannelUnread(channel)}
+                        onSelect={() => selectChannel(channel)}
                       />
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                    {directMessages.length > 0
-                      ? "Every agent already has a direct message."
-                      : "Hire an agent before starting a direct message."}
-                  </p>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
-
-            {directMessages.length > 0 && (
-              <div className="space-y-0.5">
-                {directMessages.map((channel) => (
-                  <ChannelItem
-                    key={channel.id}
-                    channel={channel}
-                    isActive={currentConversationId === channel.conversationId}
-                    isUnread={isChannelUnread(channel)}
-                    onSelect={() => selectChannel(channel)}
-                  />
-                ))}
+            {activeTab === "chats" && plainConversations.length > 0 && (
+              <div className="px-2 pt-2">
+                <span className={SECTION_LABEL}>Recent</span>
               </div>
             )}
-          </div>
-        )}
-        {activeTab === "chats" && plainConversations.length > 0 && (
-          <div className="px-2 pt-2">
-            <span className={SECTION_LABEL}>Recent</span>
-          </div>
-        )}
-        {activeTab === "chats" &&
-          (plainConversations.length > 0 ? (
-            <div className="space-y-0.5 px-1">
-              {plainConversations.map((conversation) => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  isActive={currentConversationId === conversation.id}
-                  isUnread={isUnread(
-                    lastSeen,
-                    conversation.id,
-                    conversation.updatedAt,
-                  )}
-                  onSelect={() => select(conversation.id)}
-                />
+            {activeTab === "chats" &&
+              (plainConversations.length > 0 ? (
+                <div className="space-y-0.5 px-1">
+                  {plainConversations.map((conversation) => (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={currentConversationId === conversation.id}
+                      isUnread={isUnread(
+                        lastSeen,
+                        conversation.id,
+                        conversation.updatedAt,
+                      )}
+                      onSelect={() => select(conversation.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-start gap-2 px-2 pt-4">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Quick chats with Convera,
+                    <br />
+                    your assistant.
+                  </p>
+                  <button
+                    onClick={onNewChat}
+                    className="flex items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-hover transition-colors pointer-events-auto"
+                  >
+                    <Plus size={12} />
+                    <span>New chat</span>
+                  </button>
+                </div>
               ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-start gap-2 px-2 pt-4">
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Quick chats with Convera,
-                <br />
-                your assistant.
-              </p>
-              <button
-                onClick={onNewChat}
-                className="flex items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-accent-foreground hover:bg-sidebar-hover transition-colors pointer-events-auto"
-              >
-                <Plus size={12} />
-                <span>New chat</span>
-              </button>
-            </div>
-          ))}
-      </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => setIsAddingFirstChannel(true)}>
+            <Plus size={14} />
+            <span>New channel</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => setIsAddingGroup(true)}>
+            <FolderPlus size={14} />
+            <span>New group</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* A persistent full-width New chat button: the primary action of the
           Chats tab should not be a hover-only icon. */}

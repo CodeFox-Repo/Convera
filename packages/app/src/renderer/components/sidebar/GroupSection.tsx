@@ -16,7 +16,12 @@ import {
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { ChannelItem } from "./ChannelItem";
 import { InlineNameInput } from "./InlineNameInput";
-import type { ChannelDrag } from "./use-channel-drag";
+import {
+  CHANNEL_LIST_ATTR,
+  groupAttr,
+  type ChannelDrag,
+} from "./use-channel-drag";
+import { GROUP_HEADER_ATTR, type GroupDrag } from "./use-group-drag";
 
 interface GroupSectionProps {
   /** null renders the implicit "Ungrouped" section. */
@@ -27,6 +32,8 @@ interface GroupSectionProps {
   isChannelUnread: (channel: Channel) => boolean;
   onSelectChannel: (channel: Channel) => void;
   drag?: ChannelDrag;
+  groupDrag?: GroupDrag;
+  groupDragging?: boolean;
   /** Hide the header when the sidebar has only the implicit section. */
   showHeader?: boolean;
   onNewGroup?: () => void;
@@ -42,6 +49,8 @@ export function GroupSection({
   isChannelUnread,
   onSelectChannel,
   drag,
+  groupDrag,
+  groupDragging,
   showHeader = true,
   onNewGroup,
   children,
@@ -51,15 +60,20 @@ export function GroupSection({
   const [isAddingChannel, setIsAddingChannel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Rendered in the order a drop would produce, so the neighbours slide aside
+  // as the cursor passes and the gap under it *is* the drop indicator. Falls
+  // back to the stored order whenever nothing is being dragged.
+  const ordered = drag?.previewFor(group?.id ?? null) ?? channels;
+
   // Collapsed hides only what the user has already read: a hidden unread
   // channel is a lost message.
   const visibleChannels = collapsed
-    ? channels.filter(
+    ? ordered.filter(
         (channel) =>
           isChannelUnread(channel) ||
           channel.conversationId === currentConversationId,
       )
-    : channels;
+    : ordered;
 
   const startAddingChannel = () => {
     setCollapsed(false);
@@ -67,7 +81,17 @@ export function GroupSection({
   };
 
   const header = (
-    <div className="group flex items-center gap-1 pr-1">
+    <div
+      className={cn(
+        "group flex items-center gap-1 pr-1",
+        groupDragging && "opacity-40",
+      )}
+      // Only a real group can be reordered; the implicit General heading is
+      // not a row in the table and has nowhere to move to.
+      {...(group ? { [GROUP_HEADER_ATTR]: group.id } : {})}
+      draggable={!!group}
+      {...(group && groupDrag ? groupDrag.headerHandlers(group.id) : {})}
+    >
       <button
         onClick={() => setCollapsed((prev) => !prev)}
         className="flex flex-1 min-w-0 items-center gap-1 px-2 py-1 rounded-md text-muted-foreground hover:text-sidebar-foreground transition-colors pointer-events-auto"
@@ -159,11 +183,28 @@ export function GroupSection({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            // gap, not space-y: sibling margins are applied to whichever
+            // element is second at that instant, so a row that animates into
+            // first place loses its spacing mid-flight.
+            //
+            // No tint while a channel hovers here: the gap the rows open is
+            // already saying where the drop lands, and a block of colour
+            // behind them made the group look selected instead.
             className={cn(
-              "space-y-0.5 rounded-md px-1 py-0.5 transition-colors",
-              drag?.hoveredGroupId === (group?.id ?? null) &&
-                "bg-sidebar-accent",
+              "flex flex-col rounded-md px-1",
+              // An empty group takes no room at all — a heading floating above
+              // a blank gap reads as a rendering fault, not as a section.
+              visibleChannels.length > 0 && "gap-0.5 py-0.5",
+              // ...except while something is being dragged, when it needs an
+              // area to be dropped onto: that is how a channel is filed into
+              // a group it is not in yet.
+              visibleChannels.length === 0 && drag?.draggingId && "min-h-8",
             )}
+            // One drop zone per group rather than one per row: the pointer is
+            // measured against the layout as it was before any preview moved
+            // it, which the rows themselves cannot report once they start
+            // sliding.
+            {...{ [CHANNEL_LIST_ATTR]: groupAttr(group?.id ?? null) }}
             onDragOver={groupDrop?.onDragOver}
             onDrop={groupDrop?.onDrop}
           >
@@ -174,7 +215,6 @@ export function GroupSection({
                 isActive={currentConversationId === channel.conversationId}
                 isUnread={isChannelUnread(channel)}
                 onSelect={() => onSelectChannel(channel)}
-                dropEdge={drag?.dropEdgeFor(channel.id) ?? null}
                 isDragging={drag?.draggingId === channel.id}
                 {...(drag?.itemHandlers(channel) ?? {})}
               />
