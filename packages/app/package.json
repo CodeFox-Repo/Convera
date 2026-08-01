@@ -21,6 +21,7 @@
     "format": "prettier --check . '!template/**' '!.vite/**' '!out/**' '!routeTree.gen.ts'",
     "format:write": "prettier --write . '!template/**' '!.vite/**' '!out/**' '!routeTree.gen.ts'",
     "test": "vitest run",
+    "type-check": "tsc --noEmit",
     "test:watch": "vitest watch",
     "test:unit": "vitest",
     "test:all": "vitest run",
