@@ -50,7 +50,7 @@ export function ChannelHeader({
 }: ChannelHeaderProps) {
   const allMembers = useMembers();
   const [editingDescription, setEditingDescription] = useState(false);
-  const { activeJobs, error: hostError } = useAgentHostJobs(channel.id);
+  const { error: hostError } = useAgentHostJobs(channel.id);
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {
@@ -104,12 +104,9 @@ export function ChannelHeader({
             </button>
           ))}
       </div>
-      {activeJobs.length > 0 && (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <LoaderCircle size={12} className="animate-spin" />
-          {activeJobs.length} working
-        </span>
-      )}
+      {/* No "N working" up here: the typing indicator already says who is
+          about to speak, and per-member status lives in the roster where the
+          names are. A second counter in the header was noise. */}
       {hostError && (
         <span
           className="max-w-56 truncate text-xs text-destructive"
