@@ -243,6 +243,11 @@ const MessageRow = memo(
                       <MemberAvatar
                         member={sender}
                         isHuman={isHuman}
+                        // Same fallback as the no-sender branch: the built-in
+                        // assistant has a member row but no portrait, and
+                        // wrapping it in the card must not demote its logo to
+                        // a bare initial.
+                        fallback={isHuman ? undefined : <BaseLogo size={24} />}
                         className="size-9 text-sm"
                       />
                     </button>
