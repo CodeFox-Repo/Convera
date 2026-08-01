@@ -11,7 +11,6 @@ import {
 import { resolveSenderName } from "@/renderer/libs/chat-labels";
 import { LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db/database";
 import { toggleReaction } from "@/renderer/libs/db/hooks";
-import { useMembers } from "@/renderer/libs/stores/member-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import type { UIMessage } from "@/renderer/types/chat";
 import type { Member } from "@/shared/types/workspace";
@@ -35,6 +34,8 @@ export interface MessageRowProps {
   message: UIMessage;
   messageIndex: number;
   sender?: Member;
+  /** Resolves a member id to a display name (reaction tooltips). */
+  nameOf: (memberId: string) => string | undefined;
   /** Names assistant rows that predate senderId; falls back to "Assistant". */
   agentName?: string | null;
   /** Previous row has the same speaker: drop the repeated avatar and name. */
@@ -102,15 +103,20 @@ export function reactionTitle(
 function ReactionBar({
   messageId,
   reactions,
+  nameOf,
 }: {
   messageId: string;
   reactions?: Record<string, string[]>;
+  /**
+   * Injected rather than queried: a useMembers() here would open one members
+   * live query per message row — 200 rows, 200 subscriptions, all refiring on
+   * any member edit. The transcript already holds one.
+   */
+  nameOf: (memberId: string) => string | undefined;
 }) {
-  const members = useMembers();
   const entries = Object.entries(reactions ?? {});
   if (entries.length === 0) return null;
 
-  const byId = new Map((members ?? []).map((member) => [member.id, member]));
   return (
     <div className="flex flex-wrap items-center gap-1">
       {entries.map(([emoji, reactors]) => {
@@ -128,7 +134,7 @@ function ReactionBar({
               void toggleReaction(messageId, emoji, LOCAL_HUMAN_MEMBER_ID)
             }
             aria-pressed={mine}
-            title={reactionTitle(emoji, reactors, (id) => byId.get(id)?.name)}
+            title={reactionTitle(emoji, reactors, nameOf)}
           >
             <span className="leading-none">{emoji}</span>
             <span className="tabular-nums">{reactors.length}</span>
@@ -170,6 +176,7 @@ const MessageRow = memo(
     message,
     messageIndex,
     sender,
+    nameOf,
     agentName,
     isGrouped,
     showReactions,
@@ -353,6 +360,7 @@ const MessageRow = memo(
                 <ReactionBar
                   messageId={message.id}
                   reactions={message.reactions}
+                  nameOf={nameOf}
                 />
               )}
 

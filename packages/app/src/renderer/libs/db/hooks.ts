@@ -168,11 +168,22 @@ export function useKeepCurrentRead(
 
 export function useUnreadCounts(): Record<string, number> {
   const { lastSeen, epoch } = useUnreadStore();
-  // The oldest boundary any conversation could care about, so the index scan
-  // starts there instead of at the beginning of history.
-  const floor = Math.min(epoch, ...Object.values(lastSeen));
   const counts = useLiveQuery(
     async () => {
+      // The scan starts at the oldest boundary an EXISTING conversation could
+      // care about. Min over lastSeen alone always equals the epoch (every
+      // lastSeen is later), which made the window "everything since install"
+      // forever — a full-table scan on every message write. A conversation
+      // never opened still holds the floor at the epoch, by design: its
+      // unread run genuinely starts there.
+      const conversationIds = await db.conversations.toCollection().primaryKeys();
+      const floor = conversationIds.length
+        ? Math.min(
+            ...conversationIds.map((id) =>
+              seenAt({ lastSeen, epoch }, id as string),
+            ),
+          )
+        : epoch;
       const [messages, deletions] = await Promise.all([
         db.messages.where("createdAt").above(new Date(floor)).toArray(),
         db.pendingConversationDeletions.toArray(),
@@ -185,7 +196,7 @@ export function useUnreadCounts(): Record<string, number> {
         (conversationId) => seenAt({ lastSeen, epoch }, conversationId),
       );
     },
-    [lastSeen, epoch, floor],
+    [lastSeen, epoch],
     {} as Record<string, number>,
   );
   return counts;

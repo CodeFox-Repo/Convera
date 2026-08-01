@@ -273,6 +273,9 @@ export default function ChatContent({
   // Note: This hook must be called before any conditional returns
   const renderMessages = useCallback(() => {
     const membersById = new Map((members ?? []).map((m) => [m.id, m]));
+    // One members subscription for the whole transcript; rows get a resolver,
+    // not their own live query.
+    const nameOf = (memberId: string) => membersById.get(memberId)?.name;
     const messagesById = new Map(
       messages.map((message) => [message.id, message]),
     );
@@ -337,6 +340,7 @@ export default function ChatContent({
           sender={
             message.senderId ? membersById.get(message.senderId) : undefined
           }
+          nameOf={nameOf}
           agentName={agentName}
           isGrouped={isGrouped}
           isLastMessage={isLastMessage}
