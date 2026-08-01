@@ -17,6 +17,7 @@ import {
   matchesQuery,
 } from "./agent-templates";
 import { db, LOCAL_HUMAN_MEMBER_ID, memberIdForAgent } from "./db";
+import { createAgent } from "./stores/agent-store";
 
 const elena = AGENT_TEMPLATES[0];
 
@@ -154,5 +155,92 @@ describe("starter channels", () => {
     );
     // Backfill fills rooms in, it does not duplicate them.
     expect((await db.channels.toArray()).length).toBe(5);
+  });
+
+  it("does not duplicate a renamed starter room on a version bump", async () => {
+    await ensureStarterTeam();
+    const announcements = (await db.channels.toArray()).find((c) =>
+      c.name.includes("announcements"),
+    )!;
+    await db.channels.update(announcements.id, {
+      name: "📣 company-news",
+    });
+
+    // What a STARTER_TEAM_VERSION bump does to an existing workspace.
+    await db.settings.delete("starterTeamSeeded");
+    await ensureStarterTeam();
+
+    const channels = await db.channels.toArray();
+    expect(channels.length).toBe(5);
+    expect(channels.some((c) => c.name === "📣 company-news")).toBe(true);
+    expect(channels.some((c) => c.name.includes("announcements"))).toBe(false);
+  });
+
+  it("does not resurrect a starter room the user deleted", async () => {
+    await ensureStarterTeam();
+    const docs = (await db.channels.toArray()).find((c) =>
+      c.name.includes("docs"),
+    )!;
+    await db.channels.delete(docs.id);
+
+    await db.settings.delete("starterTeamSeeded");
+    await ensureStarterTeam();
+
+    const channels = await db.channels.toArray();
+    expect(channels.length).toBe(4);
+    expect(channels.some((c) => c.name.includes("docs"))).toBe(false);
+  });
+});
+
+/**
+ * The mascot-to-human rename must only touch the shipped starters. A user's
+ * own agent that happens to share a mascot name is theirs, prompt and all.
+ */
+describe("legacy starter rename", () => {
+  beforeEach(async () => {
+    await db.open();
+    await Promise.all([
+      db.agents.clear(),
+      db.members.clear(),
+      db.channels.clear(),
+      db.settings.clear(),
+    ]);
+  });
+
+  it("leaves a user's own agent alone even when it wears a mascot name", async () => {
+    const mine = await createAgent({
+      name: "Kit",
+      description: "my own",
+      systemPrompt: "You are Kit, my personal assistant. Kit signs off as Kit.",
+      disableToolReferences: [],
+      selectedMCPs: [],
+    });
+
+    await ensureStarterTeam();
+
+    const after = await db.agents.get(mine.id);
+    expect(after?.name).toBe("Kit");
+    expect(after?.systemPrompt).toContain("Kit signs off as Kit");
+  });
+
+  it("renames a genuine shipped starter, prompt and member row included", async () => {
+    // Seed, then rewind one agent to its mascot-era shape.
+    await ensureStarterTeam();
+    const elena = (await db.agents.toArray()).find((a) => a.name === "Elena")!;
+    await db.agents.update(elena.id, {
+      name: "Sage",
+      systemPrompt: elena.systemPrompt.replaceAll("Elena", "Sage"),
+    });
+    await db.members.update(memberIdForAgent(elena.id), { name: "Sage" });
+    await db.settings.delete("starterTeamSeeded");
+
+    await ensureStarterTeam();
+
+    const after = await db.agents.get(elena.id);
+    expect(after?.name).toBe("Elena");
+    expect(after?.systemPrompt).toContain("You are Elena");
+    expect((await db.members.get(memberIdForAgent(elena.id)))?.name).toBe(
+      "Elena",
+    );
   });
 });

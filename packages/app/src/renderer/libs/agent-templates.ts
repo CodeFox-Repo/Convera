@@ -183,11 +183,21 @@ async function renameLegacyStarters(): Promise<void> {
     // A colleague already standing under the new name means this workspace
     // has both; renaming would collide, so leave the old one for dedupe.
     if (!renamed || taken.has(renamed)) continue;
+    // Only the shipped starter is a starter: a user's own agent that happens
+    // to be called Kit must not become Hana. The shipped prompt (with the new
+    // name swapped back) is the fingerprint; an edited prompt means the agent
+    // is theirs now, and their naming is theirs too.
+    const template = AGENT_TEMPLATES.find((t) => t.name === renamed);
+    const shippedPrompt = template?.systemPrompt.replaceAll(
+      renamed,
+      agent.name,
+    );
+    if (agent.systemPrompt !== shippedPrompt) continue;
     taken.delete(agent.name);
     taken.add(renamed);
     await db.agents.update(agent.id, {
       name: renamed,
-      systemPrompt: agent.systemPrompt.replaceAll(agent.name, renamed),
+      systemPrompt: template!.systemPrompt,
       updatedAt: new Date(),
     });
     await db.members.update(memberIdForAgent(agent.id), { name: renamed });
@@ -269,12 +279,23 @@ const STARTER_CHANNELS: Array<{
  * that already exist without one — a workspace seeded before descriptions
  * existed has an #announcements that says nothing about what it is for, which
  * is precisely the context agents are supposed to be able to read.
+ *
+ * Identity is tracked by id in the `starterChannelIds` setting, not by name:
+ * a renamed room is still that room and must not spawn a twin, and a deleted
+ * room was deleted on purpose and must not come back. Name matching remains
+ * only as the adoption path for workspaces seeded before ids were recorded.
  */
 async function seedStarterChannels(): Promise<void> {
   const agents = await db.agents.toArray();
-  const existing = new Map(
-    (await db.channels.toArray()).map((channel) => [channel.name, channel]),
-  );
+  const channels = await db.channels.toArray();
+  const byId = new Map(channels.map((channel) => [channel.id, channel]));
+  const byName = new Map(channels.map((channel) => [channel.name, channel]));
+  const seededSetting = await db.settings.get("starterChannelIds");
+  const seededIds: Record<string, string> =
+    seededSetting && typeof seededSetting.value === "object"
+      ? { ...(seededSetting.value as Record<string, string>) }
+      : {};
+
   const memberIdForTemplate = (templateId: string): string | null => {
     const template = AGENT_TEMPLATES.find((t) => t.id === templateId);
     const agent = template && agents.find((a) => a.name === template.name);
@@ -282,8 +303,14 @@ async function seedStarterChannels(): Promise<void> {
   };
 
   for (const spec of STARTER_CHANNELS) {
-    const already = existing.get(spec.name);
+    const seededId = seededIds[spec.name];
+    if (seededId && !byId.has(seededId)) {
+      // The user deleted this starter room. Their call stands.
+      continue;
+    }
+    const already = seededId ? byId.get(seededId) : byName.get(spec.name);
     if (already) {
+      seededIds[spec.name] = already.id;
       // Never overwrite one someone has written themselves.
       if (!already.description?.trim()) {
         await db.channels.update(already.id, {
@@ -296,13 +323,19 @@ async function seedStarterChannels(): Promise<void> {
     const agentMemberIds = spec.agentTemplateIds
       .map(memberIdForTemplate)
       .filter((id): id is string => id !== null);
-    await createChannel({
+    seededIds[spec.name] = await createChannel({
       name: spec.name,
       description: spec.description,
       groupId: null,
       memberIds: [LOCAL_HUMAN_MEMBER_ID, ...agentMemberIds],
     });
   }
+
+  await db.settings.put({
+    key: "starterChannelIds",
+    value: seededIds,
+    updatedAt: new Date(),
+  });
 }
 
 /**

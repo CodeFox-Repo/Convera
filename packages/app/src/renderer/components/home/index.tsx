@@ -401,6 +401,10 @@ export function HomePage() {
             <>
               {currentChannel && (
                 <ChannelHeader
+                  // Remount per room: the description editor holds draft text
+                  // in state, and without a key a switch mid-edit would write
+                  // one channel's description onto another.
+                  key={currentChannel.id}
                   channel={currentChannel}
                   rosterOpen={rosterOpen}
                   onToggleRoster={() => {

@@ -78,37 +78,58 @@ const enabledMemorySettings: LocalAIMemorySettings = {
 };
 
 describe("LocalAiRuntime", () => {
-  it("tells an agent about memory/ only when memory/ is writable", async () => {
-    let streamOptions: Parameters<RuntimeStreamInvoker>[0] | undefined;
-    const runtime = new LocalAiRuntime({
-      adapters: [fakeAdapter("claude-code")],
-      sessionRepository: new InMemorySessionStateRepository(),
-      streamInvoker: (options) => {
-        streamOptions = options;
-        return {
-          toUIMessageStream: async function* () {
-            yield { type: "finish" as const, finishReason: "stop" as const };
-          },
-          finishReason: Promise.resolve("stop"),
-        };
-      },
-      resolveSandbox: () => ({
-        root: "/agents/fizz",
-        writableRoots: ["/agents/fizz/workspace", "/agents/fizz/memory"],
-        networkAccess: true,
-      }),
-    });
+  it("tells an agent about memory/ only when its tools can reach it", async () => {
+    const makeRuntime = (adapter: LocalAiProviderAdapter) => {
+      let streamOptions: Parameters<RuntimeStreamInvoker>[0] | undefined;
+      const runtime = new LocalAiRuntime({
+        adapters: [adapter],
+        sessionRepository: new InMemorySessionStateRepository(),
+        streamInvoker: (options) => {
+          streamOptions = options;
+          return {
+            toUIMessageStream: async function* () {
+              yield { type: "finish" as const, finishReason: "stop" as const };
+            },
+            finishReason: Promise.resolve("stop"),
+          };
+        },
+        resolveSandbox: () => ({
+          root: "/agents/fizz",
+          writableRoots: ["/agents/fizz/workspace", "/agents/fizz/memory"],
+          networkAccess: true,
+        }),
+      });
+      return { runtime, systemContent: () => {
+        const system = streamOptions?.messages.find(
+          (message) => message.role === "system",
+        );
+        return typeof system?.content === "string" ? system.content : "";
+      } };
+    };
 
-    await runtime.startChat(
+    // An API provider gets the basic file tools, so the promise is real.
+    const withTools = makeRuntime({
+      ...fakeAdapter("claude-code"),
+      providesOwnTools: false,
+    });
+    await withTools.runtime.startChat(
       request({ agent: { id: "fizz", systemPrompt: "Be concise." } }),
       () => undefined,
     );
-
-    const system = streamOptions?.messages.find(
-      (message) => message.role === "system",
+    expect(withTools.systemContent()).toContain("Be concise.");
+    expect(withTools.systemContent()).toContain(
+      "/agents/fizz/memory/MEMORY.md",
     );
-    expect(system?.content).toContain("Be concise.");
-    expect(system?.content).toContain("/agents/fizz/memory/MEMORY.md");
+
+    // A CLI provider's tool surface has no write_file — the notice would
+    // promise a notebook its tools refuse, so it is withheld.
+    const cliOnly = makeRuntime(fakeAdapter("claude-code"));
+    await cliOnly.runtime.startChat(
+      request({ agent: { id: "fizz", systemPrompt: "Be concise." } }),
+      () => undefined,
+    );
+    expect(cliOnly.systemContent()).toContain("Be concise.");
+    expect(cliOnly.systemContent()).not.toContain("MEMORY.md");
 
     // A sandbox without a writable memory/ must not promise one: the standalone
     // runtime's cwd sandbox would have write_file refuse the path.

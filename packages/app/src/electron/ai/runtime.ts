@@ -848,7 +848,12 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
             request,
             resumableBinding !== undefined,
             turnContext?.systemContext,
-            describeSandboxMemory(sandbox),
+            // Only providers that receive the basic file tools can act on the
+            // notice; a CLI provider's tool surface has no write_file, and
+            // promising a notebook its tools refuse is worse than silence.
+            adapter.providesOwnTools === false
+              ? describeSandboxMemory(sandbox)
+              : undefined,
           ),
           abortSignal: controller.signal,
           maxOutputTokens: request.options?.maxOutputTokens,

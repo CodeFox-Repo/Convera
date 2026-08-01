@@ -11,7 +11,7 @@ import {
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { z } from "zod";
-import type { AgentTool } from "./agent-tools";
+import { shapeForSchema, type AgentTool } from "./agent-tools";
 import { resolveInSandbox } from "./sandbox";
 import { parseToolInput } from "./tool-input";
 
@@ -31,6 +31,12 @@ import { parseToolInput } from "./tool-input";
  */
 
 const MAX_COMMAND_OUTPUT_BYTES = 1024 * 1024;
+
+// Pi's grep/find download rg/fd from GitHub into ~/.pi/bin when missing —
+// a network fetch and an executable write outside every sandbox boundary
+// this file enforces. PI_OFFLINE makes ensureTool use system binaries or
+// fail cleanly ("ripgrep is not available") instead of downloading.
+process.env.PI_OFFLINE ??= "1";
 
 function realpathIfExists(path: string): string {
   try {
@@ -144,6 +150,7 @@ interface PiTool {
     properties?: Record<string, unknown>;
     required?: string[];
   };
+  prepareArguments?(args: unknown): unknown;
   execute(
     toolCallId: string,
     params: Record<string, unknown>,
@@ -154,14 +161,21 @@ function toPiTool(tool: unknown): PiTool {
   return tool as PiTool;
 }
 
-/** Pi returns MCP-style content blocks; agents consume plain text. */
+/**
+ * Pi returns MCP-style content blocks; agents consume plain text. Non-text
+ * blocks (images from the read tool) are named rather than silently dropped —
+ * an agent told "Read image file" with nothing attached would reason about a
+ * screenshot it cannot see.
+ */
 function textOf(result: {
   content: Array<{ type: string; text?: string }>;
 }): string {
-  return result.content
-    .filter((block) => block.type === "text" && block.text)
-    .map((block) => block.text)
-    .join("\n");
+  const parts = result.content.map((block) =>
+    block.type === "text" && block.text
+      ? block.text
+      : `[${block.type} content not supported by this tool]`,
+  );
+  return parts.join("\n");
 }
 
 /**
@@ -175,12 +189,11 @@ function sandboxedPiTool(
   name: string,
   access: "read" | "write",
 ): AgentTool {
-  const shape: z.ZodRawShape = {};
-  const required = new Set(pi.parameters.required ?? []);
-  for (const property of Object.keys(pi.parameters.properties ?? {})) {
-    const base = z.unknown();
-    shape[property] = required.has(property) ? base : base.optional();
-  }
+  // Real types from pi's JSON Schema, not z.unknown(): the model needs the
+  // per-field descriptions (offset is 1-indexed, the edits[] contract), and
+  // a wrong-typed path must be rejected here with a message the model can
+  // act on, not deep inside pi as "normalized.replace is not a function".
+  const shape = shapeForSchema(pi.parameters);
   const inputValidator = z.object(shape).passthrough();
 
   return {
@@ -191,7 +204,12 @@ function sandboxedPiTool(
     inputShape: shape,
     inputValidator,
     execute: async (input) => {
-      const parsed = parseToolInput(inputValidator, input);
+      // Pi's own repair hook first (edit ships one that accepts edits sent
+      // as a JSON string or as legacy flat oldText/newText), then validate.
+      const repaired = pi.prepareArguments
+        ? (pi.prepareArguments(input) as Record<string, unknown>)
+        : input;
+      const parsed = parseToolInput(inputValidator, repaired);
       if (typeof parsed.path === "string") {
         parsed.path = resolveInSandbox(sandbox, parsed.path, access);
       } else if (parsed.path === undefined && access === "read") {

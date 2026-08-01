@@ -198,12 +198,18 @@ export async function renameChannel(id: string, name: string): Promise<void> {
 /**
  * What the room is for. Blank clears it rather than storing an empty string:
  * an agent reading "#docs: " learns less than one reading "#docs".
+ *
+ * Capped because the description rides in every agent's system prompt every
+ * turn, and in list_channels summaries where one bloated entry pushes other
+ * channels off the result budget entirely.
  */
+export const CHANNEL_DESCRIPTION_MAX = 500;
+
 export async function setChannelDescription(
   id: string,
   description: string,
 ): Promise<void> {
-  const trimmed = description.trim();
+  const trimmed = description.trim().slice(0, CHANNEL_DESCRIPTION_MAX);
   await db.channels.update(id, {
     description: trimmed || undefined,
     updatedAt: new Date(),
