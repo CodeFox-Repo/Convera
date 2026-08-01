@@ -410,7 +410,11 @@ describe("open-floor peer awareness", () => {
     // The check is explicit and mechanical: scan for names first, any
     // language, no @ required — the CJK name-drop was the case that slipped.
     expect(context).toContain("with or without an @");
-    expect(context).toContain("elena 最近在忙什么");
+    // Self-first: the example is built from the AGENT'S OWN name, because
+    // "am I named?" is the check models actually execute — the third-person
+    // version left the named agent passing on its own address.
+    expect(context).toContain("fizz 在忙什么");
+    expect(context).toContain("a reply is required");
     expect(context).toContain("the message is theirs alone");
     expect(context).not.toContain("designated responder");
   });
