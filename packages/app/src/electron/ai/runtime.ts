@@ -813,7 +813,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
                 [
                   // A provider that brings no tools of its own gets the floor.
                   ...(adapter.providesOwnTools === false
-                    ? createBasicAgentTools(sandbox)
+                    ? await createBasicAgentTools(sandbox)
                     : []),
                   ...createAgentToolCatalog({
                     groups: toolGroups.filter(

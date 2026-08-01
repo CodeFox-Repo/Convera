@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createBasicAgentTools } from "./basic-tools";
 
 let sandbox: { root: string; writableRoots: string[]; networkAccess: boolean };
-let tools: ReturnType<typeof createBasicAgentTools>;
+let tools: Awaited<ReturnType<typeof createBasicAgentTools>>;
 const toolNamed = (name: string) => tools.find((tool) => tool.name === name)!;
 
 beforeAll(async () => {
@@ -25,7 +25,7 @@ beforeAll(async () => {
     writableRoots: [workspace, memory],
     networkAccess: false,
   };
-  tools = createBasicAgentTools(sandbox);
+  tools = await createBasicAgentTools(sandbox);
 });
 
 afterAll(async () => {

@@ -1,13 +1,5 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
 import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
-import {
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createWriteTool,
-} from "@earendil-works/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { z } from "zod";
@@ -37,6 +29,14 @@ const MAX_COMMAND_OUTPUT_BYTES = 1024 * 1024;
 // this file enforces. PI_OFFLINE makes ensureTool use system binaries or
 // fail cleanly ("ripgrep is not available") instead of downloading.
 process.env.PI_OFFLINE ??= "1";
+
+/**
+ * pi-coding-agent is ESM-only (no `require` condition in its export map).
+ * A static import compiles to require() in CJS execution contexts — tsx
+ * running the dev web bridge — and crashes at load. Dynamic import() stays
+ * an ESM import everywhere, so pi loads lazily and is cached.
+ */
+const piToolFactories = import("@earendil-works/pi-coding-agent");
 
 function realpathIfExists(path: string): string {
   try {
@@ -225,31 +225,39 @@ function sandboxedPiTool(
   };
 }
 
-export function createBasicAgentTools(sandbox: AgentSandbox): AgentTool[] {
+export async function createBasicAgentTools(
+  sandbox: AgentSandbox,
+): Promise<AgentTool[]> {
   const cwd = sandbox.root;
+  const pi = await piToolFactories;
 
   return [
     sandboxedPiTool(
       sandbox,
-      toPiTool(createReadTool(cwd)),
+      toPiTool(pi.createReadTool(cwd)),
       "read_file",
       "read",
     ),
     sandboxedPiTool(
       sandbox,
-      toPiTool(createWriteTool(cwd)),
+      toPiTool(pi.createWriteTool(cwd)),
       "write_file",
       "write",
     ),
     sandboxedPiTool(
       sandbox,
-      toPiTool(createEditTool(cwd)),
+      toPiTool(pi.createEditTool(cwd)),
       "edit_file",
       "write",
     ),
-    sandboxedPiTool(sandbox, toPiTool(createGrepTool(cwd)), "grep", "read"),
-    sandboxedPiTool(sandbox, toPiTool(createFindTool(cwd)), "find", "read"),
-    sandboxedPiTool(sandbox, toPiTool(createLsTool(cwd)), "list_dir", "read"),
+    sandboxedPiTool(sandbox, toPiTool(pi.createGrepTool(cwd)), "grep", "read"),
+    sandboxedPiTool(sandbox, toPiTool(pi.createFindTool(cwd)), "find", "read"),
+    sandboxedPiTool(
+      sandbox,
+      toPiTool(pi.createLsTool(cwd)),
+      "list_dir",
+      "read",
+    ),
     {
       name: "run_command",
       qualifiedName: "agent:run_command",
