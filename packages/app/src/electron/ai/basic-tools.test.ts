@@ -1,4 +1,5 @@
 import { SANDBOX_LAYOUT } from "@/shared/types/workspace";
+import { execSync } from "node:child_process";
 import { mkdtemp, readFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -86,7 +87,19 @@ describe("createBasicAgentTools", () => {
     ).rejects.toThrow(/not writable/);
   });
 
-  it("greps and edits through the sandboxed pi tools", async () => {
+  // PI_OFFLINE forbids pi from downloading rg, by design — so grep only
+  // works where ripgrep is installed. CI runners don't ship it; the clean
+  // failure it produces there is itself the intended offline behaviour.
+  const hasRipgrep = (() => {
+    try {
+      execSync("command -v rg", { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  it.runIf(hasRipgrep)("greps through the sandboxed pi tool", async () => {
     await toolNamed("write_file").execute({
       path: "workspace/src/app.ts",
       content: "const answer = 41;\n",
@@ -94,6 +107,13 @@ describe("createBasicAgentTools", () => {
     await expect(
       toolNamed("grep").execute({ pattern: "answer", path: "workspace/src" }),
     ).resolves.toContain("app.ts");
+  });
+
+  it("edits through the sandboxed pi tools", async () => {
+    await toolNamed("write_file").execute({
+      path: "workspace/src/app.ts",
+      content: "const answer = 41;\n",
+    });
     await toolNamed("edit_file").execute({
       path: "workspace/src/app.ts",
       edits: [{ oldText: "41", newText: "42" }],
