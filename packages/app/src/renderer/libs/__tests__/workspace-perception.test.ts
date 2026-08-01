@@ -15,6 +15,7 @@ import {
 } from "../workspace-perception";
 import { WORKSPACE_QUERY_INTERACTION } from "@/shared/types/workspace-perception";
 import type { LocalAIInteractionResponse } from "@/shared/types/local-ai";
+import type { TagPermission } from "@/shared/types/workspace";
 
 const AGENT = "agent:fizz";
 const HUMAN = "me";
@@ -77,6 +78,8 @@ beforeEach(async () => {
     db.groups.clear(),
     db.members.clear(),
     db.messages.clear(),
+    // Seeded on populate; a surviving row would grant permissions across tests.
+    db.tags.clear(),
   ]);
   await db.groups.put({
     id: "group-hive",
@@ -104,15 +107,66 @@ beforeEach(async () => {
 });
 
 describe("channel visibility", () => {
-  it("hides a private channel the viewer is not in", () => {
+  const viewer = (
+    memberId: string,
+    tags: string[] = [],
+    permissions: TagPermission[] = [],
+  ) => ({ memberId, tags, permissions: new Set(permissions) });
+
+  it("hides a legacy private channel the viewer is not in", () => {
     const priv = channel("p", "founders", [HUMAN], { isPrivate: true });
-    expect(canViewChannel(AGENT, priv)).toBe(false);
-    expect(canViewChannel(HUMAN, priv)).toBe(true);
+    expect(canViewChannel(viewer(AGENT), priv)).toBe(false);
+    expect(canViewChannel(viewer(HUMAN), priv)).toBe(true);
   });
 
   it("hides a DM the viewer is not part of", () => {
     const dm = channel("d", "dm", [HUMAN, "agent:buzz"], { kind: "dm" });
-    expect(canViewChannel(AGENT, dm)).toBe(false);
+    expect(canViewChannel(viewer(AGENT), dm)).toBe(false);
+  });
+
+  it("shows a tagged channel only to holders of one of its tags", () => {
+    const payroll = channel("p", "payroll", [HUMAN], {
+      visibleToTags: ["hr", "finance"],
+    });
+    expect(canViewChannel(viewer(AGENT), payroll)).toBe(false);
+    expect(canViewChannel(viewer(AGENT, ["hr"]), payroll)).toBe(true);
+    expect(canViewChannel(viewer(AGENT, ["finance"]), payroll)).toBe(true);
+    expect(canViewChannel(viewer(AGENT, ["design"]), payroll)).toBe(false);
+  });
+
+  it("gates a tagged channel on the tag, not on membership", () => {
+    const payroll = channel("p", "payroll", [HUMAN], {
+      visibleToTags: ["hr"],
+    });
+    // In the room but untagged: still cannot see it. Tagged but not in the
+    // room: can find it. That is what makes this a discovery rule.
+    expect(canViewChannel(viewer(HUMAN), payroll)).toBe(false);
+    expect(canViewChannel(viewer("agent:buzz", ["hr"]), payroll)).toBe(true);
+  });
+
+  it("lets any tag granted channel:view-all through, not just admin", () => {
+    const payroll = channel("p", "payroll", [HUMAN], {
+      visibleToTags: ["hr"],
+    });
+    expect(
+      canViewChannel(viewer(AGENT, ["auditor"], ["channel:view-all"]), payroll),
+    ).toBe(true);
+    // But a permission that is not about seeing channels grants nothing.
+    expect(
+      canViewChannel(viewer(AGENT, ["auditor"], ["tag:manage"]), payroll),
+    ).toBe(false);
+  });
+
+  it("never lets a tag open someone else's DM", () => {
+    const dm = channel("d", "dm", [HUMAN, "agent:buzz"], { kind: "dm" });
+    expect(
+      canViewChannel(viewer(AGENT, ["admin"], ["channel:view-all"]), dm),
+    ).toBe(false);
+  });
+
+  it("treats a channel with no tags as visible to the whole workspace", () => {
+    const open = channel("o", "general", [HUMAN], { visibleToTags: [] });
+    expect(canViewChannel(viewer(AGENT), open)).toBe(true);
   });
 });
 

@@ -26,22 +26,74 @@ import {
   WORKSPACE_QUERY_RESULT_BUDGET,
   WORKSPACE_REPLY_EXCERPT_MAX,
 } from "@/shared/types/workspace-perception";
-import type { Channel, Member } from "@/shared/types/workspace";
+import type {
+  Channel,
+  Member,
+  Tag,
+  TagPermission,
+} from "@/shared/types/workspace";
 import { db, type Message } from "./db";
 
 /**
- * The one visibility rule. A public channel is visible to the whole workspace
- * even before joining — that is how a colleague discovers where the work is
- * happening. A private channel or a DM is visible only to its members.
+ * Who is looking, reduced to what the visibility rule needs: the tags they
+ * hold and the permissions those tags grant. Resolved once per query rather
+ * than per channel, since it costs a table read.
  */
-export function canViewChannel(
-  viewerMemberId: string,
-  channel: Channel,
-): boolean {
-  if (channel.isPrivate || channel.kind === "dm") {
-    return channel.memberIds.includes(viewerMemberId);
+export interface Viewer {
+  memberId: string;
+  tags: string[];
+  permissions: Set<TagPermission>;
+}
+
+/** Reads the member and their tags' permissions. Unknown tags grant nothing. */
+export async function resolveViewer(memberId: string): Promise<Viewer> {
+  const [member, tagRows] = await Promise.all([
+    db.members.get(memberId),
+    // A workspace whose tag table is unreadable — an interrupted upgrade, a
+    // database from a build that predates tags — must still show its rooms.
+    // Failing here took the sidebar, the roster and the typing indicator with
+    // it, because every one of them hangs off this one call.
+    db.tags.toArray().catch(() => [] as Tag[]),
+  ]);
+  const tags = member?.tags ?? [];
+  const granted = new Set<TagPermission>();
+  for (const row of tagRows) {
+    if (!tags.includes(row.name)) continue;
+    for (const permission of row.permissions) granted.add(permission);
   }
-  return true;
+  return { memberId, tags, permissions: granted };
+}
+
+/**
+ * The one visibility rule, for humans and agents alike.
+ *
+ * A channel with no required tags is visible to the whole workspace even
+ * before joining — that is how a colleague discovers where the work is
+ * happening. A channel that names tags is visible only to members holding at
+ * least one of them, *whether or not they are in the room*: this governs
+ * discovery, so an untagged member cannot find it by listing or by search.
+ *
+ * DMs stay membership-based. A private conversation is not a room with an
+ * access policy, and a tag is not an invitation to read someone's mail.
+ *
+ * Admin is not special-cased here. It is simply the built-in tag that ships
+ * holding `channel:view-all`, so any tag granted that permission behaves the
+ * same way and the power is visible in the tag list rather than buried here.
+ */
+export function canViewChannel(viewer: Viewer, channel: Channel): boolean {
+  if (channel.kind === "dm") {
+    return channel.memberIds.includes(viewer.memberId);
+  }
+  const required = channel.visibleToTags ?? [];
+  if (required.length === 0) {
+    // Rows predating tags carry isPrivate and no required tags; honour it
+    // rather than silently publishing a room that used to be closed.
+    return channel.isPrivate
+      ? channel.memberIds.includes(viewer.memberId)
+      : true;
+  }
+  if (viewer.permissions.has("channel:view-all")) return true;
+  return required.some((tag) => viewer.tags.includes(tag));
 }
 
 function summarize(
@@ -54,7 +106,7 @@ function summarize(
     name: channel.name,
     group: channel.groupId ? (groupNames.get(channel.groupId) ?? null) : null,
     channelKind: channel.kind,
-    isPrivate: channel.isPrivate,
+    isPrivate: (channel.visibleToTags ?? []).length > 0 || !!channel.isPrivate,
     joined: channel.memberIds.includes(viewerMemberId),
     memberCount: channel.memberIds.length,
   };
@@ -131,13 +183,14 @@ function notFound(channelId: string): WorkspaceQueryResult {
 async function listChannels(
   viewerMemberId: string,
 ): Promise<WorkspaceQueryResult> {
-  const [channels, groups] = await Promise.all([
+  const [channels, groups, viewer] = await Promise.all([
     db.channels.toArray(),
     db.groups.toArray(),
+    resolveViewer(viewerMemberId),
   ]);
   const groupNames = new Map(groups.map((group) => [group.id, group.name]));
   const visible = channels
-    .filter((channel) => canViewChannel(viewerMemberId, channel))
+    .filter((channel) => canViewChannel(viewer, channel))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((channel) => summarize(viewerMemberId, channel, groupNames));
 
@@ -157,8 +210,11 @@ async function readChannel(
   channelId: string,
   limit: number,
 ): Promise<WorkspaceQueryResult> {
-  const channel = await db.channels.get(channelId);
-  if (!channel || !canViewChannel(viewerMemberId, channel)) {
+  const [channel, viewer] = await Promise.all([
+    db.channels.get(channelId),
+    resolveViewer(viewerMemberId),
+  ]);
+  if (!channel || !canViewChannel(viewer, channel)) {
     return notFound(channelId);
   }
 
@@ -228,8 +284,11 @@ export function registerWorkspaceSendMessage(
 async function sendMessage(
   query: WorkspaceSendMessageQuery,
 ): Promise<WorkspaceQueryResult> {
-  const channel = await db.channels.get(query.channelId);
-  if (!channel || !canViewChannel(query.viewerMemberId, channel)) {
+  const [channel, viewer] = await Promise.all([
+    db.channels.get(query.channelId),
+    resolveViewer(query.viewerMemberId),
+  ]);
+  if (!channel || !canViewChannel(viewer, channel)) {
     return notFound(query.channelId);
   }
   if (query.replyToMessageId) {

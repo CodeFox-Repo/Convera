@@ -17,7 +17,62 @@ export interface Member {
   /** Set when kind === "agent"; points at the `agents` table. */
   agentId: string | null;
   status: "idle" | "working" | "offline";
+  /**
+   * What this member is, in the org's own words: `admin`, `hr`, `oncall`.
+   *
+   * Humans and agents carry the same tags from the same list. An agent is a
+   * colleague, not a feature — it differs in how you talk to it, not in what
+   * it is allowed to see, so nothing here special-cases `kind`.
+   */
+  tags?: string[];
 }
+
+/**
+ * A role, and what holding it permits.
+ *
+ * Tags are free-form strings on a member; a Tag row exists for the ones the
+ * workspace has named, so they can be listed, described and given powers.
+ * A tag with no row still works for visibility — it simply grants nothing.
+ */
+export interface Tag {
+  id: string;
+  workspaceId: string;
+  /** Lowercase, stable; what `Member.tags` and `Channel.visibleToTags` store. */
+  name: string;
+  description?: string;
+  permissions: TagPermission[];
+  /** Built-in tags cannot be deleted or renamed. */
+  isBuiltIn?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Powers a tag may grant. Deliberately a closed list: a permission nobody
+ * enforces is a lie, so each entry here is checked somewhere.
+ */
+export const TAG_PERMISSIONS = [
+  /** See and search every channel, whatever its tags require. */
+  "channel:view-all",
+  /** Create, rename and delete channels and groups. */
+  "channel:manage",
+  /** Change who holds which tag, and what tags permit. */
+  "tag:manage",
+  /** Hire, configure and dismiss agents. */
+  "agent:manage",
+] as const;
+
+export type TagPermission = (typeof TAG_PERMISSIONS)[number];
+
+export const TAG_PERMISSION_LABELS: Record<TagPermission, string> = {
+  "channel:view-all": "View every channel",
+  "channel:manage": "Manage channels and groups",
+  "tag:manage": "Manage tags and who holds them",
+  "agent:manage": "Manage agents",
+};
+
+/** The one tag that exists in every workspace, holding every permission. */
+export const ADMIN_TAG = "admin";
 
 /**
  * Filesystem boundary for one agent.
@@ -76,7 +131,23 @@ export interface Channel {
   groupId: string | null;
   name: string;
   kind: "channel" | "dm";
-  isPrivate: boolean;
+  /**
+   * Which tags may see this channel. Empty (or absent) means the whole
+   * workspace can — a public room you have not joined yet is how a colleague
+   * discovers where the work is happening.
+   *
+   * This governs *discovery*, not just entry: a channel you lack the tag for
+   * does not appear in listings or search, and asking for it by id returns
+   * the same error as a channel that does not exist. Holding any one of the
+   * listed tags is enough.
+   */
+  visibleToTags?: string[];
+  /**
+   * Superseded by `visibleToTags`; retained so rows written before the
+   * migration still read correctly if one is ever missed.
+   * @deprecated
+   */
+  isPrivate?: boolean;
   /** Member ids; who can be @-mentioned here. */
   memberIds: string[];
   /** Backing conversation holding this channel's messages. */

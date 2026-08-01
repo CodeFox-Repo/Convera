@@ -6,7 +6,7 @@ import type {
 import type { Channel, Member } from "@/shared/types/workspace";
 import { buildChannelContext, projectFor } from "./agent-projection";
 import { db, LOCAL_HUMAN_MEMBER_ID, type Agent, type Message } from "./db";
-import { canViewChannel } from "./workspace-perception";
+import { canViewChannel, resolveViewer } from "./workspace-perception";
 
 export interface AgentContextVisibleChannel {
   id: string;
@@ -123,6 +123,9 @@ export async function inspectAgentDMContext(
     ? `${identityPrompt}\n\n${channelContext}`
     : channelContext;
   const allMembers = await db.members.toArray();
+  // The inspector shows what this agent can see, so it must resolve the
+  // agent's own tags rather than the operator's.
+  const viewer = await resolveViewer(member.id);
   const runtimeErrors: string[] = [];
   let runtimeConversation: LocalAIConversationRuntimeState | null = null;
   let memoryStatus: LocalAIMemoryStatus | null = null;
@@ -187,13 +190,14 @@ export async function inspectAgentDMContext(
     },
     available: {
       visibleChannels: channels
-        .filter((candidate) => canViewChannel(member.id, candidate))
+        .filter((candidate) => canViewChannel(viewer, candidate))
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((candidate) => ({
           id: candidate.id,
           name: candidate.name,
           kind: candidate.kind,
-          isPrivate: candidate.isPrivate,
+          isPrivate:
+            (candidate.visibleToTags ?? []).length > 0 || !!candidate.isPrivate,
         })),
       workspaceTools: ["list_channels", "read_channel", "send_message"],
       configuredMcpServerIds: [...(agent.selectedMCPs ?? [])],

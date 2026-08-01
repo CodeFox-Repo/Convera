@@ -14,15 +14,18 @@ import type {
   Channel,
   Group,
   Member,
+  Tag,
   Workspace,
 } from "@/shared/types/workspace";
+import { ADMIN_TAG, TAG_PERMISSIONS } from "@/shared/types/workspace";
+import type { AgentTrace } from "../agent-trace";
 import Dexie, { type EntityTable, type Transaction } from "dexie";
 import {
   migrateConversationRecordToV2,
   migrateMessageRecordToV2,
 } from "./database-migrations";
 
-export type { Channel, Group, Member, Workspace };
+export type { Channel, Group, Member, Tag, Workspace };
 
 // ==================== Data Models ====================
 
@@ -201,6 +204,21 @@ export const LOCAL_HUMAN_MEMBER: Member = {
   avatar: null,
   agentId: null,
   status: "idle",
+  // Whoever is running the app owns it. Without this a fresh workspace could
+  // have a channel nobody — including its creator — is able to open.
+  tags: [ADMIN_TAG],
+};
+
+/** Ships with every workspace; holds every permission and cannot be removed. */
+export const ADMIN_TAG_ROW: Tag = {
+  id: ADMIN_TAG,
+  workspaceId: LOCAL_WORKSPACE_ID,
+  name: ADMIN_TAG,
+  description: "Full access to every channel and setting.",
+  permissions: [...TAG_PERMISSIONS],
+  isBuiltIn: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 export function memberForAgent(agent: Pick<Agent, "id" | "name">): Member {
@@ -243,6 +261,8 @@ export class ConveraDB extends Dexie {
   workspaces!: EntityTable<Workspace, "id">;
   groups!: EntityTable<Group, "id">;
   channels!: EntityTable<Channel, "id">;
+  tags!: EntityTable<Tag, "id">;
+  agentTraces!: EntityTable<AgentTrace, "id">;
 
   constructor() {
     super("convera");
@@ -369,12 +389,106 @@ export class ConveraDB extends Dexie {
           .put(LOCAL_WORKSPACE);
       });
 
+    // v9: tags. A channel's audience is now the tags it names rather than a
+    // private flag, and the same tags decide what a member may do. Existing
+    // private channels keep their exact audience by being pinned to a tag
+    // held by precisely their current members — nobody gains sight of a room
+    // they could not already see, which is the only safe way to migrate a
+    // visibility rule.
+    this.version(9)
+      .stores({ tags: "id, workspaceId, name" })
+      .upgrade(async (transaction) => {
+        const tags = transaction.table<Tag, string>("tags");
+        const members = transaction.table<Member, string>("members");
+        const channels = transaction.table<Channel, string>("channels");
+        const now = new Date();
+
+        await tags.put({
+          id: ADMIN_TAG,
+          workspaceId: LOCAL_WORKSPACE_ID,
+          name: ADMIN_TAG,
+          description: "Full access to every channel and setting.",
+          permissions: [...TAG_PERMISSIONS],
+          isBuiltIn: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+        // The person running this app is its administrator; agents are not,
+        // until someone says so.
+        await members
+          .where("kind")
+          .equals("human")
+          .modify((member) => {
+            member.tags = [...new Set([...(member.tags ?? []), ADMIN_TAG])];
+          });
+
+        // Everything is read first and written second. A Dexie transaction
+        // commits once its microtask queue drains, so interleaving reads
+        // between writes can abandon the upgrade half-done — and a failed
+        // upgrade rejects `db.open()`, which silently kills every live query
+        // in the app rather than just this migration.
+        const [allChannels, allMembers] = await Promise.all([
+          channels.toArray(),
+          members.toArray(),
+        ]);
+        const closed = allChannels.filter(
+          (channel) => channel.isPrivate && channel.kind !== "dm",
+        );
+        const grants = new Map<string, Set<string>>(
+          allMembers.map((member) => [
+            member.id,
+            // The person running the app owns it; agents hold nothing until
+            // someone says so.
+            new Set([
+              ...(member.tags ?? []),
+              ...(member.kind === "human" ? [ADMIN_TAG] : []),
+            ]),
+          ]),
+        );
+        for (const channel of closed) {
+          const name = `channel-${channel.id}`;
+          for (const memberId of channel.memberIds) {
+            grants.get(memberId)?.add(name);
+          }
+        }
+
+        await Promise.all([
+          ...closed.map((channel) =>
+            tags.put({
+              id: `channel-${channel.id}`,
+              workspaceId: channel.workspaceId,
+              name: `channel-${channel.id}`,
+              description: `Members of #${channel.name} before tags existed.`,
+              permissions: [],
+              createdAt: now,
+              updatedAt: now,
+            }),
+          ),
+          ...closed.map((channel) =>
+            channels.update(channel.id, {
+              visibleToTags: [`channel-${channel.id}`],
+            }),
+          ),
+          ...[...grants].map(([id, held]) =>
+            members.update(id, { tags: [...held] }),
+          ),
+        ]);
+      });
+
+    // v10: what each turn actually did. Purely diagnostic — a turn that shows
+    // as typing and then says nothing is otherwise indistinguishable from one
+    // that was never asked, and both have cost real time to chase.
+    this.version(10).stores({
+      agentTraces: "id, conversationId, memberId, startedAt",
+    });
+
     // A database created fresh at the latest version never runs upgrade hooks,
-    // so the local human member and default workspace must also be seeded on
-    // populate.
+    // so the local human member, default workspace and built-in tag must also
+    // be seeded on populate.
     this.on("populate", (tx) => {
       void tx.table<Member, string>("members").put(LOCAL_HUMAN_MEMBER);
       void tx.table<Workspace, string>("workspaces").put(LOCAL_WORKSPACE);
+      void tx.table<Tag, string>("tags").put(ADMIN_TAG_ROW);
     });
   }
 }
