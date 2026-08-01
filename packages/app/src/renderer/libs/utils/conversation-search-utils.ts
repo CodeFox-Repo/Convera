@@ -1,4 +1,32 @@
-import type { Conversation, Message } from "../db/database";
+import type { Channel, Conversation, Message } from "../db/database";
+
+/** Conversation title results, then message results. Both capped. */
+const MAX_CONVERSATION_RESULTS = 10;
+const MAX_MESSAGE_RESULTS = 40;
+
+/**
+ * Conversation ids search must not look inside.
+ *
+ * A tag-hidden channel is hidden from *discovery*, not just from entry, so
+ * search has to ask the same question the sidebar asks — hence visible
+ * channels come from `canViewChannel` upstream rather than a second rule
+ * reimplemented here. A conversation backed by no channel is a plain chat and
+ * always the local user's own.
+ */
+export function hiddenConversationIds(
+  allChannels: ReadonlyArray<Pick<Channel, "conversationId">>,
+  visibleChannels: ReadonlyArray<Pick<Channel, "conversationId">>,
+): Set<string> {
+  const visible = new Set(
+    visibleChannels.map((channel) => channel.conversationId),
+  );
+  const hidden = new Set<string>();
+  for (const channel of allChannels) {
+    if (!visible.has(channel.conversationId))
+      hidden.add(channel.conversationId);
+  }
+  return hidden;
+}
 
 /**
  * Load and memoize a uFuzzy instance for conversation search
@@ -87,6 +115,14 @@ export interface SearchResult {
   conversationId: string;
   conversationTitle: string | null;
   messageId?: string;
+  /**
+   * Member.id of the speaker, when the row carries one. The *name* is resolved
+   * at render time: a member renamed after this result was computed should read
+   * as who they are now, and search has no business caching identity.
+   */
+  senderId?: string;
+  /** Falls back to `role` for rows written before senderId existed. */
+  senderRole?: Message["role"];
   matchedText: string;
   updatedAt: Date;
 }
@@ -114,7 +150,11 @@ export async function searchConversationsAndMessages(
     if (titleResult && titleResult[1]?.idx && titleResult[2]) {
       const order = titleResult[2];
       const idx = titleResult[1].idx;
-      for (let i = 0; i < Math.min(order.length, 5); i++) {
+      for (
+        let i = 0;
+        i < Math.min(order.length, MAX_CONVERSATION_RESULTS);
+        i++
+      ) {
         const convIndex = idx[order[i]];
         const conv = conversations[convIndex];
         if (conv && conv.title) {
@@ -137,7 +177,7 @@ export async function searchConversationsAndMessages(
     if (messageResult && messageResult[1]?.idx && messageResult[2]) {
       const order = messageResult[2];
       const idx = messageResult[1].idx;
-      for (let i = 0; i < Math.min(order.length, 10); i++) {
+      for (let i = 0; i < Math.min(order.length, MAX_MESSAGE_RESULTS); i++) {
         const msgIndex = idx[order[i]];
         const msg = messages[msgIndex];
         if (msg) {
@@ -152,6 +192,8 @@ export async function searchConversationsAndMessages(
             conversationId: msg.conversationId,
             conversationTitle: conv?.title || null,
             messageId: msg.id,
+            ...(msg.senderId ? { senderId: msg.senderId } : {}),
+            senderRole: msg.role,
             matchedText,
             updatedAt: msg.createdAt,
           });
@@ -187,7 +229,11 @@ function fallbackSearch(
         matchedText: conv.title,
         updatedAt: conv.updatedAt,
       });
-      if (results.filter((r) => r.type === "conversation").length >= 5) break;
+      if (
+        results.filter((r) => r.type === "conversation").length >=
+        MAX_CONVERSATION_RESULTS
+      )
+        break;
     }
   }
 
@@ -201,10 +247,16 @@ function fallbackSearch(
         conversationId: msg.conversationId,
         conversationTitle: conv?.title || null,
         messageId: msg.id,
+        ...(msg.senderId ? { senderId: msg.senderId } : {}),
+        senderRole: msg.role,
         matchedText: extractMatchContext(plain, normalizedQuery),
         updatedAt: msg.createdAt,
       });
-      if (results.filter((r) => r.type === "message").length >= 10) break;
+      if (
+        results.filter((r) => r.type === "message").length >=
+        MAX_MESSAGE_RESULTS
+      )
+        break;
     }
   }
 

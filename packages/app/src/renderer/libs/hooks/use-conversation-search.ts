@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useConversations, getRecentMessagesForSearch } from "../db/hooks";
+import { useChannels, useVisibleChannels } from "../stores/channel-store";
 import {
+  hiddenConversationIds,
   searchConversationsAndMessages,
   type SearchResult,
 } from "../utils/conversation-search-utils";
@@ -23,11 +25,20 @@ export function useConversationSearch(): UseConversationSearchReturn {
   const [isSearching, setIsSearching] = useState(false);
 
   const conversations = useConversations();
+  const allChannels = useChannels();
+  const visibleChannels = useVisibleChannels();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const performSearch = useCallback(
     async (searchQuery: string) => {
-      if (!searchQuery.trim() || !conversations) {
+      // Both channel lists gate visibility, so searching before they load
+      // would either leak a hidden room or blank every result.
+      if (
+        !searchQuery.trim() ||
+        !conversations ||
+        !allChannels ||
+        !visibleChannels
+      ) {
         setResults([]);
         setIsSearching(false);
         return;
@@ -36,11 +47,14 @@ export function useConversationSearch(): UseConversationSearchReturn {
       setIsSearching(true);
 
       try {
+        // A room you cannot see must not be findable by searching inside it,
+        // so drop its conversation before matching rather than after.
+        const hidden = hiddenConversationIds(allChannels, visibleChannels);
         const messages = await getRecentMessagesForSearch(1000);
         const searchResults = await searchConversationsAndMessages(
           searchQuery,
-          conversations,
-          messages,
+          conversations.filter((c) => !hidden.has(c.id)),
+          messages.filter((m) => !hidden.has(m.conversationId)),
         );
         setResults(searchResults);
       } catch (error) {
@@ -50,7 +64,7 @@ export function useConversationSearch(): UseConversationSearchReturn {
         setIsSearching(false);
       }
     },
-    [conversations],
+    [conversations, allChannels, visibleChannels],
   );
 
   useEffect(() => {

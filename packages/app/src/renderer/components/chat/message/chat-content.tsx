@@ -14,6 +14,7 @@ import { useMembers } from "@/renderer/libs/stores/member-store";
 import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { resolveSenderName } from "@/renderer/libs/chat-labels";
+import { revealMessage } from "@/renderer/libs/utils/reveal-message";
 
 interface ChatContentProps {
   messages: UIMessage[];
@@ -352,10 +353,7 @@ export default function ChatContent({
           replyTarget={replyTarget}
           onOpenReplyTarget={() => {
             if (!replyTarget) return;
-            const target = document.querySelector<HTMLElement>(
-              `[data-message-id="${CSS.escape(replyTarget.id)}"]`,
-            );
-            target?.scrollIntoView({ behavior: "smooth", block: "center" });
+            revealMessage(replyTarget.id);
           }}
           renderContent={content}
         />
