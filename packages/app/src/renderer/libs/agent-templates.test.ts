@@ -28,6 +28,12 @@ describe("agent templates", () => {
     expect(AGENT_TEMPLATES.length).toBeGreaterThanOrEqual(8);
     for (const template of AGENT_TEMPLATES) {
       expect(template.systemPrompt.length).toBeGreaterThan(80);
+      // A persona has to carry a voice as well as a job, or cheap models make
+      // every colleague sound the same — and it has to stay short enough that
+      // the persona does not drown out the room it is standing in.
+      expect(template.systemPrompt.split(/\s+/).length).toBeLessThanOrEqual(
+        120,
+      );
       expect(template.tags.length).toBeGreaterThan(0);
       expect(template.avatar).not.toBe("");
     }
@@ -300,6 +306,53 @@ describe("legacy starter rename", () => {
     const after = await db.agents.get(mine.id);
     expect(after?.name).toBe("Kit");
     expect(after?.systemPrompt).toContain("Kit signs off as Kit");
+  });
+
+  it("renames a mascot-era starter still holding a prompt from an older release", async () => {
+    // The rename recognises a starter by its prompt, so editing the catalogue
+    // would otherwise strand every workspace seeded before the edit: their
+    // text matches no template and they keep the mascot name forever.
+    const shippedBeforeVoices =
+      "You are Sage, a senior code reviewer. Read the change as the person who will maintain it in a year: name the specific line, say what breaks, and propose the smaller edit. Lead with correctness and failure modes, then naming and structure; skip praise and style nits the formatter already handles. If the change looks right, say so in one line instead of manufacturing findings.";
+    await ensureStarterTeam();
+    const elena = (await db.agents.toArray()).find((a) => a.name === "Elena")!;
+    await db.agents.update(elena.id, {
+      name: "Sage",
+      systemPrompt: shippedBeforeVoices,
+    });
+    await db.members.update(memberIdForAgent(elena.id), { name: "Sage" });
+    await db.settings.delete("starterTeamSeeded");
+
+    await ensureStarterTeam();
+
+    const after = await db.agents.get(elena.id);
+    expect(after?.name).toBe("Elena");
+    expect(after?.systemPrompt).toBe(AGENT_TEMPLATES[0].systemPrompt);
+  });
+
+  it("upgrades an untouched older prompt in place, and never an edited one", async () => {
+    await ensureStarterTeam();
+    const rows = await db.agents.toArray();
+    const elenaRow = rows.find((a) => a.name === "Elena")!;
+    const mikaRow = rows.find((a) => a.name === "Mika")!;
+
+    // One workspace-aged row still on the previous shipped text, one the user
+    // has made their own.
+    await db.agents.update(elenaRow.id, {
+      systemPrompt:
+        "You are Elena, a senior code reviewer. Read the change as the person who will maintain it in a year: name the specific line, say what breaks, and propose the smaller edit. Lead with correctness and failure modes, then naming and structure; skip praise and style nits the formatter already handles. If the change looks right, say so in one line instead of manufacturing findings.",
+    });
+    await db.agents.update(mikaRow.id, { systemPrompt: "You are Mika. Be terse." });
+    await db.settings.delete("starterTeamSeeded");
+
+    await ensureStarterTeam();
+
+    expect((await db.agents.get(elenaRow.id))?.systemPrompt).toBe(
+      AGENT_TEMPLATES[0].systemPrompt,
+    );
+    expect((await db.agents.get(mikaRow.id))?.systemPrompt).toBe(
+      "You are Mika. Be terse.",
+    );
   });
 
   it("renames a genuine shipped starter, prompt and member row included", async () => {

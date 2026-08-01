@@ -412,6 +412,20 @@ describe("open-floor peer awareness", () => {
     expect(context).not.toContain("designated responder");
   });
 
+  it("makes the echo test explicit: replace a generic pleasantry or stay out", () => {
+    // "大家好" landed on three colleagues at once and two of them returned the
+    // same sentence. Knowing a peer might say the same thing was not enough —
+    // the prompt has to name the check to run before posting.
+    const context = buildChannelContext(fizz, "general", room, true, [
+      { id: fizz.id, name: "Fizz" },
+      { id: noah.id, name: "Noah", description: "Writes the docs" },
+    ]);
+
+    expect(context).toContain("read your own sentence back");
+    expect(context).toContain("generic pleasantry");
+    expect(context).toContain("something only you would say");
+  });
+
   it("does not claim company when nobody else was offered", () => {
     const context = buildChannelContext(fizz, "docs", room, true, [
       { id: fizz.id, name: "Fizz" },
