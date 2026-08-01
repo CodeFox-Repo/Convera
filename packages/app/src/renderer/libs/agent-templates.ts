@@ -6,7 +6,7 @@
  * durable entity, the member is how it shows up).
  */
 
-import type { AgentTemplate } from "@/shared/types/workspace";
+import type { AgentTemplate, Channel } from "@/shared/types/workspace";
 import { TEMPLATE_AVATARS } from "./template-avatars";
 import {
   db,
@@ -518,6 +518,47 @@ export async function hireTemplate(
 export async function ensureLocalHumanMember(): Promise<void> {
   if (await db.members.get(LOCAL_HUMAN_MEMBER_ID)) return;
   await db.members.put(LOCAL_HUMAN_MEMBER);
+}
+
+/**
+ * What firing this colleague actually takes with them, in one sentence.
+ *
+ * "Removed along with its identity" is true of anyone and tells you nothing;
+ * the rooms they answer in and the 1:1 you have been having with them are the
+ * part you would regret. Derived from the channel rows rather than stored, so
+ * it cannot drift from what `deleteAgent` will delete.
+ */
+export function describeAgentRemoval(
+  name: string,
+  memberId: string,
+  channels: Pick<
+    Channel,
+    "kind" | "name" | "memberIds" | "defaultAgentMemberId"
+  >[],
+): string {
+  const mine = channels.filter((channel) =>
+    channel.memberIds.includes(memberId),
+  );
+  const rooms = mine.filter((channel) => channel.kind === "channel");
+  const responderFor = rooms
+    .filter((channel) => channel.defaultAgentMemberId === memberId)
+    .map((channel) => channel.name);
+  const hasDM = mine.some((channel) => channel.kind === "dm");
+
+  const facts: string[] = [];
+  if (rooms.length > 0) {
+    const responder =
+      responderFor.length > 0
+        ? ` (default responder in ${responderFor.join(", ")})`
+        : "";
+    facts.push(
+      `is in ${rooms.length} channel${rooms.length === 1 ? "" : "s"}${responder}`,
+    );
+  }
+  if (hasDM) facts.push("has a direct message history with you");
+
+  const footprint = facts.length > 0 ? `${name} ${facts.join(" and ")}. ` : "";
+  return `${footprint}${name} is deleted from this workspace along with its identity and its 1:1 room. Existing messages keep their history.`;
 }
 
 /** Removes an agent from the org: its member identity goes with it. */

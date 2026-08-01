@@ -1,10 +1,12 @@
 import { Badge } from "@/renderer/components/ui/badge";
 import { Button } from "@/renderer/components/ui/button";
 import {
+  describeAgentRemoval,
   ensureLocalHumanMember,
   fireAgent,
 } from "@/renderer/libs/agent-templates";
 import { useAgents } from "@/renderer/libs/db";
+import { useChannels } from "@/renderer/libs/stores/channel-store";
 import { useMembers, type Member } from "@/renderer/libs/stores/member-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { UserMinus, Users } from "lucide-react";
@@ -71,6 +73,7 @@ function RosterRow({
 export function OrgRosterPage() {
   const members = useMembers();
   const agents = useAgents();
+  const channels = useChannels();
   const [pending, setPending] = useState<Member | null>(null);
 
   useEffect(() => {
@@ -139,7 +142,11 @@ export function OrgRosterPage() {
       <ConfirmDialog
         open={pending !== null}
         title={`Remove ${pending?.name ?? ""}?`}
-        description={`${pending?.name ?? ""} is deleted from this workspace along with its identity. Existing messages keep their history.`}
+        description={
+          pending
+            ? describeAgentRemoval(pending.name, pending.id, channels ?? [])
+            : ""
+        }
         confirmLabel="Fire"
         destructive
         onConfirm={confirmFire}

@@ -667,6 +667,23 @@ async function syncAgentMember(agent: Pick<Agent, "id" | "name">) {
     name: member.name,
     agentId: member.agentId,
   });
+  // A DM row carries the agent's name as its own, and the channel header and
+  // search results render that copy rather than the member. Left alone, a
+  // rename leaves the old name on the room they are standing in.
+  const dms = await db.channels
+    .filter(
+      (channel) =>
+        channel.kind === "dm" &&
+        channel.defaultAgentMemberId === member.id &&
+        channel.name !== member.name,
+    )
+    .toArray();
+  for (const dm of dms) {
+    await db.channels.update(dm.id, {
+      name: member.name,
+      updatedAt: new Date(),
+    });
+  }
 }
 
 export async function createAgent(
@@ -686,7 +703,7 @@ export async function createAgent(
     createdAt: now,
     updatedAt: now,
   };
-  await db.transaction("rw", [db.agents, db.members], async () => {
+  await db.transaction("rw", [db.agents, db.members, db.channels], async () => {
     await db.agents.add(agent);
     await syncAgentMember(agent);
   });
@@ -702,7 +719,7 @@ export async function updateAgent(
     // Cannot update built-in agent
     return;
   }
-  await db.transaction("rw", [db.agents, db.members], async () => {
+  await db.transaction("rw", [db.agents, db.members, db.channels], async () => {
     await db.agents.update(id, {
       ...updates,
       updatedAt: new Date(),

@@ -11,15 +11,28 @@ import {
 import { Input } from "@/renderer/components/ui/input";
 import { Label } from "@/renderer/components/ui/label";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/renderer/components/ui/popover";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/renderer/components/ui/tooltip";
+import { FullEmojiPicker } from "@/renderer/components/common/emoji-picker";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { ConfirmDialog } from "@/renderer/components/talent/confirm-dialog";
-import { memberIdForAgent } from "@/renderer/libs/db";
-import { useMember } from "@/renderer/libs/stores/member-store";
+import { describeAgentRemoval } from "@/renderer/libs/agent-templates";
+import { memberForAgent, memberIdForAgent } from "@/renderer/libs/db";
+import { useChannels } from "@/renderer/libs/stores/channel-store";
+import {
+  getMember,
+  updateMemberProfile,
+  useMember,
+  type Member,
+} from "@/renderer/libs/stores/member-store";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
 import { useAgentStore, type Agent } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
@@ -34,11 +47,13 @@ import {
   Plus,
   Server,
   Settings,
+  Smile,
   Trash2,
   Zap,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { fileToAvatarDataUrl } from "../profile-avatar";
 
 interface AgentsSettingsPageProps {
   onNavigateToMcp: () => void;
@@ -51,7 +66,21 @@ interface AgentFormData {
   /** "" follows the conversation's own selection. */
   providerId: string;
   modelId: string;
+  /**
+   * Emoji or 128px `data:` URL. Lives on the Member row, not the Agent — it is
+   * carried through the form so create and edit look the same to the user.
+   */
+  avatar: string | null;
 }
+
+const EMPTY_AGENT_FORM: AgentFormData = {
+  name: "",
+  description: "",
+  systemPrompt: "",
+  providerId: "",
+  modelId: "",
+  avatar: null,
+};
 
 /** Encodes provider+model as one select value, since they only vary together. */
 const MODEL_VALUE_SEPARATOR = "::";
@@ -97,6 +126,102 @@ const AGENT_TEMPLATES = [
   },
 ];
 
+/**
+ * A face for a colleague you wrote yourself. Templates ship with a portrait;
+ * without this a custom agent is a grey glyph in every channel it speaks in.
+ */
+const AvatarField = ({
+  form,
+  onChange,
+}: {
+  form: AgentFormData;
+  onChange: (form: AgentFormData) => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const preview: Member = {
+    ...memberForAgent({ id: "preview", name: form.name }),
+    avatar: form.avatar,
+  };
+
+  const pickImage = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    try {
+      onChange({ ...form, avatar: await fileToAvatarDataUrl(file) });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not read that image.",
+      );
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <MemberAvatar
+          member={preview}
+          isHuman={false}
+          className="size-12 text-base"
+          fallback={<Bot className="h-5 w-5 text-primary" />}
+        />
+        <div>
+          <Label className="text-foreground">Avatar</Label>
+          <p className="text-xs text-muted-foreground">
+            {error ?? "An emoji, or an image cropped square at 128px."}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="border-border">
+              <Smile className="h-4 w-4" />
+              Emoji
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto overflow-hidden p-1">
+            <FullEmojiPicker
+              onPick={(emoji) => {
+                onChange({ ...form, avatar: emoji });
+                setEmojiOpen(false);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            void pickImage(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-border"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Image
+        </Button>
+        {form.avatar && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange({ ...form, avatar: null })}
+          >
+            Remove
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AgentFormFields = ({
   form,
   onChange,
@@ -113,6 +238,8 @@ const AgentFormFields = ({
 
   return (
     <div className="space-y-4">
+      <AvatarField form={form} onChange={onChange} />
+
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}agent-name`} className="text-foreground">
           Name
@@ -447,13 +574,7 @@ export function AgentsSettingsPage({
   const [loadingMcpTools, setLoadingMcpTools] = useState<
     Record<string, boolean>
   >({});
-  const [agentForm, setAgentForm] = useState<AgentFormData>({
-    name: "",
-    description: "",
-    systemPrompt: "",
-    providerId: "",
-    modelId: "",
-  });
+  const [agentForm, setAgentForm] = useState<AgentFormData>(EMPTY_AGENT_FORM);
 
   const {
     availableAgents,
@@ -465,6 +586,8 @@ export function AgentsSettingsPage({
 
   const { mcpServerConfigs, fetchMcpConfigurations, getMcpServerTools } =
     useMcpStore();
+
+  const channels = useChannels();
 
   useEffect(() => {
     fetchAgents();
@@ -497,13 +620,7 @@ export function AgentsSettingsPage({
     setSelectedTemplate(null);
     setSelectedMcpServers([]);
     setDisabledTools([]);
-    setAgentForm({
-      name: "",
-      description: "",
-      systemPrompt: "",
-      providerId: "",
-      modelId: "",
-    });
+    setAgentForm(EMPTY_AGENT_FORM);
     setEditingAgent(null);
   };
 
@@ -517,11 +634,10 @@ export function AgentsSettingsPage({
     if (template) {
       setSelectedTemplate(templateId);
       setAgentForm({
+        ...EMPTY_AGENT_FORM,
         name: template.name,
         description: template.description,
         systemPrompt: template.systemPrompt,
-        providerId: "",
-        modelId: "",
       });
       setDisabledTools([]);
       setEditingAgent(null);
@@ -530,13 +646,7 @@ export function AgentsSettingsPage({
 
   const handleCustomAgentSelect = () => {
     setSelectedTemplate("custom");
-    setAgentForm({
-      name: "",
-      description: "",
-      systemPrompt: "",
-      providerId: "",
-      modelId: "",
-    });
+    setAgentForm(EMPTY_AGENT_FORM);
     setSelectedMcpServers([]);
     setDisabledTools([]);
     setEditingAgent(null);
@@ -564,7 +674,12 @@ export function AgentsSettingsPage({
         })),
       } as Partial<Agent>;
 
-      await createAgent(agentData as Agent);
+      const created = await createAgent(agentData as Agent);
+      if (agentForm.avatar) {
+        await updateMemberProfile(memberIdForAgent(created.id), {
+          avatar: agentForm.avatar,
+        });
+      }
       toast.success("Agent created successfully");
       setIsCreateDialogOpen(false);
     } catch (err) {
@@ -574,14 +689,16 @@ export function AgentsSettingsPage({
     }
   };
 
-  const handleEditAgent = (agent: Agent) => {
+  const handleEditAgent = async (agent: Agent) => {
     setEditingAgent(agent);
+    const member = await getMember(memberIdForAgent(agent.id));
     setAgentForm({
       name: agent.name,
       description: agent.description,
       systemPrompt: agent.systemPrompt || "",
       providerId: agent.providerId ?? "",
       modelId: agent.modelId ?? "",
+      avatar: member?.avatar ?? null,
     });
     setSelectedMcpServers(agent.selectedMCPs || []);
     setDisabledTools(
@@ -621,6 +738,10 @@ export function AgentsSettingsPage({
       };
 
       await updateAgent(updatedAgent);
+      // `updateAgent` syncs the member's name; the portrait is only ours.
+      await updateMemberProfile(memberIdForAgent(editingAgent.id), {
+        avatar: agentForm.avatar,
+      });
       toast.success("Agent updated successfully");
       setIsEditDialogOpen(false);
     } catch (err) {
@@ -871,7 +992,7 @@ export function AgentsSettingsPage({
                   agent={agent}
                   enabledToolsCount={getEnabledToolsCount(agent)}
                   isLast={index === availableAgents.length - 1}
-                  onEdit={handleEditAgent}
+                  onEdit={(target) => void handleEditAgent(target)}
                   onDelete={setPendingDelete}
                 />
               ))}
@@ -1019,7 +1140,15 @@ export function AgentsSettingsPage({
       <ConfirmDialog
         open={pendingDelete !== null}
         title={`Delete ${pendingDelete?.name ?? ""}?`}
-        description={`${pendingDelete?.name ?? ""} is removed from this workspace along with their identity, their channel memberships and their 1:1 chat. Messages they already sent keep their history.`}
+        description={
+          pendingDelete
+            ? describeAgentRemoval(
+                pendingDelete.name,
+                memberIdForAgent(pendingDelete.id),
+                channels ?? [],
+              )
+            : ""
+        }
         confirmLabel="Delete"
         destructive
         onConfirm={() => void confirmDeleteAgent()}
