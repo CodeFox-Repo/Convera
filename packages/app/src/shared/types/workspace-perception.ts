@@ -121,6 +121,13 @@ export interface WorkspaceChannelMessage {
     content: string | null;
   };
   /**
+   * How many messages answered this one, counted over the whole channel rather
+   * than the returned window — a colleague scrolling back can see a line drew
+   * a thread even when the answers are further down than they read. Absent when
+   * nobody replied, so an unanswered message costs nothing in the budget.
+   */
+  replyCount?: number;
+  /**
    * Who reacted with what, by name — the same thing a person sees hovering a
    * chip. Absent when nobody has reacted, so an unreacted message costs
    * nothing in the budget.

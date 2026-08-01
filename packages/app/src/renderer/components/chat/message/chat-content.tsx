@@ -15,6 +15,7 @@ import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
 import { useSelectionStore } from "@/renderer/libs/db/ui-state";
 import { resolveSenderName } from "@/renderer/libs/chat-labels";
 import { revealMessage } from "@/renderer/libs/utils/reveal-message";
+import { groupRepliesByParent } from "@/renderer/libs/utils/reply-threads";
 
 interface ChatContentProps {
   messages: UIMessage[];
@@ -275,6 +276,7 @@ export default function ChatContent({
     const messagesById = new Map(
       messages.map((message) => [message.id, message]),
     );
+    const repliesByParent = groupRepliesByParent(messages);
 
     return messages.map((message, index) => {
       const isLastMessage = index === messages.length - 1;
@@ -354,6 +356,11 @@ export default function ChatContent({
           onOpenReplyTarget={() => {
             if (!replyTarget) return;
             revealMessage(replyTarget.id);
+          }}
+          replyCount={repliesByParent.get(message.id)?.length ?? 0}
+          onOpenReplies={() => {
+            const first = repliesByParent.get(message.id)?.[0];
+            if (first) revealMessage(first);
           }}
           renderContent={content}
         />

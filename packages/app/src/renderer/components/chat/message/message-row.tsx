@@ -1,6 +1,6 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { FullEmojiPicker } from "@/renderer/components/common/emoji-picker";
-import { CornerUpLeft } from "lucide-react";
+import { CornerDownRight, CornerUpLeft } from "lucide-react";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { MemberCard } from "@/renderer/components/common/member-card";
 import {
@@ -63,6 +63,9 @@ export interface MessageRowProps {
     content: string;
   } | null;
   onOpenReplyTarget: () => void;
+  /** How many later messages answered this one; 0 hides the thread line. */
+  replyCount: number;
+  onOpenReplies: () => void;
   renderContent: React.ReactNode;
 }
 
@@ -185,6 +188,8 @@ const MessageRow = memo(
     onBranch,
     replyTarget,
     onOpenReplyTarget,
+    replyCount,
+    onOpenReplies,
     renderContent,
   }: MessageRowProps) => {
     const isUser = message.role === "user";
@@ -349,6 +354,29 @@ const MessageRow = memo(
                   messageId={message.id}
                   reactions={message.reactions}
                 />
+              )}
+
+              {replyCount > 0 && !isEditing && (
+                // The other half of the reply reference: a reply names its
+                // parent, so the parent should say it drew answers. Clicking
+                // walks to the first one rather than unfolding a panel — the
+                // replies are already in this transcript, in order, so there is
+                // nothing to fetch and nothing to collapse.
+                <button
+                  type="button"
+                  onClick={onOpenReplies}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                  title="Jump to the first reply"
+                >
+                  <CornerDownRight
+                    size={11}
+                    className="flex-shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {replyCount === 1 ? "1 reply" : `${replyCount} replies`}
+                  </span>
+                </button>
               )}
 
               {(message.content || message.parts || hasAttachments) &&

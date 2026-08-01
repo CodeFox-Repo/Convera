@@ -346,6 +346,46 @@ describe("read_channel", () => {
     ]);
   });
 
+  it("counts replies a message drew, including ones below the read window", async () => {
+    await db.messages.bulkPut([
+      {
+        ...message("r1", "conversation-joined", AGENT, "On it.", 6),
+        replyToMessageId: "m1",
+      },
+      {
+        ...message("r2", "conversation-joined", AGENT, "Monday works.", 7),
+        replyToMessageId: "m1",
+      },
+    ]);
+
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 30,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    const byId = new Map(
+      result.channel.messages.map((entry) => [entry.id, entry]),
+    );
+    expect(byId.get("m1")?.replyCount).toBe(2);
+    // Unanswered messages carry no key at all, so they cost nothing.
+    expect(byId.get("m2")).not.toHaveProperty("replyCount");
+
+    // Narrow the window past the parent: the count is still 2 for the parent
+    // when it is shown, because it is counted over the transcript.
+    const narrow = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 1,
+    });
+    if (!narrow.ok || narrow.kind !== "read_channel") throw new Error("bad");
+    expect(narrow.channel.messages[0]?.id).toBe("r2");
+    expect(narrow.channel.messages[0]?.replyTo?.messageId).toBe("m1");
+  });
+
   it("trims a transcript that would overflow the transport budget", async () => {
     const body = "x".repeat(1_900);
     await db.messages.bulkPut(

@@ -34,6 +34,7 @@ import type {
   TagPermission,
 } from "@/shared/types/workspace";
 import { db, toggleReaction, type Message } from "./db";
+import { groupRepliesByParent } from "./utils/reply-threads";
 
 /**
  * Who is looking, reduced to what the visibility rule needs: the tags they
@@ -158,6 +159,7 @@ function toChannelMessage(
   message: Message,
   members: Map<string, Member>,
   messagesById: Map<string, Message>,
+  repliesByParent: Map<string, string[]>,
 ): WorkspaceChannelMessage {
   const content =
     message.content.length > WORKSPACE_MESSAGE_CONTENT_MAX
@@ -181,11 +183,13 @@ function toChannelMessage(
       }
     : undefined;
   const reactions = reactionList(message, members);
+  const replyCount = repliesByParent.get(message.id)?.length ?? 0;
   return {
     id: message.id,
     ...senderName(message, members),
     content,
     ...(replyTo ? { replyTo } : {}),
+    ...(replyCount > 0 ? { replyCount } : {}),
     ...(reactions ? { reactions } : {}),
     createdAt: new Date(message.createdAt).toISOString(),
   };
@@ -260,6 +264,9 @@ async function readChannel(
     .filter((message) => message.role !== "system")
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   const messagesById = new Map(ordered.map((message) => [message.id, message]));
+  // Counted over the whole transcript, not the window, so the number does not
+  // shrink just because the answers fell outside the requested limit.
+  const repliesByParent = groupRepliesByParent(ordered);
   const window = ordered.slice(
     -Math.min(Math.max(limit, 1), WORKSPACE_MESSAGE_LIMIT_MAX),
   );
@@ -285,7 +292,7 @@ async function readChannel(
   }
 
   const messages = window.map((message) =>
-    toChannelMessage(message, names, messagesById),
+    toChannelMessage(message, names, messagesById, repliesByParent),
   );
   let truncated = window.length < ordered.length;
 
