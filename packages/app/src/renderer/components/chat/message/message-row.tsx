@@ -1,4 +1,5 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
+import { CornerUpLeft } from "lucide-react";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import {
   Popover,
@@ -248,21 +249,28 @@ const MessageRow = memo(
               )}
 
               {message.replyToMessageId && (
+                // One quiet line, the way Slack draws a thread reference — a
+                // boxed quote made every agent reply look like a form letter.
                 <button
                   type="button"
                   onClick={onOpenReplyTarget}
-                  className="block w-full max-w-2xl rounded-md border-l-2 border-primary bg-muted/50 px-3 py-2 text-left transition-colors hover:bg-muted"
+                  className="flex max-w-2xl items-baseline gap-1.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
                   title={
                     replyTarget
                       ? `Jump to ${replyTarget.senderName}'s message`
                       : "Original message unavailable"
                   }
                 >
-                  <span className="block truncate text-xs font-medium text-foreground">
-                    {replyTarget?.senderName ?? "Original message unavailable"}
+                  <CornerUpLeft
+                    size={11}
+                    className="flex-shrink-0 translate-y-px"
+                    aria-hidden="true"
+                  />
+                  <span className="flex-shrink-0 font-medium">
+                    {replyTarget?.senderName ?? "unavailable"}
                   </span>
                   {replyTarget && (
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <span className="truncate">
                       {replyTarget.content || "Empty message"}
                     </span>
                   )}

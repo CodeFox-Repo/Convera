@@ -72,7 +72,7 @@ const sendMessageSchema = z.object({
     .max(256)
     .optional()
     .describe(
-      "Message id from read_channel when this message directly answers it.",
+      "Only for pulling a SPECIFIC older message back into view — one that has scrolled away or could be confused with another. Answering the latest message needs no reply marker: you are already talking to the room, and quoting the thing everyone just read is noise. Most messages should not set this.",
     ),
 });
 
@@ -82,7 +82,7 @@ const DESCRIPTIONS = {
   read_channel:
     "Read one channel's roster and its most recent messages. Use it to catch up on a room — including a visible room you have not joined — before answering or deciding what to remember. Returns oldest-first messages and flags when older history was cut.",
   send_message:
-    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. When answering a particular message returned by read_channel, pass its id as reply_to_message_id. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
+    "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. Reply markers are for pointing at an older or ambiguous message; answering the latest thing said needs none — just talk. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
 } as const;
 
 function schemaOf(shape: ZodRawShape): Record<string, unknown> {

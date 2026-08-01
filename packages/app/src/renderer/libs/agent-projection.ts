@@ -227,6 +227,16 @@ export function buildChannelContext(
 
   if (mayPass) {
     const peers = alsoOffered.filter((member) => member.id !== self.id);
+    // Deterministic fallback speaker: everyone computes the same answer from
+    // the same list, so unaddressed chatter gets exactly one reply instead of
+    // three (everyone assumes it is theirs) or zero (everyone defers).
+    const fallback = alsoOffered[0];
+    const fallbackLine =
+      fallback === undefined
+        ? ""
+        : fallback.id === self.id
+          ? " For a message that belongs to nobody in particular — a greeting, an open question — YOU are the designated responder this round: answer it."
+          : ` For a message that belongs to nobody in particular — a greeting, an open question — ${fallback.name} is the designated responder this round, so leave it to them.`;
     lines.push(
       peers.length
         ? `Nobody was addressed by name. This same message went to ${peers
@@ -237,7 +247,7 @@ export function buildChannelContext(
             )
             .join(
               "; ",
-            )} at the same time as you — they are reading it right now and deciding for themselves, exactly as you are. So the question is not "can I answer this" but "am I the right one to". If it lands anywhere near your work, answer it — do not assume a colleague will cover for you, because they are all thinking the same thing and the room ends up silent. A greeting or an open question to the room is worth exactly one friendly reply, so if nothing about it is closer to someone else, take it. If it clearly belongs to someone else, leave it. If it is a greeting or general chatter addressed to the room, one friendly reply is plenty and it does not have to be yours.`
+            )} at the same time as you — each deciding alone, with no way to see the others' choices. Deadlock rule, so the room is neither silent nor a pile-on: if the message clearly belongs to one colleague's work, that colleague answers and the rest stay quiet. Never stay silent on the assumption someone else will cover it; the rule below says exactly whose turn it is.${fallbackLine}`
         : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }

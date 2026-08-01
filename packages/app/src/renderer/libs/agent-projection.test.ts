@@ -347,7 +347,22 @@ describe("open-floor peer awareness", () => {
 
     expect(context).toContain("Quill (Writes the docs)");
     expect(context).not.toContain("Fizz (");
-    expect(context).toContain("am I the right one to");
+    expect(context).toContain("designated responder");
+  });
+
+  it("appoints exactly one designated responder for unaddressed chatter", () => {
+    const offered = [
+      { id: fizz.id, name: "Fizz" },
+      { id: quill.id, name: "Quill", description: "Writes the docs" },
+    ];
+    // Fizz is first on the list: it is told the greeting is its to answer...
+    expect(buildChannelContext(fizz, "docs", room, true, offered)).toContain(
+      "YOU are the designated responder",
+    );
+    // ...and Quill is told to leave it to Fizz, by name.
+    expect(buildChannelContext(quill, "docs", room, true, offered)).toContain(
+      "Fizz is the designated responder",
+    );
   });
 
   it("does not claim company when nobody else was offered", () => {
