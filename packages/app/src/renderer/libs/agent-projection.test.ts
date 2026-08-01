@@ -343,45 +343,47 @@ describe("isPass", () => {
   it("recognises a declined turn and leaves real replies alone", () => {
     expect(isPass("[pass]")).toBe(true);
     expect(isPass("  [PASS]  ")).toBe(true);
-    expect(isPass("[pass] Patch knows this better")).toBe(true);
-    expect(isPass("Passing this to Patch")).toBe(false);
+    expect(isPass("[pass] Mika knows this better")).toBe(true);
+    expect(isPass("Passing this to Mika")).toBe(false);
     expect(isPass("Sure, here's the fix")).toBe(false);
   });
 });
 
 describe("open-floor peer awareness", () => {
-  const quill: Member = {
-    id: "m-quill",
+  const noah: Member = {
+    id: "m-noah",
     workspaceId: "w",
     kind: "agent",
-    name: "Quill",
+    name: "Noah",
     avatar: null,
-    agentId: "a-quill",
+    agentId: "a-noah",
     status: "idle",
   };
-  const room = [maya, fizz, quill];
+  const room = [maya, fizz, noah];
 
   it("names the colleagues who got the same message, with what they do", () => {
     // Without this an agent only knows IT was asked, concludes it should
     // answer, and three colleagues each post the same sentence.
     const context = buildChannelContext(fizz, "docs", room, true, [
       { id: fizz.id, name: "Fizz" },
-      { id: quill.id, name: "Quill", description: "Writes the docs" },
+      { id: noah.id, name: "Noah", description: "Writes the docs" },
     ]);
 
-    expect(context).toContain("Quill (Writes the docs)");
+    expect(context).toContain("Noah (Writes the docs)");
     expect(context).not.toContain("Fizz (");
-    expect(context).toContain("Several of you answering");
+    expect(context).toContain("each deciding alone");
   });
 
-  it("invites everyone to answer room chatter rather than electing one voice", () => {
+  it("tells agents to stay out of a message aimed at one colleague", () => {
     const offered = [
       { id: fizz.id, name: "Fizz" },
-      { id: quill.id, name: "Quill", description: "Writes the docs" },
+      { id: noah.id, name: "Noah", description: "Writes the docs" },
     ];
     const context = buildChannelContext(fizz, "docs", room, true, offered);
-    // The user's call: everyone typing at once is a room, not a bug.
-    expect(context).toContain("Several of you answering");
+    // "话说mika你今天过得怎么样" went to everyone because it lacked an @ —
+    // the prompt is what keeps the other two from answering for Mika.
+    expect(context).toContain("even casually, without an @");
+    expect(context).toContain("it is theirs: stay out");
     expect(context).not.toContain("designated responder");
   });
 

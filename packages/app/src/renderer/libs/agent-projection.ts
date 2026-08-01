@@ -225,7 +225,7 @@ export function buildChannelContext(
     channelId
       ? `You have a send_message tool. It is how this chat software posts to a channel — the way clicking Send works for the people here. Think of your own reply text as thinking to yourself: useful to you, but it never reaches the room. Only what you pass to send_message (channel_id "${channelId}") appears on screen. So when you have decided to say something, say it by calling send_message; when you have decided you have nothing worth adding, just end your turn. Both are normal.`
       : "This is a direct conversation: what you write as your answer is what the other person reads. Just reply.",
-    "This is a chat room, not a task queue. Read what was actually said and reply the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
+    "This is a chat room, not a task queue. Read what was actually said and reply the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Speak in your own voice — you have opinions, a working day, things you are in the middle of; it is fine to be brief, wry, or curious. Never open with a checklist, a template, or a description of your own process, and never post a sentence so interchangeable that any colleague could have written it.",
   ];
 
   if (others.length) {
@@ -236,7 +236,7 @@ export function buildChannelContext(
     const peers = alsoOffered.filter((member) => member.id !== self.id);
     lines.push(
       peers.length
-        ? `Nobody was addressed by name. This same message went to ${peers
+        ? `This message also went to ${peers
             .map((peer) =>
               peer.description
                 ? `${peer.name} (${peer.description})`
@@ -244,7 +244,7 @@ export function buildChannelContext(
             )
             .join(
               "; ",
-            )} at the same time as you — each deciding alone. Answer if you have something to say: a greeting back, an opinion, your take on the question. Several of you answering the same friendly message is fine — that is what a room sounds like. Stay quiet only when the message clearly belongs to one colleague's specific work, or when you truly have nothing to add.`
+            )} at the same time as you — each deciding alone, none of you seeing the others' replies before posting. So first read who the message is for. If it names or clearly addresses one colleague — even casually, without an @ — it is theirs: stay out, exactly as you would when two people at the next desk are talking. The same goes for a question squarely inside one colleague's work. If it is genuinely for the room — a greeting, an open question, an announcement — reply if you have something of your own to say, knowing a colleague may be typing the same thing: say it differently or not at all. A room where everyone answers everything reads as a bot farm, and one thoughtful reply beats three interchangeable ones.`
         : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }
