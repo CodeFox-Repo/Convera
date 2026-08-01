@@ -19,6 +19,7 @@ import {
   WORKSPACE_QUERY_INTERACTION,
 } from "@/shared/types/workspace-perception";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
+import { parseToolInput } from "./tool-input";
 import type { AgentTool, AgentToolInteraction } from "./agent-tools";
 import type {
   LocalAiTurnHookInput,
@@ -68,9 +69,12 @@ const sendMessageSchema = z.object({
   reply_to_message_id: z
     .string()
     .trim()
-    .min(1)
     .max(256)
+    // `null` is handled for every tool in `normalizeToolInput`; `""` has to be
+    // allowed here because for *this* field it means the same thing — not a
+    // reply — where for `content` or a file path it would be a mistake.
     .optional()
+    .transform((value) => value || undefined)
     .describe(
       "Only for pulling a SPECIFIC older message back into view — one that has scrolled away or could be confused with another. Answering the latest message needs no reply marker: you are already talking to the room, and quoting the thing everyone just read is noise. Most messages should not set this.",
     ),
@@ -156,7 +160,7 @@ function perceptionTool(
     inputSchema: schemaOf(inputShape),
     inputShape,
     inputValidator,
-    execute: async (input) => execute(inputValidator.parse(input)),
+    execute: async (input) => execute(parseToolInput(inputValidator, input)),
   };
 }
 

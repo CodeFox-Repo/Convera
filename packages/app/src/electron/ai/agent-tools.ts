@@ -2,6 +2,7 @@ import type { ToolDefinition } from "@/shared/types/mcp";
 import type { AgentSandbox } from "@/shared/types/workspace";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
 import { canonicalizeToolInputForSandbox } from "./sandbox";
+import { parseToolInput } from "./tool-input";
 
 export interface NativeMcpServer {
   transport: "stdio";
@@ -266,7 +267,7 @@ export function createAgentToolCatalog(
         inputShape,
         inputValidator,
         execute: async (input: Record<string, unknown>) => {
-          let parsed = inputValidator.parse(input);
+          let parsed = parseToolInput(inputValidator, input);
 
           if (
             group.serverName.toLowerCase() === BUILTIN_SERVER &&

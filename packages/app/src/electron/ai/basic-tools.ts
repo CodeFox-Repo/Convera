@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { z } from "zod";
 import type { AgentTool } from "./agent-tools";
 import { resolveInSandbox } from "./sandbox";
+import { parseToolInput } from "./tool-input";
 
 /**
  * The floor every agent stands on.
@@ -43,7 +44,7 @@ function tool(
     inputSchema: schemaOf(inputShape),
     inputShape,
     inputValidator,
-    execute: async (input) => execute(inputValidator.parse(input)),
+    execute: async (input) => execute(parseToolInput(inputValidator, input)),
   };
 }
 
