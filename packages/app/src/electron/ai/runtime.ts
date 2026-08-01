@@ -18,7 +18,7 @@ import type {
   LocalAITurnRuntimeStateRequest,
   LocalAIUsage,
 } from "@/shared/types/local-ai";
-import type { AgentSandbox } from "@/shared/types/workspace";
+import { SANDBOX_LAYOUT, type AgentSandbox } from "@/shared/types/workspace";
 import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
 import {
   hasToolCall,
@@ -32,6 +32,7 @@ import {
   type UIMessageChunk,
 } from "ai";
 import { createHash, randomUUID } from "node:crypto";
+import { join, resolve } from "node:path";
 import {
   createAgentToolCatalog,
   type AgentTool,
@@ -224,12 +225,36 @@ export function serializeLocalAiError(
   };
 }
 
+/**
+ * Standing notice that the agent has a sandbox of its own.
+ *
+ * Only produced when `memory/` is genuinely writable — Electron Main's resolver
+ * creates it per agent, a standalone runtime does not, and promising a notebook
+ * that `write_file` would then refuse is worse than saying nothing. What goes in
+ * it is the agent's call: the platform guarantees the file, never its contents.
+ */
+export function describeSandboxMemory(
+  sandbox: AgentSandbox,
+): string | undefined {
+  const memory = resolve(sandbox.root, SANDBOX_LAYOUT.memory);
+  const writable = sandbox.writableRoots.some(
+    (writableRoot) => resolve(writableRoot) === memory,
+  );
+  if (!writable) return undefined;
+  // Absolute, because the two tool families disagree on what a relative path
+  // means: the basic tools resolve against the sandbox root, a CLI provider
+  // against its cwd (the workspace). An absolute path is right for both.
+  return `${join(sandbox.root, SANDBOX_LAYOUT.memoryIndex)} is your private memory index, readable and writable only by you. Read it when you want context nobody handed you, and write there whatever you decide is worth keeping past this conversation. Nothing is remembered for you.`;
+}
+
 function toMessages(
   request: LocalAIChatRequest,
   resumesNativeSession: boolean,
   systemContext?: string,
+  sandboxNotice?: string,
 ): ModelMessage[] {
-  const agentPrompt = request.agent?.systemPrompt?.trim();
+  const basePrompt = request.agent?.systemPrompt?.trim();
+  const agentPrompt = [basePrompt, sandboxNotice].filter(Boolean).join("\n\n");
   const turnContext = systemContext?.trim();
   const operationMessages =
     request.operation.kind === "append"
@@ -823,6 +848,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
             request,
             resumableBinding !== undefined,
             turnContext?.systemContext,
+            describeSandboxMemory(sandbox),
           ),
           abortSignal: controller.signal,
           maxOutputTokens: request.options?.maxOutputTokens,

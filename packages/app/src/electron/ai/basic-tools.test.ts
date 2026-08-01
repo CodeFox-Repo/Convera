@@ -1,3 +1,4 @@
+import { SANDBOX_LAYOUT } from "@/shared/types/workspace";
 import { mkdtemp, readFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -14,9 +15,16 @@ beforeAll(async () => {
   const scratch = join(process.cwd(), ".vitest-sandbox");
   await mkdir(scratch, { recursive: true });
   const root = await mkdtemp(join(scratch, "convera-basic-tools-"));
-  const workspace = join(root, "workspace");
+  const workspace = join(root, SANDBOX_LAYOUT.workspace);
+  const memory = join(root, SANDBOX_LAYOUT.memory);
   await mkdir(workspace, { recursive: true });
-  sandbox = { root, writableRoots: [workspace], networkAccess: false };
+  await mkdir(memory, { recursive: true });
+  // Mirrors what Electron Main's resolveSandbox builds, memory root included.
+  sandbox = {
+    root,
+    writableRoots: [workspace, memory],
+    networkAccess: false,
+  };
   tools = createBasicAgentTools(sandbox);
 });
 
@@ -42,6 +50,25 @@ describe("createBasicAgentTools", () => {
     await expect(
       toolNamed("list_dir").execute({ path: "workspace/memory" }),
     ).resolves.toContain("notes.md");
+  });
+
+  it("writes the memory index at the path the standing prompt names", async () => {
+    await toolNamed("write_file").execute({
+      path: SANDBOX_LAYOUT.memoryIndex,
+      content: "# Memory index\n- ships on Fridays\n",
+    });
+    await expect(
+      readFile(join(sandbox.root, SANDBOX_LAYOUT.memoryIndex), "utf8"),
+    ).resolves.toContain("ships on Fridays");
+    await expect(
+      toolNamed("read_file").execute({ path: SANDBOX_LAYOUT.memoryIndex }),
+    ).resolves.toContain("ships on Fridays");
+    // The prompt hands out an absolute path, so that spelling must work too.
+    await expect(
+      toolNamed("read_file").execute({
+        path: join(sandbox.root, SANDBOX_LAYOUT.memoryIndex),
+      }),
+    ).resolves.toContain("ships on Fridays");
   });
 
   it("refuses to escape the sandbox and to write outside the writable root", async () => {

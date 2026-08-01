@@ -12,6 +12,7 @@ import {
 } from "../provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../provider-descriptors";
 import {
+  describeSandboxMemory,
   fingerprintAgentContext,
   LocalAiRuntime,
   resolveLocalAiActorId,
@@ -77,6 +78,49 @@ const enabledMemorySettings: LocalAIMemorySettings = {
 };
 
 describe("LocalAiRuntime", () => {
+  it("tells an agent about memory/ only when memory/ is writable", async () => {
+    let streamOptions: Parameters<RuntimeStreamInvoker>[0] | undefined;
+    const runtime = new LocalAiRuntime({
+      adapters: [fakeAdapter("claude-code")],
+      sessionRepository: new InMemorySessionStateRepository(),
+      streamInvoker: (options) => {
+        streamOptions = options;
+        return {
+          toUIMessageStream: async function* () {
+            yield { type: "finish" as const, finishReason: "stop" as const };
+          },
+          finishReason: Promise.resolve("stop"),
+        };
+      },
+      resolveSandbox: () => ({
+        root: "/agents/fizz",
+        writableRoots: ["/agents/fizz/workspace", "/agents/fizz/memory"],
+        networkAccess: true,
+      }),
+    });
+
+    await runtime.startChat(
+      request({ agent: { id: "fizz", systemPrompt: "Be concise." } }),
+      () => undefined,
+    );
+
+    const system = streamOptions?.messages.find(
+      (message) => message.role === "system",
+    );
+    expect(system?.content).toContain("Be concise.");
+    expect(system?.content).toContain("/agents/fizz/memory/MEMORY.md");
+
+    // A sandbox without a writable memory/ must not promise one: the standalone
+    // runtime's cwd sandbox would have write_file refuse the path.
+    expect(
+      describeSandboxMemory({
+        root: "/trusted/workspace",
+        writableRoots: ["/trusted/workspace"],
+        networkAccess: false,
+      }),
+    ).toBeUndefined();
+  });
+
   it("derives stable actor identity from the responder member", () => {
     expect(
       resolveLocalAiActorId({

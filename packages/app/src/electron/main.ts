@@ -1,6 +1,6 @@
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import { createHash } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { getLogger, initializeLogger } from "@/electron/logger";
@@ -23,6 +23,7 @@ import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
 import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
 import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
 import { withAgentHostTools } from "@/electron/ai/agent-host-tools";
+import { SANDBOX_LAYOUT } from "@/shared/types/workspace";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
 
@@ -176,11 +177,22 @@ app.whenReady().then(async () => {
         // cannot widen its own sandbox.
         const storageId = createHash("sha256").update(agentId).digest("hex");
         const root = join(userDataPath, "agents", storageId);
-        const workspace = join(root, "workspace");
+        const workspace = join(root, SANDBOX_LAYOUT.workspace);
+        const memory = join(root, SANDBOX_LAYOUT.memory);
         await mkdir(workspace, { recursive: true });
+        await mkdir(memory, { recursive: true });
+        // Curation is the agent's job, so the platform only guarantees the
+        // index file exists — never its contents.
+        await writeFile(
+          join(root, SANDBOX_LAYOUT.memoryIndex),
+          "# Memory index\n",
+          { flag: "wx" },
+        ).catch(() => undefined);
         return {
           root,
-          writableRoots: [workspace],
+          // `workspace` stays first: providers and run_command treat
+          // writableRoots[0] as the cwd, and memory is a notebook, not a desk.
+          writableRoots: [workspace, memory],
           // A colleague clones repos and installs deps in its workspace;
           // the filesystem boundary, not the network, is the guarantee.
           networkAccess: true,
