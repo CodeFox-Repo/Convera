@@ -33,6 +33,9 @@
   },
   "author": "Smal1boy <541898146chen@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "devDependencies": {
     "@electron-forge/cli": "^7.7.0",
     "@electron-forge/maker-deb": "^7.8.0",
