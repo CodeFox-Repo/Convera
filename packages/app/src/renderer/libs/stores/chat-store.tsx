@@ -456,6 +456,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               relayChannel?.name,
               offeredMessages !== undefined,
               [],
+              // Same source as `speaksViaTool` below: a relay that speaks
+              // through the tool needs the id to address, and one that does
+              // not must not be told to reach for a tool at all.
+              offeredMessages !== undefined ? relayChannel?.id : undefined,
             ),
           },
           responderId: nextResponderId,

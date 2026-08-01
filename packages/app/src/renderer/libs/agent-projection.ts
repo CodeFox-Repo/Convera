@@ -215,9 +215,16 @@ export function buildChannelContext(
       ? `In this room with you: ${others.join(", ")}.`
       : "You are the only one in this room so far.",
     "Messages from others are prefixed with the speaker's name. Your own are not — do not prefix them.",
-    // Without this the model answers into its own turn output, which nobody
-    // reads: the room only shows what `send_message` posted.
-    "Nothing you write as your answer is visible to anyone. The ONLY way to say something here is to call the send_message tool with a channel_id. If you decide to speak, call it. If you decide not to, end your turn without calling anything.",
+    // Where the agent's words come out differs by caller, and telling it the
+    // wrong one costs the whole reply. A channel shows only what
+    // `send_message` posted, so answering into turn output is answering into
+    // the void. A 1:1 has no channel to post into: its turn output *is* the
+    // reply, and instructing it to reach for a tool it cannot address left
+    // the user looking at an empty bubble. `channelId` is what tells them
+    // apart — the agent host passes one, the 1:1 path has none to pass.
+    channelId
+      ? `You have a send_message tool. It is how this chat software posts to a channel — the way clicking Send works for the people here. Think of your own reply text as thinking to yourself: useful to you, but it never reaches the room. Only what you pass to send_message (channel_id "${channelId}") appears on screen. So when you have decided to say something, say it by calling send_message; when you have decided you have nothing worth adding, just end your turn. Both are normal.`
+      : "This is a direct conversation: what you write as your answer is what the other person reads. Just reply.",
     "This is a chat room, not a task queue. Read what was actually said and reply the way a colleague would: match the length and register of the message, answer a greeting with a greeting, and stay quiet about your speciality until the conversation calls for it. Never open with a checklist, a template, or a description of your own process.",
   ];
 

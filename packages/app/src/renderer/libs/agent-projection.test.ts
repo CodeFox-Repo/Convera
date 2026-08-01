@@ -313,6 +313,30 @@ describe("buildChannelContext", () => {
     expect(context).toContain("only one in this room");
     expect(context).not.toContain("@Name");
   });
+
+  it("tells an agent where its words come out, which differs by caller", () => {
+    // A channel: only what send_message posted is visible.
+    const channel = buildChannelContext(
+      fizz,
+      "flight-path",
+      members,
+      false,
+      [],
+      "channel-1",
+    );
+    expect(channel).toContain("channel_id: channel-1");
+    // Explains the mechanism and leaves the judgement to the agent, rather
+    // than ordering it to call the tool.
+    expect(channel).toContain("send_message tool");
+    expect(channel).toContain("never reaches the room");
+
+    // A 1:1 has no channel to post into, and told otherwise the agent writes
+    // nothing at all — the user gets an empty bubble.
+    const direct = buildChannelContext(fizz, "chat", members);
+    expect(direct).toContain("what you write as your answer is what the other");
+    expect(direct).not.toContain("send_message");
+    expect(direct).not.toContain("Nothing you write as your answer is visible");
+  });
 });
 
 describe("isPass", () => {
