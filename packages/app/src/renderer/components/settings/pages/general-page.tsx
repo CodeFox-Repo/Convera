@@ -2,6 +2,7 @@ import { ProfileSection } from "@/renderer/components/settings/profile-section";
 import { Button } from "@/renderer/components/ui/button";
 import { Input } from "@/renderer/components/ui/input";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
+import { describeProviderStatus } from "@/renderer/libs/provider-status";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   isLocalAIProviderId,
@@ -55,7 +56,11 @@ export function GeneralSettingsPage() {
   // Model Config state
   const { defaultConfigId, setDefaultModel, subscribeToModelConfigChanges } =
     useModelConfigStore();
-  const { providers, loading: providersLoading } = useLocalAIProviders();
+  const {
+    providers,
+    loading: providersLoading,
+    refresh: refreshProviders,
+  } = useLocalAIProviders();
   const [memorySettings, setMemorySettings] =
     useState<LocalAIMemorySettings | null>(null);
   const [memoryStatus, setMemoryStatus] = useState<LocalAIMemoryStatus | null>(
@@ -430,19 +435,27 @@ export function GeneralSettingsPage() {
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose the local CLI Convera uses for new chats. Your selection is
-              stored only on this device.
+              Choose the provider Convera uses for new chats. An agent pinned to
+              a provider listed here as unavailable cannot answer. Your
+              selection is stored only on this device.
             </p>
+            <button
+              type="button"
+              onClick={() => void refreshProviders()}
+              disabled={providersLoading}
+              className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors pointer-events-auto hover:text-foreground disabled:opacity-60"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Re-check providers
+            </button>
           </div>
 
           <div className="border border-border rounded-lg divide-y divide-border">
             {providers.map((provider) => {
               const isSelected = provider.id === defaultConfigId;
-              const isAvailable = provider.availability === "available";
+              const status = describeProviderStatus(provider, providersLoading);
               const canSelect =
-                !providersLoading &&
-                isAvailable &&
-                isLocalAIProviderId(provider.id);
+                status.ready && isLocalAIProviderId(provider.id);
 
               return (
                 <button
@@ -466,27 +479,23 @@ export function GeneralSettingsPage() {
                       <h4 className="font-medium text-foreground">
                         {provider.name}
                       </h4>
+                      {/* The hint is the whole point of this row: an agent
+                          pinned to a provider fails for exactly this reason,
+                          and this is where you find out which. */}
                       <p className="text-xs text-muted-foreground">
-                        {providersLoading
-                          ? "Checking local CLI..."
-                          : isAvailable
-                            ? "Installed and authenticated"
-                            : provider.detail ||
-                              (provider.availability === "unauthenticated"
-                                ? "Authentication required"
-                                : "CLI not installed")}
+                        {status.hint ?? status.label}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <span
                       className={`text-xs px-2 py-1 rounded ${
-                        isAvailable
+                        status.ready
                           ? "text-primary bg-primary/10"
                           : "text-muted-foreground bg-muted"
                       }`}
                     >
-                      {isAvailable ? "Ready" : "Unavailable"}
+                      {status.label}
                     </span>
                     <span
                       className={`flex min-w-16 items-center justify-end gap-1 text-xs ${

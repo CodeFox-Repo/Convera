@@ -24,7 +24,10 @@ import React, {
 } from "react";
 import { ChannelHeader, ChannelRoster } from "../chat/ChannelHeader";
 import { AgentContextPanel } from "../chat/AgentContextPanel";
-import { TypingIndicator } from "../chat/TypingIndicator";
+import {
+  AgentTurnFailureNotice,
+  TypingIndicator,
+} from "../chat/TypingIndicator";
 import { InboxPage } from "../inbox/InboxPage";
 import ChatInputContainer from "../chat/input/chat-input-container";
 import type { ChatInputRef } from "../chat/input/chat-input-container";
@@ -540,6 +543,10 @@ export function HomePage() {
               {/* Input Area */}
               <div className="px-4 pb-4 relative pointer-events-auto">
                 <div className="relative z-10">
+                  <AgentTurnFailureNotice
+                    channelId={currentChannel?.id}
+                    conversationId={currentConversationId}
+                  />
                   <TypingIndicator conversationId={currentConversationId} />
                   <ChatInputContainer
                     ref={chatInputRef}

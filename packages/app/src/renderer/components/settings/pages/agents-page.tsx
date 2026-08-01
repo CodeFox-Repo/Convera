@@ -34,10 +34,12 @@ import {
   type Member,
 } from "@/renderer/libs/stores/member-store";
 import { useLocalAIProviders } from "@/renderer/libs/hooks/use-local-ai-providers";
+import { describeProviderStatus } from "@/renderer/libs/provider-status";
 import { useAgentStore, type Agent } from "@/renderer/libs/stores/agent-store";
 import { useMcpStore } from "@/renderer/libs/stores/mcp-store";
 import { ToolDefinition } from "@/shared/types/mcp";
 import {
+  AlertTriangle,
   Bot,
   Code,
   FileText,
@@ -231,10 +233,18 @@ const AgentFormFields = ({
   onChange: (form: AgentFormData) => void;
   idPrefix?: string;
 }) => {
-  const { providers } = useLocalAIProviders();
+  const { providers, loading: providersLoading } = useLocalAIProviders();
   const modelValue = form.providerId
     ? `${form.providerId}${MODEL_VALUE_SEPARATOR}${form.modelId}`
     : INHERIT_MODEL_VALUE;
+  // Pinning a colleague to a provider that cannot run makes an agent that
+  // silently never answers. Say so while the choice is still being made.
+  const pinned = form.providerId
+    ? providers.find((provider) => provider.id === form.providerId)
+    : undefined;
+  const pinnedStatus = pinned
+    ? describeProviderStatus(pinned, providersLoading)
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -317,10 +327,20 @@ const AgentFormFields = ({
             }),
           )}
         </select>
-        <p className="text-xs text-muted-foreground">
-          Each colleague can run on its own model — a reviewer on a stronger
-          one, a note-taker on something cheap.
-        </p>
+        {pinnedStatus && !pinnedStatus.ready && !providersLoading ? (
+          <p className="flex items-start gap-1.5 text-xs text-destructive">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+            <span className="leading-relaxed">
+              {pinned?.name} is not ready, so this agent will not be able to
+              answer. {pinnedStatus.hint}
+            </span>
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Each colleague can run on its own model — a reviewer on a stronger
+            one, a note-taker on something cheap.
+          </p>
+        )}
       </div>
     </div>
   );

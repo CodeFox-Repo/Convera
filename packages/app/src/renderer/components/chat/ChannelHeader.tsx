@@ -50,17 +50,7 @@ export function ChannelHeader({
 }: ChannelHeaderProps) {
   const allMembers = useMembers();
   const [editingDescription, setEditingDescription] = useState(false);
-  const { jobs, activeJobs, error: hostError } = useAgentHostJobs(channel.id);
-  // Only failures from work triggered in this conversation. A channel that was
-  // rebuilt keeps its id but gets a new conversation, so jobs from the previous
-  // life are stale rather than something the user can act on.
-  const latestFailure = [...jobs]
-    .reverse()
-    .find(
-      (job) =>
-        job.conversationId === channel.conversationId &&
-        (job.status === "failed" || job.status === "interrupted"),
-    );
+  const { activeJobs, error: hostError } = useAgentHostJobs(channel.id);
   const Icon = channel.isPrivate ? Lock : Hash;
 
   const members = useMemo(() => {
@@ -128,14 +118,9 @@ export function ChannelHeader({
           Agent Host unavailable
         </span>
       )}
-      {!hostError && activeJobs.length === 0 && latestFailure?.error && (
-        <span
-          className="max-w-56 truncate text-xs text-destructive"
-          title={latestFailure.error}
-        >
-          Agent error: {latestFailure.error}
-        </span>
-      )}
+      {/* Turn failures are reported above the input by AgentTurnFailureNotice,
+          next to where you were waiting for the reply — a truncated span up
+          here cut every provider hint off mid-sentence. */}
       {channel.kind === "dm" && onToggleContext && (
         <button
           onClick={onToggleContext}
