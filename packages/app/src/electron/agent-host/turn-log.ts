@@ -71,11 +71,21 @@ export class TurnLogger {
     }
 
     if (event.type === "interaction") {
-      const input = event.input as { kind?: string; content?: string } | null;
+      const input = event.input as {
+        kind?: string;
+        content?: string;
+        emoji?: string;
+      } | null;
       if (input?.kind === "send_message") {
         this.spoke = true;
         const step = this.lastStarted("send_message");
         if (step) step.detail = (input.content ?? "").slice(0, DETAIL_MAX);
+      }
+      // Same rule as the executor: a reaction is an act, not silence.
+      if (input?.kind === "add_reaction") {
+        this.spoke = true;
+        const step = this.lastStarted("add_reaction");
+        if (step) step.detail = input.emoji ?? "";
       }
       return;
     }

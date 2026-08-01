@@ -6,6 +6,7 @@
  */
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect } from "react";
 import {
   db,
   type Agent,
@@ -143,6 +144,26 @@ export function countUnread(
     counts[message.conversationId] = (counts[message.conversationId] ?? 0) + 1;
   }
   return counts;
+}
+
+/**
+ * Keeps the conversation on screen marked read as messages land.
+ *
+ * Lives at the workspace level (home/index.tsx), NOT in the sidebar: the
+ * sidebar unmounts while Settings is open, and the room behind Settings is
+ * still on screen — its boundary must keep advancing or everything said
+ * meanwhile goes bold, the exact bug counted unread was built to fix.
+ */
+export function useKeepCurrentRead(
+  currentConversationId: string | null,
+): void {
+  const { markSeen } = useUnreadStore();
+  const unreadCounts = useUnreadCounts();
+  useEffect(() => {
+    if (!currentConversationId) return;
+    if ((unreadCounts[currentConversationId] ?? 0) === 0) return;
+    markSeen(currentConversationId);
+  }, [currentConversationId, unreadCounts, markSeen]);
 }
 
 export function useUnreadCounts(): Record<string, number> {

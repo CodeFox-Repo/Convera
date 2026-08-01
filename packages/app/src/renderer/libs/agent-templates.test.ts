@@ -62,7 +62,7 @@ describe("hire flow", () => {
   });
 
   it("creates the agent and its member together", async () => {
-    const agent = await hireTemplate(elena);
+    const agent = await hireTemplate(elena, []);
 
     const stored = await db.agents.get(agent.id);
     expect(stored).toMatchObject({
@@ -85,7 +85,7 @@ describe("hire flow", () => {
 
   it("reports a template as hired once an agent carries its name", async () => {
     expect(isHired(elena, await db.agents.toArray())).toBe(false);
-    await hireTemplate(elena);
+    await hireTemplate(elena, []);
     expect(isHired(elena, await db.agents.toArray())).toBe(true);
     expect(isHired(AGENT_TEMPLATES[1], await db.agents.toArray())).toBe(false);
   });
@@ -102,7 +102,7 @@ describe("hire flow", () => {
   });
 
   it("firing removes both rows", async () => {
-    const agent = await hireTemplate(elena);
+    const agent = await hireTemplate(elena, []);
     expect(await fireAgent(agent.id)).toBe(true);
 
     expect(await db.agents.get(agent.id)).toBeUndefined();
@@ -144,7 +144,7 @@ describe("hire and fire move channel membership", () => {
 
   it("hires into no room when none is offered, leaving the rosters untouched", async () => {
     const only = await room("#review");
-    const agent = await hireTemplate(elena);
+    const agent = await hireTemplate(elena, []);
 
     expect((await db.channels.get(only))?.memberIds).toEqual([
       LOCAL_HUMAN_MEMBER_ID,

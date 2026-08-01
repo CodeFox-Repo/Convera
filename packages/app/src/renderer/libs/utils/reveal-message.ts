@@ -26,7 +26,15 @@ export function revealMessage(
       `[data-message-id="${messageId.replace(/["\\]/g, "\\$&")}"]`,
     );
     if (!target) {
-      if (Date.now() < deadline) requestAnimationFrame(attempt);
+      if (Date.now() < deadline) {
+        // setTimeout, not bare rAF: rAF stops firing in a backgrounded
+        // window, which silently ate the reveal when a search hit was
+        // clicked from an unfocused window.
+        setTimeout(() => requestAnimationFrame(attempt), 50);
+        return;
+      }
+      // Giving up silently is indistinguishable from a wrong result.
+      console.warn(`revealMessage: row ${messageId} never appeared`);
       return;
     }
     // The transcript scrolls itself to the bottom when a conversation's

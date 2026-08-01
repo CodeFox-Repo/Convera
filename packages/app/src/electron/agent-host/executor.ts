@@ -31,7 +31,12 @@ function isSpeech(event: LocalAIStreamEvent): boolean {
     typeof event.input === "object" &&
     event.input !== null &&
     "kind" in event.input &&
-    event.input.kind === "send_message"
+    // A reaction is an answer too: the tool's own description says "use it
+    // when acknowledging is the whole answer". Treating it as silence
+    // re-asked the turn, and the retry's identical toggle REMOVED the
+    // reaction the user had just watched appear.
+    (event.input.kind === "send_message" ||
+      event.input.kind === "add_reaction")
   );
 }
 

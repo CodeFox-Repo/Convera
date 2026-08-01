@@ -59,7 +59,11 @@ import {
 } from "@/renderer/libs/db/ui-state";
 import { useKeyboardShortcut } from "@/renderer/libs/hooks/use-keyboard-shortcut";
 import { branchConversationWithRuntime } from "@/renderer/libs/conversation-lifecycle";
-import { useAgent, useConversation } from "@/renderer/libs/db/hooks";
+import {
+  useAgent,
+  useConversation,
+  useKeepCurrentRead,
+} from "@/renderer/libs/db/hooks";
 import { useChannelByConversationId } from "@/renderer/libs/stores/channel-store";
 import { useMembers } from "@/renderer/libs/stores/member-store";
 import {
@@ -85,6 +89,9 @@ export function HomePage() {
   const { currentTheme, handleToggleTheme } = useSettingsStore();
   const { openSearch } = useSearchUIState();
   const { currentConversationId, setCurrentConversation } = useSelectionStore();
+  // Workspace-level, not sidebar-level: the sidebar unmounts in Settings
+  // while the room behind it stays on screen and must stay read.
+  useKeepCurrentRead(currentConversationId);
 
   // Who this conversation is addressed to — a channel, or the agent behind it.
   const currentChannel = useChannelByConversationId(currentConversationId);

@@ -52,16 +52,29 @@ export function useChannels(): Channel[] | undefined {
  * sight for the person it was hidden from.
  */
 export function useVisibleChannels(): Channel[] | undefined {
+  const strict = useVisibleChannelsStrict();
+  const all = useChannels();
+  // Never let the tag lookup decide whether the sidebar exists. Showing the
+  // rooms unfiltered is wrong in a way the user can see and report; showing
+  // an empty workspace looks like the app is broken.
+  return strict ?? all;
+}
+
+/**
+ * Like `useVisibleChannels`, but a failed visibility check reads as
+ * "not loaded yet" instead of "show everything". Search subtracts this
+ * list from all channels to decide what is hidden — the sidebar's
+ * permissive fallback there would empty the hidden set and make every
+ * tag-gated room findable by searching inside it.
+ */
+export function useVisibleChannelsStrict(): Channel[] | undefined {
   return useLiveQuery(async () => {
     const channels = await db.channels.toArray();
     try {
       const viewer = await resolveViewer(LOCAL_HUMAN_MEMBER_ID);
       return channels.filter((channel) => canViewChannel(viewer, channel));
     } catch {
-      // Never let the tag lookup decide whether the sidebar exists. Showing
-      // the rooms unfiltered is wrong in a way the user can see and report;
-      // showing an empty workspace looks like the app is broken.
-      return channels;
+      return undefined;
     }
   });
 }

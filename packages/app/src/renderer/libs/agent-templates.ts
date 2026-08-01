@@ -472,7 +472,7 @@ export async function ensureStarterTeam(): Promise<void> {
   for (const id of STARTER_TEMPLATE_IDS) {
     const template = AGENT_TEMPLATES.find((t) => t.id === id);
     if (template && !hiredNames.has(template.name))
-      await hireTemplate(template);
+      await hireTemplate(template, []);
   }
   await seedStarterChannels();
 }
@@ -484,7 +484,10 @@ export async function ensureStarterTeam(): Promise<void> {
  */
 export async function hireTemplate(
   template: AgentTemplate,
-  channelIds: string[] = [],
+  // No default: "no desk" must be a decision the caller writes down, not a
+  // parameter it forgot. Starter seeding passes [] because its channels are
+  // created right after and membership arrives with them.
+  channelIds: string[],
 ): Promise<Agent> {
   const agent = await createAgent({
     name: template.name,

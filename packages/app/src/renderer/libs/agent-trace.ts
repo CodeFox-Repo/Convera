@@ -123,7 +123,11 @@ export function recordTrace(event: LocalAIStreamEvent): void {
   if (event.type === "interaction") {
     // The tool actually running, with its arguments — the only place the
     // message text is visible before it reaches the transcript.
-    const input = event.input as { kind?: string; content?: string } | null;
+    const input = event.input as {
+      kind?: string;
+      content?: string;
+      emoji?: string;
+    } | null;
     if (input?.kind === "send_message") {
       entry.trace.spoke = true;
       const step = entry.trace.steps.findLast(
@@ -131,6 +135,16 @@ export function recordTrace(event: LocalAIStreamEvent): void {
           candidate.tool === "send_message" && candidate.outcome === "started",
       );
       if (step) step.detail = (input.content ?? "").slice(0, DETAIL_MAX);
+    }
+    // A reaction counts as having acted — the executor treats it as an
+    // answer, so a trace reading "stayed quiet" for a 👍 would lie.
+    if (input?.kind === "add_reaction") {
+      entry.trace.spoke = true;
+      const step = entry.trace.steps.findLast(
+        (candidate) =>
+          candidate.tool === "add_reaction" && candidate.outcome === "started",
+      );
+      if (step) step.detail = input.emoji ?? "";
     }
     return;
   }

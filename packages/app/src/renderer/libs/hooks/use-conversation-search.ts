@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useConversations, getRecentMessagesForSearch } from "../db/hooks";
-import { useChannels, useVisibleChannels } from "../stores/channel-store";
+import { useChannels, useVisibleChannelsStrict } from "../stores/channel-store";
 import {
   hiddenConversationIds,
   searchConversationsAndMessages,
@@ -26,7 +26,9 @@ export function useConversationSearch(): UseConversationSearchReturn {
 
   const conversations = useConversations();
   const allChannels = useChannels();
-  const visibleChannels = useVisibleChannels();
+  // Strict: a failed visibility check keeps search gated rather than
+  // silently searching rooms the sidebar would hide.
+  const visibleChannels = useVisibleChannelsStrict();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const performSearch = useCallback(

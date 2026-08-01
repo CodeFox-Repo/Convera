@@ -70,14 +70,9 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const channelUnreadCount = (channel: Channel) =>
     unreadCountFor(channel.conversationId);
 
-  // Watching a channel keeps it read: without this the boundary would stay
-  // where it was when you clicked, and everything said while you sat there
-  // would go bold the moment you looked away.
-  useEffect(() => {
-    if (!currentConversationId) return;
-    if ((unreadCounts[currentConversationId] ?? 0) === 0) return;
-    markSeen(currentConversationId);
-  }, [currentConversationId, unreadCounts, markSeen]);
+  // The keep-read effect lives in home/index.tsx (useKeepCurrentRead), not
+  // here: this component unmounts while Settings is open, and the boundary
+  // must keep advancing for the room still on screen behind it.
 
   const select = (conversationId: string) => {
     markSeen(conversationId);
