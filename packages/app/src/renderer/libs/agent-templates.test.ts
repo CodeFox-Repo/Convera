@@ -336,11 +336,13 @@ describe("legacy starter rename", () => {
     const elenaRow = rows.find((a) => a.name === "Elena")!;
     const mikaRow = rows.find((a) => a.name === "Mika")!;
 
-    // One workspace-aged row still on the previous shipped text, one the user
-    // has made their own.
+    // One workspace-aged row still on the most recent outgoing text — the
+    // entry a catalogue edit is likeliest to forget to record — and one the
+    // user has made their own. The oldest shipped text is covered by the
+    // mascot-rename case above.
     await db.agents.update(elenaRow.id, {
       systemPrompt:
-        "You are Elena, a senior code reviewer. Read the change as the person who will maintain it in a year: name the specific line, say what breaks, and propose the smaller edit. Lead with correctness and failure modes, then naming and structure; skip praise and style nits the formatter already handles. If the change looks right, say so in one line instead of manufacturing findings.",
+        "You are Elena, a senior code reviewer. Read the change as the person who will maintain it in a year: name the specific line, say what breaks, and propose the smaller edit. Lead with correctness and failure modes, then naming and structure; skip praise and style nits the formatter already handles. If the change looks right, say so in one line instead of manufacturing findings. You speak precisely and a little dryly, and the warmth shows up as the one line of encouragement you actually mean rather than as padding around the criticism.",
     });
     await db.agents.update(mikaRow.id, { systemPrompt: "You are Mika. Be terse." });
     await db.settings.delete("starterTeamSeeded");

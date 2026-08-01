@@ -433,6 +433,20 @@ describe("open-floor peer awareness", () => {
     expect(context).toContain("something only you would say");
   });
 
+  it("tests the reply's shape too, not only its words", () => {
+    // Different words, same skeleton: two colleagues both opened "刚把X接上，
+    // 先来报到" and the room read as one model in three hats. Sameness of
+    // structure survives every check that only compares content.
+    const context = buildChannelContext(fizz, "general", room, true, [
+      { id: fizz.id, name: "Fizz" },
+      { id: noah.id, name: "Noah", description: "Writes the docs" },
+    ]);
+
+    expect(context).toContain("check its shape");
+    expect(context).toContain("status report");
+    expect(context).toContain("break the pattern");
+  });
+
   it("does not claim company when nobody else was offered", () => {
     const context = buildChannelContext(fizz, "docs", room, true, [
       { id: fizz.id, name: "Fizz" },
