@@ -130,6 +130,19 @@ export interface SearchResult {
 /**
  * Search conversations and messages using uFuzzy
  */
+/**
+ * uFuzzy's default tokenizer treats every non-Latin codepoint as a separator,
+ * so a CJK needle tokenizes to nothing and the search silently aborts — in a
+ * workspace chatting in Chinese that made search non-functional for real
+ * content, while mixed queries "worked" by discarding their CJK half.
+ * Substring matching is the correct algorithm for unsegmented scripts anyway.
+ */
+function hasCJK(text: string): boolean {
+  return /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ가-힯]/.test(
+    text,
+  );
+}
+
 export async function searchConversationsAndMessages(
   query: string,
   conversations: Conversation[],
@@ -137,6 +150,10 @@ export async function searchConversationsAndMessages(
 ): Promise<SearchResult[]> {
   const normalizedQuery = query.toLowerCase().trim();
   if (!normalizedQuery) return [];
+
+  if (hasCJK(normalizedQuery)) {
+    return fallbackSearch(query, conversations, messages);
+  }
 
   const results: SearchResult[] = [];
 

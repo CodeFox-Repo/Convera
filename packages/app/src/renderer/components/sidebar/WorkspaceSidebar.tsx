@@ -18,7 +18,7 @@ import {
   type Channel,
 } from "@/renderer/libs/stores/channel-store";
 import { useMember, useMembers } from "@/renderer/libs/stores/member-store";
-import { LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db";
+import { db, LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db";
 import { ensureAgentDM } from "@/renderer/libs/agent-dm";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { cn } from "@/renderer/libs/utils/tailwind";
@@ -154,22 +154,39 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
     if (currentConversationId !== null && known.has(currentConversationId)) {
       return;
     }
-    const inOrder = (channelsByGroup.get(null) ?? []).concat(
-      (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
-    );
-    const landing =
-      inOrder.find(
-        (channel) =>
-          // Contains, not equals: channel names carry an emoji, and a rename
-          // is a normal thing for someone to do to their own room.
-          channel.name.toLowerCase().includes("announcements") &&
-          known.has(channel.conversationId),
-      ) ?? inOrder.find((channel) => known.has(channel.conversationId));
-    if (!landing) return;
-    setCurrentConversation(landing.conversationId);
-    // Landing in a channel while the sidebar still shows Chats would open a
-    // room the list does not contain.
-    setActiveTab("teams");
+    let cancelled = false;
+    void (async () => {
+      // The live list lags a conversation created milliseconds ago — the
+      // member card's Message button selects the DM it just made, and this
+      // effect used to read that as "selection is not real" and bounce the
+      // pane back to #announcements. The DB is the truth; ask it.
+      if (
+        currentConversationId !== null &&
+        (await db.conversations.get(currentConversationId))
+      ) {
+        return;
+      }
+      if (cancelled) return;
+      const inOrder = (channelsByGroup.get(null) ?? []).concat(
+        (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
+      );
+      const landing =
+        inOrder.find(
+          (channel) =>
+            // Contains, not equals: channel names carry an emoji, and a rename
+            // is a normal thing for someone to do to their own room.
+            channel.name.toLowerCase().includes("announcements") &&
+            known.has(channel.conversationId),
+        ) ?? inOrder.find((channel) => known.has(channel.conversationId));
+      if (!landing) return;
+      setCurrentConversation(landing.conversationId);
+      // Landing in a channel while the sidebar still shows Chats would open a
+      // room the list does not contain.
+      setActiveTab("teams");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [
     currentConversationId,
     channels,

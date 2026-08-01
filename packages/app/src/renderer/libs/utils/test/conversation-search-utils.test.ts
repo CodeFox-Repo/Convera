@@ -86,6 +86,27 @@ describe("searchConversationsAndMessages", () => {
     createdAt: new Date(0),
   });
 
+  it("finds CJK content — the tokenizer that eats it must never see it", async () => {
+    // uFuzzy's default tokenizer treats CJK codepoints as separators, so a
+    // Chinese query silently matched nothing in a workspace speaking Chinese.
+    const results = await searchConversationsAndMessages(
+      "复现",
+      [conversation("c1", "调试")],
+      [message("m1", "c1", "今天主要在排查一个复现问题", "member-agent")],
+    );
+    const hit = results.find((result) => result.type === "message");
+    expect(hit?.messageId).toBe("m1");
+    expect(hit?.matchedText).toContain("复现");
+
+    // Mixed CJK+ASCII must not silently drop the CJK half either.
+    const mixed = await searchConversationsAndMessages(
+      "复现 zebrafish",
+      [conversation("c1", "调试")],
+      [message("m2", "c1", "zebrafish 但没有那个词", "member-agent")],
+    );
+    expect(mixed.find((result) => result.messageId === "m2")).toBeUndefined();
+  });
+
   it("finds a message by its content and reports where and from whom", async () => {
     const results = await searchConversationsAndMessages(
       "paddle",
