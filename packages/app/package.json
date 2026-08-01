@@ -1,7 +1,7 @@
 {
   "name": "@convera/app",
   "productName": "Convera",
-  "version": "0.0.22",
+  "version": "0.1.0",
   "description": "Convera - All in one Chat App",
   "main": ".vite/build/main.js",
   "private": true,

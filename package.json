@@ -1,7 +1,7 @@
 {
   "name": "convera-workspace",
   "private": true,
-  "version": "0.0.22",
+  "version": "0.1.0",
   "description": "Convera Workspace",
   "scripts": {
     "start": "pnpm --filter app start",
