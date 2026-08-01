@@ -5,6 +5,7 @@ import {
 import { cn } from "@/renderer/libs/utils/tailwind";
 import { AgentTraceSection } from "./AgentTraceSection";
 import { useAgentHostTasks } from "@/renderer/libs/hooks/use-agent-host-jobs";
+import { taskStatusLabel } from "@/renderer/libs/agent-tasks";
 import { memberIdForAgent } from "@/renderer/libs/db";
 import { useChannels } from "@/renderer/libs/stores/channel-store";
 import { motion } from "framer-motion";
@@ -49,14 +50,6 @@ function Empty({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-xs leading-relaxed text-muted-foreground">{children}</p>
   );
-}
-
-function taskStatusLabel(status: string): string {
-  return status === "running"
-    ? "Working"
-    : status === "queued"
-      ? "Queued"
-      : status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function AgentWorkSection({ agentId }: { agentId: string }) {

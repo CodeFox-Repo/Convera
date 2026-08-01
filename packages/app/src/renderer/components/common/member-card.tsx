@@ -8,7 +8,7 @@ import {
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import type { Member } from "@/shared/types/workspace";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/renderer/libs/db";
+import { db, memberIdForAgent } from "@/renderer/libs/db";
 import {
   normalizeTagName,
   setMemberTag,
@@ -18,6 +18,9 @@ import { cn } from "@/renderer/libs/utils/tailwind";
 import { AgentTraceSection } from "@/renderer/components/chat/AgentTraceSection";
 import { openAgentDM } from "@/renderer/libs/agent-dm";
 import { useWorkspaceUI } from "@/renderer/libs/stores/workspace-ui-context";
+import { openAgentTasks, taskStatusLabel } from "@/renderer/libs/agent-tasks";
+import { useAgentHostTasks } from "@/renderer/libs/hooks/use-agent-host-jobs";
+import { useChannels } from "@/renderer/libs/stores/channel-store";
 
 /**
  * Who someone is, and what they are — wrapped around whatever shows them.
@@ -216,6 +219,10 @@ function MemberCardBody({
         )}
       </div>
 
+      {member.kind === "agent" && member.agentId && (
+        <AgentWorkload agentId={member.agentId} />
+      )}
+
       {/* Reachable from the room where the behaviour happens, not only from a
           DM: "three colleagues showed as typing and one answered" is a
           question you ask while looking at that channel. */}
@@ -227,6 +234,54 @@ function MemberCardBody({
           <AgentTraceSection memberId={member.id} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * What this colleague is carrying right now.
+ *
+ * "Recent turns" answers what they last did; this answers what they are still
+ * on, which is the question you actually have before handing them one more
+ * thing. Read-only on purpose — the controls live in the DM's work panel,
+ * where guidance is private and belongs.
+ */
+function AgentWorkload({ agentId }: { agentId: string }) {
+  const { tasks } = useAgentHostTasks(memberIdForAgent(agentId));
+  const channels = useChannels();
+  const open = openAgentTasks(tasks);
+
+  if (open.length === 0) return null;
+
+  const channelNames = new Map(
+    (channels ?? []).map((channel) => [channel.id, channel.name]),
+  );
+
+  return (
+    <div className="border-t px-4 py-3">
+      <p className="pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        Working on
+        <span className="ml-1.5 font-normal normal-case tracking-normal">
+          {open.length}
+        </span>
+      </p>
+      <ul className="space-y-1">
+        {open.slice(0, 5).map((task) => (
+          <li key={task.id} className="flex items-baseline gap-1.5 text-xs">
+            <span className="min-w-0 flex-1 truncate">
+              #{channelNames.get(task.channelId) ?? task.channelId}
+            </span>
+            <span className="shrink-0 text-muted-foreground">
+              {taskStatusLabel(task.status)}
+            </span>
+          </li>
+        ))}
+        {open.length > 5 && (
+          <li className="text-xs text-muted-foreground">
+            and {open.length - 5} more
+          </li>
+        )}
+      </ul>
     </div>
   );
 }
