@@ -327,9 +327,6 @@ importers:
       '@eslint/js':
         specifier: ^9.18.0
         version: 9.30.1
-      '@playwright/test':
-        specifier: ^1.51.0
-        version: 1.52.0
       '@tanstack/router-cli':
         specifier: ^1.120.18
         version: 1.120.18
@@ -375,9 +372,6 @@ importers:
       electron-devtools-installer:
         specifier: ^4.0.0
         version: 4.0.0
-      electron-playwright-helpers:
-        specifier: ^1.7.1
-        version: 1.7.1
       eslint:
         specifier: ^9.22.0
         version: 9.30.1
@@ -3920,14 +3914,6 @@ packages:
   /@pkgr/core@0.2.4:
     resolution: {integrity: sha512-ROFF39F6ZrnzSUEmQQZUar0Jt4xVoP9WnDRdWwF4NNcXs3xBTLgBUDoOwW141y1jP+S8nahIbdxbFC7IShw9Iw==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
-    dev: true
-
-  /@playwright/test@1.52.0:
-    resolution: {integrity: sha512-uh6W7sb55hl7D6vsAeA+V2p5JnlAqzhqFyF0VcJkKZXkgnFcVG9PziERRHQfPLfNGx1C292a4JqbWzhR8L4R1g==}
-    engines: {node: '>=18'}
-    hasBin: true
-    dependencies:
-      playwright: 1.52.0
     dev: true
 
   /@popperjs/core@2.11.8:
@@ -11581,12 +11567,6 @@ packages:
     dev: true
     optional: true
 
-  /electron-playwright-helpers@1.7.1:
-    resolution: {integrity: sha512-S9mo7LfpERgub2WIuYVPpib4XKFeAqBP+mxYf5Bv7E0B5GUB+LUbSj6Fpu39h18Ar635Nf9nQYTmypjuvaYJng==}
-    dependencies:
-      '@electron/asar': 3.4.1
-    dev: true
-
   /electron-squirrel-startup@1.0.1:
     resolution: {integrity: sha512-sTfFIHGku+7PsHLJ7v0dRcZNkALrV+YEozINTW8X1nM//e5O3L+rfYuvSW00lmGHnYmUjARZulD8F2V8ISI9RA==}
     dependencies:
@@ -13166,14 +13146,6 @@ packages:
 
   /fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
-
-  /fsevents@2.3.2:
-    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
-    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
-    os: [darwin]
-    requiresBuild: true
-    dev: true
-    optional: true
 
   /fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -17340,22 +17312,6 @@ packages:
       mlly: 1.8.0
       pathe: 2.0.3
     dev: false
-
-  /playwright-core@1.52.0:
-    resolution: {integrity: sha512-l2osTgLXSMeuLZOML9qYODUQoPPnUsKsb5/P6LJ2e6uPKXUdPK5WYhN4z03G+YNbWmGDY4YENauNu4ZKczreHg==}
-    engines: {node: '>=18'}
-    hasBin: true
-    dev: true
-
-  /playwright@1.52.0:
-    resolution: {integrity: sha512-JAwMNMBlxJ2oD1kce4KPtMkDeKGHQstdpFPcPH3maElAXon/QZeTvtsfXmTMRyO9TslfoYOXkSsvao2nE1ilTw==}
-    engines: {node: '>=18'}
-    hasBin: true
-    dependencies:
-      playwright-core: 1.52.0
-    optionalDependencies:
-      fsevents: 2.3.2
-    dev: true
 
   /plist@3.1.0:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
