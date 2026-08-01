@@ -108,7 +108,10 @@ function MemberCardBody({
       {/* Walking to their desk, from wherever you happened to be looking at
           them. Only agents: a DM with the local human is a note to self, and
           there is no second person to open one with. */}
-      {member.kind === "agent" && member.agentId && (
+      {/* Not for the built-in assistant: it converses through its own
+          many-conversation section, and a DM would fork that identity into a
+          second, different conversation model. */}
+      {member.kind === "agent" && member.agentId && member.id !== "agent:default" && (
         <div className="px-4 pb-3">
           <button
             type="button"

@@ -82,10 +82,19 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
     () => (channels ?? []).filter((channel) => channel.kind === "channel"),
     [channels],
   );
+  // The built-in assistant is not a colleague: it has its own section with
+  // many parallel conversations, so it belongs in neither the DM list nor
+  // the "message an agent" menu — a Convera row under Direct messages would
+  // be the same entity twice with two different conversation models.
+  const ASSISTANT_MEMBER_ID = "agent:default";
   const directMessages = useMemo(
     () =>
       (channels ?? [])
-        .filter((channel) => channel.kind === "dm")
+        .filter(
+          (channel) =>
+            channel.kind === "dm" &&
+            !channel.memberIds.includes(ASSISTANT_MEMBER_ID),
+        )
         .sort((left, right) => left.name.localeCompare(right.name)),
     [channels],
   );
@@ -95,7 +104,10 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
     );
     return (members ?? []).filter(
       (member) =>
-        member.kind === "agent" && !!member.agentId && !existing.has(member.id),
+        member.kind === "agent" &&
+        !!member.agentId &&
+        member.id !== ASSISTANT_MEMBER_ID &&
+        !existing.has(member.id),
     );
   }, [directMessages, members]);
 

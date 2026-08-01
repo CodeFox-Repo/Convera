@@ -1,7 +1,15 @@
+import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import type { Member } from "@/shared/types/workspace";
 import { User } from "lucide-react";
 import React from "react";
+
+/**
+ * The built-in assistant's member id. Its identity mark is the product logo,
+ * decided HERE rather than by each caller passing a fallback — that contract
+ * already failed twice, one forgotten call site at a time.
+ */
+const ASSISTANT_MEMBER_ID = "agent:default";
 
 /**
  * THE member avatar. Every surface — message rows, roster pane, mention
@@ -38,6 +46,8 @@ export function MemberAvatar({
         ) : (
           <span className="text-[1.1em] leading-none">{member.avatar}</span>
         )
+      ) : member?.id === ASSISTANT_MEMBER_ID ? (
+        <BaseLogo size={20} />
       ) : (
         // A member without a portrait still prefers the caller's fallback (the
         // product logo for the built-in assistant) over its bare initial —

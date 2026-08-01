@@ -129,6 +129,15 @@ describe("agent direct messages", () => {
     expect(await db.conversations.count()).toBe(0);
   });
 
+  it("refuses a DM with the built-in assistant", async () => {
+    // The assistant converses through its own many-conversation section; a
+    // DM would be the same entity under a second conversation model.
+    await expect(ensureAgentDM("default")).rejects.toThrow(
+      "built-in assistant",
+    );
+    expect(await db.channels.count()).toBe(0);
+  });
+
   it("stands the user in the room it opened, already read", async () => {
     useSelectionStore.setState({ currentConversationId: null });
     useUnreadStore.setState({ lastSeen: {} });

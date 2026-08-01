@@ -69,6 +69,14 @@ export async function ensureAgentDM(
 ): Promise<AgentDirectMessage> {
   const normalizedAgentId = agentId.trim();
   if (!normalizedAgentId) throw new Error("An agent id is required.");
+  // The built-in assistant converses through its own many-conversation
+  // section; a DM would be the same entity under a second conversation
+  // model. Refused here so no UI entry point can recreate one.
+  if (normalizedAgentId === "default") {
+    throw new Error(
+      "The built-in assistant uses its own conversations, not a direct message.",
+    );
+  }
 
   return db.transaction(
     "rw",
