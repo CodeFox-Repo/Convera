@@ -40,22 +40,23 @@ const Index = () => {
             className="rise text-ink-faint font-mono text-[11px] tracking-[0.14em] uppercase"
             style={slot(0)}
           >
-            chat in a browser tab → <span className="text-terracotta">agents on your desktop</span>
+            a chatbot answers you → <span className="text-terracotta">colleagues work with you</span>
           </p>
 
           <h1
             className="rise mx-auto mt-6 max-w-[16ch] text-[clamp(2.75rem,7vw,5.5rem)] leading-[1.0] font-bold tracking-[-0.04em]"
             style={slot(1)}
           >
-            An agent workspace on <span className="text-terracotta">your machine.</span>
+            AI colleagues in <span className="text-terracotta">your workspace.</span>
           </h1>
 
           <p
             className="rise text-ink-muted mx-auto mt-6 max-w-[56ch] text-[1.0625rem] leading-relaxed"
             style={slot(2)}
           >
-            Every conversation, agent and model config sits in a database on your disk — search it,
-            branch it, wire it into any MCP server. Your keys never leave the machine.
+            Channels, colleagues, direct messages — a workplace on your machine where agents read
+            the room, answer when spoken to, and stay out of conversations that aren&apos;t theirs.
+            Everything lives in a database on your disk.
           </p>
 
           <div
@@ -76,12 +77,14 @@ const Index = () => {
                 loop
                 playsInline
                 className="w-full"
-                aria-label="Screen recording of Convera: opening a conversation, global search, branching"
+                aria-label="Screen recording of Convera: greeting the room, three colleagues answering in their own voices, a name-drop reaching only the person named, reacting, searching in Chinese, and asking the assistant"
               />
             </div>
             <figcaption className="text-ink-faint mt-4 font-mono text-xs leading-relaxed">
-              <span className="text-ink-2">open → search → branch</span> · the real renderer on
-              seeded local data, one take, 2.5× speed
+              <span className="text-ink-2">
+                greet the room → name-drop one colleague → react → search → ask Convera
+              </span>{" "}
+              · the real app, real model replies, one take with the waiting cut out
             </figcaption>
           </figure>
 
@@ -91,26 +94,68 @@ const Index = () => {
           >
             one workspace =
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
-              local database
+              channels
             </span>
             <span className="text-ink-ghost">+</span>
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
-              your agents
+              colleagues
             </span>
             <span className="text-ink-ghost">+</span>
             <span className="border-rule text-ink-3 rounded-[7px] border px-2 py-0.5">
-              mcp tools
+              a database you own
             </span>
           </p>
         </div>
       </section>
 
-      {/* ── 1.0 keep ─────────────────────────────────────────── */}
+      {/* ── 1.0 colleagues ───────────────────────────────────── */}
       <section className="stage mt-16 py-16 md:py-20" data-rise>
         <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
           <div>
             <p className="stage-label rise" style={slot(0)}>
-              1.0 · keep
+              1.0 · colleagues
+            </p>
+            <h2
+              className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
+              style={slot(1)}
+            >
+              Agents that read the room, not a bot that answers everything.
+            </h2>
+            <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
+              Elena reviews code. Mika chases bugs. Noah writes the docs. Greet the room and each
+              answers in their own voice — name one of them, even casually, and the others stay out
+              of it. They look things up themselves, keep their own notes, and 👍 a plan instead of
+              writing a paragraph about it.
+            </p>
+            <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
+              No routing rules decide who talks. Each colleague reads the message and decides —
+              like people do.
+            </p>
+          </div>
+          <pre className="chat-plate rise self-center" style={slot(2)}>
+            <span className="role">you</span>
+            {"     "}
+            <span className="you">elena 最近在忙什么</span>
+            {"\n"}
+            <span className="agent">elena</span>
+            <span className="off"> 在看一处容易被忽略的失败路径…</span>
+            {"\n"}
+            <span className="dim">mika — read it, stayed out</span>
+            {"\n"}
+            <span className="dim">noah — read it, stayed out</span>
+            {"\n"}
+            <span className="tool">✓ no @ needed</span>
+            <span className="off"> a name is an address</span>
+          </pre>
+        </div>
+      </section>
+
+      {/* ── 2.0 keep ─────────────────────────────────────────── */}
+      <section className="stage py-16 md:py-20" data-rise>
+        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="stage-label rise" style={slot(0)}>
+              2.0 · keep
             </p>
             <h2
               className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
@@ -146,7 +191,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 2.0 branch ───────────────────────────────────────── */}
+      {/* ── 3.0 branch ───────────────────────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
           <pre className="chat-plate order-last self-center md:order-first" style={slot(2)}>
@@ -163,7 +208,7 @@ const Index = () => {
           </pre>
           <div>
             <p className="stage-label rise" style={slot(0)}>
-              2.0 · branch
+              3.0 · branch
             </p>
             <h2
               className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
@@ -183,12 +228,12 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 3.0 extend ───────────────────────────────────────── */}
+      {/* ── 4.0 extend ───────────────────────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-[var(--page-gutter)] md:grid-cols-2 md:gap-16">
           <div>
             <p className="stage-label rise" style={slot(0)}>
-              3.0 · extend
+              4.0 · extend
             </p>
             <h2
               className="rise mt-4 max-w-[18ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
@@ -223,11 +268,11 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 4.0 hacks — use-case carousel ────────────────────── */}
+      {/* ── 5.0 hacks — use-case carousel ────────────────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
           <p className="stage-label rise" style={slot(0)}>
-            4.0 · hacks
+            5.0 · hacks
           </p>
           <h2
             className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
@@ -245,11 +290,11 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── 5.0 next — honest roadmap, not vaporware ─────────── */}
+      {/* ── 6.0 next — honest roadmap, not vaporware ─────────── */}
       <section className="stage py-16 md:py-20" data-rise>
         <div className="mx-auto w-full max-w-[1180px] px-[var(--page-gutter)]">
           <p className="stage-label rise" style={slot(0)}>
-            5.0 · next
+            6.0 · next
           </p>
           <h2
             className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
@@ -259,19 +304,21 @@ const Index = () => {
           </h2>
           <div className="mt-10 grid gap-12 md:grid-cols-2 md:gap-16">
             <div className="rise border-rule-2 border-l-2 pl-6" style={slot(2)}>
-              <h3 className="text-terracotta-soft font-mono text-[13px]">local agent runtime</h3>
+              <h3 className="text-terracotta-soft font-mono text-[13px]">
+                colleagues that clone repos
+              </h3>
               <p className="text-ink-muted mt-3 max-w-[46ch] text-[0.9375rem] leading-relaxed">
-                The agent loop moves onto your machine, running against your own credentials instead
-                of proxying through our server. In the tree today, behind a flag — not in a release
-                yet.
+                Each agent already has an OS-sandboxed workspace with a shell, file tools and its
+                own notebook — shipped in 0.1.0. Next: handing one a repo and a task in a channel,
+                and getting a diff back.
               </p>
             </div>
             <div className="rise border-rule-2 border-l-2 pl-6" style={slot(3)}>
-              <h3 className="text-terracotta-soft font-mono text-[13px]">hands, with approval</h3>
+              <h3 className="text-terracotta-soft font-mono text-[13px]">windows &amp; linux</h3>
               <p className="text-ink-muted mt-3 max-w-[46ch] text-[0.9375rem] leading-relaxed">
-                Screen control where every click waits for your yes: a deny-list for terminals and
-                password managers, a kill switch on disk, screenshots treated as untrusted input.
-                Built, being hardened.
+                They ship when the agent sandbox&apos;s OS enforcement covers them — bubblewrap on
+                Linux is the near one. We won&apos;t release a build where the safety story is
+                weaker than this page claims.
               </p>
             </div>
           </div>
@@ -292,9 +339,13 @@ const Index = () => {
               Put your record where you can keep it.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(1)}>
-              Download the beta and start a conversation you'll still own next year. If something
-              feels wrong in the first minute, tell us in Discord — that's a bug worth filing.
+              One brew command and you&apos;re standing in a workspace with three colleagues.
+              If something feels wrong in the first minute, tell us in Discord — that&apos;s a bug
+              worth filing.
             </p>
+            <code className="rise bg-well border-rule mt-6 block w-fit overflow-x-auto rounded-md border px-3 py-2 font-mono text-[13px]" style={slot(1)}>
+              brew install --cask codefox-repo/codefox/convera
+            </code>
             <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(2)}>
               <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
                 <Link to="/download">Download for macOS</Link>
