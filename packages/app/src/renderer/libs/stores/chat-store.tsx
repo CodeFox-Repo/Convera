@@ -84,6 +84,7 @@ function buildResponderPrompt(
   mayPass = false,
   alsoOffered: OfferedPeer[] = [],
   channelId?: string,
+  channelDescription?: string,
 ): string {
   const self = members.find((member) => member.id === responderMemberId);
   if (!self) return agent.systemPrompt;
@@ -95,6 +96,7 @@ function buildResponderPrompt(
     mayPass,
     alsoOffered,
     channelId,
+    channelDescription,
   );
   return agent.systemPrompt ? `${agent.systemPrompt}\n\n${context}` : context;
 }
@@ -448,6 +450,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               // through the tool needs the id to address, and one that does
               // not must not be told to reach for a tool at all.
               offeredMessages !== undefined ? relayChannel?.id : undefined,
+              relayChannel?.description,
             ),
           },
           responderId: nextResponderId,

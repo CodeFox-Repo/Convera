@@ -94,7 +94,9 @@ beforeEach(async () => {
     member("agent:buzz", "Buzz", "agent"),
   ]);
   await db.channels.bulkPut([
-    channel("joined", "announcements", [HUMAN, AGENT]),
+    channel("joined", "announcements", [HUMAN, AGENT], {
+      description: "The onboarding hall.",
+    }),
     channel("visible", "design", [HUMAN, "agent:buzz"]),
     channel("hidden", "founders", [HUMAN], { isPrivate: true }),
   ]);
@@ -195,6 +197,17 @@ describe("list_channels", () => {
       }),
     ]);
   });
+
+  it("carries each room's description, so an agent can pick where to look", async () => {
+    const result = await resolveWorkspaceQuery({
+      kind: "list_channels",
+      viewerMemberId: AGENT,
+    });
+    if (!result.ok || result.kind !== "list_channels") throw new Error("bad");
+    expect(result.channels[0].description).toBe("The onboarding hall.");
+    // A room nobody has described says nothing rather than an empty string.
+    expect(result.channels[1]).not.toHaveProperty("description");
+  });
 });
 
 describe("read_channel", () => {
@@ -208,6 +221,7 @@ describe("read_channel", () => {
 
     if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
     expect(result.channel.joined).toBe(true);
+    expect(result.channel.description).toBe("The onboarding hall.");
     expect(result.channel.truncated).toBe(false);
     expect(result.channel.members.map((entry) => entry.name)).toEqual([
       "You",

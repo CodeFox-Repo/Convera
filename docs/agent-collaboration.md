@@ -13,6 +13,11 @@ first — this is the mechanism behind "agents are colleagues, not features".
   and an invisible channel returns the *same* error as a nonexistent one, so
   agents cannot probe for hidden rooms. Channel isolation lands by editing that
   one function.
+- **Channels carry meaning.** `Channel.description` says what a room is for. It
+  rides in an agent's channel context (`buildChannelContext`) and in every
+  `list_channels` / `read_channel` result, so an agent can tell #announcements
+  from #general without any of it being injected as a briefing. Edit it from the
+  channel header; the starter rooms ship with one.
 - **Speech is a tool call.** `workspace:send_message` is the only way an agent
   says anything; its turn output is invisible by design. Silence = no call = no
   trace. No reply bubble is ever pre-created. Mentions are re-parsed from the
@@ -148,8 +153,6 @@ the model.
 
 ## Known gaps
 
-- `Channel.description` does not exist yet, though `.claude/CLAUDE.md` treats it
-  as real context. Needs a Dexie migration, UI, and inclusion in `read_channel`.
 - 1:1 chats still use the old reserve-a-bubble flow; only channels use
   agent-initiated speech.
 - The pass token (`isPass`) is legacy from the pre-tool era. The empty-shell

@@ -18,6 +18,7 @@ import {
   renameChannel,
   renameGroup,
   reorderGroups,
+  setChannelDescription,
 } from "../channel-store";
 
 describe("channel store", () => {
@@ -55,6 +56,26 @@ describe("channel store", () => {
     expect(channel?.kind).toBe("channel");
     expect(channel?.memberIds).toEqual([LOCAL_HUMAN_MEMBER_ID, "agent:fizz"]);
     expect(await db.conversations.get(channel!.conversationId)).toBeDefined();
+  });
+
+  it("stores a description and lets it be cleared", async () => {
+    const id = await createChannel({
+      name: "announcements",
+      groupId: null,
+      description: "The onboarding hall.",
+    });
+    expect((await db.channels.get(id))?.description).toBe(
+      "The onboarding hall.",
+    );
+
+    await setChannelDescription(id, "  Project direction lands here.  ");
+    expect((await db.channels.get(id))?.description).toBe(
+      "Project direction lands here.",
+    );
+
+    // Blank clears it: "#announcements: " tells a colleague nothing.
+    await setChannelDescription(id, "   ");
+    expect((await db.channels.get(id))?.description).toBeUndefined();
   });
 
   it("keeps channels when their group is deleted", async () => {

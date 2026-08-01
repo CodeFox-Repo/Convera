@@ -127,6 +127,8 @@ export async function reorderGroups(orderedIds: string[]): Promise<void> {
 export interface CreateChannelInput {
   name: string;
   groupId: string | null;
+  /** What the room is for; read by everyone in it, agents included. */
+  description?: string;
   /** Defaults to the local human plus `defaultAgentMemberId` when given. */
   memberIds?: string[];
   defaultAgentMemberId?: string | null;
@@ -157,6 +159,7 @@ export async function createChannel(
     workspaceId: LOCAL_WORKSPACE_ID,
     groupId: input.groupId,
     name: input.name,
+    ...(input.description ? { description: input.description } : {}),
     kind: input.kind ?? "channel",
     isPrivate: input.isPrivate ?? false,
     memberIds,
@@ -190,6 +193,21 @@ export async function reorderChannels(
 
 export async function renameChannel(id: string, name: string): Promise<void> {
   await db.channels.update(id, { name, updatedAt: new Date() });
+}
+
+/**
+ * What the room is for. Blank clears it rather than storing an empty string:
+ * an agent reading "#docs: " learns less than one reading "#docs".
+ */
+export async function setChannelDescription(
+  id: string,
+  description: string,
+): Promise<void> {
+  const trimmed = description.trim();
+  await db.channels.update(id, {
+    description: trimmed || undefined,
+    updatedAt: new Date(),
+  });
 }
 
 export async function moveChannel(

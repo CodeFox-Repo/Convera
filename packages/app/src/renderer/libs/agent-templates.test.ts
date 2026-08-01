@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   AGENT_TEMPLATES,
   ensureLocalHumanMember,
+  ensureStarterTeam,
   fireAgent,
   hireTemplate,
   isHired,
@@ -97,5 +98,61 @@ describe("hire flow", () => {
 
     expect(await db.agents.get(agent.id)).toBeUndefined();
     expect(await db.members.get(memberIdForAgent(agent.id))).toBeUndefined();
+  });
+});
+
+/**
+ * A starter room without a description is a room that means nothing to the
+ * agents standing in it, which is the whole point of seeding them.
+ */
+describe("starter channels", () => {
+  beforeEach(async () => {
+    await db.open();
+    await Promise.all([
+      db.agents.clear(),
+      db.members.clear(),
+      db.channels.clear(),
+      db.settings.clear(),
+    ]);
+  });
+
+  it("gives every seeded room a description saying what it is for", async () => {
+    await ensureStarterTeam();
+
+    const channels = await db.channels.toArray();
+    expect(channels.length).toBeGreaterThanOrEqual(5);
+    for (const channel of channels) {
+      expect(channel.description?.length ?? 0).toBeGreaterThan(20);
+    }
+    const announcements = channels.find((c) =>
+      c.name.includes("announcements"),
+    );
+    expect(announcements?.description).toContain("onboarding hall");
+  });
+
+  it("fills in a missing description on an existing room, but never overwrites one", async () => {
+    await ensureStarterTeam();
+    const announcements = (await db.channels.toArray()).find((c) =>
+      c.name.includes("announcements"),
+    )!;
+    const general = (await db.channels.toArray()).find((c) =>
+      c.name.includes("general"),
+    )!;
+
+    // A workspace seeded before descriptions existed, plus one the user wrote.
+    await db.channels.update(announcements.id, { description: undefined });
+    await db.channels.update(general.id, { description: "Mine, hands off." });
+    await db.settings.clear();
+
+    await ensureStarterTeam();
+
+    expect((await db.channels.get(announcements.id))?.description).toContain(
+      "onboarding hall",
+    );
+    expect((await db.channels.get(general.id))?.description).toBe(
+      "Mine, hands off.",
+    );
+    // Backfill fills rooms in, it does not duplicate them.
+    expect((await db.channels.toArray()).length).toBe(5);
   });
 });

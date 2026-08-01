@@ -104,6 +104,7 @@ function summarize(
   return {
     id: channel.id,
     name: channel.name,
+    ...(channel.description ? { description: channel.description } : {}),
     group: channel.groupId ? (groupNames.get(channel.groupId) ?? null) : null,
     channelKind: channel.kind,
     isPrivate: (channel.visibleToTags ?? []).length > 0 || !!channel.isPrivate,

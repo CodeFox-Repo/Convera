@@ -284,6 +284,7 @@ export class RendererAgentHostService {
       mayPass,
       peers,
       channel.id,
+      channel.description,
     );
     const baseSystemPrompt = agent.systemPrompt
       ? `${agent.systemPrompt}\n\n${roomContext}`

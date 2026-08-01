@@ -219,38 +219,61 @@ async function upgradeEmojiAvatars(): Promise<void> {
  * They are part of the name, so renaming or deleting a channel behaves
  * exactly as it does for any other.
  */
+/**
+ * The description is written for the colleague reading it, agent or human: it
+ * says what belongs in the room, not what the room is called again. This is
+ * the platform's only chance to tell an agent what #announcements *means*
+ * without stuffing it into a prompt.
+ */
 const STARTER_CHANNELS: Array<{
   name: string;
+  description: string;
   agentTemplateIds: string[];
 }> = [
   {
     // The onboarding hall: project intros and direction land here, and every
     // agent carries it as shared org context into every other room.
     name: "📣 announcements",
+    description:
+      "The onboarding hall. Project introductions, direction and decisions that affect everyone are posted here — read it to understand what the team is working on and why.",
     agentTemplateIds: ["sage", "patch", "quill"],
   },
   {
     name: "💬 general",
+    description:
+      "Open chat for the whole team. Anything that does not have a room of its own: questions, half-formed ideas, and the conversation that happens between the work.",
     agentTemplateIds: ["sage", "patch", "quill"],
   },
   {
     name: "🔍 code-review",
+    description:
+      "Diffs and pull requests go here for a second pair of eyes. Bring the change and the context behind it; expect correctness and failure modes before style.",
     agentTemplateIds: ["sage"],
   },
   {
     name: "🐛 debugging",
+    description:
+      "Broken behaviour, stack traces and mysteries in progress. Bring the symptom and how to reproduce it; the work here is finding the root cause, not patching the report.",
     agentTemplateIds: ["patch"],
   },
   {
     name: "📖 docs",
+    description:
+      "Documentation, READMEs and onboarding writing. Where working code gets turned into something the next person can follow.",
     agentTemplateIds: ["quill"],
   },
 ];
 
+/**
+ * Creates the rooms that are missing, and fills in a description on the ones
+ * that already exist without one — a workspace seeded before descriptions
+ * existed has an #announcements that says nothing about what it is for, which
+ * is precisely the context agents are supposed to be able to read.
+ */
 async function seedStarterChannels(): Promise<void> {
   const agents = await db.agents.toArray();
-  const existingNames = new Set(
-    (await db.channels.toArray()).map((channel) => channel.name),
+  const existing = new Map(
+    (await db.channels.toArray()).map((channel) => [channel.name, channel]),
   );
   const memberIdForTemplate = (templateId: string): string | null => {
     const template = AGENT_TEMPLATES.find((t) => t.id === templateId);
@@ -259,12 +282,23 @@ async function seedStarterChannels(): Promise<void> {
   };
 
   for (const spec of STARTER_CHANNELS) {
-    if (existingNames.has(spec.name)) continue;
+    const already = existing.get(spec.name);
+    if (already) {
+      // Never overwrite one someone has written themselves.
+      if (!already.description?.trim()) {
+        await db.channels.update(already.id, {
+          description: spec.description,
+          updatedAt: new Date(),
+        });
+      }
+      continue;
+    }
     const agentMemberIds = spec.agentTemplateIds
       .map(memberIdForTemplate)
       .filter((id): id is string => id !== null);
     await createChannel({
       name: spec.name,
+      description: spec.description,
       groupId: null,
       memberIds: [LOCAL_HUMAN_MEMBER_ID, ...agentMemberIds],
     });
@@ -276,7 +310,7 @@ async function seedStarterChannels(): Promise<void> {
  * seed itself is idempotent (hire skips existing names, channels skip existing
  * names), so a re-run only ever fills in what is missing.
  */
-const STARTER_TEAM_VERSION = 3;
+const STARTER_TEAM_VERSION = 4;
 
 export async function ensureStarterTeam(): Promise<void> {
   await renameLegacyStarters();

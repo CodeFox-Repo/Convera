@@ -117,6 +117,7 @@ export async function inspectAgentDMContext(
     false,
     [],
     channel.id,
+    channel.description,
   );
   const identityPrompt = agent.systemPrompt.trim();
   const effectiveSystemPrompt = identityPrompt

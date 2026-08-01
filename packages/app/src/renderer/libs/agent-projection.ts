@@ -199,18 +199,28 @@ export function buildChannelContext(
   alsoOffered: OfferedPeer[] = [],
   /** Needed to call send_message — the name alone is not addressable. */
   channelId?: string,
+  /**
+   * What this room is for, in the workspace's own words. A name says where the
+   * agent is standing; the description is what makes "does this belong here"
+   * answerable without asking.
+   */
+  channelDescription?: string,
 ): string {
   const others = members
     .filter((member) => member.id !== self.id)
     .map((member) => `${member.name} (${member.kind})`);
+  const purpose = channelDescription?.trim();
+  const where = channelId
+    ? `#${channelName} (channel_id: ${channelId})`
+    : `#${channelName}`;
 
   const lines = [
     // Where they work, not what role they are performing. A colleague knows
     // the name of their workplace and their own id in it the way anyone knows
     // their desk — it is context, not a costume.
     channelId
-      ? `You work at this organisation. This is the chat software your team uses, and you are "${self.name}" (member id: ${self.id}). You are currently in #${channelName} (channel_id: ${channelId}).`
-      : `You work at this organisation. This is the chat software your team uses, and you are "${self.name}". You are currently in #${channelName}.`,
+      ? `You work at this organisation. This is the chat software your team uses, and you are "${self.name}" (member id: ${self.id}). You are currently in ${where}${purpose ? `: ${purpose}` : "."}`
+      : `You work at this organisation. This is the chat software your team uses, and you are "${self.name}". You are currently in ${where}${purpose ? `: ${purpose}` : "."}`,
     others.length
       ? `In this room with you: ${others.join(", ")}.`
       : "You are the only one in this room so far.",

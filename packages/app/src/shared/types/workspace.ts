@@ -132,6 +132,16 @@ export interface Channel {
   name: string;
   kind: "channel" | "dm";
   /**
+   * What this room is for, in the workspace's own words.
+   *
+   * Not decoration: a colleague — human or agent — reads it to know whether a
+   * message belongs here, the way a new hire reads the pinned post. It travels
+   * into an agent's channel context and its `list_channels` / `read_channel`
+   * results, so writing one here is how you tell every agent what #announcements
+   * means without touching a prompt.
+   */
+  description?: string;
+  /**
    * Which tags may see this channel. Empty (or absent) means the whole
    * workspace can — a public room you have not joined yet is how a colleague
    * discovers where the work is happening.

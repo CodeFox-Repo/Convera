@@ -3,6 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 interface InlineNameInputProps {
   placeholder: string;
   initialValue?: string;
+  /**
+   * Submit a blank value instead of cancelling. A nameless channel is a bug,
+   * but a description someone wants gone has to have a way out.
+   */
+  allowEmpty?: boolean;
+  className?: string;
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }
@@ -11,6 +17,8 @@ interface InlineNameInputProps {
 export function InlineNameInput({
   placeholder,
   initialValue = "",
+  allowEmpty = false,
+  className,
   onSubmit,
   onCancel,
 }: InlineNameInputProps) {
@@ -29,7 +37,7 @@ export function InlineNameInput({
     if (settledRef.current) return;
     settledRef.current = true;
     const trimmed = value.trim();
-    if (trimmed) onSubmit(trimmed);
+    if (trimmed || allowEmpty) onSubmit(trimmed);
     else onCancel();
   };
 
@@ -48,7 +56,10 @@ export function InlineNameInput({
           onCancel();
         }
       }}
-      className="w-full rounded-md border border-sidebar-border bg-transparent px-2 py-1 text-sm text-sidebar-foreground outline-none pointer-events-auto focus:border-sidebar-ring"
+      className={
+        className ??
+        "w-full rounded-md border border-sidebar-border bg-transparent px-2 py-1 text-sm text-sidebar-foreground outline-none pointer-events-auto focus:border-sidebar-ring"
+      }
     />
   );
 }

@@ -74,6 +74,8 @@ export type WorkspaceQuery =
 export interface WorkspaceChannelSummary {
   id: string;
   name: string;
+  /** What the room is for; absent when nobody has said. */
+  description?: string;
   /** Sidebar section, so an agent can tell "Product" from "Launch Swarm". */
   group: string | null;
   channelKind: "channel" | "dm";

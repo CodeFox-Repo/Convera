@@ -2,8 +2,10 @@ import {
   addChannelMember,
   removeChannelMember,
   setChannelDefaultAgent,
+  setChannelDescription,
   type Channel,
 } from "@/renderer/libs/stores/channel-store";
+import { InlineNameInput } from "@/renderer/components/sidebar/InlineNameInput";
 import {
   LOCAL_HUMAN_MEMBER_ID,
   useMembers,
@@ -47,6 +49,7 @@ export function ChannelHeader({
   onToggleContext,
 }: ChannelHeaderProps) {
   const allMembers = useMembers();
+  const [editingDescription, setEditingDescription] = useState(false);
   const { jobs, activeJobs, error: hostError } = useAgentHostJobs(channel.id);
   // Only failures from work triggered in this conversation. A channel that was
   // rebuilt keeps its id but gets a new conversation, so jobs from the previous
@@ -68,11 +71,49 @@ export function ChannelHeader({
   }, [allMembers, channel.memberIds]);
 
   return (
-    <div className="no-drag-region flex items-center gap-2 border-b border-border px-6 py-2">
+    <div className="group/header no-drag-region flex items-center gap-2 border-b border-border px-6 py-2">
       <Icon size={15} className="flex-shrink-0 text-muted-foreground" />
-      <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
-        {channel.name}
-      </h2>
+      {/* Name over purpose, the way a room's sign reads. The description is
+          the same context an agent gets, so seeing it here is what makes the
+          two agree. */}
+      <div className="flex min-w-0 flex-col">
+        <h2 className="min-w-0 truncate text-sm font-semibold leading-tight text-foreground">
+          {channel.name}
+        </h2>
+        {channel.kind !== "dm" &&
+          (editingDescription ? (
+            <InlineNameInput
+              placeholder="What is this channel for?"
+              initialValue={channel.description ?? ""}
+              allowEmpty
+              className="w-72 max-w-full rounded-sm border border-border bg-transparent px-1 text-xs leading-tight text-foreground outline-none pointer-events-auto focus:border-ring"
+              onSubmit={(value) => {
+                void setChannelDescription(channel.id, value);
+                setEditingDescription(false);
+              }}
+              onCancel={() => setEditingDescription(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingDescription(true)}
+              className={cn(
+                "min-w-0 truncate text-left text-xs leading-tight transition-colors pointer-events-auto hover:text-foreground",
+                channel.description
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground opacity-0 focus-visible:opacity-100 group-hover/header:opacity-100",
+              )}
+              title={channel.description ?? "Add a description"}
+              aria-label={
+                channel.description
+                  ? `Edit channel description: ${channel.description}`
+                  : "Add a channel description"
+              }
+            >
+              {channel.description ?? "Add a description"}
+            </button>
+          ))}
+      </div>
       {activeJobs.length > 0 && (
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <LoaderCircle size={12} className="animate-spin" />

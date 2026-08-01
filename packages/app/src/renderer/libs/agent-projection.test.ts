@@ -337,6 +337,31 @@ describe("buildChannelContext", () => {
     expect(direct).not.toContain("send_message");
     expect(direct).not.toContain("Nothing you write as your answer is visible");
   });
+
+  it("carries the channel's description, which is what makes a room mean something", () => {
+    const context = buildChannelContext(
+      fizz,
+      "announcements",
+      members,
+      false,
+      [],
+      "channel-1",
+      "The onboarding hall. Project direction is posted here.",
+    );
+    expect(context).toContain(
+      "#announcements (channel_id: channel-1): The onboarding hall. Project direction is posted here.",
+    );
+  });
+
+  it("still ends the sentence cleanly when the room has no description", () => {
+    expect(buildChannelContext(fizz, "general", members)).toContain(
+      "currently in #general.",
+    );
+    // Whitespace is not a description; "#general: " tells an agent nothing.
+    expect(
+      buildChannelContext(fizz, "general", members, false, [], undefined, "  "),
+    ).toContain("currently in #general.");
+  });
 });
 
 describe("isPass", () => {
