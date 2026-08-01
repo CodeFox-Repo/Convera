@@ -8,7 +8,6 @@ import {
   Apple,
   CheckCircle,
   Clock,
-  Download as DownloadIcon,
   ExternalLink,
   FileText,
   Github,
@@ -162,14 +161,6 @@ const Download = () => {
       description: platform
         ? `${platform} is currently in development and will be available soon. Stay tuned for updates!`
         : "This feature is currently in development and will be available soon. Stay tuned for updates!",
-      duration: 3000,
-    });
-  };
-
-  const showDownloadToast = (platform: string) => {
-    toast({
-      title: "📥 Download Started!",
-      description: `Your ${platform} download has started. Please check your Downloads folder.`,
       duration: 3000,
     });
   };
@@ -433,43 +424,44 @@ const Download = () => {
                     <span className="font-medium">Requirements:</span> {option.minRequirements}
                   </div>
 
-                  <Button
-                    className={`text-foreground w-full shadow-md transition-all duration-300 hover:shadow-lg ${
-                      option.recommended
-                        ? "from-primary to-accent hover:from-primary/90 hover:to-accent/90 bg-linear-to-r"
-                        : "bg-muted hover:bg-muted/80"
-                    }`}
-                    size="lg"
-                    disabled={option.comingSoon}
-                    onClick={() => {
-                      if (!option.comingSoon && option.downloadUrl && option.available) {
-                        // Direct download from GitHub releases
-                        window.open(option.downloadUrl, "_blank");
-                        showDownloadToast(option.platform);
-                      } else if (!option.available && option.platform === "macOS") {
-                        toast({
-                          title: "⚠️ Download Unavailable",
-                          description:
-                            "The latest release is still being processed. Please try again in a few minutes.",
-                          duration: 5000,
-                        });
-                      } else {
-                        showComingSoonToast(option.platform);
-                      }
-                    }}
-                  >
-                    {option.comingSoon ? (
-                      <>
-                        <Clock className="mr-2 h-4 w-4" />
-                        Coming Soon
-                      </>
-                    ) : (
-                      <>
-                        <DownloadIcon className="mr-2 h-4 w-4" />
-                        Download for {option.platform}
-                      </>
-                    )}
-                  </Button>
+                  {option.platform === "macOS" ? (
+                    // brew is the install path: one command, and the cask
+                    // clears quarantine itself so the unsigned build opens
+                    // without the "damaged" dance.
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        className="bg-well border-rule hover:border-primary/40 block w-full overflow-x-auto rounded-md border px-3 py-2.5 text-left font-mono text-xs transition-colors"
+                        title="Click to copy"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(
+                            "brew install --cask codefox-repo/codefox/convera",
+                          );
+                          toast({
+                            title: "Copied!",
+                            description: "Paste it into Terminal to install.",
+                            duration: 2500,
+                          });
+                        }}
+                      >
+                        brew install --cask codefox-repo/codefox/convera
+                      </button>
+                      <p className="text-muted-foreground text-center text-[11px]">
+                        Click to copy · installs and clears quarantine in one
+                        step
+                      </p>
+                    </div>
+                  ) : (
+                    <Button
+                      className="text-foreground bg-muted hover:bg-muted/80 w-full shadow-md transition-all duration-300 hover:shadow-lg"
+                      size="lg"
+                      disabled={option.comingSoon}
+                      onClick={() => showComingSoonToast(option.platform)}
+                    >
+                      <Clock className="mr-2 h-4 w-4" />
+                      Coming Soon
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -574,9 +566,12 @@ const Download = () => {
                       <span className="text-primary text-xs font-semibold">1</span>
                     </div>
                     <div>
-                      <h4 className="mb-1 text-sm font-medium">Download & Install</h4>
+                      <h4 className="mb-1 text-sm font-medium">
+                        Install with Homebrew
+                      </h4>
                       <p className="text-muted-foreground text-xs">
-                        Choose your platform and download the installer
+                        One command installs the app and clears macOS
+                        quarantine for you
                       </p>
                     </div>
                   </div>
@@ -587,7 +582,7 @@ const Download = () => {
                     </div>
                     <div className="min-w-0">
                       <h4 className="mb-1 text-sm font-medium">
-                        Allow the app to open
+                        Downloaded the DMG instead?
                       </h4>
                       <p className="text-muted-foreground mb-2 text-xs">
                         The build isn&apos;t notarized yet, so macOS will say
