@@ -222,7 +222,7 @@ Electron creates separate JavaScript contexts for each window, meaning Zustand s
 
 ### Solution: localStorage + storage Events Pattern
 
-Use the same pattern as `model-store` for elegant cross-window synchronization:
+Use the same pattern as `model-config-store` for elegant cross-window synchronization:
 
 #### 1. Data Persistence
 
@@ -277,7 +277,7 @@ useEffect(() => {
 
 - Any Zustand store that needs cross-window synchronization
 - Prefer this over custom IPC solutions for window-to-window state sync
-- Reference `model-store.ts` and `mcp-store.ts` for implementation examples
+- Reference `model-config-store.ts` and `mcp-store.ts` for implementation examples
 
 ### Window Initialization Pattern
 
