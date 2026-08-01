@@ -17,6 +17,7 @@ export const WORKSPACE_TOOL_NAMES = new Set([
   "list_channels",
   "read_channel",
   WORKSPACE_SEND_MESSAGE_TOOL,
+  "add_reaction",
 ]);
 
 export const WORKSPACE_QUERY_INTERACTION = "workspace:query";
@@ -66,10 +67,24 @@ export interface WorkspaceSendMessageQuery {
   };
 }
 
+/**
+ * Reacting is a gesture, not a message: it says "seen"/"agreed" without adding
+ * a line to the room. Same visibility gate as everything else — an agent may
+ * only react in a channel it can read.
+ */
+export interface WorkspaceAddReactionQuery {
+  kind: "add_reaction";
+  viewerMemberId: string;
+  channelId: string;
+  messageId: string;
+  emoji: string;
+}
+
 export type WorkspaceQuery =
   | WorkspaceListChannelsQuery
   | WorkspaceReadChannelQuery
-  | WorkspaceSendMessageQuery;
+  | WorkspaceSendMessageQuery
+  | WorkspaceAddReactionQuery;
 
 export interface WorkspaceChannelSummary {
   id: string;
@@ -105,6 +120,12 @@ export interface WorkspaceChannelMessage {
     senderName: string | null;
     content: string | null;
   };
+  /**
+   * Who reacted with what, by name — the same thing a person sees hovering a
+   * chip. Absent when nobody has reacted, so an unreacted message costs
+   * nothing in the budget.
+   */
+  reactions?: { emoji: string; reactors: string[] }[];
   createdAt: string;
 }
 
@@ -120,4 +141,5 @@ export type WorkspaceQueryResult =
   | { ok: true; kind: "list_channels"; channels: WorkspaceChannelSummary[] }
   | { ok: true; kind: "read_channel"; channel: WorkspaceChannelView }
   | { ok: true; kind: "send_message"; messageId: string }
+  | { ok: true; kind: "add_reaction"; messageId: string; emoji: string }
   | { ok: false; error: { code: string; message: string } };

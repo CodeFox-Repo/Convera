@@ -56,6 +56,16 @@ function fakeRenderer(visibleChannelIds: string[]) {
           }),
         };
       }
+      if (query.kind === "add_reaction") {
+        return {
+          value: JSON.stringify({
+            ok: true,
+            kind: "add_reaction",
+            messageId: query.messageId,
+            emoji: query.emoji,
+          }),
+        };
+      }
       return {
         value: JSON.stringify({
           ok: true,
@@ -123,6 +133,40 @@ describe("workspace perception tools", () => {
         replyToMessageId: "message-7",
       },
     ]);
+  });
+
+  it("carries a reaction to the renderer, and its refusal back", async () => {
+    const renderer = fakeRenderer(["joined"]);
+    const tools = createWorkspacePerceptionTools({
+      viewerMemberId: "agent:fizz",
+      requestInteraction: renderer.requestInteraction,
+    });
+
+    const reacted = await byName(tools, "add_reaction").execute({
+      channel_id: "joined",
+      message_id: "message-7",
+      emoji: "👍",
+    });
+
+    expect(renderer.queries).toEqual([
+      {
+        kind: "add_reaction",
+        viewerMemberId: "agent:fizz",
+        channelId: "joined",
+        messageId: "message-7",
+        emoji: "👍",
+      },
+    ]);
+    expect(reacted).toMatchObject({ ok: true, emoji: "👍" });
+
+    // A gesture is gated exactly like a read: same filter, same refusal.
+    expect(
+      await byName(tools, "add_reaction").execute({
+        channel_id: "hidden",
+        message_id: "message-9",
+        emoji: "👍",
+      }),
+    ).toMatchObject({ ok: false, error: { code: "CHANNEL_NOT_VISIBLE" } });
   });
 
   it("surfaces joined and not-joined channels", async () => {
@@ -254,6 +298,7 @@ describe("withWorkspacePerception", () => {
       "workspace:list_channels",
       "workspace:send_message",
       "workspace:read_channel",
+      "workspace:add_reaction",
     ]);
   });
 

@@ -11,6 +11,7 @@ import {
 import { resolveSenderName } from "@/renderer/libs/chat-labels";
 import { LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db/database";
 import { toggleReaction } from "@/renderer/libs/db/hooks";
+import { useMembers } from "@/renderer/libs/stores/member-store";
 import { cn } from "@/renderer/libs/utils/tailwind";
 import type { UIMessage } from "@/renderer/types/chat";
 import type { Member } from "@/shared/types/workspace";
@@ -66,6 +67,32 @@ export interface MessageRowProps {
 }
 
 /**
+ * "You, Elena and Noah reacted with 👍" — the chip's own tooltip, because a
+ * bare count says a room responded without saying who is in it. Yourself first
+ * and by name, the way every other client writes it.
+ */
+export function reactionTitle(
+  emoji: string,
+  reactors: string[],
+  nameOf: (memberId: string) => string | undefined,
+): string {
+  const mine = reactors.includes(LOCAL_HUMAN_MEMBER_ID);
+  const names = [
+    ...(mine ? ["You"] : []),
+    // An id that resolves to nobody is a member who has left, not a reaction
+    // that did not happen: keep it counted rather than dropping the name.
+    ...reactors
+      .filter((id) => id !== LOCAL_HUMAN_MEMBER_ID)
+      .map((id) => nameOf(id) ?? id),
+  ];
+  const listed =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${listed} reacted with ${emoji}`;
+}
+
+/**
  * Reactions live on the persisted row, so a message still streaming has none
  * to show and nothing to write to — the chips simply appear once it is saved.
  */
@@ -76,9 +103,11 @@ function ReactionBar({
   messageId: string;
   reactions?: Record<string, string[]>;
 }) {
+  const members = useMembers();
   const entries = Object.entries(reactions ?? {});
   if (entries.length === 0) return null;
 
+  const byId = new Map((members ?? []).map((member) => [member.id, member]));
   return (
     <div className="flex flex-wrap items-center gap-1">
       {entries.map(([emoji, reactors]) => {
@@ -96,7 +125,7 @@ function ReactionBar({
               void toggleReaction(messageId, emoji, LOCAL_HUMAN_MEMBER_ID)
             }
             aria-pressed={mine}
-            title={`${reactors.length} reacted with ${emoji}`}
+            title={reactionTitle(emoji, reactors, (id) => byId.get(id)?.name)}
           >
             <span className="leading-none">{emoji}</span>
             <span className="tabular-nums">{reactors.length}</span>

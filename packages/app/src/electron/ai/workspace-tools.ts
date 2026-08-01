@@ -80,6 +80,27 @@ const sendMessageSchema = z.object({
     ),
 });
 
+const addReactionSchema = z.object({
+  channel_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Channel id the message is in."),
+  message_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Message id from read_channel."),
+  emoji: z
+    .string()
+    .trim()
+    .min(1)
+    .max(16)
+    .describe("A single emoji character, e.g. 👍."),
+});
+
 const DESCRIPTIONS = {
   list_channels:
     "List every channel in this workspace you are allowed to see, including ones you have not joined. Use it to find where a topic lives before reading it. Each entry reports whether you are a member, its group, and how many people are in it.",
@@ -87,6 +108,8 @@ const DESCRIPTIONS = {
     "Read one channel's roster and its most recent messages. Use it to catch up on a room — including a visible room you have not joined — before answering or deciding what to remember. Returns oldest-first messages and flags when older history was cut.",
   send_message:
     "Say something in a channel. This is how you speak: nothing you write in your own reasoning reaches anyone until you call this. Reply markers are for pointing at an older or ambiguous message; answering the latest thing said needs none — just talk. Post only when you have something worth adding — staying quiet is a normal and complete answer, and a room where everyone answers everything is noise. You may post to any channel you can see, not only the one you were addressed in.",
+  add_reaction:
+    "React to a message with an emoji, the way a person clicks one instead of typing. Use it when acknowledging is the whole answer — 👍 on a plan you agree with, 👀 on something you have picked up — so the room sees you responded without another line to read. Calling it again with the same emoji takes your reaction back. This is not a substitute for send_message when you actually have something to say.",
 } as const;
 
 function schemaOf(shape: ZodRawShape): Record<string, unknown> {
@@ -241,6 +264,20 @@ export function createWorkspacePerceptionTools(
           viewerMemberId: options.viewerMemberId,
           channelId: input.channel_id as string,
           limit: input.limit as number,
+        }),
+    ),
+    perceptionTool(
+      "add_reaction",
+      DESCRIPTIONS.add_reaction,
+      addReactionSchema.shape,
+      addReactionSchema,
+      (input) =>
+        ask(options, {
+          kind: "add_reaction",
+          viewerMemberId: options.viewerMemberId,
+          channelId: input.channel_id as string,
+          messageId: input.message_id as string,
+          emoji: input.emoji as string,
         }),
     ),
   ];

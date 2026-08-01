@@ -11,6 +11,7 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import type {
+  WorkspaceAddReactionQuery,
   WorkspaceChannelMessage,
   WorkspaceChannelSummary,
   WorkspaceChannelView,
@@ -32,7 +33,7 @@ import type {
   Tag,
   TagPermission,
 } from "@/shared/types/workspace";
-import { db, type Message } from "./db";
+import { db, toggleReaction, type Message } from "./db";
 
 /**
  * Who is looking, reduced to what the visibility rule needs: the tags they
@@ -134,6 +135,25 @@ function senderName(
   };
 }
 
+/**
+ * Reactions as a colleague sees them: names, not member ids. A reactor who is
+ * no longer in the room still counts — the gesture happened — so an unresolved
+ * id falls back to itself rather than vanishing and changing the tally.
+ */
+function reactionList(
+  message: Message,
+  members: Map<string, Member>,
+): { emoji: string; reactors: string[] }[] | undefined {
+  const entries = Object.entries(message.reactions ?? {}).filter(
+    ([, reactors]) => reactors.length > 0,
+  );
+  if (entries.length === 0) return undefined;
+  return entries.map(([emoji, reactors]) => ({
+    emoji,
+    reactors: reactors.map((id) => members.get(id)?.name ?? id),
+  }));
+}
+
 function toChannelMessage(
   message: Message,
   members: Map<string, Member>,
@@ -160,11 +180,13 @@ function toChannelMessage(
           : null,
       }
     : undefined;
+  const reactions = reactionList(message, members);
   return {
     id: message.id,
     ...senderName(message, members),
     content,
     ...(replyTo ? { replyTo } : {}),
+    ...(reactions ? { reactions } : {}),
     createdAt: new Date(message.createdAt).toISOString(),
   };
 }
@@ -241,8 +263,29 @@ async function readChannel(
   const window = ordered.slice(
     -Math.min(Math.max(limit, 1), WORKSPACE_MESSAGE_LIMIT_MAX),
   );
+
+  // The roster is who is in the room; naming is a wider question. Someone can
+  // speak or react in a channel and not be a member of it — anyone may react
+  // in a room they can merely see, and a member who leaves takes their name
+  // out of the roster but not out of the history. Resolve the extras rather
+  // than printing raw ids at the agent.
+  const referenced = new Set<string>();
+  for (const message of window) {
+    if (message.senderId) referenced.add(message.senderId);
+    for (const reactors of Object.values(message.reactions ?? {})) {
+      for (const id of reactors) referenced.add(id);
+    }
+  }
+  const names = new Map(members);
+  const missing = [...referenced].filter((id) => !names.has(id));
+  if (missing.length > 0) {
+    for (const row of await db.members.bulkGet(missing)) {
+      if (row) names.set(row.id, row);
+    }
+  }
+
   const messages = window.map((message) =>
-    toChannelMessage(message, members, messagesById),
+    toChannelMessage(message, names, messagesById),
   );
   let truncated = window.length < ordered.length;
 
@@ -321,6 +364,41 @@ async function sendMessage(
   return sendMessageHandler(query);
 }
 
+/**
+ * Reacting writes straight to the row rather than through the speech seam:
+ * there is no message to place, no mentions to parse and nobody to route to,
+ * so a gesture cannot start a turn. Toggling is deliberate — the agent holds
+ * one reaction per emoji exactly like a person clicking the chip twice.
+ */
+async function addReaction(
+  query: WorkspaceAddReactionQuery,
+): Promise<WorkspaceQueryResult> {
+  const [channel, viewer] = await Promise.all([
+    db.channels.get(query.channelId),
+    resolveViewer(query.viewerMemberId),
+  ]);
+  if (!channel || !canViewChannel(viewer, channel)) {
+    return notFound(query.channelId);
+  }
+  const target = await db.messages.get(query.messageId);
+  if (!target || target.conversationId !== channel.conversationId) {
+    return {
+      ok: false,
+      error: {
+        code: "REACTION_TARGET_NOT_FOUND",
+        message: "That message is not available in that channel.",
+      },
+    };
+  }
+  await toggleReaction(query.messageId, query.emoji, query.viewerMemberId);
+  return {
+    ok: true,
+    kind: "add_reaction",
+    messageId: query.messageId,
+    emoji: query.emoji,
+  };
+}
+
 export async function resolveWorkspaceQuery(
   query: WorkspaceQuery,
 ): Promise<WorkspaceQueryResult> {
@@ -336,6 +414,8 @@ export async function resolveWorkspaceQuery(
         );
       case "send_message":
         return await sendMessage(query);
+      case "add_reaction":
+        return await addReaction(query);
     }
   } catch (error) {
     return {
@@ -354,6 +434,7 @@ const WORKSPACE_QUERY_KINDS: ReadonlySet<string> = new Set([
   "list_channels",
   "read_channel",
   "send_message",
+  "add_reaction",
 ]);
 
 function isWorkspaceQuery(value: unknown): value is WorkspaceQuery {

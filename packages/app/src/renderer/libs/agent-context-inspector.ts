@@ -200,7 +200,12 @@ export async function inspectAgentDMContext(
           isPrivate:
             (candidate.visibleToTags ?? []).length > 0 || !!candidate.isPrivate,
         })),
-      workspaceTools: ["list_channels", "read_channel", "send_message"],
+      workspaceTools: [
+        "list_channels",
+        "read_channel",
+        "send_message",
+        "add_reaction",
+      ],
       configuredMcpServerIds: [...(agent.selectedMCPs ?? [])],
       configuredDisabledTools: [...agent.disableToolReferences],
       effectiveToolCatalog,

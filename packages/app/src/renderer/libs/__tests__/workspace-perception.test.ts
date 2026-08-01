@@ -235,6 +235,27 @@ describe("read_channel", () => {
     ]);
   });
 
+  it("shows who reacted, by name, so a gesture reads like one", async () => {
+    await db.messages.update("m1", {
+      reactions: { "👍": [HUMAN, "agent:buzz"], "👀": [AGENT] },
+    });
+
+    const result = await resolveWorkspaceQuery({
+      kind: "read_channel",
+      viewerMemberId: AGENT,
+      channelId: "joined",
+      limit: 30,
+    });
+
+    if (!result.ok || result.kind !== "read_channel") throw new Error("bad");
+    expect(result.channel.messages[0].reactions).toEqual([
+      { emoji: "👍", reactors: ["You", "Buzz"] },
+      { emoji: "👀", reactors: ["Fizz"] },
+    ]);
+    // A message nobody reacted to says nothing rather than an empty list.
+    expect(result.channel.messages[1].reactions).toBeUndefined();
+  });
+
   it("reads a visible channel the agent has not joined", async () => {
     const result = await resolveWorkspaceQuery({
       kind: "read_channel",
@@ -458,6 +479,61 @@ describe("send_message", () => {
       ok: false,
       error: { code: "WORKSPACE_WRITE_UNAVAILABLE" },
     });
+  });
+});
+
+describe("add_reaction", () => {
+  const react = (channelId: string, messageId: string, emoji = "👍") =>
+    resolveWorkspaceQuery({
+      kind: "add_reaction",
+      viewerMemberId: AGENT,
+      channelId,
+      messageId,
+      emoji,
+    });
+
+  it("records the reaction against the agent's own member id", async () => {
+    const result = await react("joined", "m1");
+
+    expect(result).toMatchObject({ ok: true, messageId: "m1", emoji: "👍" });
+    expect((await db.messages.get("m1"))?.reactions).toEqual({
+      "👍": [AGENT],
+    });
+  });
+
+  it("takes the reaction back when the same emoji is sent again", async () => {
+    await react("joined", "m1");
+    await react("joined", "m1");
+
+    // The key disappears with its last reactor, so no chip with a zero count.
+    expect((await db.messages.get("m1"))?.reactions).toEqual({});
+  });
+
+  it("lets an agent react in a visible channel it has not joined", async () => {
+    const result = await react("visible", "m3");
+
+    expect(result).toMatchObject({ ok: true, messageId: "m3" });
+    expect((await db.messages.get("m3"))?.reactions).toEqual({ "👍": [AGENT] });
+  });
+
+  it("refuses a channel the agent cannot see, leaving the message untouched", async () => {
+    const result = await react("hidden", "m4");
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "CHANNEL_NOT_VISIBLE" },
+    });
+    expect((await db.messages.get("m4"))?.reactions).toBeUndefined();
+  });
+
+  it("refuses a message that lives in a different channel", async () => {
+    const result = await react("joined", "m3");
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "REACTION_TARGET_NOT_FOUND" },
+    });
+    expect((await db.messages.get("m3"))?.reactions).toBeUndefined();
   });
 });
 
