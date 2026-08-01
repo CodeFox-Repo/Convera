@@ -2,7 +2,7 @@ import type { ILocalAIAPI, LocalAIProviderKind } from "@/shared/types/local-ai";
 
 export type LocalAIProviderId = Extract<
   LocalAIProviderKind,
-  "claude-code" | "codex-cli" | "openai-api"
+  "claude-code" | "codex-cli" | "openai-api" | "fireworks-api"
 >;
 
 /**
@@ -18,6 +18,7 @@ export const LOCAL_AI_PROVIDER_NAMES: Record<LocalAIProviderId, string> = {
   "claude-code": "Claude Code",
   "codex-cli": "Codex",
   "openai-api": "OpenAI API",
+  "fireworks-api": "Fireworks",
 };
 
 export function isLocalAIProviderId(value: string): value is LocalAIProviderId {

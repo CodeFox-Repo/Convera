@@ -22,6 +22,16 @@ export const LOCAL_AI_PROVIDER_DESCRIPTORS: Record<
     transport: "openai-api",
     supportsStreaming: true,
   },
+  "fireworks-api": {
+    id: "fireworks-api",
+    label: "Fireworks",
+    // DeepSeek V4 Flash: open-weights, reasoning built in, and cheap enough to
+    // leave several colleagues thinking at once in a room.
+    defaultModel: "accounts/fireworks/models/deepseek-v4-flash-0731",
+    models: ["accounts/fireworks/models/deepseek-v4-flash-0731"],
+    transport: "fireworks-api",
+    supportsStreaming: true,
+  },
   "codex-cli": {
     id: "codex-cli",
     label: "Codex",

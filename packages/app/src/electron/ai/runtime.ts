@@ -44,6 +44,7 @@ import type {
 } from "./provider-adapter";
 import { ClaudeCodeAdapter } from "./providers/claude-code";
 import { CodexCliAdapter } from "./providers/codex-cli";
+import { FireworksApiAdapter } from "./providers/fireworks-api";
 import { OpenAIApiAdapter } from "./providers/openai-api";
 import {
   defaultSessionStatePath,
@@ -461,6 +462,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       new ClaudeCodeAdapter(),
       new CodexCliAdapter(),
       new OpenAIApiAdapter(),
+      new FireworksApiAdapter(),
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
     this.workingDirectory = options.workingDirectory ?? process.cwd();

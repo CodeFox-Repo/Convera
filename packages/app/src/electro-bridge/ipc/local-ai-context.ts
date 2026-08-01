@@ -56,6 +56,7 @@ const ALLOWED_PROVIDER_IDS = new Set([
   "claude-code",
   "codex-cli",
   "openai-api",
+  "fireworks-api",
 ]);
 const MAX_MESSAGE_CHARS = 200_000;
 const MAX_REQUEST_CHARS = 1_000_000;

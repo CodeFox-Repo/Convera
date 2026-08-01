@@ -65,7 +65,10 @@ export function createElectronMemoryIntegration(
         new RestrictedMemoryCurator({
           // Memory curation runs on the CLI agents; a raw API provider has no
           // curator persona, so its turns simply skip subconscious curation.
-          provider: provider === "openai-api" ? "off" : provider,
+          provider:
+            provider === "openai-api" || provider === "fireworks-api"
+              ? "off"
+              : provider,
           sessionRepository: options.sessionRepository,
           workingDirectory: options.workingDirectory,
         }),

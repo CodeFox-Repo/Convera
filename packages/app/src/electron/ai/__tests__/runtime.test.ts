@@ -161,6 +161,10 @@ describe("LocalAiRuntime", () => {
         id: "openai-api",
         availability: "unavailable",
       }),
+      expect.objectContaining({
+        id: "fireworks-api",
+        availability: "unavailable",
+      }),
     ]);
   });
 

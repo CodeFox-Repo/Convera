@@ -10,6 +10,7 @@ export type LocalAIProviderKind =
   | "claude-code"
   | "codex-cli"
   | "openai-api"
+  | "fireworks-api"
   | "openai-compatible";
 
 export type LocalAIProviderAvailability =
