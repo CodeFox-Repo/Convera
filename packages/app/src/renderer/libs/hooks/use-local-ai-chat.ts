@@ -70,6 +70,8 @@ interface UseLocalAIChatResult {
   input: string;
   isLoading: boolean;
   status: "ready" | "submitted" | "streaming" | "error";
+  /** Conversation the in-flight turn belongs to; undefined when idle. */
+  activeConversationId: string | undefined;
   error: Error | undefined;
   lastCompletedTurn: LocalAICompletedTurn | undefined;
   setInput: (input: string) => void;
@@ -593,6 +595,11 @@ export function useLocalAIChat(): UseLocalAIChatResult {
     input,
     isLoading: status === "submitted" || status === "streaming",
     status,
+    // Which conversation the in-flight turn belongs to. The status above is
+    // hook-global; without this the UI cannot tell "busy here" from "busy in
+    // the room I just left", and switching conversations froze the composer
+    // until the previous room's reply finished.
+    activeConversationId: activeConversationIdRef.current,
     error,
     lastCompletedTurn,
     setInput,

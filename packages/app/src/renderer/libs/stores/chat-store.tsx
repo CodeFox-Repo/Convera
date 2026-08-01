@@ -1328,8 +1328,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       messages: chatAPI.messages as UIMessage[],
       input: chatAPI.input,
+      // Busy HERE, not busy anywhere: the runtime is hook-global, but a turn
+      // running in the room you just left must not freeze this composer —
+      // channels already type freely during agent turns (speaksViaTool), and
+      // switching Convera conversations deserves the same.
       isLoading:
-        chatAPI.status === "streaming" || chatAPI.status === "submitted",
+        (chatAPI.status === "streaming" || chatAPI.status === "submitted") &&
+        chatAPI.activeConversationId === (currentConversationId ?? undefined),
       error: chatAPI.error,
       attachments,
       viewMode,
@@ -1360,6 +1365,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       chatAPI.messages,
       chatAPI.input,
       chatAPI.status,
+      chatAPI.activeConversationId,
       chatAPI.error,
       attachments,
       viewMode,
