@@ -84,6 +84,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.90",
+    "@anthropic-ai/sandbox-runtime": "^0.0.67",
     "@fontsource/inter": "^5.2.5",
     "@leeoniya/ufuzzy": "^1.0.18",
     "@modelcontextprotocol/sdk": "1.13.0",

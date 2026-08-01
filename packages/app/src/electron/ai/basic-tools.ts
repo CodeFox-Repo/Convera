@@ -1,8 +1,8 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
+import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import { z } from "zod";
 import type { AgentTool } from "./agent-tools";
@@ -33,61 +33,95 @@ function realpathIfExists(path: string): string {
 }
 
 /**
- * macOS seatbelt profile: read anywhere, write only inside the sandbox's
- * writable roots (plus tmp and /dev basics every shell needs), network per
- * the sandbox flag. Later rules win, so the allows carve out of the denies.
+ * OS enforcement via Anthropic's sandbox runtime (seatbelt on macOS,
+ * bubblewrap+seccomp on Linux). The manager is a process-wide singleton:
+ * per-agent filesystem policy goes through the per-call config, but the
+ * network proxy applies one policy to every wrapped command. Initialized on
+ * first use so sessions that never run a command never start proxy servers.
+ *
+ * Network policy: open by default — a colleague clones repos and installs
+ * dependencies; the filesystem boundary is the guarantee. A sandbox with
+ * `networkAccess: false` is honoured through the ask-callback below, which
+ * fails closed for everyone while any such command is running. That over-
+ * denies concurrent network-enabled commands for a moment, which is the
+ * right direction to be wrong in.
  */
-function darwinSandboxProfile(sandbox: AgentSandbox): string {
-  const writable = sandbox.writableRoots
-    .map((root) => `(subpath ${JSON.stringify(realpathIfExists(root))})`)
-    .join(" ");
-  return [
-    "(version 1)",
-    "(allow default)",
-    "(deny file-write*)",
-    `(allow file-write* ${writable}`,
-    `  (subpath "/private/tmp") (subpath "/private/var/tmp")`,
-    `  (subpath ${JSON.stringify(realpathIfExists(tmpdir()))})`,
-    `  (literal "/dev/null") (literal "/dev/stdout") (literal "/dev/stderr")`,
-    `  (subpath "/dev/fd") (literal "/dev/tty") (literal "/dev/dtracehelper"))`,
-    ...(sandbox.networkAccess ? [] : ["(deny network*)"]),
-  ].join("\n");
+let sandboxRuntimeReady: Promise<boolean> | null = null;
+let denyNetworkCommands = 0;
+
+function ensureSandboxRuntime(): Promise<boolean> {
+  sandboxRuntimeReady ??= (async () => {
+    if (!SandboxManager.isSupportedPlatform()) return false;
+    try {
+      await SandboxManager.initialize(
+        {
+          network: { allowedDomains: [], deniedDomains: [] },
+          filesystem: { denyRead: [], allowWrite: [], denyWrite: [] },
+        },
+        async () => denyNetworkCommands === 0,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  return sandboxRuntimeReady;
 }
 
-function runShell(
+async function runShell(
   sandbox: AgentSandbox,
   command: string,
   timeout: number,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const cwd = realpathIfExists(sandbox.writableRoots[0] ?? sandbox.root);
-  const [file, args] =
-    process.platform === "darwin"
-      ? ([
-          "/usr/bin/sandbox-exec",
-          ["-p", darwinSandboxProfile(sandbox), "/bin/sh", "-c", command],
-        ] as const)
-      : // ponytail: no OS enforcement off-macOS (cwd only); bubblewrap when Linux ships
-        (["/bin/sh", ["-c", command]] as const);
 
-  return new Promise((resolvePromise) => {
-    execFile(
-      file,
-      [...args],
-      { cwd, timeout, maxBuffer: MAX_COMMAND_OUTPUT_BYTES },
-      (error, stdout, stderr) => {
-        resolvePromise({
-          stdout: stdout.toString(),
-          stderr: stderr.toString(),
-          exitCode:
-            error && typeof error.code === "number"
-              ? error.code
-              : error
-                ? 1
-                : 0,
-        });
+  let file = "/bin/sh";
+  let args = ["-c", command];
+  let env = process.env;
+  if (await ensureSandboxRuntime()) {
+    const wrapped = await SandboxManager.wrapWithSandboxArgv(
+      command,
+      undefined,
+      {
+        filesystem: {
+          denyRead: [],
+          allowWrite: sandbox.writableRoots.map(realpathIfExists),
+          denyWrite: [],
+        },
       },
+      undefined,
+      cwd,
     );
-  });
+    [file, ...args] = wrapped.argv;
+    env = { ...process.env, ...wrapped.env };
+  }
+  // ponytail: unsupported platform / failed init runs unsandboxed in cwd —
+  // matches pre-ASRT behaviour off-macOS; revisit if that ever ships.
+
+  if (!sandbox.networkAccess) denyNetworkCommands += 1;
+  try {
+    return await new Promise((resolvePromise) => {
+      execFile(
+        file,
+        args,
+        { cwd, env, timeout, maxBuffer: MAX_COMMAND_OUTPUT_BYTES },
+        (error, stdout, stderr) => {
+          resolvePromise({
+            stdout: stdout.toString(),
+            stderr: stderr.toString(),
+            exitCode:
+              error && typeof error.code === "number"
+                ? error.code
+                : error
+                  ? 1
+                  : 0,
+          });
+        },
+      );
+    });
+  } finally {
+    if (!sandbox.networkAccess) denyNetworkCommands -= 1;
+  }
 }
 
 function schemaOf(shape: z.ZodRawShape): Record<string, unknown> {
