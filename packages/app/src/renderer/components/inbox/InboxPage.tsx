@@ -3,7 +3,7 @@ import type { Conversation, Message } from "@/renderer/libs/db/database";
 import { LOCAL_HUMAN_MEMBER_ID, db } from "@/renderer/libs/db";
 import { useActiveConversations } from "@/renderer/libs/db/hooks";
 import { isUnread, useUnreadStore } from "@/renderer/libs/db/ui-state";
-import { useChannels } from "@/renderer/libs/stores/channel-store";
+import { useVisibleChannels } from "@/renderer/libs/stores/channel-store";
 import { useMembers } from "@/renderer/libs/stores/member-store";
 import { AtSign, Hash, Inbox, MessageSquare } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -26,7 +26,7 @@ export function InboxPage({
   onOpenConversation: (conversationId: string) => void;
 }) {
   const conversations = useActiveConversations();
-  const channels = useChannels();
+  const channels = useVisibleChannels();
   const members = useMembers();
   const { lastSeen, markSeen } = useUnreadStore();
 

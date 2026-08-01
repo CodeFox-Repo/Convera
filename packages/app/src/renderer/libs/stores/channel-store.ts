@@ -16,6 +16,7 @@ import {
   type Group,
   type Workspace,
 } from "../db";
+import { canViewChannel, resolveViewer } from "../workspace-perception";
 
 export type { Channel, Group, Workspace };
 
@@ -33,8 +34,36 @@ export function useGroups(): Group[] | undefined {
   return useLiveQuery(() => db.groups.orderBy("sortOrder").toArray());
 }
 
+/**
+ * Every channel this workspace holds, unfiltered.
+ *
+ * Almost nothing should use this: what a *person* may see is decided by the
+ * same rule that decides what an agent may see. Prefer `useVisibleChannels`.
+ */
 export function useChannels(): Channel[] | undefined {
   return useLiveQuery(() => db.channels.toArray());
+}
+
+/**
+ * Channels the local human can find, through the one visibility rule.
+ *
+ * The sidebar has to ask the same question an agent's `list_channels` asks,
+ * or a tag would restrict colleagues while leaving the room sitting in plain
+ * sight for the person it was hidden from.
+ */
+export function useVisibleChannels(): Channel[] | undefined {
+  return useLiveQuery(async () => {
+    const channels = await db.channels.toArray();
+    try {
+      const viewer = await resolveViewer(LOCAL_HUMAN_MEMBER_ID);
+      return channels.filter((channel) => canViewChannel(viewer, channel));
+    } catch {
+      // Never let the tag lookup decide whether the sidebar exists. Showing
+      // the rooms unfiltered is wrong in a way the user can see and report;
+      // showing an empty workspace looks like the app is broken.
+      return channels;
+    }
+  });
 }
 
 export function useChannel(id: string | null | undefined): Channel | undefined {
