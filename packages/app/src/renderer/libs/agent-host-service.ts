@@ -255,6 +255,32 @@ export class RendererAgentHostService {
     const systemPrompt = taskGuidance
       ? `${baseSystemPrompt}\n\n${taskGuidance}`
       : baseSystemPrompt;
+    // The shared transcript advances every time a colleague posts, so this
+    // actor's binding is usually behind by the time its next offer arrives.
+    // A bootstrap cannot clear that state — only a rebase resets the session
+    // contract — and sending one anyway is refused with "rebase required",
+    // which locked every agent out of a room after the first reply in it.
+    const runtimeResult = await window.localAI
+      .getConversationRuntimeState?.(job.conversationId)
+      .catch(() => undefined);
+    const runtimeState = runtimeResult?.success
+      ? (runtimeResult.data ?? null)
+      : null;
+    const projected = projectFor(
+      job.agentMemberId,
+      toProjectable(messages),
+      members,
+    );
+    const needsRebase =
+      runtimeState !== null &&
+      runtimeState.transcriptVersion > 0 &&
+      (runtimeState.lastCompletedProviderId !== providerId ||
+        !runtimeState.providers.some(
+          (provider) =>
+            provider.actorId === job.agentMemberId &&
+            provider.providerId === providerId &&
+            provider.transcriptVersion === runtimeState.transcriptVersion,
+        ));
     const prepared: PreparedAgentHostTurn = {
       request: {
         requestId,
@@ -266,14 +292,9 @@ export class RendererAgentHostService {
             ? undefined
             : selectedModelId,
         concurrent: true,
-        operation: {
-          kind: "bootstrap",
-          messages: projectFor(
-            job.agentMemberId,
-            toProjectable(messages),
-            members,
-          ),
-        },
+        operation: needsRebase
+          ? { kind: "rebase", reason: "provider-switch", messages: projected }
+          : { kind: "bootstrap", messages: projected },
         agent: {
           id: job.agentId,
           memberId: job.agentMemberId,
