@@ -142,15 +142,24 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   // is the room a workspace puts its direction in; otherwise the first
   // channel in sidebar order.
   useEffect(() => {
-    if (currentConversationId !== null || !channels || !conversations) return;
+    if (!channels || !conversations) return;
     const known = new Set(conversations.map((conversation) => conversation.id));
+    // Not "is something selected" but "is the selection real". The id is
+    // restored from storage, so resetting the workspace leaves one pointing
+    // at a conversation that no longer exists — non-null, and enough to keep
+    // the pane on a welcome screen forever.
+    if (currentConversationId !== null && known.has(currentConversationId)) {
+      return;
+    }
     const inOrder = (channelsByGroup.get(null) ?? []).concat(
       (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
     );
     const landing =
       inOrder.find(
         (channel) =>
-          channel.name.toLowerCase() === "announcements" &&
+          // Contains, not equals: channel names carry an emoji, and a rename
+          // is a normal thing for someone to do to their own room.
+          channel.name.toLowerCase().includes("announcements") &&
           known.has(channel.conversationId),
       ) ?? inOrder.find((channel) => known.has(channel.conversationId));
     if (!landing) return;

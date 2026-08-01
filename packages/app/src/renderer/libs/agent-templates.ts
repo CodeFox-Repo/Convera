@@ -175,6 +175,14 @@ async function upgradeEmojiAvatars(): Promise<void> {
  * @-mentioned); the focused rooms carry the matching specialist as their
  * default responder so a bare message just works.
  */
+/**
+ * The rooms a new workspace starts with.
+ *
+ * Each carries an emoji because a name alone makes five channels read as one
+ * undifferentiated list; the glyph is what the eye finds before the word.
+ * They are part of the name, so renaming or deleting a channel behaves
+ * exactly as it does for any other.
+ */
 const STARTER_CHANNELS: Array<{
   name: string;
   agentTemplateIds: string[];
@@ -182,23 +190,23 @@ const STARTER_CHANNELS: Array<{
   {
     // The onboarding hall: project intros and direction land here, and every
     // agent carries it as shared org context into every other room.
-    name: "announcements",
+    name: "📣 announcements",
     agentTemplateIds: ["sage", "patch", "quill"],
   },
   {
-    name: "general",
+    name: "💬 general",
     agentTemplateIds: ["sage", "patch", "quill"],
   },
   {
-    name: "code-review",
+    name: "🔍 code-review",
     agentTemplateIds: ["sage"],
   },
   {
-    name: "debugging",
+    name: "🐛 debugging",
     agentTemplateIds: ["patch"],
   },
   {
-    name: "docs",
+    name: "📖 docs",
     agentTemplateIds: ["quill"],
   },
 ];
