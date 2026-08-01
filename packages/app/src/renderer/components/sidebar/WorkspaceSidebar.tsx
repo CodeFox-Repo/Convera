@@ -132,21 +132,32 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
   const selectChannel = (channel: Channel) => select(channel.conversationId);
   const hasChannels = teamChannels.length > 0;
 
-  // Land somewhere real. The selection is restored from storage, so a first
-  // run — or a reload after the remembered room was deleted — left the pane
-  // on a generic welcome screen while the sidebar plainly listed channels.
-  // Only fills a genuinely empty selection: it must not steal focus from a
-  // 1:1 chat, which is a conversation with no channel pointing at it.
+  // Open in a room, not on a welcome screen. Starting with no selection —
+  // first run, or a reload after the remembered conversation was deleted —
+  // used to leave the pane empty while the sidebar plainly listed channels.
+  //
+  // A channel rather than the most recent chat: this is a workspace, and
+  // where the team is talking is a better place to arrive than whichever 1:1
+  // happened to be open last. #announcements wins when it exists, since that
+  // is the room a workspace puts its direction in; otherwise the first
+  // channel in sidebar order.
   useEffect(() => {
     if (currentConversationId !== null || !channels || !conversations) return;
     const known = new Set(conversations.map((conversation) => conversation.id));
-    const landing = channelsByGroup
-      .get(null)
-      ?.concat(
-        (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
-      )
-      .find((channel) => known.has(channel.conversationId));
-    if (landing) setCurrentConversation(landing.conversationId);
+    const inOrder = (channelsByGroup.get(null) ?? []).concat(
+      (groups ?? []).flatMap((group) => channelsByGroup.get(group.id) ?? []),
+    );
+    const landing =
+      inOrder.find(
+        (channel) =>
+          channel.name.toLowerCase() === "announcements" &&
+          known.has(channel.conversationId),
+      ) ?? inOrder.find((channel) => known.has(channel.conversationId));
+    if (!landing) return;
+    setCurrentConversation(landing.conversationId);
+    // Landing in a channel while the sidebar still shows Chats would open a
+    // room the list does not contain.
+    setActiveTab("teams");
   }, [
     currentConversationId,
     channels,
@@ -154,6 +165,7 @@ export function WorkspaceSidebar({ onNewChat }: { onNewChat?: () => void }) {
     channelsByGroup,
     groups,
     setCurrentConversation,
+    setActiveTab,
   ]);
 
   // Unread indicators on the INACTIVE tab, so nothing gets lost while hidden.
