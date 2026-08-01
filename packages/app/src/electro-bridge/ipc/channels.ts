@@ -12,7 +12,6 @@ export interface IPCServer {
   // App functionality
   getClipboardText(): string;
   setInputContent(content: { text?: string }): void;
-  pasteModifiedContent(content: string): void;
 
   // Platform detection
   getPlatform(): string;
@@ -67,7 +66,6 @@ export const CHANNELS = {
     FOCUS_CHAT_INPUT: "app:focus-chat-input",
     TOGGLE_VIEW_MODE: "app:toggle-view-mode",
     SET_INPUT_CONTENT: "app:set-input-content",
-    PASTE_MODIFIED_CONTENT: "app:paste-modified-content",
   },
   CLIPBOARD: {
     GET_TEXT: "clipboard:get-text",
@@ -105,7 +103,6 @@ export const methodChannelMap: { [K in keyof IPCServer]: string } = {
   // App functionality
   getClipboardText: CHANNELS.CLIPBOARD.GET_TEXT,
   setInputContent: CHANNELS.APP.SET_INPUT_CONTENT,
-  pasteModifiedContent: CHANNELS.APP.PASTE_MODIFIED_CONTENT,
 
   // Platform detection
   getPlatform: CHANNELS.PLATFORM.GET,

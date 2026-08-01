@@ -45,7 +45,6 @@ export interface IElectronAPI {
   // App functionality
   getClipboardText: () => Promise<string>;
   setInputText: (text: string) => Promise<void>;
-  pasteModifiedContent: (content: string) => Promise<void>;
 
   // Unified Theme Control
   setTheme: (mode: ThemeMode) => Promise<string>;

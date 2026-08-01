@@ -1,5 +1,4 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
-import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import type { Attachment, UIMessage } from "@/renderer/types/chat";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -12,7 +11,6 @@ import {
   User,
 } from "lucide-react";
 import React, { memo, useRef, useState } from "react";
-import SelectedContentBlock from "../selected/selected-content-block";
 
 /**
  * Simple markdown renderer component
@@ -53,7 +51,6 @@ export interface ChatMessageProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
-  selectedContent?: SelectedContent | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -218,7 +215,6 @@ const ChatMessage = memo(
     isEditing,
     editedContent,
     isCopied,
-    selectedContent,
     onEditStart,
     onEditSave,
     onEditCancel,
@@ -275,11 +271,6 @@ const ChatMessage = memo(
                     ),
                   )}
                 </div>
-              )}
-
-              {/* Selected content section - below attachments, above message content */}
-              {selectedContent && (
-                <SelectedContentBlock content={selectedContent} />
               )}
 
               {/* Message content */}

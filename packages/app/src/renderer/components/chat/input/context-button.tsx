@@ -1,14 +1,6 @@
-import {
-  SelectedContent,
-  useChatContext,
-} from "@/renderer/libs/stores/chat-store";
-import { File, Monitor, X } from "lucide-react";
+import { useChatContext } from "@/renderer/libs/stores/chat-store";
+import { File, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-
-interface ContextButtonsProps {
-  selectedContent: SelectedContent | null;
-  onRejectSelectedContent: () => void;
-}
 
 const FileBadge = ({
   file,
@@ -69,10 +61,7 @@ const RemainingFilesBadge = ({ count }: { count: number }) => {
   );
 };
 
-export function ContextButtons({
-  selectedContent,
-  onRejectSelectedContent,
-}: ContextButtonsProps) {
+export function ContextButtons() {
   const { attachments, removeAttachment } = useChatContext();
   const MAX_VISIBLE_FILES = 2;
   const remainingFiles =
@@ -81,35 +70,12 @@ export function ContextButtons({
       : 0;
   const visibleFiles = attachments.slice(0, MAX_VISIBLE_FILES);
 
-  const hasContexts = !!selectedContent || attachments.length > 0;
-  if (!hasContexts) return null;
+  if (attachments.length === 0) return null;
 
   return (
     <div className="h-7.5 pt-1 overflow-hidden">
       <div className="px-2 w-full overflow-x-auto overflow-y-hidden whitespace-nowrap hide-scrollbar">
         <div className="inline-flex items-center gap-1 h-7">
-          {selectedContent && (
-            <div
-              className="group relative h-6 no-drag-region flex items-center rounded-2xl border border-gray-500/45
-                bg-background/30 px-2 py-1 text-xs font-medium max-w-[24ch] overflow-hidden pr-5"
-            >
-              <Monitor size={12} className="flex-shrink-0 mr-1" />
-              <span className="truncate -mr-1">
-                {selectedContent.text
-                  ? selectedContent.text.slice(0, 30) +
-                    (selectedContent.text.length > 30 ? "..." : "")
-                  : "Selected"}
-              </span>
-              <button
-                onClick={onRejectSelectedContent}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none no-drag-region"
-                aria-label="Clear selected content"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
-
           {visibleFiles.map((file, index) => (
             <FileBadge
               key={index}

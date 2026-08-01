@@ -54,8 +54,6 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       isLoading,
       sendMessage,
       stopGeneration,
-      selectedContent,
-      rejectSelectedContent,
       messages,
       replyTargetId,
       setReplyTarget,
@@ -195,10 +193,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 </button>
               </div>
             )}
-            <ContextButtons
-              selectedContent={selectedContent || null}
-              onRejectSelectedContent={rejectSelectedContent}
-            />
+            <ContextButtons />
 
             <div className="drag-region relative w-full flex-1 px-1 pt-1">
               {mention !== null && (

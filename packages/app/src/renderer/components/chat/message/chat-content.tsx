@@ -1,12 +1,10 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { Markdown } from "@/renderer/components/common/markdown";
-import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import type { UIMessage } from "@/renderer/types/chat";
 import { getToolName, isToolUIPart } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import ModifiedContentBlock from "../selected/modified-content-block";
 import { TOOL_COMPONENTS } from "../tools";
 import type { ToolMessagePart } from "../tools/tool-part";
 import MessageRow from "./message-row";
@@ -56,9 +54,6 @@ export default function ChatContent({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<string>("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [modifiedResponses, setModifiedResponses] = useState<
-    Record<string, "accepted" | "rejected" | null>
-  >({});
 
   // Track message changes to animate new messages
   useEffect(() => {
@@ -130,86 +125,13 @@ export default function ChatContent({
     [onRegenerateMessage],
   );
 
-  const handleAcceptModification = useCallback((messageId: string) => {
-    setModifiedResponses((prev) => ({
-      ...prev,
-      [messageId]: "accepted",
-    }));
-    // Here you could implement logic to apply the modifications
-    console.log(`Accepted modification for message ${messageId}`);
-  }, []);
-
-  // Extract selected content from message content
-  const extractSelectedContent = useCallback((content: string) => {
-    if (!content) return { selectedContent: null, cleanContent: content };
-
-    const selectedContentPattern = /<selected>\n([\s\S]*?)\n<\/selected>/;
-    const selectedContentMatch = content.match(selectedContentPattern);
-
-    if (selectedContentMatch) {
-      const selectedContent = selectedContentMatch[1];
-      const cleanContent = content.replace(selectedContentPattern, "").trim();
-      return { selectedContent, cleanContent };
-    }
-
-    return { selectedContent: null, cleanContent: content };
-  }, []);
-
   // Renders text content using Markdown
   const renderMessageContent = useCallback(
-    (content: string, messageId: string, isStreaming?: boolean) => {
+    (content: string, isStreaming?: boolean) => {
       if (!content) return null;
-
-      // Define regex patterns for special content blocks (excluding copied content)
-      const modifiedContentPattern = /<modified>\n([\s\S]*?)\n<\/modified>/;
-
-      // Extract special content
-      const modifiedContentMatch = content.match(modifiedContentPattern);
-
-      // Check if this message's modified content has already been responded to
-      const modificationResponse = modifiedResponses[messageId];
-
-      // Clean the content by removing special blocks
-      let cleanContent = content;
-      if (modifiedContentMatch) {
-        cleanContent = cleanContent.replace(modifiedContentPattern, "");
-      }
-      cleanContent = cleanContent.trim();
-
-      // Render content sections in order
-      const contentSections: React.ReactNode[] = [];
-
-      // Add main content if it exists
-      if (cleanContent) {
-        contentSections.push(
-          <Markdown key="main-content" isStreaming={isStreaming}>
-            {cleanContent}
-          </Markdown>,
-        );
-      }
-
-      // Add modified content block if it exists and hasn't been rejected
-      if (modifiedContentMatch && modificationResponse !== "rejected") {
-        const modifiedContent = modifiedContentMatch[1];
-        contentSections.push(
-          <ModifiedContentBlock
-            key="modified-content"
-            modifiedContent={modifiedContent}
-            onAccept={() => handleAcceptModification(messageId)}
-          >
-            <Markdown>{modifiedContent}</Markdown>
-          </ModifiedContentBlock>,
-        );
-      }
-
-      // Return all sections or fallback to original content
-      return contentSections.length > 0 ? (
-        <>{contentSections}</>
-      ) : (
-        <Markdown isStreaming={isStreaming}>{content}</Markdown>
-      );
+      return <Markdown isStreaming={isStreaming}>{content}</Markdown>;
     },
-    [modifiedResponses, handleAcceptModification],
+    [],
   );
 
   // Render tool calls with detailed information
@@ -251,7 +173,7 @@ export default function ChatContent({
   const renderToolCalls = useCallback(
     (message: UIMessage, isStreaming?: boolean) => {
       if (!message.parts)
-        return renderMessageContent(message.content, message.id, isStreaming);
+        return renderMessageContent(message.content, isStreaming);
 
       const contentElements: React.ReactNode[] = [];
 
@@ -261,7 +183,7 @@ export default function ChatContent({
           // Add text content
           contentElements.push(
             <div key={`text-${index}`} className="my-2">
-              {renderMessageContent(part.text, message.id, isStreaming)}
+              {renderMessageContent(part.text, isStreaming)}
             </div>,
           );
         } else if (isToolUIPart(part)) {
@@ -390,20 +312,6 @@ export default function ChatContent({
           }
         : null;
 
-      // Extract selected content for user messages
-      let selectedContent: SelectedContent | null = null;
-      let contentToRender = message.content;
-
-      if (message.role === "user" && message.content) {
-        const { selectedContent: extracted, cleanContent } =
-          extractSelectedContent(message.content);
-        // Convert extracted string to SelectedContent object for backward compatibility
-        selectedContent = extracted
-          ? { text: extracted, source: "manual" }
-          : null;
-        contentToRender = cleanContent;
-      }
-
       // Prepare the correct content based on message type
       // For assistant messages, check if this is the last message and is currently streaming
       const isMessageStreaming =
@@ -412,8 +320,8 @@ export default function ChatContent({
       if (message.role === "assistant") {
         content = renderToolCalls(message, isMessageStreaming);
       } else {
-        content = contentToRender
-          ? renderMessageContent(contentToRender, message.id)
+        content = message.content
+          ? renderMessageContent(message.content)
           : null;
       }
 
@@ -433,7 +341,6 @@ export default function ChatContent({
           isEditing={isEditing}
           editedContent={editedContent}
           isCopied={isCopied}
-          selectedContent={selectedContent}
           onEditStart={() => handleEditStart(message)}
           onEditSave={() => handleEditSave(message)}
           onEditCancel={handleEditCancel}
@@ -462,7 +369,6 @@ export default function ChatContent({
     editingMessageId,
     editedContent,
     copiedMessageId,
-    extractSelectedContent,
     handleEditStart,
     handleEditSave,
     handleEditCancel,

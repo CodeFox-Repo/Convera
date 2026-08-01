@@ -107,13 +107,6 @@ function buildResponderPrompt(
  * carried too so each offer's prompt names the same participants and repeats
  * the same permission to pass.
  */
-// Selected content structure
-export interface SelectedContent {
-  text?: string;
-  timestamp?: number;
-  source?: "shortcut" | "manual"; // track how content was captured
-}
-
 // Simple tool call result type
 interface ToolCallResult {
   success: boolean;
@@ -126,7 +119,6 @@ interface ChatContextType {
   input: string;
   isLoading: boolean;
   error: Error | undefined;
-  selectedContent: SelectedContent | null;
   attachments: File[];
   replyTargetId: string | null;
 
@@ -151,8 +143,6 @@ interface ChatContextType {
   editMessage: (message: Message, newContent: string) => void;
   regenerateMessage: (message: Message) => void;
   resetChat: () => void;
-  setSelectedContent: (content: SelectedContent | null) => void;
-  rejectSelectedContent: () => void;
   addAttachments: (files: File | File[]) => void;
   removeAttachment: (index: number) => void;
   clearAttachments: () => void;
@@ -201,8 +191,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { settings, settingsLoading, initializeSettings } = useSettingsStore();
-  const [selectedContent, setSelectedContent] =
-    useState<SelectedContent | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ChatViewMode>("compact");
@@ -757,21 +745,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         messageText = chatAPI.input.trim();
       }
 
-      if (!messageText && !selectedContent && filesToSend.length === 0) return;
+      if (!messageText && filesToSend.length === 0) return;
       const requestedSelection = getConversationSelectionToken();
       const requestedReplyTargetId = replyTargetId;
-
-      // Handle selected content (text only)
-      if (selectedContent) {
-        // Handle text content
-        if (selectedContent.text) {
-          messageText = messageText
-            ? `<selected>\n${selectedContent.text}\n</selected>\n\n${messageText}`
-            : `<selected>\n${selectedContent.text}\n</selected>`;
-        }
-
-        setSelectedContent(null);
-      }
 
       const message: ChatMessage = {
         role: "user",
@@ -1104,7 +1080,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [
       chatAPI,
-      selectedContent,
       attachments,
       clearAttachments,
       replyTargetId,
@@ -1328,17 +1303,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     activeConversationIdRef.current = null;
     activeTurnIdRef.current = null;
     pendingInvokesRef.current = [];
-    setSelectedContent(null);
     setReplyTargetId(null);
     clearAttachments();
     setCurrentConversationId(null);
     // Reset to compact mode when clearing chat
     setViewMode("compact");
   }, [chatAPI, clearAttachments, setCurrentConversationId]);
-
-  const rejectSelectedContent = useCallback(() => {
-    setSelectedContent(null);
-  }, []);
 
   // Chat related actions (previously in app-actions-store)
 
@@ -1352,7 +1322,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     input: chatAPI.input,
     isLoading: chatAPI.status === "streaming" || chatAPI.status === "submitted",
     error: chatAPI.error,
-    selectedContent,
     attachments,
     viewMode,
     setViewMode,
@@ -1366,8 +1335,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     editMessage,
     regenerateMessage,
     resetChat,
-    setSelectedContent,
-    rejectSelectedContent,
     addAttachments,
     removeAttachment,
     clearAttachments,

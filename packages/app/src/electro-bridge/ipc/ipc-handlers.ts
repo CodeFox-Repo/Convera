@@ -281,16 +281,6 @@ export function simulateClipboardPaste(): void {
   }
 }
 
-// Handler for pasting modified content (deprecated - no longer activates previous app)
-export function pasteModifiedContent(content: string): void {
-  try {
-    clipboard.writeText(content);
-    // Just copy to clipboard, user can paste manually
-  } catch (error) {
-    console.error("Error in pasteModifiedContent:", error);
-  }
-}
-
 /**
  * Open file or directory path in system default application
  */

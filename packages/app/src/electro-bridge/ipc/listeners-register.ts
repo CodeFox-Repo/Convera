@@ -25,7 +25,6 @@ import {
   minimizeWindow,
   modelSelected,
   openPath,
-  pasteModifiedContent,
   resizeAndCenterWindow,
   resizeWindow,
   setInputContent,
@@ -150,13 +149,6 @@ export function setupElectronAPIIPC(options: ListenerOptions = {}) {
     (_event, content: { text?: string }) => {
       const window = mainWindow?.() || null;
       return setInputContent(window, content);
-    },
-  );
-
-  ipcMain.handle(
-    CHANNELS.APP.PASTE_MODIFIED_CONTENT,
-    (_event, content: string) => {
-      return pasteModifiedContent(content);
     },
   );
 

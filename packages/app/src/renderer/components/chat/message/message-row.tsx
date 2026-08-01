@@ -12,7 +12,6 @@ import { resolveSenderName } from "@/renderer/libs/chat-labels";
 import { LOCAL_HUMAN_MEMBER_ID } from "@/renderer/libs/db/database";
 import { toggleReaction } from "@/renderer/libs/db/hooks";
 import { cn } from "@/renderer/libs/utils/tailwind";
-import { SelectedContent } from "@/renderer/libs/stores/chat-store";
 import type { UIMessage } from "@/renderer/types/chat";
 import type { Member } from "@/shared/types/workspace";
 import { motion } from "framer-motion";
@@ -26,7 +25,6 @@ import {
   SmilePlus,
 } from "lucide-react";
 import React, { memo } from "react";
-import SelectedContentBlock from "../selected/selected-content-block";
 import { AttachmentPreview, formatTimestamp } from "./chat-message";
 
 /** Width of the avatar column, so grouped rows line up under the body. */
@@ -50,7 +48,6 @@ export interface MessageRowProps {
   isEditing: boolean;
   editedContent: string;
   isCopied: boolean;
-  selectedContent?: SelectedContent | null;
   onEditStart: () => void;
   onEditSave: () => void;
   onEditCancel: () => void;
@@ -149,7 +146,6 @@ const MessageRow = memo(
     isEditing,
     editedContent,
     isCopied,
-    selectedContent,
     onEditStart,
     onEditSave,
     onEditCancel,
@@ -250,10 +246,6 @@ const MessageRow = memo(
                     ),
                   )}
                 </div>
-              )}
-
-              {selectedContent && (
-                <SelectedContentBlock content={selectedContent} />
               )}
 
               {message.replyToMessageId && (
