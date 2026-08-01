@@ -8,7 +8,6 @@ import type {
   LocalAIInteractionResponse,
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
-import { WORKSPACE_SEND_MESSAGE_TOOL } from "@/shared/types/workspace-perception";
 import type { Member } from "@/shared/types/workspace";
 import { db, type Agent, type Channel, type Message } from "./db/database";
 import { useSelectionStore } from "./db/ui-state";
@@ -303,6 +302,14 @@ export class RendererAgentHostService {
       },
     };
     this.active.set(job.id, { job, requestId });
+    // Typing from the moment the colleague starts on the offer, not from the
+    // instant the speech tool streams its input — fast models compose the call
+    // in one chunk, so the old trigger showed nothing at all and messages
+    // appeared out of thin air. Everyone working shows as everyone typing;
+    // clearOffer retires it when the job ends, spoken or not.
+    useTypingStore
+      .getState()
+      .startTyping(requestId, job.agentMemberId, job.conversationId);
     return prepared;
   }
 
@@ -330,22 +337,7 @@ export class RendererAgentHostService {
     const active = this.active.get(jobId);
     if (!active || event.requestId !== active.requestId) return;
 
-    if (event.type === "ui-message") {
-      const chunk = event.chunk as { type?: string; toolName?: string };
-      if (
-        chunk.type === "tool-input-start" &&
-        chunk.toolName?.endsWith(WORKSPACE_SEND_MESSAGE_TOOL)
-      ) {
-        useTypingStore
-          .getState()
-          .startTyping(
-            event.requestId,
-            active.job.agentMemberId,
-            active.job.conversationId,
-          );
-      }
-      return;
-    }
+    if (event.type === "ui-message") return;
 
     if (event.type === "interaction") {
       const respond = (response: LocalAIInteractionResponse) =>

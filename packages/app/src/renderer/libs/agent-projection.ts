@@ -227,16 +227,6 @@ export function buildChannelContext(
 
   if (mayPass) {
     const peers = alsoOffered.filter((member) => member.id !== self.id);
-    // Deterministic fallback speaker: everyone computes the same answer from
-    // the same list, so unaddressed chatter gets exactly one reply instead of
-    // three (everyone assumes it is theirs) or zero (everyone defers).
-    const fallback = alsoOffered[0];
-    const fallbackLine =
-      fallback === undefined
-        ? ""
-        : fallback.id === self.id
-          ? " For a message that belongs to nobody in particular — a greeting, an open question — YOU are the designated responder this round: answer it."
-          : ` For a message that belongs to nobody in particular — a greeting, an open question — ${fallback.name} is the designated responder this round, so leave it to them.`;
     lines.push(
       peers.length
         ? `Nobody was addressed by name. This same message went to ${peers
@@ -247,7 +237,7 @@ export function buildChannelContext(
             )
             .join(
               "; ",
-            )} at the same time as you — each deciding alone, with no way to see the others' choices. Deadlock rule, so the room is neither silent nor a pile-on: if the message clearly belongs to one colleague's work, that colleague answers and the rest stay quiet. Never stay silent on the assumption someone else will cover it; the rule below says exactly whose turn it is.${fallbackLine}`
+            )} at the same time as you — each deciding alone. Answer if you have something to say: a greeting back, an opinion, your take on the question. Several of you answering the same friendly message is fine — that is what a room sounds like. Stay quiet only when the message clearly belongs to one colleague's specific work, or when you truly have nothing to add.`
         : "Nobody was addressed by name, so this message is yours to answer or leave. Speak only if you have something to add; a room where every message gets a reply is noise.",
     );
   }

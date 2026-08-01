@@ -347,22 +347,18 @@ describe("open-floor peer awareness", () => {
 
     expect(context).toContain("Quill (Writes the docs)");
     expect(context).not.toContain("Fizz (");
-    expect(context).toContain("designated responder");
+    expect(context).toContain("Several of you answering");
   });
 
-  it("appoints exactly one designated responder for unaddressed chatter", () => {
+  it("invites everyone to answer room chatter rather than electing one voice", () => {
     const offered = [
       { id: fizz.id, name: "Fizz" },
       { id: quill.id, name: "Quill", description: "Writes the docs" },
     ];
-    // Fizz is first on the list: it is told the greeting is its to answer...
-    expect(buildChannelContext(fizz, "docs", room, true, offered)).toContain(
-      "YOU are the designated responder",
-    );
-    // ...and Quill is told to leave it to Fizz, by name.
-    expect(buildChannelContext(quill, "docs", room, true, offered)).toContain(
-      "Fizz is the designated responder",
-    );
+    const context = buildChannelContext(fizz, "docs", room, true, offered);
+    // The user's call: everyone typing at once is a room, not a bug.
+    expect(context).toContain("Several of you answering");
+    expect(context).not.toContain("designated responder");
   });
 
   it("does not claim company when nobody else was offered", () => {
