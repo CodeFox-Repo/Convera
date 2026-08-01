@@ -47,13 +47,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Set CI environment variable to skip robotjs rebuild during postinstall
-      - name: Rebuild robotjs for CI
-        working-directory: packages/app
-        run: |
-          export CI=false
-          pnpm run rebuild:robotjs
-
       - name: Run tests
         working-directory: packages/app
         run: pnpm test

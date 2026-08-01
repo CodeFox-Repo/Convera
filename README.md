@@ -1,6 +1,6 @@
 # Convera
 
-Convera is a monorepo containing the Electron desktop client, a simple marketplace server, and a documentation website. All packages are managed with **pnpm** workspaces....
+Convera is a monorepo containing the Electron desktop client and the marketing website. All packages are managed with **pnpm** workspaces.
 
 ## Getting Started
 
@@ -14,12 +14,6 @@ pnpm install
 
 ```
 pnpm start
-```
-
-### Running the Marketplace Server
-
-```
-pnpm start:market
 ```
 
 ### Development Utilities
@@ -36,8 +30,7 @@ pnpm test:all  # run all tests
 ## Packages
 
 - **app** – Electron application containing the Convera desktop client.
-- **website** – Documentation and marketing site.
-- **market** – Express server providing a simple MCP marketplace.
+- **website** – Marketing site.
 
 Environment variables are no longer required. Any configurable values can be set directly in the application interface.
 
@@ -53,28 +46,3 @@ sudo xattr -rd com.apple.quarantine /Applications/Convera.app
 ```
 
 This error occurs because the app is not code-signed. The command above removes the quarantine attribute that macOS applies to downloaded applications.
-
-### CI Build Issues with RobotJS
-
-**✅ SOLVED**: RobotJS packaging has been fully automated using a post-package script.
-
-**For local development:**
-```bash
-# Normal build (may not include robotjs in packaged app)
-pnpm run make
-
-# Build with robotjs included (recommended)
-pnpm run make:robotjs
-```
-
-**For CI/Production:**
-The release workflow automatically uses `make:robotjs` which ensures robotjs is properly included.
-
-**Technical Details:**
-1. **Automatic Copy**: Post-package script automatically copies robotjs to `Resources/robotjs/`
-2. **Smart Loading**: Enhanced robot.ts tries multiple paths to find robotjs
-3. **Verification**: Build process verifies robotjs.node exists after packaging
-4. **Cross-platform**: Script adapts to different OS packaging structures
-
-The current configuration guarantees robotjs functionality in all packaged applications.
-

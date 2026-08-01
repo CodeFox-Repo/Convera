@@ -87,13 +87,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      # Install macOS dependencies for robotjs
-      - name: Install macOS dependencies
-        run: |
-          xcode-select --install 2>/dev/null || true
-          brew install python@3.11
-          npm install -g node-gyp
-
       # Cache dependencies
       - name: Cache pnpm store
         uses: actions/cache@v4
@@ -107,18 +100,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Clean and rebuild robotjs for release environment
-      - name: Clean and rebuild robotjs for release
-        working-directory: packages/app
-        run: |
-          export CI=false
-          rm -rf node_modules/@hurdlegroup/robotjs/build
-          pnpm run rebuild:robotjs
-
       # Build the app
       - name: Build and package app
         working-directory: packages/app
-        run: pnpm run make:robotjs
+        run: pnpm run make
 
       # Find and verify the DMG file
       - name: Find and verify DMG file

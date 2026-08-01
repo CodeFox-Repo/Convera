@@ -29,9 +29,6 @@ importers:
       '@fontsource/inter':
         specifier: ^5.2.5
         version: 5.2.5
-      '@hurdlegroup/robotjs':
-        specifier: ^0.12.3
-        version: 0.12.3
       '@leeoniya/ufuzzy':
         specifier: ^1.0.18
         version: 1.0.18
@@ -2750,14 +2747,6 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
     dev: true
-
-  /@hurdlegroup/robotjs@0.12.3:
-    resolution: {integrity: sha512-1+oMJrWxHdEKGDQDn1sSb7s7JZbbcx3Ue83vHOnuH8KeqknPw993+YyeziKB37aqepHZ384DdNHEvdLvfDLK3g==}
-    requiresBuild: true
-    dependencies:
-      node-addon-api: 8.3.1
-      node-gyp-build: 4.8.4
-    dev: false
 
   /@iconify/types@2.0.0:
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -14673,11 +14662,6 @@ packages:
     dependencies:
       semver: 7.7.2
     dev: true
-
-  /node-addon-api@8.3.1:
-    resolution: {integrity: sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA==}
-    engines: {node: ^18 || ^20 || >= 21}
-    dev: false
 
   /node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}

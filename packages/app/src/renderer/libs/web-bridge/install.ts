@@ -8,7 +8,7 @@ import { createWebBridgeIPC, readWebBridgeConfig } from "./ipc-shim";
  * are missing. Build them from the HTTP shim instead — same factories the
  * preload uses, so the app code below cannot tell the difference.
  *
- * Everything else (window controls, clipboard, global shortcuts, robotjs) has
+ * Everything else (window controls, clipboard, global shortcuts) has
  * no browser meaning and stays undefined; call sites already guard on it.
  */
 export function installWebBridge(): boolean {

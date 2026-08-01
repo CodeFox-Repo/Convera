@@ -17,9 +17,9 @@ const config: ForgeConfig = {
     icon: "./public/images/icon",
     // Include images directory in the packaged app
     extraResource: ["./public/images"],
-    // Force unpack robotjs using different syntax
+    // Native modules (bufferutil, utf-8-validate) cannot load from inside asar.
     asar: {
-      unpack: "**/@hurdlegroup/**",
+      unpack: "**/*.node",
     },
     ...(shouldSign && {
       osxSign: {
@@ -34,10 +34,6 @@ const config: ForgeConfig = {
       osxNotarize: { keychainProfile: "notary-profile" },
     }),
     extendInfo: {
-      NSAppleEventsUsageDescription:
-        "Convera needs access to control other applications for seamless integration.",
-      NSAccessibilityUsageDescription:
-        "Convera needs accessibility permissions to read content from other applications.",
       // Register custom URL scheme so macOS recognizes convera:// links
       CFBundleURLTypes: [
         {

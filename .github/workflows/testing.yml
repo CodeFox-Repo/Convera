@@ -20,12 +20,6 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install Linux dependencies
-        run: |
-          # Install dependencies for robotjs compilation
-          sudo apt-get update
-          sudo apt-get install -y build-essential libxtst-dev libpng++-dev libxinerama-dev
-
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:

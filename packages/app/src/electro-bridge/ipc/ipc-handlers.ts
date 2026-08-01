@@ -2,7 +2,6 @@ import { BrowserWindow, clipboard, nativeTheme, screen, shell } from "electron";
 
 import { calculateWindowDimensions } from "@/electron/windows/utils";
 import { WindowSizeConfig } from "@/electron/windows/window-size";
-import robot from "@/shared/robot";
 import { ThemeMode } from "@/shared/types/electron";
 import os from "os";
 import path from "path";
@@ -264,20 +263,6 @@ export function setInputContent(
   if (mainWindow) {
     // Send the content to the renderer to set as input
     mainWindow.webContents.send(CHANNELS.APP.SET_INPUT_CONTENT, content);
-  }
-}
-
-// Function to simulate a paste operation using robotjs
-export function simulateClipboardPaste(): void {
-  try {
-    if (process.platform === "darwin") {
-      robot?.keyTap("v", "command");
-    } else {
-      robot?.keyTap("v", "control");
-    }
-    console.log("Paste operation simulated successfully");
-  } catch (error) {
-    console.error("Error simulating paste operation:", error);
   }
 }
 

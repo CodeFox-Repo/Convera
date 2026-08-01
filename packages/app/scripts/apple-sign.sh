@@ -26,20 +26,6 @@ export CODESIGN_ALLOCATE="$EXP_ALLOC"
 
 echo "🔐 Using identity: $IDENT"
 
-# Sign RobotJS native modules if they exist
-if [ -d "$APP/Contents/Resources/robotjs" ]; then
-    echo "🔐 Signing RobotJS native modules..."
-    find "$APP/Contents/Resources/robotjs" -type f \( -name "*.node" -o -name "*.o" \) -print | while read -r BIN; do
-        echo "  Signing: $BIN"
-        codesign --force --options runtime --timestamp \
-            --sign "$IDENT" \
-            "$BIN"
-    done
-    echo "✅ RobotJS modules signed successfully"
-else
-    echo "ℹ️  No RobotJS modules found, skipping native module signing"
-fi
-
 # Deep sign the entire app
 echo "🔐 Deep-signing the entire app..."
 codesign --force --deep --options runtime \
