@@ -1,4 +1,5 @@
 import { BaseLogo } from "@/renderer/components/common/base-logo";
+import { FullEmojiPicker } from "@/renderer/components/common/emoji-picker";
 import { CornerUpLeft } from "lucide-react";
 import { MemberAvatar } from "@/renderer/components/common/member-avatar";
 import { MemberCard } from "@/renderer/components/common/member-card";
@@ -30,9 +31,6 @@ import { AttachmentPreview, formatTimestamp } from "./chat-message";
 
 /** Width of the avatar column, so grouped rows line up under the body. */
 const BODY_INDENT = "pl-12";
-
-/** Fixed palette — a full emoji picker buys nothing for a reaction row. */
-const REACTION_EMOJI = ["👍", "❤️", "😂", "🎉", "👀", "🙌", "🤔", "🚀"];
 
 export interface MessageRowProps {
   message: UIMessage;
@@ -126,22 +124,13 @@ function AddReactionButton({ messageId }: { messageId: string }) {
           <SmilePlus size={14} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-1">
-        <div className="flex items-center gap-0.5">
-          {REACTION_EMOJI.map((emoji) => (
-            <button
-              key={emoji}
-              className="rounded p-1 text-base leading-none transition-colors hover:bg-accent"
-              onClick={() => {
-                void toggleReaction(messageId, emoji, LOCAL_HUMAN_MEMBER_ID);
-                setOpen(false);
-              }}
-              aria-label={`React with ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+      <PopoverContent align="start" className="w-auto overflow-hidden p-1">
+        <FullEmojiPicker
+          onPick={(emoji) => {
+            void toggleReaction(messageId, emoji, LOCAL_HUMAN_MEMBER_ID);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

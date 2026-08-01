@@ -1,3 +1,4 @@
+import { FullEmojiPicker } from "@/renderer/components/common/emoji-picker";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import * as Popover from "@radix-ui/react-popover";
@@ -24,8 +25,6 @@ interface ChatInputButtonsProps {
   isLoading: boolean;
   hasContent: boolean;
 }
-
-const QUICK_EMOJI = ["😀", "😂", "😍", "🎉", "👍", "🙏", "🔥", "😅"];
 
 const iconButtonClassName =
   "no-drag-region text-muted-foreground hover:text-foreground flex size-7 items-center justify-center rounded-md transition-colors";
@@ -96,24 +95,17 @@ export function ChatInputButtons(props: ChatInputButtonsProps) {
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content
-              className="bg-popover border-border text-popover-foreground z-50 flex gap-1 rounded-xl border p-2 shadow-lg"
+              className="bg-popover border-border text-popover-foreground z-50 overflow-hidden rounded-xl border p-1 shadow-lg"
               side="top"
               align="start"
               sideOffset={8}
             >
-              {QUICK_EMOJI.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className="hover:bg-muted flex size-7 items-center justify-center rounded-md text-base"
-                  onClick={() => {
-                    props.onInsertText(emoji);
-                    setEmojiOpen(false);
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
+              <FullEmojiPicker
+                onPick={(emoji) => {
+                  props.onInsertText(emoji);
+                  setEmojiOpen(false);
+                }}
+              />
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>

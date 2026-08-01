@@ -151,6 +151,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.6.3",
+    "frimousse": "^0.3.0",
     "get-windows": "^9.2.0",
     "i18next": "^24.2.3",
     "input-otp": "^1.4.2",

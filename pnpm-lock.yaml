@@ -203,6 +203,9 @@ importers:
       framer-motion:
         specifier: ^12.6.3
         version: 12.11.0(react-dom@19.1.0)(react@19.1.0)
+      frimousse:
+        specifier: ^0.3.0
+        version: 0.3.0(react@19.1.0)(typescript@5.8.3)
       get-windows:
         specifier: ^9.2.0
         version: 9.2.0
@@ -13070,6 +13073,19 @@ packages:
   /fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
+    dev: false
+
+  /frimousse@0.3.0(react@19.1.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-kO6LMoKY/cLAYEhXXtqLRaLIE6L/DagpFPrUZaLv3LsUa1/8Iza3HhwZcgN8eZ+weXnhv69eoclNUPohcCa/IQ==}
+    peerDependencies:
+      react: ^18 || ^19
+      typescript: '>=5.1.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      react: 19.1.0
+      typescript: 5.8.3
     dev: false
 
   /fs-extra@10.1.0:
