@@ -11,12 +11,10 @@ import {
   ExternalLink,
   FileText,
   Github,
-  Globe,
   HardDrive,
   Loader2,
   Monitor,
   Shield,
-  Smartphone,
   Star,
   Users,
   Zap,
@@ -67,7 +65,7 @@ const Download = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Fetch latest release from homebrew-codefox repository
+  // Fetch latest release
   useEffect(() => {
     const fetchLatestRelease = async () => {
       try {
@@ -165,19 +163,9 @@ const Download = () => {
     });
   };
 
+  // macOS is not a card here: brew install is the front door (its own
+  // section up top) and the raw DMG is the fallback at the bottom.
   const downloadOptions = [
-    {
-      platform: "macOS",
-      icon: <Apple className="h-8 w-8" />,
-      version: "macOS 12+",
-      size: getDMGSize(),
-      type: "DMG Package",
-      downloadUrl: getDMGDownloadUrl(),
-      recommended: true,
-      architecture: "Universal (Intel & Apple Silicon)",
-      minRequirements: "macOS Monterey 12.0 or later",
-      available: !!getDMGDownloadUrl(),
-    },
     // No fabricated sizes or URLs on unshipped platforms: the agent
     // sandbox's OS enforcement (ASRT) only covers macOS today, and these
     // ship when that does.
@@ -353,16 +341,52 @@ const Download = () => {
         </div>
       </section>
 
+      {/* Install via Homebrew — the one true path */}
+      <section className="relative w-full py-16 md:py-20">
+        <SimpleBackground />
+        <div className="relative z-10 container mx-auto max-w-3xl px-4 md:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <h2 className="gradient-orange-text mb-4 text-3xl font-bold md:text-4xl">
+              Install with Homebrew
+            </h2>
+            <p className="text-secondary mx-auto max-w-2xl text-lg">
+              One command installs Convera and clears macOS quarantine for you — no
+              &ldquo;damaged app&rdquo; dialog, no manual steps.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="border-primary/30 bg-card hover:border-primary/60 mx-auto block w-full max-w-xl overflow-x-auto rounded-xl border-2 px-6 py-5 text-center font-mono text-sm shadow-lg transition-all hover:shadow-xl md:text-base"
+            title="Click to copy"
+            onClick={() => {
+              void navigator.clipboard.writeText(
+                "brew install --cask codefox-repo/codefox/convera",
+              );
+              toast({
+                title: "Copied!",
+                description: "Paste it into Terminal to install.",
+                duration: 2500,
+              });
+            }}
+          >
+            brew install --cask codefox-repo/codefox/convera
+          </button>
+          <p className="text-muted-foreground mt-3 text-center text-xs">
+            Click to copy · Apple Silicon · macOS 12+
+          </p>
+        </div>
+      </section>
+
       {/* Download Options */}
       <section className="relative w-full py-16 md:py-20">
         <SimpleBackground />
         <div className="relative z-10 container mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <h2 className="gradient-orange-text mb-4 text-3xl font-bold md:text-4xl">
-              Choose Your Platform
+              Other Platforms
             </h2>
             <p className="text-secondary mx-auto max-w-2xl text-lg md:text-xl">
-              Download Convera for your operating system and start automating your workflow today.
+              Windows and Linux ship when the agent sandbox covers them.
             </p>
           </div>
 
@@ -427,78 +451,48 @@ const Download = () => {
                     <span className="font-medium">Requirements:</span> {option.minRequirements}
                   </div>
 
-                  {option.platform === "macOS" ? (
-                    // brew is the install path: one command, and the cask
-                    // clears quarantine itself so the unsigned build opens
-                    // without the "damaged" dance.
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        className="bg-well border-rule hover:border-primary/40 block w-full overflow-x-auto rounded-md border px-3 py-2.5 text-left font-mono text-xs transition-colors"
-                        title="Click to copy"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(
-                            "brew install --cask codefox-repo/codefox/convera",
-                          );
-                          toast({
-                            title: "Copied!",
-                            description: "Paste it into Terminal to install.",
-                            duration: 2500,
-                          });
-                        }}
-                      >
-                        brew install --cask codefox-repo/codefox/convera
-                      </button>
-                      <p className="text-muted-foreground text-center text-[11px]">
-                        Click to copy · installs and clears quarantine in one
-                        step
-                      </p>
-                    </div>
-                  ) : (
-                    <Button
-                      className="text-foreground bg-muted hover:bg-muted/80 w-full shadow-md transition-all duration-300 hover:shadow-lg"
-                      size="lg"
-                      disabled={option.comingSoon}
-                      onClick={() => showComingSoonToast(option.platform)}
-                    >
-                      <Clock className="mr-2 h-4 w-4" />
-                      Coming Soon
-                    </Button>
-                  )}
+                  <Button
+                    className="text-foreground bg-muted hover:bg-muted/80 w-full shadow-md transition-all duration-300 hover:shadow-lg"
+                    size="lg"
+                    disabled={option.comingSoon}
+                    onClick={() => showComingSoonToast(option.platform)}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    Coming Soon
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Alternative Download Options */}
+          {/* Direct DMG — the fallback path, deliberately below the fold */}
           <div className="mt-12 text-center">
-            <p className="text-secondary mb-4">Looking for other options?</p>
+            <p className="text-secondary mb-4">
+              Prefer a direct download? Grab the DMG — you&apos;ll need one
+              extra Terminal command (see the quick-start below).
+            </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button
                 variant="outline"
                 className="border-orange text-orange-primary hover:bg-orange-subtle"
+                disabled={!getDMGDownloadUrl()}
+                onClick={() => {
+                  const url = getDMGDownloadUrl();
+                  if (url) window.open(url, "_blank");
+                }}
+              >
+                <Apple className="mr-2 h-4 w-4" />
+                Download DMG ({getDMGSize()})
+              </Button>
+              <Button
+                variant="outline"
+                className="border-orange text-orange-primary hover:bg-orange-subtle"
                 onClick={() =>
-                  window.open("https://github.com/CodeFox-Repo/homebrew-codefox/releases", "_blank")
+                  window.open("https://github.com/CodeFox-Repo/Convera/releases", "_blank")
                 }
               >
                 <Github className="mr-2 h-4 w-4" />
                 View All Releases
-              </Button>
-              <Button
-                variant="outline"
-                className="border-orange text-orange-primary hover:bg-orange-subtle"
-                onClick={() => showComingSoonToast("Web Version")}
-              >
-                <Globe className="mr-2 h-4 w-4" />
-                Web Version (Beta)
-              </Button>
-              <Button
-                variant="outline"
-                className="border-orange text-orange-primary hover:bg-orange-subtle"
-                onClick={() => showComingSoonToast("Mobile App")}
-              >
-                <Smartphone className="mr-2 h-4 w-4" />
-                Mobile App (Coming Soon)
               </Button>
             </div>
           </div>
@@ -534,7 +528,7 @@ const Download = () => {
                     className="border-primary/20 text-primary hover:bg-primary/5 w-full"
                     onClick={() =>
                       window.open(
-                        `https://github.com/CodeFox-Repo/homebrew-codefox/releases/tag/${latestRelease?.tag_name || "latest"}`,
+                        `https://github.com/CodeFox-Repo/Convera/releases/tag/${latestRelease?.tag_name || "latest"}`,
                         "_blank",
                       )
                     }
