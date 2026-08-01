@@ -65,14 +65,6 @@ const Index = () => {
             <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
               <Link to="/download">Download for macOS</Link>
             </Button>
-            <a
-              href="https://docs.foxychat.net/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-ink-muted hover:text-ink font-mono text-[13px] underline underline-offset-4 transition-colors"
-            >
-              read the docs →
-            </a>
           </div>
 
           <figure className="rise mt-16" style={slot(4)}>

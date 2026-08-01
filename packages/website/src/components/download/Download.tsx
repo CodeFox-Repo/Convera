@@ -617,15 +617,6 @@ const Download = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-accent/20 text-accent hover:bg-accent/5 w-full justify-start"
-                      onClick={() => window.open("https://docs.foxychat.net/docs", "_blank")}
-                    >
-                      <FileText className="mr-2 h-3 w-3" />
-                      View Documentation
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       className="border-primary/20 text-primary hover:bg-primary/5 w-full justify-start"
                       onClick={() => showComingSoonToast("Community Forum")}
                     >

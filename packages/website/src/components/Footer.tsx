@@ -7,16 +7,7 @@ const Footer = () => {
         <p className="text-ink-faint max-w-[72ch] font-mono text-xs leading-loose">
           <span className="text-ink-3">[convera]</span> — an AI assistant that lives on your
           desktop, not in a tab. Built with Electron, React and the Model Context Protocol.{" "}
-          <a
-            href="https://docs.foxychat.net/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={link}
-          >
-            docs
-          </a>{" "}
-          ·{" "}
-          <a
+          <
             href="https://discord.gg/convera"
             target="_blank"
             rel="noopener noreferrer"
