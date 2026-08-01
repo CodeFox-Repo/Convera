@@ -1,9 +1,15 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
 import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
+import {
+  createEditTool,
+  createFindTool,
+  createGrepTool,
+  createLsTool,
+  createReadTool,
+  createWriteTool,
+} from "@earendil-works/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { z } from "zod";
 import type { AgentTool } from "./agent-tools";
 import { resolveInSandbox } from "./sandbox";
@@ -17,11 +23,13 @@ import { parseToolInput } from "./tool-input";
  * on that provider cannot keep a memory file or read its own notes, which the
  * colleague model in CLAUDE.md assumes it can.
  *
- * Every path routes through `resolveInSandbox`: for these providers there is no
- * OS boundary, so this is the boundary.
+ * The tool implementations come from pi-coding-agent — offset/limit reads,
+ * structured edits, grep/find/ls — but pi deliberately ships no sandbox, so
+ * every path canonicalizes through `resolveInSandbox` before pi sees it, and
+ * bash is replaced by our ASRT-wrapped shell. Pi supplies the hands; the
+ * boundary stays ours.
  */
 
-const MAX_READ_BYTES = 200_000;
 const MAX_COMMAND_OUTPUT_BYTES = 1024 * 1024;
 
 function realpathIfExists(path: string): string {
@@ -124,90 +132,148 @@ async function runShell(
   }
 }
 
-function schemaOf(shape: z.ZodRawShape): Record<string, unknown> {
-  const properties: Record<string, unknown> = {};
-  const required: string[] = [];
-  for (const [name, validator] of Object.entries(shape)) {
-    properties[name] = { type: "string" };
-    if (!validator.isOptional()) required.push(name);
-  }
-  return { type: "object", properties, required, additionalProperties: false };
+/**
+ * The subset of a pi tool this adapter relies on. Pi's own AgentTool types
+ * its schema as TypeBox `TSchema` and its params as `Static<T>`; this view
+ * flattens both to plain records, so casts go through `toPiTool`.
+ */
+interface PiTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown> & {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  execute(
+    toolCallId: string,
+    params: Record<string, unknown>,
+  ): Promise<{ content: Array<{ type: string; text?: string }> }>;
 }
 
-function tool(
+function toPiTool(tool: unknown): PiTool {
+  return tool as PiTool;
+}
+
+/** Pi returns MCP-style content blocks; agents consume plain text. */
+function textOf(result: {
+  content: Array<{ type: string; text?: string }>;
+}): string {
+  return result.content
+    .filter((block) => block.type === "text" && block.text)
+    .map((block) => block.text)
+    .join("\n");
+}
+
+/**
+ * Wraps a pi tool as an AgentTool with its `path` argument canonicalized
+ * through the sandbox. Pi's cwd only resolves relative paths — it does not
+ * confine absolute ones, so the confinement must happen here.
+ */
+function sandboxedPiTool(
+  sandbox: AgentSandbox,
+  pi: PiTool,
   name: string,
-  description: string,
-  inputShape: z.ZodRawShape,
-  execute: (input: Record<string, unknown>) => Promise<unknown>,
+  access: "read" | "write",
 ): AgentTool {
-  const inputValidator = z.object(inputShape).passthrough();
+  const shape: z.ZodRawShape = {};
+  const required = new Set(pi.parameters.required ?? []);
+  for (const property of Object.keys(pi.parameters.properties ?? {})) {
+    const base = z.unknown();
+    shape[property] = required.has(property) ? base : base.optional();
+  }
+  const inputValidator = z.object(shape).passthrough();
+
   return {
     name,
     qualifiedName: `agent:${name}`,
-    description,
-    inputSchema: schemaOf(inputShape),
-    inputShape,
+    description: pi.description,
+    inputSchema: pi.parameters,
+    inputShape: shape,
     inputValidator,
-    execute: async (input) => execute(parseToolInput(inputValidator, input)),
+    execute: async (input) => {
+      const parsed = parseToolInput(inputValidator, input);
+      if (typeof parsed.path === "string") {
+        parsed.path = resolveInSandbox(sandbox, parsed.path, access);
+      } else if (parsed.path === undefined && access === "read") {
+        // grep/find/ls default to cwd; pin that default inside the sandbox.
+        parsed.path = sandbox.root;
+      }
+      const result = await pi.execute(
+        `agent-${name}-${Date.now()}`,
+        parsed as Record<string, unknown>,
+      );
+      return textOf(result);
+    },
   };
 }
 
 export function createBasicAgentTools(sandbox: AgentSandbox): AgentTool[] {
-  const at = (path: string, access: "read" | "write") =>
-    resolveInSandbox(sandbox, path, access);
+  const cwd = sandbox.root;
 
   return [
-    tool(
+    sandboxedPiTool(
+      sandbox,
+      toPiTool(createReadTool(cwd)),
       "read_file",
-      "Read a UTF-8 text file from your own workspace. Paths are relative to your workspace root.",
-      { path: z.string().min(1) },
-      async ({ path }) => {
-        const content = await readFile(at(path as string, "read"), "utf8");
-        return content.length > MAX_READ_BYTES
-          ? content.slice(0, MAX_READ_BYTES) + "\n[truncated]"
-          : content;
-      },
+      "read",
     ),
-    tool(
+    sandboxedPiTool(
+      sandbox,
+      toPiTool(createWriteTool(cwd)),
       "write_file",
-      "Write a UTF-8 text file in your own workspace, creating parent directories. Overwrites existing content — read first if you mean to append.",
-      { path: z.string().min(1), content: z.string() },
-      async ({ path, content }) => {
-        const resolved = at(path as string, "write");
-        await mkdir(dirname(resolved), { recursive: true });
-        await writeFile(resolved, content as string, "utf8");
-        return { written: path };
-      },
+      "write",
     ),
-    tool(
-      "list_dir",
-      "List the entries of a directory in your own workspace. Omit path for the workspace root.",
-      { path: z.string().optional() },
-      async ({ path }) => {
-        const entries = await readdir(at((path as string) ?? ".", "read"), {
-          withFileTypes: true,
-        });
-        return entries.map(
-          (entry) => entry.name + (entry.isDirectory() ? "/" : ""),
-        );
-      },
+    sandboxedPiTool(
+      sandbox,
+      toPiTool(createEditTool(cwd)),
+      "edit_file",
+      "write",
     ),
-    tool(
-      "run_command",
-      "Run a shell command inside your own workspace (git clone, build, tests). The working directory is your workspace root; writes outside it are blocked by the OS.",
-      {
+    sandboxedPiTool(sandbox, toPiTool(createGrepTool(cwd)), "grep", "read"),
+    sandboxedPiTool(sandbox, toPiTool(createFindTool(cwd)), "find", "read"),
+    sandboxedPiTool(sandbox, toPiTool(createLsTool(cwd)), "list_dir", "read"),
+    {
+      name: "run_command",
+      qualifiedName: "agent:run_command",
+      description:
+        "Run a shell command inside your own workspace (git clone, build, tests). The working directory is your workspace root; writes outside it are blocked by the OS.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          command: { type: "string" },
+          timeout: { type: "number" },
+        },
+        required: ["command"],
+        additionalProperties: false,
+      },
+      inputShape: {
         command: z.string().min(1),
         timeout: z.number().min(1000).max(600_000).optional(),
       },
-      async ({ command, timeout }) => {
+      inputValidator: z
+        .object({
+          command: z.string().min(1),
+          timeout: z.number().min(1000).max(600_000).optional(),
+        })
+        .passthrough(),
+      execute: async (input) => {
+        const parsed = parseToolInput(
+          z
+            .object({
+              command: z.string().min(1),
+              timeout: z.number().min(1000).max(600_000).optional(),
+            })
+            .passthrough(),
+          input,
+        );
         const result = await runShell(
           sandbox,
-          command as string,
-          (timeout as number | undefined) ?? 60_000,
+          parsed.command as string,
+          (parsed.timeout as number | undefined) ?? 60_000,
         );
         const clip = (text: string) =>
-          text.length > MAX_READ_BYTES
-            ? text.slice(0, MAX_READ_BYTES) + "\n[truncated]"
+          text.length > 200_000
+            ? text.slice(0, 200_000) + "\n[truncated]"
             : text;
         return {
           success: result.exitCode === 0,
@@ -216,6 +282,6 @@ export function createBasicAgentTools(sandbox: AgentSandbox): AgentTool[] {
           stderr: clip(result.stderr),
         };
       },
-    ),
+    },
   ];
 }

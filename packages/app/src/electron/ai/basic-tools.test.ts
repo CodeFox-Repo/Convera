@@ -41,16 +41,44 @@ describe("createBasicAgentTools", () => {
     ).resolves.toBe("remembered");
     await expect(
       toolNamed("list_dir").execute({ path: "workspace/memory" }),
-    ).resolves.toEqual(["notes.md"]);
+    ).resolves.toContain("notes.md");
   });
 
   it("refuses to escape the sandbox and to write outside the writable root", async () => {
     await expect(
       toolNamed("read_file").execute({ path: "../../etc/hosts" }),
     ).rejects.toThrow(/outside the agent sandbox/);
+    // Absolute paths must not bypass the boundary either — pi's own cwd
+    // handling would happily read them.
+    await expect(
+      toolNamed("read_file").execute({ path: "/etc/hosts" }),
+    ).rejects.toThrow(/outside the agent sandbox/);
     // Inside the sandbox root, but not in a writable root.
     await expect(
       toolNamed("write_file").execute({ path: "escaped.txt", content: "x" }),
+    ).rejects.toThrow(/not writable/);
+  });
+
+  it("greps and edits through the sandboxed pi tools", async () => {
+    await toolNamed("write_file").execute({
+      path: "workspace/src/app.ts",
+      content: "const answer = 41;\n",
+    });
+    await expect(
+      toolNamed("grep").execute({ pattern: "answer", path: "workspace/src" }),
+    ).resolves.toContain("app.ts");
+    await toolNamed("edit_file").execute({
+      path: "workspace/src/app.ts",
+      edits: [{ oldText: "41", newText: "42" }],
+    });
+    await expect(
+      toolNamed("read_file").execute({ path: "workspace/src/app.ts" }),
+    ).resolves.toContain("42");
+    await expect(
+      toolNamed("edit_file").execute({
+        path: "unwritable.ts",
+        edits: [{ oldText: "a", newText: "b" }],
+      }),
     ).rejects.toThrow(/not writable/);
   });
 
