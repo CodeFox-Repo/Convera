@@ -1,13 +1,10 @@
-import { BaseLogo } from "@/renderer/components/common/base-logo";
 import { useAgentStore } from "@/renderer/libs/stores/agent-store";
 import { useChatContext } from "@/renderer/libs/stores/chat-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Bot,
-  Hash,
   Inbox as InboxIcon,
-  Lock,
   Moon,
   Server,
   Settings,
@@ -15,15 +12,14 @@ import {
   Sun,
   Users,
 } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChannelHeader, ChannelRoster } from "../chat/ChannelHeader";
 import { AgentContextPanel } from "../chat/AgentContextPanel";
+import {
+  ChannelEmptyState,
+  WorkspaceEmptyState,
+} from "../chat/ChannelEmptyState";
+import { MentionHint } from "../chat/MentionHint";
 import {
   AgentTurnFailureNotice,
   TypingIndicator,
@@ -68,11 +64,7 @@ import {
   useKeepCurrentRead,
 } from "@/renderer/libs/db/hooks";
 import { useChannelByConversationId } from "@/renderer/libs/stores/channel-store";
-import { useMembers } from "@/renderer/libs/stores/member-store";
-import {
-  composeChannelAgentLine,
-  composeInputPlaceholder,
-} from "@/renderer/libs/chat-labels";
+import { composeInputPlaceholder } from "@/renderer/libs/chat-labels";
 
 export function HomePage() {
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -104,20 +96,6 @@ export function HomePage() {
     channelName: currentChannel?.name,
     agentName: conversationAgent?.name ?? selectedAgent?.name ?? null,
   });
-
-  const ChannelGlyph = currentChannel?.isPrivate ? Lock : Hash;
-
-  const allMembers = useMembers();
-  const channelAgentLine = useMemo(() => {
-    if (!currentChannel) return null;
-    const byId = new Map((allMembers ?? []).map((m) => [m.id, m]));
-    return composeChannelAgentLine(
-      currentChannel.memberIds.flatMap((id) => {
-        const member = byId.get(id);
-        return member?.kind === "agent" ? [member.name] : [];
-      }),
-    );
-  }, [currentChannel, allMembers]);
 
   // Where the user was standing — one context owns all of it.
   const {
@@ -180,25 +158,29 @@ export function HomePage() {
     setActiveView("chat");
   };
 
-  // Handle branching from a specific message
-  const handleBranchFromMessage = async (messageIndex: number) => {
-    if (!currentConversationId) {
-      console.error("Cannot branch: no current conversation");
-      return;
-    }
+  // Stable: this is a dependency of ChatContent's renderMessages callback, so
+  // a fresh identity every render defeats MessageRow's memo for all rows.
+  const handleBranchFromMessage = useCallback(
+    async (messageIndex: number) => {
+      if (!currentConversationId) {
+        console.error("Cannot branch: no current conversation");
+        return;
+      }
 
-    try {
-      const newConversationId = await branchConversationWithRuntime(
-        currentConversationId,
-        messageIndex,
-      );
-      // Switch to the new branched conversation
-      setCurrentConversation(newConversationId);
-      console.log("Created branch conversation:", newConversationId);
-    } catch (error) {
-      console.error("Failed to create branch:", error);
-    }
-  };
+      try {
+        const newConversationId = await branchConversationWithRuntime(
+          currentConversationId,
+          messageIndex,
+        );
+        // Switch to the new branched conversation
+        setCurrentConversation(newConversationId);
+        console.log("Created branch conversation:", newConversationId);
+      } catch (error) {
+        console.error("Failed to create branch:", error);
+      }
+    },
+    [currentConversationId, setCurrentConversation],
+  );
 
   // Settings navigation items
   const settingsNavItems = [
@@ -463,7 +445,7 @@ export function HomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center justify-center relative">
+                <div className="flex-1 flex items-center justify-center relative overflow-y-auto">
                   {/* Welcome page background drag areas - multiple regions avoiding buttons */}
 
                   {/* Top area - avoid both left and right button zones */}
@@ -487,34 +469,22 @@ export function HomePage() {
                     }}
                   ></div>
 
-                  <div className="text-center space-y-6 max-w-md relative z-10">
-                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto">
-                      {currentChannel ? (
-                        <ChannelGlyph
-                          size={48}
-                          className="text-muted-foreground"
-                        />
-                      ) : (
-                        <BaseLogo size={64} />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-foreground mb-2">
-                        {currentChannel
-                          ? `Welcome to #${currentChannel.name}`
-                          : "Welcome to Convera"}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {currentChannel
-                          ? `This is the start of #${currentChannel.name}.`
-                          : "Start a conversation by typing a message below"}
-                      </p>
-                      {channelAgentLine && (
-                        <p className="text-muted-foreground mt-1">
-                          {channelAgentLine}
-                        </p>
-                      )}
-                    </div>
+                  <div className="relative z-10 w-full">
+                    {currentChannel ? (
+                      <ChannelEmptyState
+                        channel={currentChannel}
+                        onUsePrompt={(prompt) => {
+                          chatInputRef.current?.setInput(prompt);
+                          chatInputRef.current?.focus();
+                        }}
+                        onOpenSettings={() => {
+                          setActiveSettingsTab("general");
+                          setActiveView("settings");
+                        }}
+                      />
+                    ) : (
+                      <WorkspaceEmptyState />
+                    )}
                   </div>
                 </div>
               )}
@@ -548,6 +518,9 @@ export function HomePage() {
                     conversationId={currentConversationId}
                   />
                   <TypingIndicator conversationId={currentConversationId} />
+                  {/* Only in a room: addressing nobody is what a channel does,
+                      and a 1:1 chat has nobody else to mention. */}
+                  {currentChannel && <MentionHint />}
                   <ChatInputContainer
                     ref={chatInputRef}
                     placeholder={inputPlaceholder}
