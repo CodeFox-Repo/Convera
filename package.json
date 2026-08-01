@@ -20,7 +20,6 @@
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:status": "changeset status",
-    "changeset:help": "./scripts/changeset-guide.sh",
     "release": "./scripts/release.sh",
     "release:dry": "pnpm changeset status --verbose",
     "version:sync": "node -e \"const pkg = require('./package.json'); const appPkg = require('./packages/app/package.json'); pkg.version = appPkg.version; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\\n');\""
