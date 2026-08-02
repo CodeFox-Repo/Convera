@@ -21,6 +21,11 @@ interface ChatContentProps {
   messages: UIMessage[];
   /** Channels show reactions; 1:1 chats hide them. */
   showReactions?: boolean;
+  /**
+   * Edit / regenerate / branch, which rewrite the transcript from one message
+   * down. None of them are channel-aware, so a room hides them.
+   */
+  showHistoryRewrite?: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   isLoading: boolean;
   onEditMessage: (message: UIMessage, newContent: string) => void;
@@ -44,6 +49,7 @@ export default function ChatContent({
   onReplyToMessage,
   onBranchFromMessage,
   showReactions,
+  showHistoryRewrite,
 }: ChatContentProps) {
   const members = useMembers();
   const { currentConversationId } = useSelectionStore();
@@ -335,6 +341,7 @@ export default function ChatContent({
         <MessageRow
           key={message.id}
           showReactions={showReactions ?? false}
+          showHistoryRewrite={showHistoryRewrite ?? false}
           message={message}
           messageIndex={index}
           sender={

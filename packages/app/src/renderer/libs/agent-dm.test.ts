@@ -4,6 +4,7 @@ import {
   db,
   deleteAgent,
   LOCAL_HUMAN_MEMBER_ID,
+  LOCAL_WORKSPACE_ID,
   memberIdForAgent,
   useSelectionStore,
   useUnreadStore,
@@ -12,6 +13,7 @@ import {
 import {
   agentDMChannelId,
   agentDMConversationId,
+  conversationIsChannel,
   ensureAgentDM,
   openAgentDM,
 } from "./agent-dm";
@@ -185,5 +187,35 @@ describe("agent direct messages", () => {
 
     expect(await db.channels.get(fired.channelId)).toBeUndefined();
     expect(await db.channels.get(kept.channelId)).toBeDefined();
+  });
+
+  describe("conversationIsChannel", () => {
+    it("says yes for a room, so edit and regenerate refuse to truncate it", async () => {
+      // Editing the last message in a channel deleted every reply that came
+      // after it — in the seeded workspace, all three colleagues' hellos.
+      const dm = await ensureAgentDM(AGENT.id);
+      expect(await conversationIsChannel(dm.conversationId)).toBe(true);
+
+      await db.channels.put({
+        id: "c-announcements",
+        workspaceId: LOCAL_WORKSPACE_ID,
+        groupId: null,
+        conversationId: "conv-announcements",
+        name: "announcements",
+        kind: "channel",
+        isPrivate: false,
+        memberIds: [LOCAL_HUMAN_MEMBER_ID, memberIdForAgent(AGENT.id)],
+        defaultAgentMemberId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      expect(await conversationIsChannel("conv-announcements")).toBe(true);
+    });
+
+    it("says no for a plain assistant chat, which still rewrites freely", async () => {
+      // No channel row points at it — the legacy 1:1 path, where truncating
+      // costs one assistant reply and nobody else's.
+      expect(await conversationIsChannel("conv-plain")).toBe(false);
+    });
   });
 });

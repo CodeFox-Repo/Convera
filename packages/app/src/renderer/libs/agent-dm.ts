@@ -27,6 +27,25 @@ export function agentDMConversationId(agentId: string): string {
   return `conversation:dm:agent:${stablePart(agentId)}`;
 }
 
+/**
+ * Whether a conversation is a room rather than a plain 1:1 with the assistant.
+ *
+ * Edit and regenerate rewrite the transcript from one message down — they
+ * truncate everything after it and resend through the globally selected agent.
+ * In a room that deletes colleagues' replies and answers as the wrong agent,
+ * so both refuse here. Asked at the store rather than only hidden in the UI:
+ * the destructive step is the truncation, not the button.
+ */
+export async function conversationIsChannel(
+  conversationId: string,
+): Promise<boolean> {
+  const channel = await db.channels
+    .where("conversationId")
+    .equals(conversationId)
+    .first();
+  return channel !== undefined;
+}
+
 function isAgentDM(channel: Channel, agentMemberId: string): boolean {
   return (
     channel.kind === "dm" &&

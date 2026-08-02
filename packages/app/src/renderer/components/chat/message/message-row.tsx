@@ -45,6 +45,15 @@ export interface MessageRowProps {
    * assistant does not — reacting to your own bot is noise.
    */
   showReactions: boolean;
+  /**
+   * Edit, regenerate and branch rewrite history from one message down: the
+   * edit path truncates everything after the message and resends through the
+   * globally selected agent, and branch copies into a conversation with no
+   * channel row. All three predate channels and none of them are room-aware,
+   * so in a room they delete colleagues' replies and answer as the wrong
+   * agent. A 1:1 with the assistant is the only place they mean anything.
+   */
+  showHistoryRewrite: boolean;
   isLastMessage: boolean;
   isLastUserMessage: boolean;
   isEditing: boolean;
@@ -180,6 +189,7 @@ const MessageRow = memo(
     agentName,
     isGrouped,
     showReactions,
+    showHistoryRewrite,
     isLastMessage,
     isLastUserMessage,
     isEditing,
@@ -423,7 +433,7 @@ const MessageRow = memo(
                       {isCopied ? <Check size={14} /> : <Copy size={14} />}
                     </button>
 
-                    {isUser && isLastUserMessage && (
+                    {showHistoryRewrite && isUser && isLastUserMessage && (
                       <button
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                         onClick={onEditStart}
@@ -433,7 +443,7 @@ const MessageRow = memo(
                       </button>
                     )}
 
-                    {!isUser && isLastMessage && (
+                    {showHistoryRewrite && !isUser && isLastMessage && (
                       <button
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                         onClick={onRegenerate}
@@ -443,7 +453,7 @@ const MessageRow = memo(
                       </button>
                     )}
 
-                    {!isUser && (
+                    {showHistoryRewrite && !isUser && (
                       <button
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => onBranch(messageIndex)}

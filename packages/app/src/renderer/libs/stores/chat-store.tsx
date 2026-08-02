@@ -32,6 +32,7 @@ import {
   type OfferedPeer,
 } from "../agent-projection";
 import { routeMessage, type ChainState } from "../agent-routing";
+import { conversationIsChannel } from "../agent-dm";
 import { parseMentions } from "../mention-parser";
 import {
   LOCAL_HUMAN_MEMBER_ID,
@@ -187,6 +188,14 @@ function getDefaultProviderSelection() {
     state.defaultModelId,
   );
 }
+
+/**
+ * A file this size becomes roughly a 7 MB base64 string living inside the
+ * message row. Generous for a screenshot or a document, small enough that the
+ * unread scan and `read_channel` can afford to load it.
+ */
+const MAX_ATTACHMENT_BYTES = 5_000_000;
+const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
@@ -593,13 +602,29 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const addAttachments = useCallback((files: File | File[]) => {
-    setAttachments((prev) => {
-      if (Array.isArray(files)) {
-        return [...prev, ...files];
-      } else {
-        return [...prev, files];
+    // Attachments are inlined into the message row as base64 (~1.37x the file
+    // size), and the unread badge materializes every row written since its
+    // floor on each message. One unbounded video therefore costs its own size
+    // on every keystroke-era write, forever. This is the only entry point, so
+    // the cap lives here rather than at each reader.
+    const picked = Array.isArray(files) ? files : [files];
+    const withinLimit = picked.filter(
+      (file) => file.size <= MAX_ATTACHMENT_BYTES,
+    );
+    // ponytail: rejected files only warn — `error` belongs to the chat hook and
+    // no Toaster is mounted, so there is no honest surface to report them on
+    // yet. Wire this to the composer when one exists.
+    for (const file of picked) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        console.warn(
+          `Attachment "${file.name}" is ${Math.round(file.size / 1_000_000)}MB; the limit is ${MAX_ATTACHMENT_BYTES / 1_000_000}MB.`,
+        );
       }
-    });
+    }
+    if (!withinLimit.length) return;
+    setAttachments((prev) =>
+      [...prev, ...withinLimit].slice(0, MAX_ATTACHMENTS_PER_MESSAGE),
+    );
   }, []);
 
   const removeAttachment = useCallback((index: number) => {
@@ -1112,6 +1137,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const requestedSelection = getConversationSelectionToken();
       const rebase = async () => {
         if (!requestedSelection.conversationId) return;
+        if (await conversationIsChannel(requestedSelection.conversationId)) {
+          return;
+        }
         await flushConversationProviderSelection(
           requestedSelection.conversationId,
         );
@@ -1209,6 +1237,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         const requestedSelection = getConversationSelectionToken();
         const rebase = async () => {
           if (!requestedSelection.conversationId) return;
+          if (await conversationIsChannel(requestedSelection.conversationId)) {
+            return;
+          }
           await flushConversationProviderSelection(
             requestedSelection.conversationId,
           );

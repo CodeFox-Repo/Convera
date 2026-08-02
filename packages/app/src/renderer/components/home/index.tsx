@@ -428,6 +428,7 @@ export function HomePage() {
                   <div className="w-full py-4 relative z-10">
                     <ChatContent
                       showReactions={!!currentChannel}
+                      showHistoryRewrite={!currentChannel}
                       messages={messages}
                       messagesEndRef={messagesEndRef}
                       isLoading={isLoading}
