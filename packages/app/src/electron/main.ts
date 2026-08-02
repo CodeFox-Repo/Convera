@@ -23,6 +23,8 @@ import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
 import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
 import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
 import { withAgentHostTools } from "@/electron/ai/agent-host-tools";
+import { AgentHostTraceRecorder } from "@/electron/trace/agent-host";
+import { LocalTraceStore } from "@/electron/trace/store";
 import { SANDBOX_LAYOUT } from "@/shared/types/workspace";
 
 import { getCurrentShortcut } from "@/electro-bridge/ipc/ipc-handlers";
@@ -55,6 +57,7 @@ let memoryCoordinator: MemoryIntegrationCoordinator | undefined;
 let agentHost: AgentHost | undefined;
 let agentHostBridge: AgentHostRendererBridge | undefined;
 let unsubscribeAgentHost: (() => void) | undefined;
+let traceStore: LocalTraceStore | undefined;
 let webBridge: WebBridgeHandle | undefined;
 let localAICleanup: Promise<void> | undefined;
 let quitAfterCleanup = false;
@@ -76,6 +79,7 @@ function cleanupLocalAI(): Promise<void> {
     await memoryCoordinator?.dispose().catch((error) => {
       logger.error("Memory coordinator cleanup failed:", error);
     });
+    await traceStore?.idle();
   })();
   return localAICleanup;
 }
@@ -207,6 +211,10 @@ app.whenReady().then(async () => {
           ? mcpToolCall(toolName, input)
           : callTool(serverName, toolName, input),
     });
+    traceStore = new LocalTraceStore(join(userDataPath, "agent-traces.jsonl"));
+    const traceRecorder = new AgentHostTraceRecorder(traceStore, {
+      onError: (error) => logger.warn("Agent trace write failed:", error),
+    });
     agentHost = new AgentHost({
       repository: new JsonAgentHostJobRepository({
         path: join(userDataPath, "agent-host-jobs.json"),
@@ -214,14 +222,18 @@ app.whenReady().then(async () => {
       executor: new LocalAiAgentHostExecutor(
         localAIRuntime,
         agentHostBridge,
-        join(userDataPath, "agent-turns.jsonl"),
+        traceRecorder,
       ),
       startPaused: true,
     });
-    unsubscribeAgentHost = agentHost.subscribe((event) =>
-      agentHostBridge?.emit(event),
-    );
+    unsubscribeAgentHost = agentHost.subscribe((event) => {
+      void traceRecorder.record(event);
+      agentHostBridge?.emit(event);
+    });
     await agentHost.initialize();
+    await Promise.all(
+      (await agentHost.listJobs()).map((job) => traceRecorder.recordJob(job)),
+    );
 
     // Initialize MCP Hub asynchronously but don't block startup
     initializeMCPHub()

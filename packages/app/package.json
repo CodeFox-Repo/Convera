@@ -27,6 +27,7 @@
     "test:all": "vitest run",
     "memory:eval": "tsx scripts/memory-eval.mts",
     "memory:eval:real": "tsx scripts/memory-eval.mts --real",
+    "trace:eval": "tsx scripts/trace-eval.mts",
     "automation": "WDIO_LOG_LEVEL=silent tsx automation/server.ts",
     "automation:prepare": "tsx automation/check-runtime.ts && electron-forge package && tsx automation/prepare-driver.ts",
     "automation:typecheck": "tsc --noEmit -p automation/tsconfig.json"

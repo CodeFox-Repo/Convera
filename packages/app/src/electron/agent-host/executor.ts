@@ -10,9 +10,9 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import { WORKSPACE_QUERY_INTERACTION } from "@/shared/types/workspace-perception";
+import type { AgentHostTraceRecorder } from "@/electron/trace/agent-host";
 import type { AgentHostExecutor } from "./host";
 import type { AgentHostRendererBridge } from "./renderer-bridge";
-import { TurnLogger } from "./turn-log";
 
 /**
  * A turn that ends without calling the speech tool said nothing at all: the
@@ -69,8 +69,7 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
   constructor(
     private readonly runtime: LocalAIRuntimeService,
     private readonly bridge: AgentHostRendererBridge,
-    /** Where each turn's tool sequence is written; omit to record nothing. */
-    private readonly turnLogPath?: string,
+    private readonly trace?: AgentHostTraceRecorder,
   ) {}
 
   async execute(
@@ -98,37 +97,19 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
         },
       };
       this.activeRequests.set(job.id, request.requestId);
-      const log = this.turnLogPath
-        ? new TurnLogger(this.turnLogPath)
-        : undefined;
-      const flush = () =>
-        log?.flush({
-          id: job.id,
-          requestId: request.requestId,
-          conversationId: job.conversationId,
-          memberId: job.agentMemberId,
-          mode: job.mode,
-        });
-      if (await this.runTurn(request, job, emit, log)) {
-        await flush();
-        return;
-      }
+      if (await this.runTurn(request, job, emit)) return;
       // Silence is a complete answer on an open floor; only a direct question
       // left unanswered is worth a second ask.
       if (job.mode !== "direct") {
-        await flush();
         return;
       }
       // Announced before the second turn starts, so the renderer can hold the
       // typing indicator across the gap rather than retiring it and lighting
       // it again for the same reply.
       emit({ type: "retrying", jobId: job.id });
-      log?.noteRetry();
-      if (await this.runTurn(remind(request), job, emit, log)) {
-        await flush();
+      if (await this.runTurn(remind(request), job, emit, request.turnId)) {
         return;
       }
-      await flush();
       throw new Error(
         "The agent completed a direct offer without sending a message.",
       );
@@ -142,20 +123,27 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
     request: LocalAIChatRequest,
     job: AgentHostJob,
     emit: (event: AgentHostEvent) => void,
-    log?: TurnLogger,
+    previousTurnId?: string,
   ): Promise<boolean> {
     let streamError: Error | undefined;
     let spoke = false;
-    await this.runtime.startChat(request, (event) => {
-      log?.record(event);
-      if (event.type === "error") {
-        streamError = new Error(event.error.message);
-      }
-      if (isSpeech(event)) spoke = true;
-      emit({ type: "stream", jobId: job.id, event });
-    });
-    if (streamError) throw streamError;
-    return spoke;
+    const trace = await this.trace?.beginTurn(job, request, previousTurnId);
+    try {
+      await this.runtime.startChat(request, (event) => {
+        trace?.record(event);
+        if (event.type === "error") {
+          streamError = new Error(event.error.message);
+        }
+        if (isSpeech(event)) spoke = true;
+        emit({ type: "stream", jobId: job.id, event });
+      });
+      if (streamError) throw streamError;
+      await trace?.complete();
+      return spoke;
+    } catch (error) {
+      await trace?.complete(error);
+      throw error;
+    }
   }
 
   async cancel(job: AgentHostJob): Promise<boolean> {
