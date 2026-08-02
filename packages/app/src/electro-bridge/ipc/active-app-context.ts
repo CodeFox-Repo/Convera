@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -23,7 +23,7 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
     return null;
   }
 
-  const execAsync = promisify(exec);
+  const execFileAsync = promisify(execFile);
 
   const appPaths = [
     `/Applications/${appName}.app`,
@@ -82,8 +82,21 @@ async function loadAppIconFromDisk(appName: string): Promise<string | null> {
               `${Date.now()}_${appName}_icon.png`,
             );
 
-            const sipsCommand = `sips -s format png -z 32 32 "${iconPath}" --out "${tmpPngPath}"`;
-            await execAsync(sipsCommand);
+            // Arguments are passed as an array, never spliced into a shell
+            // string: `appName` arrives from the renderer and reaches
+            // `tmpPngPath`, so a quote in it used to close the quoting and run
+            // whatever followed.
+            await execFileAsync("sips", [
+              "-s",
+              "format",
+              "png",
+              "-z",
+              "32",
+              "32",
+              iconPath,
+              "--out",
+              tmpPngPath,
+            ]);
 
             if (fs.existsSync(tmpPngPath)) {
               const pngBuffer = fs.readFileSync(tmpPngPath);

@@ -1,7 +1,75 @@
-import { contextBridge, ipcMain, ipcRenderer, type IpcMain } from "electron";
+import {
+  contextBridge,
+  ipcMain,
+  ipcRenderer,
+  type IpcMain,
+  type MessageBoxOptions,
+} from "electron";
 import type { MCPServerConfig } from "@/shared/types/mcp";
 import { createMcpAPI } from "./mcp-api";
 import { getAllTools, getMCPHub } from "../../electron/mcp";
+
+/**
+ * Ask the person at the keyboard before letting a config spawn a process.
+ *
+ * An stdio server is a command line: `command`, `args`, `cwd` and `env` are
+ * handed to StdioClientTransport and executed. The renderer supplies all four,
+ * so anything able to call `window.mcpAPI.addServer` — a pasted config, script
+ * running in the renderer — otherwise gets silent local execution that also
+ * survives restart, because the hub persists it.
+ *
+ * Only stdio is gated: a url-only server talks over the network and starts no
+ * process, and prompting for it would train people to click through.
+ *
+ * This module is bundled into the preload too, so `dialog` and the window
+ * accessor are required lazily — importing them at module scope pulls
+ * main-process code into the renderer bundle.
+ */
+/** What would be executed, so an unchanged command line can skip the prompt. */
+function commandLine(config: MCPServerConfig | undefined): string {
+  if (!config?.command?.trim()) return "";
+  return JSON.stringify([
+    config.command.trim(),
+    config.args ?? [],
+    config.cwd ?? "",
+    config.env ?? {},
+  ]);
+}
+
+export function commandLineChanged(
+  previous: MCPServerConfig | undefined,
+  next: MCPServerConfig,
+): boolean {
+  return commandLine(previous) !== commandLine(next);
+}
+
+async function confirmsProcessSpawn(
+  serverId: string,
+  config: MCPServerConfig,
+): Promise<boolean> {
+  const command = config.command?.trim();
+  if (!command) return true;
+
+  const { dialog } = await import("electron");
+  const { getMainWindow } = await import(
+    "../../electron/windows/main-window.js"
+  );
+  const argv = [command, ...(config.args ?? [])].join(" ");
+  const options: MessageBoxOptions = {
+    type: "warning",
+    buttons: ["Cancel", "Run this command"],
+    defaultId: 0,
+    cancelId: 0,
+    title: "Add MCP server",
+    message: `Let "${serverId}" run a command on this Mac?`,
+    detail: `${argv}\n\nMCP servers run with your account's access to files and the network. Only continue if you know where this configuration came from.`,
+  };
+  const window = getMainWindow();
+  const { response } = window
+    ? await dialog.showMessageBox(window, options)
+    : await dialog.showMessageBox(options);
+  return response === 1;
+}
 
 /**
  * Setup MCP IPC handlers in main process
@@ -89,6 +157,17 @@ export function setupMCPIPC(
           return { success: false, error: "MCP Hub not initialized" };
         }
 
+        // Same gate as addServer, but only when the command line actually
+        // changes: toggling `disabled` round-trips the stored config through
+        // here, and prompting on every switch flip teaches people to dismiss
+        // the dialog without reading it.
+        if (
+          commandLineChanged(hub.getConfig().mcpServers?.[serverId], config) &&
+          !(await confirmsProcessSpawn(serverId, config))
+        ) {
+          return { success: false, error: "Cancelled." };
+        }
+
         const serverInfo = await hub.updateServer(serverId, config);
         return { success: true, data: serverInfo };
       } catch (error) {
@@ -105,6 +184,10 @@ export function setupMCPIPC(
         const hub = getMCPHub();
         if (!hub) {
           return { success: false, error: "MCP Hub not initialized" };
+        }
+
+        if (!(await confirmsProcessSpawn(serverId, config))) {
+          return { success: false, error: "Cancelled." };
         }
 
         const serverInfo = await hub.addServer(serverId, config);
