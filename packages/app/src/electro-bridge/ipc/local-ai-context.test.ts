@@ -903,6 +903,32 @@ describe("local AI IPC", () => {
     expect(runtime.updateMemorySettings).toHaveBeenCalledOnce();
   });
 
+  it.each(["openai-api", "fireworks-api"] as const)(
+    "accepts the registered %s provider as a memory curator",
+    async (subconsciousProvider) => {
+      const sender = new FakeWebContents(1);
+      const runtime = createRuntime();
+      const { handlers, ipc } = createMainIPC();
+      setupLocalAIIPC(
+        {
+          runtime,
+          getAllowedWebContents: () => sender as never,
+        },
+        ipc as never,
+      );
+
+      await expect(
+        handlers.get(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS)?.(
+          createEvent(sender),
+          { subconsciousProvider },
+        ),
+      ).resolves.toMatchObject({ success: true });
+      expect(runtime.updateMemorySettings).toHaveBeenCalledWith({
+        subconsciousProvider,
+      });
+    },
+  );
+
   it("validates read-only block changes before they reach memory storage", async () => {
     const sender = new FakeWebContents(1);
     const runtime = createRuntime();

@@ -146,9 +146,8 @@ export function isLocalAIMemoryProvider(
 }
 export type LocalAISubconsciousProvider =
   | "off"
-  | "codex-cli"
-  | "claude-code"
-  | "follow-active";
+  | "follow-active"
+  | Exclude<LocalAIProviderKind, "openai-compatible">;
 export type LocalAIMemorySchedule = "every-turn" | "batch" | "idle";
 
 export interface LocalAIMemorySettings {

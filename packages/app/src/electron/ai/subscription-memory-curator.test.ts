@@ -162,6 +162,8 @@ describe("RestrictedMemoryCurator", () => {
   it.each([
     ["codex-cli", "codex-cli"],
     ["claude-code", "claude-code"],
+    ["openai-api", "openai-api"],
+    ["fireworks-api", "fireworks-api"],
   ] satisfies Array<
     [LocalAISubconsciousProvider, LocalAISubconsciousProvider]
   >)("resolves the explicit %s provider", async (setting, expected) => {
@@ -174,9 +176,9 @@ describe("RestrictedMemoryCurator", () => {
     await expect(
       resolveSubscriptionMemoryProvider(
         "follow-active",
-        input(["codex-cli", "claude-code"]),
+        input(["codex-cli", "claude-code", "openai-api", "fireworks-api"]),
       ),
-    ).resolves.toBe("claude-code");
+    ).resolves.toBe("fireworks-api");
   });
 
   it("rejects off without invoking the subscription runtime", async () => {
@@ -215,8 +217,8 @@ describe("RestrictedMemoryCurator", () => {
       providerId: "codex-cli",
       operation: { kind: "append" },
       agent: { id: "restricted-memory-curator" },
-      options: { temperature: 0 },
     });
+    expect(request.options).toBeUndefined();
     expect(request.agent?.systemPrompt).toBe(
       RESTRICTED_MEMORY_CURATOR_SYSTEM_PROMPT,
     );
@@ -455,14 +457,14 @@ describe("RestrictedMemoryCurator", () => {
   });
 
   it("uses the active-provider resolver when turns do not identify one", async () => {
-    const getActiveProviderId = vi.fn(async () => "claude-code" as const);
+    const getActiveProviderId = vi.fn(async () => "openai-api" as const);
     await expect(
       resolveSubscriptionMemoryProvider(
         "follow-active",
         input([]),
         getActiveProviderId,
       ),
-    ).resolves.toBe("claude-code");
+    ).resolves.toBe("openai-api");
     expect(getActiveProviderId).toHaveBeenCalledWith({
       kind: "conversation",
       id: "conversation-1",

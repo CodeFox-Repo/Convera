@@ -3,7 +3,7 @@ import {
   RestrictedMemoryCurator,
 } from "../ai/subscription-memory-curator";
 import type { SessionStateRepository } from "../ai/session/types";
-import type { LocalAiProviderId } from "../ai/types";
+import { LOCAL_AI_PROVIDER_IDS } from "../ai/types";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { MemoryIntegrationCoordinator } from "./coordinator";
@@ -26,17 +26,12 @@ function stableScopeId(namespace: string, value: string): string {
   return `${namespace}-${digest}`;
 }
 
-const CURATOR_SESSION_PROVIDERS: LocalAiProviderId[] = [
-  "codex-cli",
-  "claude-code",
-];
-
 export async function forgetMemoryCuratorSessions(
   repository: SessionStateRepository,
   scope: Parameters<typeof memoryCuratorConversationId>[0],
 ): Promise<void> {
   await Promise.all(
-    CURATOR_SESSION_PROVIDERS.map((providerId) =>
+    LOCAL_AI_PROVIDER_IDS.map((providerId) =>
       repository.deleteConversation(
         memoryCuratorConversationId(scope, providerId),
       ),
@@ -63,12 +58,9 @@ export function createElectronMemoryIntegration(
     curatorFactory: {
       create: (provider) =>
         new RestrictedMemoryCurator({
-          // Memory curation runs on the CLI agents; a raw API provider has no
-          // curator persona, so its turns simply skip subconscious curation.
-          provider:
-            provider === "openai-api" || provider === "fireworks-api"
-              ? "off"
-              : provider,
+          // Curators are isolated text-only sessions. Provider adapters own
+          // authentication, model selection, and native session semantics.
+          provider,
           sessionRepository: options.sessionRepository,
           workingDirectory: options.workingDirectory,
         }),

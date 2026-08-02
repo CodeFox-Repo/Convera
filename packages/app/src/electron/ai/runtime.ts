@@ -43,10 +43,15 @@ import {
 } from "./agent-tools";
 import { createBasicAgentTools } from "./basic-tools";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "./provider-descriptors";
-import type {
-  LocalAiProviderAdapter,
-  LocalAiProviderExecutionPolicy,
+import {
+  isPiProviderRun,
+  type LocalAiProviderAdapter,
+  type LocalAiProviderExecutionPolicy,
 } from "./provider-adapter";
+import {
+  createPiAgentRuntimeStream,
+  type PiAgentRuntimeStreamFactory,
+} from "./pi-agent-driver";
 import { ClaudeCodeAdapter } from "./providers/claude-code";
 import { CodexCliAdapter } from "./providers/codex-cli";
 import { FireworksApiAdapter } from "./providers/fireworks-api";
@@ -67,6 +72,7 @@ import type {
 } from "./session/types";
 import {
   LOCAL_AI_PROVIDER_IDS,
+  isLocalAiProviderId,
   type LocalAiProviderId,
   type LocalAiProviderStatus as ProbeStatus,
 } from "./types";
@@ -114,10 +120,6 @@ const defaultStreamInvoker: RuntimeStreamInvoker = (options) =>
   streamText(
     options as Parameters<typeof streamText>[0],
   ) as unknown as RuntimeStreamResult;
-
-function isProviderId(providerId: string): providerId is LocalAiProviderId {
-  return LOCAL_AI_PROVIDER_IDS.includes(providerId as LocalAiProviderId);
-}
 
 function availabilityFor(status: ProbeStatus): LocalAIProviderAvailability {
   if (!status.available) {
@@ -457,6 +459,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   private readonly activeRequests = new Map<string, ActiveRuntimeRequest>();
   private readonly inFlightChats = new Set<Promise<void>>();
   private readonly streamInvoker: RuntimeStreamInvoker;
+  private readonly piStreamFactory: PiAgentRuntimeStreamFactory;
   private readonly workingDirectory: string;
   private readonly sandbox: AgentSandbox;
   private readonly resolveSandbox: AgentSandboxResolver;
@@ -481,6 +484,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
     options: {
       adapters?: LocalAiProviderAdapter[];
       streamInvoker?: RuntimeStreamInvoker;
+      piStreamFactory?: PiAgentRuntimeStreamFactory;
       workingDirectory?: string;
       sandbox?: AgentSandbox;
       resolveSandbox?: AgentSandboxResolver;
@@ -500,6 +504,8 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       new FireworksApiAdapter(),
     ];
     this.streamInvoker = options.streamInvoker ?? defaultStreamInvoker;
+    this.piStreamFactory =
+      options.piStreamFactory ?? createPiAgentRuntimeStream;
     this.workingDirectory = options.workingDirectory ?? process.cwd();
     this.sandbox = options.sandbox ?? {
       root: this.workingDirectory,
@@ -549,7 +555,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   }
 
   async getProviderStatus(providerId: string): Promise<LocalAIProviderStatus> {
-    if (!isProviderId(providerId)) {
+    if (!isLocalAiProviderId(providerId)) {
       return missingProviderStatus(providerId);
     }
 
@@ -625,7 +631,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
       return;
     }
 
-    if (!isProviderId(request.providerId)) {
+    if (!isLocalAiProviderId(request.providerId)) {
       this.emitFailure(
         request.requestId,
         emit,
@@ -850,40 +856,45 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         // after a process crash.
         await repository.markProviderStarted(request.turnId);
         providerMayHaveAdvanced = true;
-        const result = this.streamInvoker({
-          model: run.model,
-          messages: toMessages(
-            request,
-            resumableBinding !== undefined,
-            turnContext?.systemContext,
-            // Only providers that receive the basic file tools can act on the
-            // notice; a CLI provider's tool surface has no write_file, and
-            // promising a notebook its tools refuse is worse than silence.
-            adapter.providesOwnTools === false
-              ? describeSandboxMemory(sandbox)
-              : undefined,
-          ),
-          abortSignal: controller.signal,
-          maxOutputTokens: request.options?.maxOutputTokens,
-          providerOptions: run.providerOptions,
-          tools: run.tools,
-          // Tools passed here are executed by the AI SDK, so the loop has to
-          // be stepped explicitly or the turn ends at the first tool call.
-          //
-          // Saying something ends the turn. Without that, a model that had
-          // already posted would keep its remaining steps and sometimes reach
-          // for the speech tool a second time — the room saw one colleague
-          // start typing, stop, and start again for a single message. Looking
-          // around first (`read_channel`, reasoning) still costs steps and is
-          // unaffected: `hasToolCall` only inspects the step just finished.
-          // The step count is a runaway backstop, not a work budget: a turn
-          // that reads a few rooms, checks its memory and then answers was
-          // hitting 12 and stopping mid-thought. Speaking still ends the turn,
-          // so the ceiling only matters to a model that never gets there.
-          stopWhen: run.tools
-            ? [hasToolCall(WORKSPACE_SEND_MESSAGE_TOOL), stepCountIs(50)]
+        const resumesNativeSession =
+          resumableBinding !== undefined &&
+          adapter.resumesNativeSession !== false;
+        const messages = toMessages(
+          request,
+          resumesNativeSession,
+          turnContext?.systemContext,
+          // Only providers that receive the basic file tools can act on the
+          // notice; a CLI provider's tool surface has no write_file, and
+          // promising a notebook its tools refuse is worse than silence.
+          adapter.providesOwnTools === false
+            ? describeSandboxMemory(sandbox)
             : undefined,
-        });
+        );
+        const result = isPiProviderRun(run)
+          ? this.piStreamFactory({
+              requestId: request.requestId,
+              run,
+              messages,
+              tools,
+              abortSignal: controller.signal,
+              maxOutputTokens: request.options?.maxOutputTokens,
+              temperature: request.options?.temperature,
+            })
+          : this.streamInvoker({
+              model: run.model,
+              messages,
+              abortSignal: controller.signal,
+              maxOutputTokens: request.options?.maxOutputTokens,
+              providerOptions: run.providerOptions,
+              tools: run.tools,
+              // Tools passed here are executed by the AI SDK, so the loop has
+              // to be stepped explicitly or the turn ends at the first tool
+              // call. Saying something ends the turn; the step count is only a
+              // runaway backstop.
+              stopWhen: run.tools
+                ? [hasToolCall(WORKSPACE_SEND_MESSAGE_TOOL), stepCountIs(50)]
+                : undefined,
+            });
         const forwarded = await this.forwardStream(
           request.requestId,
           result,
@@ -1239,7 +1250,7 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
   async resetConversationProviderSession(
     request: LocalAIResetProviderSessionRequest,
   ): Promise<LocalAIConversationRuntimeState> {
-    if (!isProviderId(request.providerId)) {
+    if (!isLocalAiProviderId(request.providerId)) {
       throw Object.assign(
         new Error(`Unknown local AI provider: ${request.providerId}`),
         { code: "UNKNOWN_PROVIDER" },

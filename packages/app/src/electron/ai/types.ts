@@ -7,6 +7,10 @@ export const LOCAL_AI_PROVIDER_IDS = [
 
 export type LocalAiProviderId = (typeof LOCAL_AI_PROVIDER_IDS)[number];
 
+export function isLocalAiProviderId(value: string): value is LocalAiProviderId {
+  return LOCAL_AI_PROVIDER_IDS.some((providerId) => providerId === value);
+}
+
 export interface LocalAiProviderDescriptor {
   id: LocalAiProviderId;
   label: string;

@@ -142,8 +142,15 @@ describe("memory tools", () => {
     expect(learn).toMatchObject({
       name: "memory_learn",
       qualifiedName: "memory:learn",
+      inputSchema: {
+        type: "object",
+        properties: {
+          storage: { enum: ["block", "archival"] },
+          content: { type: "string" },
+        },
+        required: ["storage", "content"],
+      },
     });
-    expect(learn?.inputSchema).toMatchObject({ type: "object" });
     await expect(
       learn?.execute({
         storage: "block",

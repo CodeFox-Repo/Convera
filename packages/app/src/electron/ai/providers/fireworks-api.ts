@@ -19,6 +19,7 @@ export class FireworksApiAdapter implements LocalAiProviderAdapter {
   // No process boundary: resolveInSandbox inside the basic tools is the only
   // thing between the model and the rest of the disk.
   readonly enforcesSandbox = false;
+  readonly resumesNativeSession = false;
   readonly providesOwnTools = false;
 
   private provider?: ReturnType<typeof createOpenAI>;
@@ -80,7 +81,7 @@ export class FireworksApiAdapter implements LocalAiProviderAdapter {
     );
     // Stateless as far as we are concerned: this runtime owns the transcript
     // and rebases it per turn, so there is no provider-native session to
-    // resume and the request id doubles as the session marker.
+    // resume. Keep a stable conversation marker for request/cache affinity.
     //
     // `store: false` — the Responses API keeps conversations server-side by
     // default under a different retention policy than chat completions, and a
@@ -96,7 +97,7 @@ export class FireworksApiAdapter implements LocalAiProviderAdapter {
       model,
       tools: Object.keys(tools).length > 0 ? tools : undefined,
       providerOptions: { openai: { store: false, reasoningEffort: "max" } },
-      getNativeSessionId: () => `fireworks-api:${request.requestId}`,
+      getNativeSessionId: () => `fireworks-api:${request.conversationId}`,
     };
   }
 

@@ -33,6 +33,10 @@ import {
   Terminal,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  MEMORY_CURATOR_OPTIONS,
+  createMemoryCuratorUpdate,
+} from "./memory-curator-options";
 
 export const MEMORY_PROVIDER_OPTIONS = LOCAL_AI_MEMORY_PROVIDERS.map(
   (value) => ({
@@ -521,8 +525,8 @@ export function GeneralSettingsPage() {
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Store memory locally. A separate Codex or Claude session can
-              curate completed turns without blocking the reply.
+              Store memory locally. An isolated provider session can curate
+              completed turns without blocking the reply.
             </p>
           </div>
 
@@ -560,28 +564,30 @@ export function GeneralSettingsPage() {
             <label className="flex items-center justify-between gap-4 p-4">
               <div>
                 <span className="font-medium text-foreground">
-                  Subconscious curator
+                  Background curator
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Uses an isolated subscription session to consolidate memory.
+                  Uses an isolated text-only provider session. API providers may
+                  incur usage charges.
                 </p>
               </div>
               <select
-                aria-label="Subconscious curator"
+                aria-label="Background curator"
                 value={memorySettings?.subconsciousProvider ?? "off"}
                 disabled={!memorySettings || memorySaving}
-                onChange={(event) =>
-                  void updateMemoryConfiguration({
-                    subconsciousProvider: event.target
-                      .value as LocalAIMemorySettings["subconsciousProvider"],
-                  })
-                }
+                onChange={(event) => {
+                  const update = createMemoryCuratorUpdate(event.target.value);
+                  if (update) {
+                    void updateMemoryConfiguration(update);
+                  }
+                }}
                 className="min-w-44 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
               >
-                <option value="off">Off</option>
-                <option value="codex-cli">Codex</option>
-                <option value="claude-code">Claude</option>
-                <option value="follow-active">Follow active provider</option>
+                {MEMORY_CURATOR_OPTIONS.map((provider) => (
+                  <option key={provider.value} value={provider.value}>
+                    {provider.label}
+                  </option>
+                ))}
               </select>
             </label>
 

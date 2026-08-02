@@ -279,6 +279,43 @@ function hookInput(memberId: string | undefined): LocalAiTurnHookInput {
 }
 
 describe("withWorkspacePerception", () => {
+  it("preserves bound lifecycle hooks from a class instance", async () => {
+    class HookOwner {
+      readonly calls: string[] = [];
+
+      prepareDurableTurnHook() {
+        this.calls.push("prepare-durable");
+        return undefined;
+      }
+
+      replayDurableTurnHook() {
+        this.calls.push("replay-durable");
+      }
+
+      onTurnCompleted() {
+        this.calls.push("completed");
+      }
+
+      onTurnFailed() {
+        this.calls.push("failed");
+      }
+    }
+    const owner = new HookOwner();
+    const hooks = withWorkspacePerception(owner);
+
+    await hooks.prepareDurableTurnHook?.(undefined as never);
+    await hooks.replayDurableTurnHook?.(undefined as never);
+    await hooks.onTurnCompleted?.(undefined as never);
+    await hooks.onTurnFailed?.(undefined as never);
+
+    expect(owner.calls).toEqual([
+      "prepare-durable",
+      "replay-durable",
+      "completed",
+      "failed",
+    ]);
+  });
+
   it("appends eyes to the tools an existing hook already injected", async () => {
     const existing: AgentTool = {
       name: "memory_status",

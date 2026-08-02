@@ -1,13 +1,13 @@
 import { z } from "zod";
+import { LOCAL_AI_PROVIDER_IDS } from "../ai/types";
 import { AtomicJsonFile } from "./json-file";
 import { SerialTaskQueue } from "./serial-queue";
 
 export const MEMORY_PROVIDERS = ["off", "local"] as const;
 export const MEMORY_CURATORS = [
   "off",
-  "codex-cli",
-  "claude-code",
   "follow-active",
+  ...LOCAL_AI_PROVIDER_IDS,
 ] as const;
 export const MEMORY_SCHEDULES = ["every-turn", "batch", "idle"] as const;
 

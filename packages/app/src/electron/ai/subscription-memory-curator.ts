@@ -19,12 +19,7 @@ import type {
 import { LocalAiRuntime } from "./runtime";
 import type { LocalAiProviderExecutionPolicy } from "./provider-adapter";
 import type { SessionStateRepository } from "./session/types";
-import type { LocalAiProviderId } from "./types";
-
-const SUPPORTED_CURATOR_PROVIDERS = new Set<LocalAiProviderId>([
-  "codex-cli",
-  "claude-code",
-]);
+import { isLocalAiProviderId, type LocalAiProviderId } from "./types";
 
 export function memoryCuratorConversationId(
   scope: MemoryScope,
@@ -113,12 +108,16 @@ export async function resolveSubscriptionMemoryProvider(
 ): Promise<LocalAiProviderId> {
   if (setting === "off") {
     throw curatorError(
-      "Subscription-native memory curation is disabled.",
+      "Background memory curation is disabled.",
       "LOCAL_AI_MEMORY_CURATOR_DISABLED",
     );
   }
   if (setting !== "follow-active") {
-    return setting;
+    if (isLocalAiProviderId(setting)) return setting;
+    throw curatorError(
+      `Memory curator provider is not registered: ${setting}`,
+      "LOCAL_AI_MEMORY_CURATOR_PROVIDER_UNAVAILABLE",
+    );
   }
 
   const turnProvider = input.turns
@@ -126,13 +125,12 @@ export async function resolveSubscriptionMemoryProvider(
     .map((turn) => turn.providerId)
     .find(
       (providerId): providerId is LocalAiProviderId =>
-        typeof providerId === "string" &&
-        SUPPORTED_CURATOR_PROVIDERS.has(providerId as LocalAiProviderId),
+        typeof providerId === "string" && isLocalAiProviderId(providerId),
     );
   const providerId = turnProvider ?? (await getActiveProviderId?.(input.scope));
-  if (!providerId || !SUPPORTED_CURATOR_PROVIDERS.has(providerId)) {
+  if (!providerId || !isLocalAiProviderId(providerId)) {
     throw curatorError(
-      "follow-active could not resolve an authenticated Codex or Claude provider.",
+      "follow-active could not resolve a registered provider from the completed turns.",
       "LOCAL_AI_MEMORY_ACTIVE_PROVIDER_UNAVAILABLE",
     );
   }
@@ -223,8 +221,8 @@ function buildCuratorPrompt(
 }
 
 /**
- * Runs subconscious curation through the user's existing Codex or Claude
- * subscription without exposing the primary chat's native provider session.
+ * Runs background curation through an isolated registered provider session
+ * without exposing the primary chat's native provider session.
  */
 export class RestrictedMemoryCurator
   implements RestrictedMemoryCuratorContract
@@ -346,9 +344,6 @@ export class RestrictedMemoryCurator
       agent: {
         id: "restricted-memory-curator",
         systemPrompt: RESTRICTED_MEMORY_CURATOR_SYSTEM_PROMPT,
-      },
-      options: {
-        temperature: 0,
       },
     };
 
