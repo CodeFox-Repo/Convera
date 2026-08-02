@@ -402,7 +402,17 @@ export function useLocalAIChat(): UseLocalAIChatResult {
             await stagePendingTurn(
               options.conversationId,
               toMessageSnapshots(durableBaseMessages),
-              toMessageSnapshots([...nextMessages, assistantMessage]),
+              // Same rule as the turn record and the UI state above: a
+              // tool-speaking turn reserves no assistant row, so the journal
+              // must not stage one either. Staging a shell the UI never
+              // rendered left an empty bubble behind after every channel
+              // reply, and made the journal look like a classic single-agent
+              // turn — which blocked the second colleague from starting.
+              toMessageSnapshots(
+                options.speaksViaTool
+                  ? nextMessages
+                  : [...nextMessages, assistantMessage],
+              ),
               {
                 turnId: options.turnId,
                 requestId,
@@ -419,7 +429,7 @@ export function useLocalAIChat(): UseLocalAIChatResult {
                     ? options.operation.sourceMessageId
                     : undefined,
                 userMessageId,
-                assistantMessageId,
+                ...(options.speaksViaTool ? {} : { assistantMessageId }),
               },
             );
             staged = true;

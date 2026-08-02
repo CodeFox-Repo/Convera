@@ -215,6 +215,54 @@ describe("durable turn reconciliation", () => {
     expect(await db.messages.get("user-3")).toBeUndefined();
   });
 
+  it("lets a second colleague start while a tool-speaking turn is open", async () => {
+    // The store-level half of the contract the channel path depends on: a
+    // journal with no assistantMessageId must not take the conversation
+    // exclusively, so several colleagues offered the same message can each
+    // stage a turn. (What actually sends that field is `use-local-ai-chat`,
+    // which this test does not exercise — it calls stagePendingTurn directly.)
+    await seedBase();
+    await stagePendingTurn(
+      conversationId,
+      [{ id: "user-1", role: "user", content: "hello" }],
+      [
+        { id: "user-1", role: "user", content: "hello" },
+        { id: "user-2", role: "user", content: "next" },
+      ],
+      {
+        turnId: "turn-1",
+        requestId: "request-1",
+        revision: 0,
+        providerId: "codex-cli",
+        modelId: "default",
+        operation: "append",
+        userMessageId: "user-2",
+      },
+    );
+    await updatePendingTurnJournalState(conversationId, "turn-1", "accepted");
+
+    await expect(
+      stagePendingTurn(
+        conversationId,
+        [{ id: "user-1", role: "user", content: "hello" }],
+        [
+          { id: "user-1", role: "user", content: "hello" },
+          { id: "user-2", role: "user", content: "next" },
+        ],
+        {
+          turnId: "turn-2",
+          requestId: "request-2",
+          revision: 0,
+          providerId: "codex-cli",
+          operation: "append",
+          userMessageId: "user-2",
+        },
+      ),
+    ).resolves.not.toThrow();
+
+    expect(await db.messages.get("assistant-2")).toBeUndefined();
+  });
+
   it("keeps a failed shell fenced while its journal is unresolved", async () => {
     await seedBase();
     await stageAppend();
