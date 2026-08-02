@@ -247,6 +247,34 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     }
   }
 
+  if (request.agentHost !== undefined) {
+    if (!isRecord(request.agentHost)) return false;
+    if (
+      !isValidIdentifier(request.agentHost.jobId) ||
+      !isValidIdentifier(request.agentHost.taskId) ||
+      (request.agentHost.channelKind !== "channel" &&
+        request.agentHost.channelKind !== "dm") ||
+      !isOptionalString(request.agentHost.roomContext, MAX_MESSAGE_CHARS)
+    ) {
+      return false;
+    }
+    const targets = request.agentHost.collaborationTargets;
+    if (
+      targets !== undefined &&
+      (!Array.isArray(targets) ||
+        targets.length > 16 ||
+        !targets.every(
+          (target) =>
+            isRecord(target) &&
+            isValidIdentifier(target.agentId) &&
+            isValidIdentifier(target.memberId) &&
+            target.memberId === `agent:${target.agentId}`,
+        ))
+    ) {
+      return false;
+    }
+  }
+
   if (request.options !== undefined) {
     if (!isRecord(request.options)) return false;
     if (!isOptionalString(request.options.cwd, MAX_CWD_CHARS)) return false;

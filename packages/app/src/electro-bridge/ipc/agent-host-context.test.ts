@@ -139,6 +139,7 @@ describe("Agent Host IPC", () => {
       resumeTask: vi.fn(async () => true),
       cancelTask: vi.fn(async () => true),
       redirectTask: vi.fn(async () => ({ id: "job-2" })),
+      recordOutput: vi.fn(async () => true),
     } as unknown as AgentHost;
     const { handlers, ipc } = mainIPC();
     setupAgentHostIPC(
@@ -166,11 +167,19 @@ describe("Agent Host IPC", () => {
         "Show the diff first" as never,
       ),
     ).toEqual({ success: true, job: { id: "job-2" } });
+    expect(
+      await handlers.get(AGENT_HOST_CHANNELS.RECORD_OUTPUT)?.(
+        event(sender),
+        "job-2" as never,
+        "message-2" as never,
+      ),
+    ).toEqual({ success: true, recorded: true });
     expect(host.listTasks).toHaveBeenCalledWith("agent:fizz");
     expect(host.pauseTask).toHaveBeenCalledWith("task-1");
     expect(host.redirectTask).toHaveBeenCalledWith(
       "task-1",
       "Show the diff first",
     );
+    expect(host.recordOutput).toHaveBeenCalledWith("job-2", "message-2");
   });
 });

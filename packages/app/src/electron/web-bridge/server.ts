@@ -38,6 +38,7 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   "agent-host:list-tasks",
   "agent-host:control-task",
   "agent-host:redirect-task",
+  "agent-host:record-output",
   "agent-host:cancel",
   "agent-host:respond",
   "local-ai:get-conversation-runtime-state",

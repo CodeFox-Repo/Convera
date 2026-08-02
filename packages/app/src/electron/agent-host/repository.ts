@@ -25,6 +25,31 @@ const statusSchema = z.enum([
   "interrupted",
 ]);
 
+const structuredTaskBriefSchema = z.object({
+  objective: z.string().min(1).max(4_000),
+  acceptanceCriteria: z.array(z.string().min(1).max(1_000)).min(1).max(16),
+  contextMessageIds: z.array(z.string().min(1).max(256)).max(64),
+  outputContract: z.object({
+    format: z.enum(["text", "json", "artifact"]),
+    description: z.string().min(1).max(4_000),
+    resultSchema: z.record(z.unknown()).optional(),
+  }),
+});
+
+const collaborationSchema = z.object({
+  kind: z.enum(["delegation", "handoff"]),
+  operationId: z.string().min(1).max(256),
+  idempotencyKey: z.string().min(1).max(128),
+  inputHash: z.string().min(1).max(128),
+  sourceTaskId: z.string().min(1).max(256),
+  sourceJobId: z.string().min(1).max(256),
+  fromMemberId: z.string().min(1).max(256),
+  depth: z.number().int().min(1).max(4),
+  path: z.array(z.string().min(1).max(256)).min(2).max(5),
+  brief: structuredTaskBriefSchema,
+  expiresAt: z.string().datetime().optional(),
+});
+
 const legacyJobSchema = z.object({
   id: z.string().min(1),
   channelId: z.string().min(1),
@@ -52,9 +77,13 @@ const versionTwoJobSchema = legacyJobSchema.extend({
 
 const jobSchema = versionTwoJobSchema.extend({
   taskId: z.string().min(1),
+  parentTaskId: z.string().min(1).optional(),
   parentJobId: z.string().min(1).optional(),
   channelKind: z.enum(["channel", "dm"]),
   controlInstructions: z.array(z.string().min(1).max(4_000)).max(100),
+  collaboration: collaborationSchema.optional(),
+  outputMessageIds: z.array(z.string().min(1).max(256)).max(100).optional(),
+  maxOutputTokens: z.number().int().min(1).max(1_000_000).optional(),
 });
 
 const legacyStateSchema = z.object({

@@ -53,6 +53,40 @@ describe("JsonAgentHostJobRepository", () => {
     expect(await repository.list()).toEqual([job("1", "completed")]);
   });
 
+  it("persists structured task provenance and Dexie result receipts", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
+    temporaryDirectories.push(directory);
+    const repository = new JsonAgentHostJobRepository({
+      path: join(directory, "jobs.json"),
+    });
+    const delegated: AgentHostJob = {
+      ...job("1", "completed"),
+      parentTaskId: "parent-task",
+      outputMessageIds: ["message-result"],
+      maxOutputTokens: 2_000,
+      collaboration: {
+        kind: "delegation",
+        operationId: "delegation-1",
+        idempotencyKey: "delegate-1",
+        inputHash: "hash-1",
+        sourceTaskId: "parent-task",
+        sourceJobId: "parent-job",
+        fromMemberId: "agent:planner",
+        depth: 1,
+        path: ["agent:planner", "agent:a"],
+        brief: {
+          objective: "Review the implementation",
+          acceptanceCriteria: ["Post blockers"],
+          contextMessageIds: ["message-1"],
+          outputContract: { format: "text", description: "Review" },
+        },
+      },
+    };
+
+    await repository.put(delegated);
+    expect(await repository.list()).toEqual([delegated]);
+  });
+
   it("prunes only the oldest terminal jobs", async () => {
     const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
     temporaryDirectories.push(directory);
