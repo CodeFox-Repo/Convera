@@ -6,14 +6,17 @@ import { exposeLoggerContext } from "./electro-bridge/ipc/logger-context";
 import { exposeLocalAIContext } from "./electro-bridge/ipc/local-ai-context";
 import { exposeMCPContext } from "./electro-bridge/ipc/mcp-context";
 import { createAgentHostAPI } from "./electro-bridge/ipc/agent-host-api";
+import { parseStartupProvider } from "./shared/startup-provider";
 
 // SOURCE(Sma1lboy): https://www.electronjs.org/docs/latest/tutorial/process-model
 // expose electronAPI to renderer process
 const electronAPI = createElectronAPI(ipcRenderer);
+const startupProvider = parseStartupProvider(process.argv);
 
 // Add navigate-to-settings listener
 const extendedAPI = {
   ...electronAPI,
+  getStartupProvider: () => startupProvider,
   onNavigateToSettings: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on("navigate-to-settings", handler);

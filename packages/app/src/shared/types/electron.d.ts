@@ -4,6 +4,7 @@ import { WindowSizeConfig } from "@/electron/windows/window-size";
 import type { ILocalAIAPI } from "./local-ai";
 import type { IMcpAPI } from "./mcp";
 import type { IAgentHostAPI } from "./agent-host";
+import type { StartupProviderId } from "../startup-provider";
 
 // Enum for window types
 export type WindowType = "settings" | "history" | "main" | "chat";
@@ -45,6 +46,7 @@ export interface IElectronAPI {
   // App functionality
   getClipboardText: () => Promise<string>;
   setInputText: (text: string) => Promise<void>;
+  getStartupProvider: () => StartupProviderId | null;
 
   // Unified Theme Control
   setTheme: (mode: ThemeMode) => Promise<string>;

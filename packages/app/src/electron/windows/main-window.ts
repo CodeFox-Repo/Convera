@@ -1,5 +1,9 @@
 import { inDevelopment } from "@/shared/constants/dev";
 import {
+  createRendererStartupProviderArgument,
+  parseStartupProvider,
+} from "@/shared/startup-provider";
+import {
   BrowserWindow,
   BrowserWindowConstructorOptions,
   screen,
@@ -29,6 +33,7 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
   const height = Math.round(screenHeight * 0.8);
   const x = Math.round((screenWidth - width) / 2);
   const y = Math.round((screenHeight - height) / 2);
+  const startupProvider = parseStartupProvider(process.argv);
 
   const baseConfig: BrowserWindowConstructorOptions = {
     width,
@@ -47,6 +52,9 @@ function createPlatformSpecificConfig(): BrowserWindowConstructorOptions {
       // inside Electron's restricted sandbox where those imports fail.
       sandbox: false,
       preload: path.join(__dirname, "preload.js"),
+      additionalArguments: startupProvider
+        ? [createRendererStartupProviderArgument(startupProvider)]
+        : undefined,
     },
     show: false,
     titleBarStyle: "hiddenInset",
