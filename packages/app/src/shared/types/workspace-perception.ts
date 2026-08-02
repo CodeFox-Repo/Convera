@@ -61,6 +61,10 @@ export interface WorkspaceSendMessageQuery {
   /** Renderer-owned lifecycle context; never accepted from a model tool input. */
   agentHost?: {
     jobId: string;
+    /** Renderer-generated endpoint key; never accepted from model input. */
+    effectId?: string;
+    /** SHA-256 of the destination, author, body, and reply target. */
+    payloadHash?: string;
     triggerMessageId: string;
     contextMessageIds: string[];
     chain: { hops: number; invoked: string[] };

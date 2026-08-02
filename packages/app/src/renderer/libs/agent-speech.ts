@@ -1,4 +1,4 @@
-import { addMessage, db, type Channel } from "./db";
+import { db, type Channel } from "./db";
 import { registerWorkspaceSendMessage } from "./workspace-perception";
 import type { WorkspaceQueryResult } from "@/shared/types/workspace-perception";
 import { parseMentions } from "./mention-parser";
@@ -24,18 +24,61 @@ async function speak(
   senderId: string,
   content: string,
   replyToMessageId?: string,
-): Promise<string> {
+  effect?: { idempotencyKey: string; payloadHash: string; jobId: string },
+): Promise<{ messageId: string; created: boolean }> {
   const members = await db.members.toArray();
-  return addMessage(channel.conversationId, {
-    role: "assistant",
-    content,
-    senderId,
-    // Parsed here rather than trusted from the model: a mention is what routes
-    // the next turn, so it has to reflect the text that was actually posted.
-    mentions: parseMentions(content, members),
-    ...(replyToMessageId ? { replyToMessageId } : {}),
-    status: "completed",
-  });
+  return db.transaction(
+    "rw",
+    [db.messages, db.conversations, db.agentEffectReceipts],
+    async () => {
+      if (effect) {
+        const receipt = await db.agentEffectReceipts.get(effect.idempotencyKey);
+        if (receipt) {
+          if (receipt.payloadHash !== effect.payloadHash) {
+            throw new Error(
+              "Agent speech idempotency key was reused with different content.",
+            );
+          }
+          if (!(await db.messages.get(receipt.messageId))) {
+            throw new Error(
+              "Agent speech receipt points to a missing Dexie message.",
+            );
+          }
+          return { messageId: receipt.messageId, created: false };
+        }
+      }
+
+      const messageId = crypto.randomUUID();
+      const createdAt = new Date();
+      await db.messages.add({
+        id: messageId,
+        conversationId: channel.conversationId,
+        role: "assistant",
+        content,
+        senderId,
+        // Parsed here rather than trusted from the model: a mention is what
+        // routes the next turn, so it reflects the text that actually landed.
+        mentions: parseMentions(content, members),
+        ...(replyToMessageId ? { replyToMessageId } : {}),
+        status: "completed",
+        createdAt,
+      });
+      await db.conversations.update(channel.conversationId, {
+        updatedAt: createdAt,
+      });
+      if (effect) {
+        await db.agentEffectReceipts.add({
+          idempotencyKey: effect.idempotencyKey,
+          payloadHash: effect.payloadHash,
+          jobId: effect.jobId,
+          conversationId: channel.conversationId,
+          messageId,
+          createdAt,
+        });
+      }
+      return { messageId, created: true };
+    },
+  );
 }
 
 /**
@@ -62,13 +105,26 @@ export function installAgentSpeech(): void {
           },
         };
       }
-      const messageId = await speak(
+      if (
+        agentHost &&
+        Boolean(agentHost.effectId) !== Boolean(agentHost.payloadHash)
+      ) {
+        throw new Error("Agent speech effect metadata is incomplete.");
+      }
+      const { messageId, created } = await speak(
         channel,
         viewerMemberId,
         content,
         replyToMessageId,
+        agentHost?.effectId && agentHost.payloadHash
+          ? {
+              idempotencyKey: agentHost.effectId,
+              payloadHash: agentHost.payloadHash,
+              jobId: agentHost.jobId,
+            }
+          : undefined,
       );
-      if (agentHost) {
+      if (agentHost && created) {
         const memberRows = await db.members.bulkGet(channel.memberIds);
         const members = memberRows.filter(
           (member): member is Member => member !== undefined,

@@ -5,6 +5,16 @@ import type {
 } from "@/shared/types/agent-host";
 import { AgentHost, type AgentHostExecutor } from "./host";
 import { InMemoryAgentHostJobRepository } from "./repository";
+import {
+  beginWorkflowNode,
+  commitProviderEffect,
+  commitWorkflowNode,
+  createAgentHostWorkflow,
+  prepareProviderEffect,
+  providerEffectInputHash,
+  recordWorkflowNodeResult,
+  startProviderEffect,
+} from "./workflow";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -57,6 +67,47 @@ function storedJob(status: AgentHostJob["status"]): AgentHostJob {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function runningProviderJob(committed: boolean): AgentHostJob {
+  const job = storedJob("running");
+  let workflow = createAgentHostWorkflow(job, job.updatedAt);
+  workflow = beginWorkflowNode(workflow, "prepare-turn", job.updatedAt);
+  workflow = recordWorkflowNodeResult(
+    workflow,
+    "prepare-turn",
+    {
+      next: ["provider-turn"],
+      values: { requestId: "request-1", turnId: "turn-1" },
+    },
+    job.updatedAt,
+  );
+  workflow = commitWorkflowNode(workflow, "prepare-turn", job.updatedAt);
+  workflow = beginWorkflowNode(workflow, "provider-turn", job.updatedAt);
+  workflow = prepareProviderEffect(
+    workflow,
+    {
+      node: "provider-turn",
+      requestId: "request-1",
+      turnId: "turn-1",
+      inputHash: providerEffectInputHash({
+        providerId: "codex-cli",
+        requestId: "request-1",
+        turnId: "turn-1",
+      }),
+    },
+    job.updatedAt,
+  );
+  workflow = startProviderEffect(workflow, "turn-1", job.updatedAt);
+  if (committed) {
+    workflow = commitProviderEffect(
+      workflow,
+      "turn-1",
+      { spoke: true, next: ["finalize"] },
+      job.updatedAt,
+    );
+  }
+  return { ...job, requestId: "request-1", turnId: "turn-1", workflow };
 }
 
 describe("AgentHost", () => {
@@ -198,6 +249,59 @@ describe("AgentHost", () => {
     expect((await host.listJobs())[0]).toMatchObject({
       status: "interrupted",
       attempts: 1,
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("requeues a checkpointed node that stopped before an external effect", async () => {
+    const running = storedJob("running");
+    running.workflow = beginWorkflowNode(
+      createAgentHostWorkflow(running, running.updatedAt),
+      "prepare-turn",
+      running.updatedAt,
+    );
+    const repository = new InMemoryAgentHostJobRepository([running]);
+    const execute = vi.fn(async () => undefined);
+    const host = new AgentHost({
+      repository,
+      executor: { execute },
+      startPaused: true,
+    });
+
+    await host.initialize();
+
+    expect((await host.listJobs())[0]).toMatchObject({ status: "queued" });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("quarantines a started provider effect instead of replaying it", async () => {
+    const repository = new InMemoryAgentHostJobRepository([
+      runningProviderJob(false),
+    ]);
+    const execute = vi.fn(async () => undefined);
+    const host = new AgentHost({ repository, executor: { execute } });
+
+    await host.initialize();
+
+    expect((await host.listJobs())[0]).toMatchObject({
+      status: "uncertain",
+      workflow: { effects: [expect.objectContaining({ status: "uncertain" })] },
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("finalizes a committed provider receipt after restart", async () => {
+    const repository = new InMemoryAgentHostJobRepository([
+      runningProviderJob(true),
+    ]);
+    const execute = vi.fn(async () => undefined);
+    const host = new AgentHost({ repository, executor: { execute } });
+
+    await host.initialize();
+
+    expect((await host.listJobs())[0]).toMatchObject({
+      status: "completed",
+      workflow: { checkpoint: { next: [] } },
     });
     expect(execute).not.toHaveBeenCalled();
   });

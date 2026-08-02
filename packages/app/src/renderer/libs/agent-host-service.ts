@@ -9,6 +9,7 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import type { Member } from "@/shared/types/workspace";
+import type { WorkspaceSendMessageQuery } from "@/shared/types/workspace-perception";
 import { db, type Agent, type Channel, type Message } from "./db/database";
 import { useSelectionStore } from "./db/ui-state";
 import {
@@ -26,6 +27,26 @@ import { handleWorkspaceQueryInteraction } from "./workspace-perception";
 import { typingTransition, useTypingStore } from "./stores/typing-store";
 import { useUserInputStore } from "./stores/user-input-store";
 import { beginTrace, endTrace, noteRetry, recordTrace } from "./agent-trace";
+
+async function workspaceMessagePayloadHash(input: {
+  viewerMemberId: string;
+  channelId: string;
+  content: string;
+  replyToMessageId?: string;
+}): Promise<string> {
+  const bytes = new TextEncoder().encode(
+    JSON.stringify({
+      viewerMemberId: input.viewerMemberId,
+      channelId: input.channelId,
+      content: input.content,
+      replyToMessageId: input.replyToMessageId ?? null,
+    }),
+  );
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 interface ActiveOffer {
   job: AgentHostJob;
@@ -457,25 +478,33 @@ export class RendererAgentHostService {
     if (event.type === "interaction") {
       const respond = (response: LocalAIInteractionResponse) =>
         this.respondToInteraction(event, response);
-      const workspaceEvent =
+      const messageInput =
         event.name === "workspace:query" &&
         typeof event.input === "object" &&
         event.input !== null &&
         "kind" in event.input &&
         event.input.kind === "send_message"
-          ? {
-              ...event,
-              input: {
-                ...event.input,
-                agentHost: {
-                  jobId: active.job.id,
-                  triggerMessageId: active.job.triggerMessageId,
-                  contextMessageIds: active.job.contextMessageIds,
-                  chain: active.job.chain,
-                },
+          ? (event.input as WorkspaceSendMessageQuery)
+          : undefined;
+      const payloadHash = messageInput
+        ? await workspaceMessagePayloadHash(messageInput)
+        : undefined;
+      const workspaceEvent = messageInput
+        ? {
+            ...event,
+            input: {
+              ...messageInput,
+              agentHost: {
+                jobId: active.job.id,
+                effectId: `agent-host:${active.job.id}:${event.requestId}:${event.interactionId}`,
+                payloadHash,
+                triggerMessageId: active.job.triggerMessageId,
+                contextMessageIds: active.job.contextMessageIds,
+                chain: active.job.chain,
               },
-            }
-          : event;
+            },
+          }
+        : event;
       const workspaceRespond = async (response: LocalAIInteractionResponse) => {
         if (
           workspaceEvent.name === "workspace:query" &&

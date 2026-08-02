@@ -11,7 +11,11 @@ import type {
 } from "@/shared/types/local-ai";
 import { WORKSPACE_QUERY_INTERACTION } from "@/shared/types/workspace-perception";
 import type { AgentHostTraceRecorder } from "@/electron/trace/agent-host";
-import type { AgentHostExecutor } from "./host";
+import type {
+  AgentHostExecutionControl,
+  AgentHostExecutor,
+  AgentHostProviderOutcome,
+} from "./host";
 import type { AgentHostRendererBridge } from "./renderer-bridge";
 
 /**
@@ -75,6 +79,7 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
   async execute(
     job: AgentHostJob,
     emit: (event: AgentHostEvent) => void,
+    control?: AgentHostExecutionControl,
   ): Promise<void> {
     try {
       const prepared = await this.bridge.request<PreparedAgentHostTurn>({
@@ -96,8 +101,44 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
           memberId: job.agentMemberId,
         },
       };
+      await control?.prepared(request);
       this.activeRequests.set(job.id, request.requestId);
-      if (await this.runTurn(request, job, emit)) return;
+      if (control?.currentNode() === "provider-retry") {
+        emit({ type: "retrying", jobId: job.id });
+        const retry = remind(request);
+        const retrySpoke = await this.runDurableTurn(
+          retry,
+          job,
+          emit,
+          control,
+          "provider-retry",
+          request.turnId,
+        );
+        const retryOutcome: AgentHostProviderOutcome = retrySpoke
+          ? { spoke: true, disposition: "complete" }
+          : {
+              spoke: false,
+              disposition: "fail",
+              error:
+                "The agent completed a direct offer without sending a message.",
+            };
+        await control.providerCompleted(retry, "provider-retry", retryOutcome);
+        if (retrySpoke) return;
+        throw new Error(retryOutcome.error);
+      }
+
+      const spoke = await this.runDurableTurn(
+        request,
+        job,
+        emit,
+        control,
+        "provider-turn",
+      );
+      await control?.providerCompleted(request, "provider-turn", {
+        spoke,
+        disposition: spoke || job.mode !== "direct" ? "complete" : "retry",
+      });
+      if (spoke) return;
       // Silence is a complete answer on an open floor; only a direct question
       // left unanswered is worth a second ask.
       if (job.mode !== "direct") {
@@ -107,14 +148,63 @@ export class LocalAiAgentHostExecutor implements AgentHostExecutor {
       // typing indicator across the gap rather than retiring it and lighting
       // it again for the same reply.
       emit({ type: "retrying", jobId: job.id });
-      if (await this.runTurn(remind(request), job, emit, request.turnId)) {
+      const retry = remind(request);
+      const retrySpoke = await this.runDurableTurn(
+        retry,
+        job,
+        emit,
+        control,
+        "provider-retry",
+        request.turnId,
+      );
+      const retryOutcome: AgentHostProviderOutcome = retrySpoke
+        ? { spoke: true, disposition: "complete" }
+        : {
+            spoke: false,
+            disposition: "fail",
+            error:
+              "The agent completed a direct offer without sending a message.",
+          };
+      await control?.providerCompleted(retry, "provider-retry", retryOutcome);
+      if (retrySpoke) {
         return;
       }
-      throw new Error(
-        "The agent completed a direct offer without sending a message.",
-      );
+      throw new Error(retryOutcome.error);
     } finally {
       this.activeRequests.delete(job.id);
+    }
+  }
+
+  private async runDurableTurn(
+    request: LocalAIChatRequest,
+    job: AgentHostJob,
+    emit: (event: AgentHostEvent) => void,
+    control: AgentHostExecutionControl | undefined,
+    node: "provider-turn" | "provider-retry",
+    previousTurnId?: string,
+  ): Promise<boolean> {
+    await control?.providerStarted(request, node);
+    try {
+      return await this.runTurn(request, job, emit, previousTurnId);
+    } catch (error) {
+      if (control) {
+        const state = await Promise.resolve(
+          this.runtime.getTurnRuntimeState({
+            conversationId: request.conversationId,
+            turnId: request.turnId,
+          }),
+        ).catch(() => null);
+        const message =
+          error instanceof Error ? error.message : "The provider turn failed.";
+        await control.providerFailed(
+          request,
+          state?.status === "uncertain" || state?.status === "pending"
+            ? "uncertain"
+            : "failed",
+          message,
+        );
+      }
+      throw error;
     }
   }
 

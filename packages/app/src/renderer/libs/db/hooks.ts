@@ -276,11 +276,13 @@ export async function deleteConversation(id: string): Promise<void> {
       db.conversations,
       db.messages,
       db.pendingTurns,
+      db.agentEffectReceipts,
       db.pendingConversationDeletions,
     ],
     async () => {
       await db.messages.where("conversationId").equals(id).delete();
       await db.pendingTurns.where("conversationId").equals(id).delete();
+      await db.agentEffectReceipts.where("conversationId").equals(id).delete();
       await db.pendingConversationDeletions.delete(id);
       await db.conversations.delete(id);
     },

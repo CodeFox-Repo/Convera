@@ -264,6 +264,7 @@ export type DelegateTaskToolResult =
           | "queued"
           | "running"
           | "paused"
+          | "uncertain"
           | "completed"
           | "failed"
           | "cancelled"
