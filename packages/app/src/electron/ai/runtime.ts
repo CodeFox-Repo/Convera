@@ -2,6 +2,7 @@ import type {
   LocalAIBranchConversationRequest,
   LocalAIChatRequest,
   LocalAIConversationRuntimeState,
+  LocalAIConversationMemoryState,
   LocalAIDeleteConversationRequest,
   LocalAIFinishReason,
   LocalAIInteractionResponse,
@@ -11,6 +12,7 @@ import type {
   LocalAIProviderAvailability,
   LocalAIProviderStatus,
   LocalAIResetProviderSessionRequest,
+  LocalAISetMemoryBlockReadOnlyRequest,
   LocalAIRuntimeService,
   LocalAISerializableError,
   LocalAIStreamEvent,
@@ -417,6 +419,12 @@ export interface LocalAiMemoryRuntimeService {
   getMemoryStatus(
     conversationId?: string,
   ): Promise<LocalAIMemoryStatus> | LocalAIMemoryStatus;
+  getConversationMemoryState?(
+    conversationId: string,
+  ): Promise<LocalAIConversationMemoryState> | LocalAIConversationMemoryState;
+  setMemoryBlockReadOnly?(
+    request: LocalAISetMemoryBlockReadOnlyRequest,
+  ): Promise<LocalAIConversationMemoryState> | LocalAIConversationMemoryState;
   branchConversation?(
     request: LocalAIBranchConversationRequest,
   ): Promise<void> | void;
@@ -1323,6 +1331,34 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
         ...DISABLED_MEMORY_STATUS,
       }
     );
+  }
+
+  async getConversationMemoryState(
+    conversationId: string,
+  ): Promise<LocalAIConversationMemoryState> {
+    if (!this.memoryService?.getConversationMemoryState) {
+      throw Object.assign(
+        new Error("Memory block inspection is unavailable."),
+        {
+          code: "LOCAL_AI_MEMORY_UNAVAILABLE",
+        },
+      );
+    }
+    return this.memoryService.getConversationMemoryState(conversationId);
+  }
+
+  async setMemoryBlockReadOnly(
+    request: LocalAISetMemoryBlockReadOnlyRequest,
+  ): Promise<LocalAIConversationMemoryState> {
+    if (!this.memoryService?.setMemoryBlockReadOnly) {
+      throw Object.assign(
+        new Error("Memory block protection is unavailable."),
+        {
+          code: "LOCAL_AI_MEMORY_UNAVAILABLE",
+        },
+      );
+    }
+    return this.memoryService.setMemoryBlockReadOnly(request);
   }
 
   async dispose(): Promise<void> {

@@ -41,6 +41,40 @@ function setup(approved: boolean) {
 }
 
 describe("memory tools", () => {
+  it("exposes read-only state in compact context without hiding block values", async () => {
+    const { store, tools } = setup(true);
+    await store.applyPatch({
+      scope,
+      baseVersion: 0,
+      turnId: "user-policy",
+      provenance: {
+        actor: "user",
+        turnId: "user-policy",
+        timestamp: "2026-07-31T00:00:00.000Z",
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "policy",
+          value: "Never publish without confirmation.",
+          readOnly: true,
+        },
+      ],
+    });
+
+    await expect(
+      toolExecutor(tools.memory_get_context)({ format: "compact" }),
+    ).resolves.toMatchObject({
+      blocks: [
+        {
+          label: "policy",
+          value: "Never publish without confirmation.",
+          readOnly: true,
+        },
+      ],
+    });
+  });
+
   it("queues learn and correction candidates without canonical writes", async () => {
     const { backend, candidates, sourceId, store, tools } = setup(true);
     const learn = await toolExecutor(tools.memory_learn)({

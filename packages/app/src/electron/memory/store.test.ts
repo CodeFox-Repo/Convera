@@ -96,6 +96,148 @@ describe("LocalMemoryStore", () => {
     });
   });
 
+  it("treats legacy last-known-good blocks as writable during offline migration", async () => {
+    const { backend, indexes, store } = setup();
+    await store.applyPatch(patch());
+    await store.getSnapshot(scope);
+    const index = await indexes.get(scope);
+    expect(index?.lastKnownGood?.blocks[0]?.readOnly).toBe(false);
+    Reflect.deleteProperty(index!.lastKnownGood!.blocks[0]!, "readOnly");
+    await indexes.put(index!);
+    backend.available = false;
+
+    const stale = await store.getSnapshot(scope);
+
+    expect(stale).toMatchObject({
+      stale: true,
+      blocks: [expect.objectContaining({ readOnly: false })],
+    });
+  });
+
+  it("persists user-created read-only blocks and rejects curator updates", async () => {
+    const { backend, indexes, store } = setup();
+    const created = await store.applyPatch(
+      patch({
+        provenance: {
+          actor: "user",
+          turnId: "user-protect",
+          timestamp: now().toISOString(),
+        },
+        turnId: "user-protect",
+        operations: [
+          {
+            type: "upsert_block",
+            label: "policy",
+            value: "Never publish without user approval.",
+            readOnly: true,
+          },
+        ],
+      }),
+    );
+
+    expect(created).toMatchObject({ status: "applied", version: 1 });
+    expect((await store.getSnapshot(scope)).blocks[0]).toMatchObject({
+      label: "policy",
+      readOnly: true,
+    });
+    expect([...backend.blocks.values()][0]?.metadata).toMatchObject({
+      converaReadOnly: true,
+    });
+
+    await expect(
+      store.applyPatch(
+        patch({
+          baseVersion: 1,
+          turnId: "curator-overwrite",
+          operations: [
+            {
+              type: "upsert_block",
+              label: "policy",
+              value: "Publish whenever convenient.",
+            },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "READ_ONLY", retryable: false });
+    expect((await indexes.get(scope))?.pendingWrites).toEqual([]);
+    expect(await store.getSnapshot(scope)).toMatchObject({
+      version: 1,
+      blocks: [
+        expect.objectContaining({
+          value: "Never publish without user approval.",
+          readOnly: true,
+        }),
+      ],
+    });
+  });
+
+  it("lets an explicit user patch update or unlock a read-only block", async () => {
+    const { store } = setup();
+    await store.applyPatch(
+      patch({
+        provenance: {
+          actor: "user",
+          turnId: "user-protect",
+          timestamp: now().toISOString(),
+        },
+        turnId: "user-protect",
+        operations: [
+          {
+            type: "upsert_block",
+            label: "policy",
+            value: "Original policy.",
+            readOnly: true,
+          },
+        ],
+      }),
+    );
+
+    const updated = await store.applyPatch(
+      patch({
+        baseVersion: 1,
+        provenance: {
+          actor: "user",
+          turnId: "user-unlock",
+          timestamp: now().toISOString(),
+        },
+        turnId: "user-unlock",
+        operations: [
+          {
+            type: "upsert_block",
+            label: "policy",
+            value: "Updated by the user.",
+            readOnly: false,
+          },
+        ],
+      }),
+    );
+
+    expect(updated).toMatchObject({ status: "applied", version: 2 });
+    expect((await store.getSnapshot(scope)).blocks[0]).toMatchObject({
+      value: "Updated by the user.",
+      readOnly: false,
+    });
+  });
+
+  it("does not let a curator create its own read-only policy", async () => {
+    const { store } = setup();
+
+    await expect(
+      store.applyPatch(
+        patch({
+          operations: [
+            {
+              type: "upsert_block",
+              label: "policy",
+              value: "Curator-owned policy.",
+              readOnly: true,
+            },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "READ_ONLY", retryable: false });
+  });
+
   it("rejects stale base versions without mutating local memory", async () => {
     const { backend, store } = setup();
     await store.applyPatch(patch());

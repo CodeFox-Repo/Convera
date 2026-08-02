@@ -136,6 +136,75 @@ describe("MemoryIntegrationCoordinator", () => {
     });
   });
 
+  it("lets the user protect a conversation block while curator writes remain blocked", async () => {
+    const { backend, coordinator, indexes, settings } = setup();
+    await settings.update({ provider: "local", curator: "off" });
+    const scope = {
+      kind: "conversation" as const,
+      id: "conversation-1",
+    };
+    const store = new LocalMemoryStore({
+      backend,
+      indexRepository: indexes,
+      sourceId: await settings.getSourceId(),
+      now: () => new Date(timestamp),
+    });
+    await store.applyPatch({
+      scope,
+      baseVersion: 0,
+      turnId: "user-create",
+      provenance: {
+        actor: "user",
+        turnId: "user-create",
+        timestamp,
+      },
+      operations: [
+        {
+          type: "upsert_block",
+          label: "policy",
+          value: "Ask before publishing.",
+        },
+      ],
+    });
+
+    await expect(
+      coordinator.getConversationMemoryState(scope.id),
+    ).resolves.toMatchObject({
+      version: 1,
+      blocks: [{ label: "policy", readOnly: false }],
+    });
+    await expect(
+      coordinator.setMemoryBlockReadOnly({
+        conversationId: scope.id,
+        label: "policy",
+        readOnly: true,
+      }),
+    ).resolves.toMatchObject({
+      version: 2,
+      blocks: [{ label: "policy", readOnly: true }],
+    });
+
+    await expect(
+      store.applyPatch({
+        scope,
+        baseVersion: 2,
+        turnId: "curator-overwrite",
+        provenance: {
+          actor: "subconscious",
+          turnId: "curator-overwrite",
+          timestamp,
+        },
+        operations: [
+          {
+            type: "upsert_block",
+            label: "policy",
+            value: "Publish without approval.",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "READ_ONLY" });
+  });
+
   it("replays durable write intents when the local memory runtime starts", async () => {
     const { backend, coordinator, indexes, settings } = setup();
     await settings.update({ provider: "local", curator: "off" });

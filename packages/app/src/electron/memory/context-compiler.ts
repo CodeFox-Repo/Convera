@@ -137,6 +137,14 @@ function sortBlocks(blocks: MemoryBlock[]): MemoryBlock[] {
   });
 }
 
+function blockAttributes(block: MemoryBlock): Record<string, string | number> {
+  return {
+    label: block.label,
+    version: block.version,
+    ...(block.readOnly ? { read_only: "true" } : {}),
+  };
+}
+
 export class MemoryContextCompiler {
   compile(input: CompileMemoryContextInput): CompiledMemoryContext {
     const limit = effectiveCharacterBudget(input.budget);
@@ -238,10 +246,7 @@ export class MemoryContextCompiler {
             bounded.addTextElement(
               "block",
               block.value,
-              {
-                label: block.label,
-                version: block.version,
-              },
+              blockAttributes(block),
               scopeClosingReserve,
             )
           ) {
@@ -270,10 +275,7 @@ export class MemoryContextCompiler {
               bounded.addTextElement(
                 "block",
                 block.value,
-                {
-                  label: block.label,
-                  version: block.version,
-                },
+                blockAttributes(block),
                 scopeClosingReserve,
               )
             ) {
@@ -301,10 +303,7 @@ export class MemoryContextCompiler {
               bounded.addTextElement(
                 "block",
                 block.value,
-                {
-                  label: block.label,
-                  version: block.version,
-                },
+                blockAttributes(block),
                 scopeClosingReserve,
               )
             ) {

@@ -25,7 +25,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 function Section({
   icon: Icon,
@@ -282,23 +282,72 @@ export function AgentContextPanel({
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [memoryBusy, setMemoryBusy] = useState<string>();
+  const [memoryActionError, setMemoryActionError] = useState<string | null>(
+    null,
+  );
+
+  const loadInspection = useCallback(async () => {
+    setInspection(null);
+    setError(null);
+    try {
+      setInspection(await inspectAgentDMContext(channelId));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }, [channelId]);
 
   useEffect(() => {
     let current = true;
     setInspection(null);
     setError(null);
+    setMemoryActionError(null);
     void inspectAgentDMContext(channelId)
       .then((result) => {
         if (current) setInspection(result);
       })
       .catch((reason: unknown) => {
-        if (!current) return;
-        setError(reason instanceof Error ? reason.message : String(reason));
+        if (current) {
+          setError(reason instanceof Error ? reason.message : String(reason));
+        }
       });
     return () => {
       current = false;
     };
   }, [channelId]);
+
+  async function toggleMemoryBlock(label: string, readOnly: boolean) {
+    if (!inspection) return;
+    setMemoryBusy(label);
+    setMemoryActionError(null);
+    try {
+      const result = await window.localAI.setMemoryBlockReadOnly({
+        conversationId: inspection.conversationId,
+        label,
+        readOnly,
+      });
+      if (!result.success || !result.data) {
+        throw new Error(
+          result.error?.message ?? "Could not update memory block protection.",
+        );
+      }
+      const memoryState = result.data;
+      setInspection((current) =>
+        current
+          ? {
+              ...current,
+              runtime: { ...current.runtime, memoryState },
+            }
+          : current,
+      );
+    } catch (reason) {
+      setMemoryActionError(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+    } finally {
+      setMemoryBusy(undefined);
+    }
+  }
 
   return (
     <motion.aside
@@ -522,6 +571,60 @@ export function AgentContextPanel({
                 </p>
               ) : (
                 <Empty>Durable memory status is not available.</Empty>
+              )}
+              {inspection.runtime.memoryState?.blocks.length ? (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-sidebar-foreground">
+                    Conversation memory blocks
+                  </p>
+                  {inspection.runtime.memoryState.blocks.map((block) => (
+                    <div
+                      key={block.label}
+                      className="flex items-center justify-between gap-2 rounded-md border border-sidebar-border bg-background/60 px-2 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-medium">
+                          {block.label}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          v{block.version} ·{" "}
+                          {block.readOnly ? "Read-only" : "Agent-writable"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex-shrink-0 rounded-md border border-sidebar-border px-2 py-1 text-[10px] font-medium pointer-events-auto hover:border-ring disabled:opacity-50"
+                        disabled={memoryBusy !== undefined}
+                        onClick={() =>
+                          void toggleMemoryBlock(block.label, !block.readOnly)
+                        }
+                        aria-label={
+                          block.readOnly
+                            ? `Allow agent updates to ${block.label}`
+                            : `Make ${block.label} read-only`
+                        }
+                      >
+                        {memoryBusy === block.label
+                          ? "Saving…"
+                          : block.readOnly
+                            ? "Unlock"
+                            : "Protect"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {memoryActionError && (
+                <p className="text-[11px] leading-relaxed text-destructive">
+                  {memoryActionError}{" "}
+                  <button
+                    type="button"
+                    className="underline pointer-events-auto"
+                    onClick={() => void loadInspection()}
+                  >
+                    Refresh
+                  </button>
+                </p>
               )}
               {inspection.runtime.errors.map((runtimeError) => (
                 <p

@@ -18,6 +18,8 @@ export const LOCAL_AI_CHANNELS = {
   GET_MEMORY_SETTINGS: "local-ai:get-memory-settings",
   UPDATE_MEMORY_SETTINGS: "local-ai:update-memory-settings",
   GET_MEMORY_STATUS: "local-ai:get-memory-status",
+  GET_CONVERSATION_MEMORY_STATE: "local-ai:get-conversation-memory-state",
+  SET_MEMORY_BLOCK_READ_ONLY: "local-ai:set-memory-block-read-only",
   EVENT: "local-ai:event",
 } as const;
 
@@ -74,6 +76,10 @@ export function createLocalAIAPI(rendererIPC: LocalAIRendererIPC): ILocalAIAPI {
       invoke(LOCAL_AI_CHANNELS.UPDATE_MEMORY_SETTINGS, update),
     getMemoryStatus: (conversationId) =>
       invoke(LOCAL_AI_CHANNELS.GET_MEMORY_STATUS, conversationId),
+    getConversationMemoryState: (conversationId) =>
+      invoke(LOCAL_AI_CHANNELS.GET_CONVERSATION_MEMORY_STATE, conversationId),
+    setMemoryBlockReadOnly: (request) =>
+      invoke(LOCAL_AI_CHANNELS.SET_MEMORY_BLOCK_READ_ONLY, request),
     onEvent: (requestId, callback) => {
       const handler = (_event: unknown, event: LocalAIStreamEvent) => {
         if (event.requestId === requestId) callback(event);

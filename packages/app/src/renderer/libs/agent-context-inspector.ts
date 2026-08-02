@@ -1,5 +1,6 @@
 import type { LocalAIMessage } from "@/shared/types/local-ai";
 import type {
+  LocalAIConversationMemoryState,
   LocalAIConversationRuntimeState,
   LocalAIMemoryStatus,
 } from "@/shared/types/local-ai";
@@ -49,6 +50,7 @@ export interface AgentContextInspection {
   runtime: {
     conversation: LocalAIConversationRuntimeState | null;
     memory: LocalAIMemoryStatus | null;
+    memoryState: LocalAIConversationMemoryState | null;
     errors: string[];
   };
   opaque: Array<{ label: string; detail: string }>;
@@ -130,14 +132,17 @@ export async function inspectAgentDMContext(
   const runtimeErrors: string[] = [];
   let runtimeConversation: LocalAIConversationRuntimeState | null = null;
   let memoryStatus: LocalAIMemoryStatus | null = null;
+  let memoryState: LocalAIConversationMemoryState | null = null;
   let effectiveToolCatalog: AgentContextInspection["available"]["effectiveToolCatalog"] =
     [];
   if (typeof window !== "undefined") {
     if (window.localAI) {
-      const [runtimeResult, memoryResult] = await Promise.all([
-        window.localAI.getConversationRuntimeState(channel.conversationId),
-        window.localAI.getMemoryStatus(channel.conversationId),
-      ]);
+      const [runtimeResult, memoryResult, memoryStateResult] =
+        await Promise.all([
+          window.localAI.getConversationRuntimeState(channel.conversationId),
+          window.localAI.getMemoryStatus(channel.conversationId),
+          window.localAI.getConversationMemoryState(channel.conversationId),
+        ]);
       if (runtimeResult.success) {
         runtimeConversation = runtimeResult.data ?? null;
       } else {
@@ -150,6 +155,14 @@ export async function inspectAgentDMContext(
       } else {
         runtimeErrors.push(
           memoryResult.error?.message ?? "Memory status is unavailable.",
+        );
+      }
+      if (memoryStateResult.success) {
+        memoryState = memoryStateResult.data ?? null;
+      } else if (memoryStatus?.health !== "disabled") {
+        runtimeErrors.push(
+          memoryStateResult.error?.message ??
+            "Memory block state is unavailable.",
         );
       }
     }
@@ -213,6 +226,7 @@ export async function inspectAgentDMContext(
     runtime: {
       conversation: runtimeConversation,
       memory: memoryStatus,
+      memoryState,
       errors: runtimeErrors,
     },
     opaque: [
@@ -224,7 +238,7 @@ export async function inspectAgentDMContext(
       {
         label: "Runtime memory payload",
         detail:
-          "Durable memory is compiled in Electron main. Its health and version can be inspected separately, but renderer configuration is not the payload.",
+          "Durable memory content is compiled in Electron main. The renderer can inspect block labels and read-only state, but does not own or mirror the payload.",
       },
       {
         label: "Provider hidden prompt and sandbox internals",

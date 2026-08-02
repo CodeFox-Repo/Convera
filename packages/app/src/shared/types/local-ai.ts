@@ -203,6 +203,25 @@ export interface LocalAIMemoryStatus {
   lastSuccessfulSyncAt?: string;
 }
 
+export interface LocalAIMemoryBlockState {
+  label: string;
+  readOnly: boolean;
+  version: number;
+}
+
+export interface LocalAIConversationMemoryState {
+  conversationId: string;
+  version: number;
+  epoch: number;
+  blocks: LocalAIMemoryBlockState[];
+}
+
+export interface LocalAISetMemoryBlockReadOnlyRequest {
+  conversationId: string;
+  label: string;
+  readOnly: boolean;
+}
+
 export interface LocalAIBranchConversationRequest {
   sourceConversationId: string;
   targetConversationId: string;
@@ -366,6 +385,12 @@ export interface LocalAIRuntimeService {
   getMemoryStatus(
     conversationId?: string,
   ): Promise<LocalAIMemoryStatus> | LocalAIMemoryStatus;
+  getConversationMemoryState?(
+    conversationId: string,
+  ): Promise<LocalAIConversationMemoryState> | LocalAIConversationMemoryState;
+  setMemoryBlockReadOnly?(
+    request: LocalAISetMemoryBlockReadOnlyRequest,
+  ): Promise<LocalAIConversationMemoryState> | LocalAIConversationMemoryState;
 }
 
 export interface ILocalAIAPI {
@@ -411,6 +436,12 @@ export interface ILocalAIAPI {
   getMemoryStatus(
     conversationId?: string,
   ): Promise<LocalAIResult<LocalAIMemoryStatus>>;
+  getConversationMemoryState(
+    conversationId: string,
+  ): Promise<LocalAIResult<LocalAIConversationMemoryState>>;
+  setMemoryBlockReadOnly(
+    request: LocalAISetMemoryBlockReadOnlyRequest,
+  ): Promise<LocalAIResult<LocalAIConversationMemoryState>>;
   onEvent(
     requestId: string,
     callback: (event: LocalAIStreamEvent) => void,
