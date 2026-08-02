@@ -42,6 +42,7 @@ export function setupAgentHostIPC(
     AGENT_HOST_CHANNELS.LIST_TASKS,
     AGENT_HOST_CHANNELS.CONTROL_TASK,
     AGENT_HOST_CHANNELS.REDIRECT_TASK,
+    AGENT_HOST_CHANNELS.RECORD_OUTPUT,
     AGENT_HOST_CHANNELS.CANCEL,
     AGENT_HOST_CHANNELS.RESPOND,
   ]) {
@@ -176,6 +177,35 @@ export function setupAgentHostIPC(
         return {
           success: true,
           job: await options.host.redirectTask(taskId, instruction),
+        };
+      } catch (error) {
+        return { success: false, error: errorMessage(error) };
+      }
+    },
+  );
+
+  mainIPC.handle(
+    AGENT_HOST_CHANNELS.RECORD_OUTPUT,
+    async (event, jobId: unknown, messageId: unknown) => {
+      if (!allowed(event, options)) {
+        return {
+          success: false,
+          error: "Agent Host IPC sender is not allowed.",
+        };
+      }
+      if (!options.host) {
+        return { success: false, error: "Agent Host is unavailable." };
+      }
+      if (typeof jobId !== "string" || !jobId) {
+        return { success: false, error: "A job id is required." };
+      }
+      if (typeof messageId !== "string" || !messageId) {
+        return { success: false, error: "A message id is required." };
+      }
+      try {
+        return {
+          success: true,
+          recorded: await options.host.recordOutput(jobId, messageId),
         };
       } catch (error) {
         return { success: false, error: errorMessage(error) };

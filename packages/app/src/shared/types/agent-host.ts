@@ -27,6 +27,31 @@ export interface AgentHostTarget {
   memberId: string;
 }
 
+export interface AgentHostStructuredTaskBrief {
+  objective: string;
+  acceptanceCriteria: string[];
+  contextMessageIds: string[];
+  outputContract: {
+    format: "text" | "json" | "artifact";
+    description: string;
+    resultSchema?: Record<string, unknown>;
+  };
+}
+
+export interface AgentHostCollaboration {
+  kind: "delegation" | "handoff";
+  operationId: string;
+  idempotencyKey: string;
+  inputHash: string;
+  sourceTaskId: string;
+  sourceJobId: string;
+  fromMemberId: string;
+  depth: number;
+  path: string[];
+  brief: AgentHostStructuredTaskBrief;
+  expiresAt?: string;
+}
+
 export interface AgentHostDispatch {
   channelId: string;
   channelKind: AgentHostChannelKind;
@@ -45,6 +70,8 @@ export interface AgentHostDispatch {
 export interface AgentHostJob {
   id: string;
   taskId: string;
+  /** A delegated child task. Redirect runs use parentJobId instead. */
+  parentTaskId?: string;
   parentJobId?: string;
   channelId: string;
   channelKind: AgentHostChannelKind;
@@ -57,6 +84,10 @@ export interface AgentHostJob {
   agentMemberId: string;
   chain: AgentHostChain;
   controlInstructions: string[];
+  collaboration?: AgentHostCollaboration;
+  /** Renderer/Dexie-owned result messages posted by this run. */
+  outputMessageIds?: string[];
+  maxOutputTokens?: number;
   status: AgentHostJobStatus;
   attempts: number;
   requestId?: string;
@@ -77,6 +108,9 @@ export interface AgentHostTaskSummary {
   agentId: string;
   agentMemberId: string;
   currentJobId: string;
+  parentTaskId?: string;
+  collaboration?: AgentHostCollaboration;
+  outputMessageIds?: string[];
   status: AgentHostJobStatus;
   runCount: number;
   controlInstructions: string[];
@@ -153,6 +187,10 @@ export interface IAgentHostAPI {
     taskId: string,
     instruction: string,
   ): Promise<{ success: boolean; job?: AgentHostJob; error?: string }>;
+  recordOutput(
+    jobId: string,
+    messageId: string,
+  ): Promise<{ success: boolean; recorded?: boolean; error?: string }>;
   cancel(
     jobId: string,
   ): Promise<{ success: boolean; cancelled?: boolean; error?: string }>;

@@ -12,6 +12,7 @@ export const AGENT_HOST_CHANNELS = {
   LIST_TASKS: "agent-host:list-tasks",
   CONTROL_TASK: "agent-host:control-task",
   REDIRECT_TASK: "agent-host:redirect-task",
+  RECORD_OUTPUT: "agent-host:record-output",
   CANCEL: "agent-host:cancel",
   RESPOND: "agent-host:respond",
   REQUEST: "agent-host:request",
@@ -35,6 +36,8 @@ export function createAgentHostAPI(
       invoke(AGENT_HOST_CHANNELS.CONTROL_TASK, taskId, action),
     redirectTask: (taskId, instruction) =>
       invoke(AGENT_HOST_CHANNELS.REDIRECT_TASK, taskId, instruction),
+    recordOutput: (jobId, messageId) =>
+      invoke(AGENT_HOST_CHANNELS.RECORD_OUTPUT, jobId, messageId),
     cancel: (jobId) => invoke(AGENT_HOST_CHANNELS.CANCEL, jobId),
     respond: (response) => invoke(AGENT_HOST_CHANNELS.RESPOND, response),
     onRequest: (callback) => {

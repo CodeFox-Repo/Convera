@@ -95,6 +95,15 @@ export interface LocalAIChatRequest {
     taskId: string;
     channelKind: "channel" | "dm";
     /**
+     * Renderer-resolved channel colleagues available to structured task tools.
+     * This is trusted runtime metadata, not model-authored tool input and not
+     * injected into the provider prompt.
+     */
+    collaborationTargets?: Array<{
+      agentId: string;
+      memberId: string;
+    }>;
+    /**
      * Where the agent is standing this turn: room name, description, who is
      * present, whether it may pass.
      *

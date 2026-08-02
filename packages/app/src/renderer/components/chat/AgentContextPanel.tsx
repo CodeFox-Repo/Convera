@@ -8,6 +8,7 @@ import { useAgentHostTasks } from "@/renderer/libs/hooks/use-agent-host-jobs";
 import { taskStatusLabel } from "@/renderer/libs/agent-tasks";
 import { memberIdForAgent } from "@/renderer/libs/db";
 import { useChannels } from "@/renderer/libs/stores/channel-store";
+import { useMembers } from "@/renderer/libs/stores/member-store";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -56,6 +57,7 @@ function AgentWorkSection({ agentId }: { agentId: string }) {
   const agentMemberId = memberIdForAgent(agentId);
   const { tasks, error, control, redirect } = useAgentHostTasks(agentMemberId);
   const channels = useChannels();
+  const members = useMembers();
   const [guidingTaskId, setGuidingTaskId] = useState<string>();
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState<string>();
@@ -63,6 +65,10 @@ function AgentWorkSection({ agentId }: { agentId: string }) {
     () =>
       new Map((channels ?? []).map((channel) => [channel.id, channel.name])),
     [channels],
+  );
+  const memberNames = useMemo(
+    () => new Map((members ?? []).map((member) => [member.id, member.name])),
+    [members],
   );
   const visibleTasks = tasks
     .filter((task) => task.channelKind !== "dm")
@@ -115,6 +121,11 @@ function AgentWorkSection({ agentId }: { agentId: string }) {
               channelNames.get(task.channelId) ?? task.channelId;
             const latestGuidance = task.controlInstructions.at(-1);
             const guiding = guidingTaskId === task.id;
+            const collaboration = task.collaboration;
+            const sourceName = collaboration
+              ? (memberNames.get(collaboration.fromMemberId) ??
+                collaboration.fromMemberId)
+              : undefined;
             return (
               <article
                 key={task.id}
@@ -136,6 +147,27 @@ function AgentWorkSection({ agentId }: { agentId: string }) {
                       {taskStatusLabel(task.status)} · {task.runCount} run
                       {task.runCount === 1 ? "" : "s"} · {task.id.slice(-8)}
                     </p>
+                    {collaboration && (
+                      <div
+                        className="mt-1.5 rounded-md border border-sidebar-border bg-background/50 px-2 py-1.5"
+                        data-testid="structured-task-provenance"
+                      >
+                        <p className="text-[11px] font-medium text-sidebar-foreground">
+                          {collaboration.kind === "delegation"
+                            ? `Delegated by ${sourceName}`
+                            : `Handed off by ${sourceName}`}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                          {collaboration.brief.objective}
+                        </p>
+                        {(task.outputMessageIds?.length ?? 0) > 0 && (
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {task.outputMessageIds?.length} delivered result
+                            {task.outputMessageIds?.length === 1 ? "" : "s"}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {latestGuidance && (
                       <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
                         Guidance: {latestGuidance}

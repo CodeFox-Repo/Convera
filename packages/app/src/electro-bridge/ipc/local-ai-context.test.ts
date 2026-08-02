@@ -330,6 +330,17 @@ describe("local AI IPC", () => {
         ...baseRequest,
         agent: { id: "../fizz", memberId: "agent:../fizz" },
       },
+      {
+        ...baseRequest,
+        agentHost: {
+          jobId: "job-1",
+          taskId: "task-1",
+          channelKind: "channel",
+          collaborationTargets: [
+            { agentId: "reviewer", memberId: "agent:someone-else" },
+          ],
+        },
+      },
       { ...baseRequest, options: { temperature: Number.NaN } },
       { ...baseRequest, options: { maxOutputTokens: 0 } },
       {

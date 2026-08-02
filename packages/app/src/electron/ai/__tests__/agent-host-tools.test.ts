@@ -23,7 +23,10 @@ const task: AgentHostTaskSummary = {
   updatedAt: new Date().toISOString(),
 };
 
-function input(channelKind: "channel" | "dm"): LocalAiTurnHookInput {
+function input(
+  channelKind: "channel" | "dm",
+  collaborationTargets?: Array<{ agentId: string; memberId: string }>,
+): LocalAiTurnHookInput {
   return {
     request: {
       requestId: "request",
@@ -35,7 +38,12 @@ function input(channelKind: "channel" | "dm"): LocalAiTurnHookInput {
         message: { role: "user", content: "Control the task" },
       },
       agent: { id: "fizz", memberId: "agent:fizz" },
-      agentHost: { jobId: "dm-job", taskId: "dm-task", channelKind },
+      agentHost: {
+        jobId: "dm-job",
+        taskId: "dm-task",
+        channelKind,
+        collaborationTargets,
+      },
     },
     prepared: {} as LocalAiTurnHookInput["prepared"],
     requestInteraction: async () => ({}),
@@ -153,5 +161,161 @@ describe("Agent Host task tools", () => {
       "Do not open the PR until I see the diff.",
       "agent:fizz",
     );
+  });
+
+  it("registers distinct delegate and handoff tools only with another channel colleague", async () => {
+    const host = {
+      listTasks: vi.fn(async () => []),
+    } as unknown as AgentHost;
+    const hooks = withAgentHostTools({}, () => host);
+    const channel = await hooks.prepareTurnContext?.(
+      input("channel", [
+        { agentId: "fizz", memberId: "agent:fizz" },
+        { agentId: "reviewer", memberId: "agent:reviewer" },
+      ]),
+    );
+    const dm = await hooks.prepareTurnContext?.(
+      input("dm", [
+        { agentId: "fizz", memberId: "agent:fizz" },
+        { agentId: "reviewer", memberId: "agent:reviewer" },
+      ]),
+    );
+
+    expect(channel?.additionalTools?.map((tool) => tool.qualifiedName)).toEqual(
+      ["task:manage_task", "task:delegate_task", "task:handoff_task"],
+    );
+    expect(channel?.systemContext).toContain("bounded specialist work");
+    expect(dm?.additionalTools?.map((tool) => tool.qualifiedName)).toEqual([
+      "task:manage_task",
+    ]);
+  });
+
+  it("executes delegation through Host and returns final Dexie message receipts", async () => {
+    const child = {
+      id: "child-job",
+      taskId: "child-task",
+      agentId: "reviewer",
+      agentMemberId: "agent:reviewer",
+      status: "completed",
+      outputMessageIds: ["message-result"],
+      collaboration: { expiresAt: new Date(Date.now() + 60_000).toISOString() },
+    } as AgentHostJob;
+    const host = {
+      listTasks: vi.fn(async () => []),
+      delegateTask: vi.fn(async () => ({
+        operationId: "delegation-1",
+        jobs: [child],
+      })),
+      waitForDelegation: vi.fn(async () => ({
+        operationId: "delegation-1",
+        joinStatus: "satisfied",
+        jobs: [child],
+      })),
+    } as unknown as AgentHost;
+    const prepared = await withAgentHostTools(
+      {},
+      () => host,
+    ).prepareTurnContext?.(
+      input("channel", [
+        { agentId: "fizz", memberId: "agent:fizz" },
+        { agentId: "reviewer", memberId: "agent:reviewer" },
+      ]),
+    );
+    const tool = prepared?.additionalTools?.find(
+      (candidate) => candidate.qualifiedName === "task:delegate_task",
+    );
+
+    expect(
+      await tool?.execute({
+        idempotency_key: "delegate-1",
+        delegates: [
+          {
+            assignee_member_id: "agent:reviewer",
+            objective: "Review the implementation",
+            acceptance_criteria: ["Report blockers"],
+            context_refs: [{ kind: "message", message_id: "message-1" }],
+            output_contract: {
+              format: "text",
+              description: "Post a concise review",
+            },
+          },
+        ],
+        join: { strategy: "all" },
+        ttl_seconds: 60,
+      }),
+    ).toMatchObject({
+      ok: true,
+      delegation_id: "delegation-1",
+      join_status: "satisfied",
+      child_tasks: [
+        {
+          task_id: "child-task",
+          status: "completed",
+          result_message_ids: ["message-result"],
+        },
+      ],
+    });
+    expect(host.delegateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceJobId: "dm-job",
+        sourceTaskId: "dm-task",
+        callerMemberId: "agent:fizz",
+        delegates: [
+          expect.objectContaining({
+            target: { agentId: "reviewer", memberId: "agent:reviewer" },
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("commits an authorized handoff and refuses unsupported receiver acceptance", async () => {
+    const successor = {
+      id: "successor",
+      taskId: "dm-task",
+      agentId: "reviewer",
+      agentMemberId: "agent:reviewer",
+      status: "queued",
+    } as AgentHostJob;
+    const host = {
+      listTasks: vi.fn(async () => []),
+      handoffTask: vi.fn(async () => ({
+        operationId: "handoff-1",
+        job: successor,
+      })),
+    } as unknown as AgentHost;
+    const prepared = await withAgentHostTools(
+      {},
+      () => host,
+    ).prepareTurnContext?.(
+      input("channel", [
+        { agentId: "fizz", memberId: "agent:fizz" },
+        { agentId: "reviewer", memberId: "agent:reviewer" },
+      ]),
+    );
+    const tool = prepared?.additionalTools?.find(
+      (candidate) => candidate.qualifiedName === "task:handoff_task",
+    );
+    const base = {
+      idempotency_key: "handoff-1",
+      to_member_id: "agent:reviewer",
+      reason: "The reviewer should own the final decision.",
+    };
+
+    expect(
+      await tool?.execute({ ...base, acceptance: "required" }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "HANDOFF_ACCEPTANCE_UNAVAILABLE" },
+    });
+    expect(await tool?.execute(base)).toEqual({
+      ok: true,
+      handoff_id: "handoff-1",
+      task_id: "dm-task",
+      from_member_id: "agent:fizz",
+      to_member_id: "agent:reviewer",
+      status: "committed",
+    });
+    expect(host.handoffTask).toHaveBeenCalledOnce();
   });
 });

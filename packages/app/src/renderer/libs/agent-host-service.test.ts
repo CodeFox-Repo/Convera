@@ -17,6 +17,7 @@ import {
 } from "./db/database";
 import {
   dispatchAgentHostOffers,
+  formatCollaborationBrief,
   formatTaskGuidance,
   RendererAgentHostService,
 } from "./agent-host-service";
@@ -164,6 +165,36 @@ describe("RendererAgentHostService", () => {
     );
   });
 
+  it("turns structured task metadata into per-turn delivery guidance", () => {
+    expect(
+      formatCollaborationBrief({
+        ...job,
+        collaboration: {
+          kind: "delegation",
+          operationId: "delegation-1",
+          idempotencyKey: "key-1",
+          inputHash: "hash-1",
+          sourceTaskId: "parent-task",
+          sourceJobId: "parent-job",
+          fromMemberId: "agent:planner",
+          depth: 1,
+          path: ["agent:planner", member.id],
+          brief: {
+            objective: "Review the implementation",
+            acceptanceCriteria: ["Report blockers"],
+            contextMessageIds: ["human-message"],
+            outputContract: {
+              format: "text",
+              description: "Post a concise review",
+            },
+          },
+        },
+      }),
+    ).toMatch(
+      /Delegated subtask from agent:planner[\s\S]*Review the implementation[\s\S]*workspace:send_message/,
+    );
+  });
+
   it("prepares a concurrent tool-only turn from the frozen message boundary", async () => {
     const service = new RendererAgentHostService();
     const before = await db.messages.count();
@@ -182,6 +213,9 @@ describe("RendererAgentHostService", () => {
         ],
       },
       agent: { id: agent.id, memberId: member.id },
+      agentHost: {
+        collaborationTargets: [{ agentId: agent.id, memberId: member.id }],
+      },
     });
     // The room rides the per-turn channel, not the persona: folding it into
     // the prompt changed the session's context fingerprint on every move
@@ -194,6 +228,34 @@ describe("RendererAgentHostService", () => {
     );
     expect(await db.messages.count()).toBe(before);
     expect(await db.pendingTurns.count()).toBe(0);
+  });
+
+  it("records a successful workspace message as a Host result receipt", async () => {
+    const recordOutput = vi.fn(async () => ({
+      success: true,
+      recorded: true,
+    }));
+    Object.assign(window, {
+      agentHost: { enqueue, recordOutput } as unknown as IAgentHostAPI,
+    });
+    const service = new RendererAgentHostService();
+
+    await (
+      service as unknown as {
+        recordWorkspaceOutput(
+          jobId: string,
+          response: { value: string },
+        ): Promise<void>;
+      }
+    ).recordWorkspaceOutput(job.id, {
+      value: JSON.stringify({
+        ok: true,
+        kind: "send_message",
+        messageId: "result-message",
+      }),
+    });
+
+    expect(recordOutput).toHaveBeenCalledWith(job.id, "result-message");
   });
 
   it("shows typing only while the speech tool is open, never on being offered", async () => {

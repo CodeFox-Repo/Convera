@@ -353,4 +353,141 @@ describe("AgentHost", () => {
       host.redirectTask(job.taskId, "Change direction", "agent:b"),
     ).rejects.toThrow("not found for this agent");
   });
+
+  it("delegates bounded child tasks, waits for Dexie result receipts, and replays idempotently", async () => {
+    const gates = new Map<string, ReturnType<typeof deferred<void>>>();
+    const execute = vi.fn((job: AgentHostJob) => {
+      const gate = deferred<void>();
+      gates.set(job.id, gate);
+      return gate.promise;
+    });
+    let nextId = 0;
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute },
+      maxConcurrency: 3,
+      createId: () => `structured-${++nextId}`,
+    });
+    const [source] = await host.enqueue(dispatch("c1", ["agent:a"]));
+    await vi.waitFor(async () =>
+      expect((await host.listJobs())[0].status).toBe("running"),
+    );
+
+    const request = {
+      sourceJobId: source.id,
+      sourceTaskId: source.taskId,
+      callerMemberId: "agent:a",
+      idempotencyKey: "delegate-1",
+      inputHash: "same-input",
+      ttlSeconds: 60,
+      delegates: ["b", "c"].map((id) => ({
+        target: { agentId: id, memberId: `agent:${id}` },
+        brief: {
+          objective: `Research ${id}`,
+          acceptanceCriteria: ["Post evidence"],
+          contextMessageIds: [source.triggerMessageId],
+          outputContract: { format: "text" as const, description: "Findings" },
+        },
+      })),
+    };
+    const created = await host.delegateTask(request);
+    const replay = await host.delegateTask(request);
+    expect(replay.operationId).toBe(created.operationId);
+    expect(replay.jobs.map((job) => job.id)).toEqual(
+      created.jobs.map((job) => job.id),
+    );
+    await expect(
+      host.delegateTask({ ...request, inputHash: "changed-input" }),
+    ).rejects.toThrow("different input");
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(3));
+
+    const outcomePromise = host.waitForDelegation(created.operationId, {
+      strategy: "all",
+      cancelRemainingOnSatisfied: true,
+      timeoutMs: 5_000,
+    });
+    for (const child of created.jobs) {
+      expect(
+        await host.recordOutput(child.id, `message:${child.agentId}`),
+      ).toBe(true);
+      gates.get(child.id)?.resolve();
+    }
+    const outcome = await outcomePromise;
+
+    expect(outcome.joinStatus).toBe("satisfied");
+    expect(outcome.jobs).toEqual([
+      expect.objectContaining({
+        parentTaskId: source.taskId,
+        status: "completed",
+        outputMessageIds: ["message:b"],
+      }),
+      expect.objectContaining({
+        parentTaskId: source.taskId,
+        status: "completed",
+        outputMessageIds: ["message:c"],
+      }),
+    ]);
+    expect((await host.listTasks("agent:a"))[0].id).toBe(source.taskId);
+    gates.get(source.id)?.resolve();
+  });
+
+  it("hands off the stable task identity and removes control from the former owner", async () => {
+    const gates = new Map<string, ReturnType<typeof deferred<void>>>();
+    const execute = vi.fn((job: AgentHostJob) => {
+      const gate = deferred<void>();
+      gates.set(job.id, gate);
+      return gate.promise;
+    });
+    let nextId = 0;
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute },
+      maxConcurrency: 2,
+      createId: () => `handoff-${++nextId}`,
+    });
+    const [source] = await host.enqueue(dispatch("c1", ["agent:a"]));
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    const request = {
+      sourceJobId: source.id,
+      sourceTaskId: source.taskId,
+      callerMemberId: "agent:a",
+      idempotencyKey: "handoff-1",
+      inputHash: "same-input",
+      target: { agentId: "b", memberId: "agent:b" },
+      brief: {
+        objective: "Own the rest of the task",
+        acceptanceCriteria: ["Finish it"],
+        contextMessageIds: [],
+        outputContract: { format: "text" as const, description: "Result" },
+      },
+    };
+    const committed = await host.handoffTask(request);
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+
+    expect(committed.job).toMatchObject({
+      taskId: source.taskId,
+      parentJobId: source.id,
+      agentMemberId: "agent:b",
+      collaboration: { kind: "handoff", fromMemberId: "agent:a" },
+    });
+    expect(await host.listTasks("agent:a")).toEqual([]);
+    expect(await host.listTasks("agent:b")).toEqual([
+      expect.objectContaining({ id: source.taskId, agentMemberId: "agent:b" }),
+    ]);
+    expect(await host.pauseTask(source.taskId, "agent:a")).toBe(false);
+    expect((await host.handoffTask(request)).job.id).toBe(committed.job.id);
+    await expect(
+      host.handoffTask({
+        ...request,
+        sourceJobId: committed.job.id,
+        callerMemberId: "agent:b",
+        idempotencyKey: "handoff-back",
+        inputHash: "handoff-back",
+        target: { agentId: "a", memberId: "agent:a" },
+      }),
+    ).rejects.toThrow("repeat an agent");
+
+    gates.get(committed.job.id)?.resolve();
+    gates.get(source.id)?.resolve();
+  });
 });

@@ -299,9 +299,10 @@ export class RendererAgentHostService {
     // it had just left.
     const systemPrompt = agent.systemPrompt ?? "";
     const taskGuidance = formatTaskGuidance(job.controlInstructions);
-    const turnContext = taskGuidance
-      ? `${roomContext}\n\n${taskGuidance}`
-      : roomContext;
+    const collaborationBrief = formatCollaborationBrief(job);
+    const turnContext = [roomContext, taskGuidance, collaborationBrief]
+      .filter(Boolean)
+      .join("\n\n");
     // The shared transcript advances every time a colleague posts, so this
     // actor's binding is usually behind by the time its next offer arrives.
     // A bootstrap cannot clear that state — only a rebase resets the session
@@ -351,8 +352,16 @@ export class RendererAgentHostService {
           jobId: job.id,
           taskId: job.taskId,
           channelKind: job.channelKind,
+          collaborationTargets: members.flatMap((member) =>
+            member.kind === "agent" && member.agentId
+              ? [{ agentId: member.agentId, memberId: member.id }]
+              : [],
+          ),
           roomContext: turnContext,
         },
+        ...(job.maxOutputTokens
+          ? { options: { maxOutputTokens: job.maxOutputTokens } }
+          : {}),
       },
     };
     this.active.set(job.id, { job, requestId, typing: new Set() });
@@ -383,6 +392,31 @@ export class RendererAgentHostService {
         result.error?.message ||
           "The background agent interaction is no longer active.",
       );
+    }
+  }
+
+  private async recordWorkspaceOutput(
+    jobId: string,
+    response: LocalAIInteractionResponse,
+  ): Promise<void> {
+    if (typeof response.value !== "string") return;
+    try {
+      const result = JSON.parse(response.value) as {
+        ok?: unknown;
+        kind?: unknown;
+        messageId?: unknown;
+      };
+      if (
+        result.ok !== true ||
+        result.kind !== "send_message" ||
+        typeof result.messageId !== "string"
+      ) {
+        return;
+      }
+      await window.agentHost?.recordOutput(jobId, result.messageId);
+    } catch {
+      // The provider still needs the original workspace result. Output
+      // indexing is a receipt, never the authority for the Dexie message.
     }
   }
 
@@ -442,7 +476,20 @@ export class RendererAgentHostService {
               },
             }
           : event;
-      if (handleWorkspaceQueryInteraction(workspaceEvent, respond)) return;
+      const workspaceRespond = async (response: LocalAIInteractionResponse) => {
+        if (
+          workspaceEvent.name === "workspace:query" &&
+          typeof workspaceEvent.input === "object" &&
+          workspaceEvent.input !== null &&
+          "kind" in workspaceEvent.input &&
+          workspaceEvent.input.kind === "send_message"
+        ) {
+          await this.recordWorkspaceOutput(active.job.id, response);
+        }
+        await respond(response);
+      };
+      if (handleWorkspaceQueryInteraction(workspaceEvent, workspaceRespond))
+        return;
       useUserInputStore.getState().registerInteraction(event, respond);
       return;
     }
@@ -461,4 +508,29 @@ export function formatTaskGuidance(instructions: string[]): string {
       (instruction, index) => `${index + 1}. ${instruction.trim()}`,
     ),
   ].join("\n");
+}
+
+export function formatCollaborationBrief(job: AgentHostJob): string {
+  const collaboration = job.collaboration;
+  if (!collaboration) return "";
+  const { brief } = collaboration;
+  const heading =
+    collaboration.kind === "delegation"
+      ? `Delegated subtask from ${collaboration.fromMemberId}. The parent retains task ownership and is waiting for your result.`
+      : `Task ownership was transferred to you by ${collaboration.fromMemberId}. You now own task ${job.taskId}.`;
+  return [
+    heading,
+    `Objective: ${brief.objective}`,
+    "Acceptance criteria:",
+    ...brief.acceptanceCriteria.map(
+      (criterion, index) => `${index + 1}. ${criterion}`,
+    ),
+    brief.contextMessageIds.length > 0
+      ? `Relevant workspace message ids: ${brief.contextMessageIds.join(", ")}`
+      : undefined,
+    `Output contract (${brief.outputContract.format}): ${brief.outputContract.description}`,
+    "Post the completed result in this channel with workspace:send_message. Your ordinary turn output is private and does not count as delivery.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
