@@ -868,8 +868,12 @@ export class LocalAiRuntime implements LocalAIRuntimeService {
           // start typing, stop, and start again for a single message. Looking
           // around first (`read_channel`, reasoning) still costs steps and is
           // unaffected: `hasToolCall` only inspects the step just finished.
+          // The step count is a runaway backstop, not a work budget: a turn
+          // that reads a few rooms, checks its memory and then answers was
+          // hitting 12 and stopping mid-thought. Speaking still ends the turn,
+          // so the ceiling only matters to a model that never gets there.
           stopWhen: run.tools
-            ? [hasToolCall(WORKSPACE_SEND_MESSAGE_TOOL), stepCountIs(12)]
+            ? [hasToolCall(WORKSPACE_SEND_MESSAGE_TOOL), stepCountIs(50)]
             : undefined,
         });
         const forwarded = await this.forwardStream(

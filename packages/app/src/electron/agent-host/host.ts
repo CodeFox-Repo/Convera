@@ -34,6 +34,13 @@ const TERMINAL = new Set<AgentHostJob["status"]>([
 ]);
 const IDENTIFIER = /^[A-Za-z0-9._:-]{1,256}$/;
 const MAX_CONTEXT_MESSAGES = 500;
+/**
+ * Deliberately a second copy of the renderer's `MAX_CHAIN_HOPS` rather than an
+ * import: this is the trust boundary, and a compromised renderer must not be
+ * able to raise its own ceiling. Keep it in step when that one is retuned —
+ * lower here silently caps collaboration the renderer thinks it allowed.
+ */
+const MAX_DISPATCH_HOPS = 20;
 const MAX_CONTROL_INSTRUCTIONS = 100;
 const MAX_CONTROL_INSTRUCTION_LENGTH = 4_000;
 
@@ -61,17 +68,21 @@ function validateDispatch(dispatch: AgentHostDispatch): void {
     !Array.isArray(dispatch.targets) ||
     dispatch.targets.length === 0 ||
     dispatch.targets.length > 16 ||
+    // Checked against the offer list, not `chain.invoked`. They used to agree,
+    // but an open floor now offers the room without booking everyone present
+    // against the once-per-chain rule — requiring both would reject every
+    // open-floor dispatch. `offeredAgentMemberIds` is the real whitelist: it
+    // is exactly who routing decided to invite for this message.
     !dispatch.targets.every(
       (target) =>
         IDENTIFIER.test(target.agentId) &&
         IDENTIFIER.test(target.memberId) &&
         target.memberId.startsWith("agent:") &&
-        dispatch.chain.invoked.includes(target.memberId) &&
         dispatch.offeredAgentMemberIds.includes(target.memberId),
     ) ||
     !Number.isInteger(dispatch.chain.hops) ||
     dispatch.chain.hops < 0 ||
-    dispatch.chain.hops > 3 ||
+    dispatch.chain.hops > MAX_DISPATCH_HOPS ||
     !Array.isArray(dispatch.chain.invoked) ||
     dispatch.chain.invoked.length > 16 ||
     !dispatch.chain.invoked.every((id) => IDENTIFIER.test(id))

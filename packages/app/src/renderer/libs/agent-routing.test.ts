@@ -1,6 +1,10 @@
 import type { Member } from "@/shared/types/workspace";
 import { describe, expect, it } from "vitest";
-import { routeMessage, type ChainState } from "./agent-routing";
+import {
+  MAX_CHAIN_HOPS,
+  routeMessage,
+  type ChainState,
+} from "./agent-routing";
 
 function member(id: string, name: string, kind: Member["kind"]): Member {
   return {
@@ -85,16 +89,19 @@ describe("routeMessage", () => {
   it("counts tool-originated agent messages against the cap", () => {
     // send_message posts without mentioning anyone; the channel default would
     // otherwise re-trigger forever.
+    // Driven off the constant rather than a literal: the ceiling is a runaway
+    // backstop and gets retuned, but a tool-posted message must always cost a
+    // hop or a chain of them runs past it.
     let chain = fromHuman("@Fizz go").chain;
-    for (const sender of [fizz.id, honey.id]) {
+    for (let hop = 0; hop < MAX_CHAIN_HOPS - 1; hop += 1) {
       chain = routeMessage({
-        message: { senderId: sender, content: "posting an update" },
+        message: { senderId: fizz.id, content: "posting an update" },
         members,
         defaultAgentMemberId: honey.id,
         chain,
       }).chain;
     }
-    expect(chain.hops).toBe(2);
+    expect(chain.hops).toBe(MAX_CHAIN_HOPS - 1);
 
     const capped = routeMessage({
       message: { senderId: bean.id, content: "posting an update" },
@@ -182,5 +189,41 @@ describe("routeMessage", () => {
     expect(
       fromAgent(fizz.id, "@Fizz talking to myself", h0.chain).invoke,
     ).toEqual([]);
+  });
+
+  it("does not spend the chain on everyone an open floor merely offered", () => {
+    // "We need X" opens the floor to the whole room; most stay quiet. Booking
+    // all of them as invoked meant the follow-up "@Honey can you build it"
+    // was dropped in silence, so a plan → build → review handoff could only
+    // ever start from an explicit mention.
+    const opening = routeMessage({
+      message: { senderId: maya.id, content: "we need a search box" },
+      members,
+      openFloor: true,
+    });
+    expect(opening.invoke).toEqual([fizz.id, honey.id, bean.id]);
+
+    const handoff = fromAgent(fizz.id, "@Honey can you build it", opening.chain);
+    expect(handoff.invoke).toEqual([honey.id]);
+    expect(handoff.limitReached).toBe(false);
+  });
+
+  it("still refuses to invoke the same named agent twice in one chain", () => {
+    const opening = fromHuman("@Fizz start");
+    const again = fromAgent(honey.id, "@Fizz again", opening.chain);
+    expect(again.invoke).toEqual([]);
+    expect(again.limitReached).toBe(true);
+  });
+
+  it("refuses an agent message that arrives with no chain", () => {
+    // The hop cap is the only brake on two agents answering each other
+    // forever. Losing the chain must not read as the start of a fresh budget.
+    const orphaned = routeMessage({
+      message: { senderId: fizz.id, content: "@Honey are you there" },
+      members,
+      chain: null,
+    });
+    expect(orphaned.invoke).toEqual([]);
+    expect(orphaned.limitReached).toBe(true);
   });
 });

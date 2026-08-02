@@ -27,7 +27,14 @@ import { parseMentions } from "./mention-parser";
  * cap — the thing the cap exists to stop.
  */
 
-export const MAX_CHAIN_HOPS = 3;
+/**
+ * A runaway backstop, not a conversation budget. Real work is a handoff —
+ * plan, build, review, revise — and at 3 the third colleague was the last one
+ * who could speak, which made the cap a rule about how much collaboration was
+ * allowed rather than a guard against two agents talking forever. Colleagues
+ * stop when the work is done; this only catches the ones that never would.
+ */
+export const MAX_CHAIN_HOPS = 20;
 
 export interface ChainState {
   /** Messages an agent has added since the originating human message. */
@@ -92,6 +99,14 @@ export function routeMessage({
   const hops = fromAgent ? previous.hops + 1 : 0;
   const next: ChainState = { hops, invoked: [...previous.invoked] };
 
+  // An agent speaking with no chain has lost its budget, not earned a fresh
+  // one. Every caller threads the chain today, so this is unreachable — but
+  // the cap is the only thing standing between two agents and an endless
+  // exchange, and "forgot to pass the chain" must not be the way to remove it.
+  if (fromAgent && !chain) {
+    return { invoke: [], chain: next, limitReached: true };
+  }
+
   if (hops >= MAX_CHAIN_HOPS) {
     return { invoke: [], chain: next, limitReached: true };
   }
@@ -101,6 +116,11 @@ export function routeMessage({
     replyToSenderId && byId.get(replyToSenderId)?.kind === "agent"
       ? replyToSenderId
       : undefined;
+  const openFloorCandidates = !(
+    mentioned.length ||
+    repliedToAgent ||
+    defaultAgentMemberId
+  );
   const candidates = mentioned.length
     ? mentioned
     : repliedToAgent
@@ -111,6 +131,13 @@ export function routeMessage({
           ? members.filter((member) => member.kind === "agent").map((m) => m.id)
           : [];
 
+  // Being handed a message is not the same as being asked. An open floor
+  // offers the room to everyone present, and most of them say nothing — but
+  // recording all of them as invoked spent the whole chain on the opening
+  // line, so a later "@Dev can you build this" was dropped in silence. Only a
+  // named candidate is booked against the once-per-chain rule; `hops` still
+  // bounds the exchange either way.
+  const booked = !openFloorCandidates;
   const invoke: string[] = [];
   let limitReached = false;
 
@@ -122,7 +149,7 @@ export function routeMessage({
       continue;
     }
     invoke.push(id);
-    next.invoked.push(id);
+    if (booked) next.invoked.push(id);
   }
 
   return { invoke, chain: next, limitReached };

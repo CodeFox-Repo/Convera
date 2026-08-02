@@ -87,6 +87,26 @@ describe("AgentHost", () => {
     ).rejects.toThrow("Invalid Agent Host dispatch");
   });
 
+  it("accepts an open-floor dispatch whose chain booked nobody", async () => {
+    // An open floor offers the room to everyone without spending anyone's
+    // once-per-chain slot, so `invoked` is empty while `targets` is not.
+    // Validating targets against `invoked` rejected every such dispatch.
+    const jobs: AgentHostJob[] = [];
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: {
+        execute: async (job) => {
+          jobs.push(job);
+        },
+      },
+    });
+    await host.enqueue({
+      ...dispatch("c1", ["agent:a", "agent:b"]),
+      chain: { hops: 0, invoked: [] },
+    });
+    await vi.waitFor(() => expect(jobs).toHaveLength(2));
+  });
+
   it("runs different actors in one conversation concurrently", async () => {
     const gates = new Map<string, ReturnType<typeof deferred<void>>>();
     const execute = vi.fn((job: AgentHostJob) => {
