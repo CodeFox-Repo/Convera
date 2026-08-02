@@ -23,6 +23,8 @@ import { JsonAgentHostJobRepository } from "@/electron/agent-host/repository";
 import { AgentHostRendererBridge } from "@/electron/agent-host/renderer-bridge";
 import { LocalAiAgentHostExecutor } from "@/electron/agent-host/executor";
 import { withAgentHostTools } from "@/electron/ai/agent-host-tools";
+import { AgentHostTraceRecorder } from "@/electron/trace/agent-host";
+import { LocalTraceStore } from "@/electron/trace/store";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -67,8 +69,12 @@ const runtime = new LocalAiRuntime({
 
 // The bridge owns one sender per connected tab; the host talks to whichever
 // one is live.
-/** Readable from outside the browser, unlike anything in the renderer's DB. */
-const TURN_LOG_PATH = join(tmpdir(), "convera-dev-agent-turns.jsonl");
+const traceStore = new LocalTraceStore(
+  join(tmpdir(), "convera-dev-agent-traces.jsonl"),
+);
+const traceRecorder = new AgentHostTraceRecorder(traceStore, {
+  onError: (error) => console.warn("[agent-trace] write failed", error),
+});
 
 const agentHostBridge = new AgentHostRendererBridge(() => {
   // The newest live tab, not the first ever seen: a stale sender from a closed
@@ -89,12 +95,18 @@ const agentHost = new AgentHost({
   executor: new LocalAiAgentHostExecutor(
     runtime,
     agentHostBridge,
-    TURN_LOG_PATH,
+    traceRecorder,
   ),
   startPaused: true,
 });
-agentHost.subscribe((event) => agentHostBridge.emit(event));
+agentHost.subscribe((event) => {
+  void traceRecorder.record(event);
+  agentHostBridge.emit(event);
+});
 await agentHost.initialize();
+await Promise.all(
+  (await agentHost.listJobs()).map((job) => traceRecorder.recordJob(job)),
+);
 
 const recordingIPC = createRecordingIpcMain({
   handle: () => {},
