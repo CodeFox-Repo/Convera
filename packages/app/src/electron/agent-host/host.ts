@@ -7,13 +7,55 @@ import type {
   AgentHostStructuredTaskBrief,
   AgentHostTarget,
   AgentHostTaskSummary,
+  AgentHostWorkflowNode,
 } from "@/shared/types/agent-host";
+import type { LocalAIChatRequest } from "@/shared/types/local-ai";
 import type { AgentHostJobRepository } from "./repository";
+import {
+  beginWorkflowNode,
+  commitProviderEffect,
+  commitWorkflowNode,
+  createAgentHostWorkflow,
+  currentWorkflowNode,
+  failProviderEffect,
+  finalizeAgentHostWorkflow,
+  prepareProviderEffect,
+  providerEffectInputHash,
+  recordWorkflowNodeResult,
+  recoverAgentHostWorkflow,
+  startProviderEffect,
+} from "./workflow";
+
+export interface AgentHostProviderOutcome {
+  spoke: boolean;
+  disposition: "retry" | "complete" | "fail";
+  error?: string;
+}
+
+export interface AgentHostExecutionControl {
+  currentNode(): AgentHostWorkflowNode | undefined;
+  prepared(request: LocalAIChatRequest): Promise<void>;
+  providerStarted(
+    request: LocalAIChatRequest,
+    node: "provider-turn" | "provider-retry",
+  ): Promise<void>;
+  providerCompleted(
+    request: LocalAIChatRequest,
+    node: "provider-turn" | "provider-retry",
+    outcome: AgentHostProviderOutcome,
+  ): Promise<void>;
+  providerFailed(
+    request: LocalAIChatRequest,
+    status: "failed" | "uncertain",
+    error: string,
+  ): Promise<void>;
+}
 
 export interface AgentHostExecutor {
   execute(
     job: AgentHostJob,
     emit: (event: AgentHostEvent) => void,
+    control?: AgentHostExecutionControl,
   ): Promise<void>;
   cancel?(job: AgentHostJob): Promise<boolean> | boolean;
 }
@@ -242,11 +284,41 @@ export class AgentHost {
     for (const stored of jobs) {
       const job = structuredClone(stored);
       if (job.status === "running") {
-        job.status = "interrupted";
-        job.error =
-          "Agent work was interrupted by an application restart and was not replayed to avoid duplicating tool actions.";
-        job.completedAt = this.now().toISOString();
-        job.updatedAt = job.completedAt;
+        const now = this.now().toISOString();
+        if (!job.workflow) {
+          job.status = "interrupted";
+          job.error =
+            "Agent work was interrupted by an application restart and was not replayed because this run predates durable checkpoints.";
+          job.completedAt = now;
+        } else {
+          const recovery = recoverAgentHostWorkflow(job.workflow, now);
+          job.workflow = recovery.workflow;
+          if (recovery.disposition === "uncertain") {
+            job.status = "uncertain";
+            job.error = recovery.error;
+            job.completedAt = undefined;
+          } else if (recovery.disposition === "failed") {
+            job.status = "failed";
+            job.error = recovery.error;
+            job.completedAt = now;
+          } else if (recovery.disposition === "complete") {
+            job.workflow = finalizeAgentHostWorkflow(job.workflow, now);
+            job.status = "completed";
+            job.error = undefined;
+            job.completedAt = now;
+          } else {
+            job.status = "queued";
+            job.error = undefined;
+            job.completedAt = undefined;
+          }
+        }
+        job.updatedAt = now;
+        await this.repository.put(job);
+      } else if (
+        !job.workflow &&
+        (job.status === "queued" || job.status === "paused")
+      ) {
+        job.workflow = createAgentHostWorkflow(job, job.updatedAt);
         await this.repository.put(job);
       }
       this.jobs.set(job.id, job);
@@ -328,6 +400,7 @@ export class AgentHost {
         createdAt: now,
         updatedAt: now,
       };
+      job.workflow = createAgentHostWorkflow(job, now);
       this.jobs.set(job.id, job);
       await this.repository.put(job);
       this.emit({ type: "job", job });
@@ -433,6 +506,7 @@ export class AgentHost {
         createdAt: now,
         updatedAt: now,
       };
+      job.workflow = createAgentHostWorkflow(job, now);
       this.jobs.set(id, job);
       await this.repository.put(job);
       this.emit({ type: "job", job });
@@ -532,6 +606,7 @@ export class AgentHost {
       createdAt: now,
       updatedAt: now,
     };
+    successor.workflow = createAgentHostWorkflow(successor, now);
     this.jobs.set(id, successor);
     await this.repository.put(successor);
     this.emit({ type: "job", job: successor });
@@ -654,7 +729,12 @@ export class AgentHost {
   ): Promise<boolean> {
     await this.ready;
     const job = this.taskCurrentJob(taskId, agentMemberId);
-    if (!job || TERMINAL.has(job.status) || job.status === "paused") {
+    if (
+      !job ||
+      TERMINAL.has(job.status) ||
+      job.status === "paused" ||
+      job.status === "uncertain"
+    ) {
       return false;
     }
     if (job.status === "running") {
@@ -782,6 +862,7 @@ export class AgentHost {
       createdAt: now,
       updatedAt: now,
     };
+    successor.workflow = createAgentHostWorkflow(successor, now);
     this.jobs.set(id, successor);
     await this.repository.put(successor);
     this.emit({ type: "job", job: successor });
@@ -911,19 +992,180 @@ export class AgentHost {
     }
   }
 
-  private async run(job: AgentHostJob): Promise<void> {
-    const startedAt = this.now().toISOString();
-    job.status = "running";
-    job.attempts += 1;
-    job.startedAt = startedAt;
-    job.updatedAt = startedAt;
-    await this.repository.put(job);
-    this.emit({ type: "job", job });
+  private executionControl(job: AgentHostJob): AgentHostExecutionControl {
+    const persist = async () => {
+      job.updatedAt = this.now().toISOString();
+      await this.repository.put(job);
+    };
+    const workflow = () => {
+      job.workflow ??= createAgentHostWorkflow(job, this.now().toISOString());
+      return job.workflow;
+    };
+    return {
+      currentNode: () => currentWorkflowNode(workflow()),
+      prepared: async (request) => {
+        if (currentWorkflowNode(workflow()) !== "prepare-turn") return;
+        job.requestId = request.requestId;
+        job.turnId = request.turnId;
+        job.workflow = recordWorkflowNodeResult(
+          workflow(),
+          "prepare-turn",
+          {
+            next: ["provider-turn"],
+            values: {
+              requestId: request.requestId,
+              turnId: request.turnId,
+            },
+          },
+          this.now().toISOString(),
+        );
+        await persist();
+        job.workflow = commitWorkflowNode(
+          workflow(),
+          "prepare-turn",
+          this.now().toISOString(),
+        );
+        await persist();
+      },
+      providerStarted: async (request, node) => {
+        if (currentWorkflowNode(workflow()) !== node) {
+          throw new Error(
+            `Agent Host workflow expected ${currentWorkflowNode(workflow()) ?? "completion"}, not ${node}.`,
+          );
+        }
+        job.requestId = request.requestId;
+        job.turnId = request.turnId;
+        job.workflow = beginWorkflowNode(
+          workflow(),
+          node,
+          this.now().toISOString(),
+        );
+        await persist();
+        job.workflow = prepareProviderEffect(
+          workflow(),
+          {
+            node,
+            requestId: request.requestId,
+            turnId: request.turnId,
+            inputHash: providerEffectInputHash(request),
+          },
+          this.now().toISOString(),
+        );
+        await persist();
+        // This durable fence intentionally precedes runtime.startChat. A crash
+        // after it is conservative: the provider may have advanced, so the
+        // effect is reconciled rather than replayed.
+        job.workflow = startProviderEffect(
+          workflow(),
+          request.turnId,
+          this.now().toISOString(),
+        );
+        await persist();
+      },
+      providerCompleted: async (request, node, outcome) => {
+        const next: AgentHostWorkflowNode[] =
+          outcome.disposition === "retry"
+            ? ["provider-retry"]
+            : outcome.disposition === "complete"
+              ? ["finalize"]
+              : [];
+        job.workflow = commitProviderEffect(
+          workflow(),
+          request.turnId,
+          {
+            spoke: outcome.spoke,
+            next,
+            terminalStatus:
+              outcome.disposition === "fail" ? "failed" : undefined,
+            terminalError: outcome.error,
+          },
+          this.now().toISOString(),
+        );
+        await persist();
+        job.workflow = recordWorkflowNodeResult(
+          workflow(),
+          node,
+          {
+            next,
+            values: {
+              requestId: request.requestId,
+              turnId: request.turnId,
+              providerTurnCount:
+                workflow().checkpoint.values.providerTurnCount + 1,
+              spoke: outcome.spoke,
+              terminalStatus:
+                outcome.disposition === "fail" ? "failed" : undefined,
+              terminalError: outcome.error,
+            },
+          },
+          this.now().toISOString(),
+        );
+        await persist();
+        job.workflow = commitWorkflowNode(
+          workflow(),
+          node,
+          this.now().toISOString(),
+        );
+        await persist();
+      },
+      providerFailed: async (request, status, error) => {
+        job.workflow = failProviderEffect(
+          workflow(),
+          request.turnId,
+          status,
+          error,
+          this.now().toISOString(),
+        );
+        await persist();
+      },
+    };
+  }
 
+  private async run(job: AgentHostJob): Promise<void> {
+    const release = () => {
+      this.running.delete(job.id);
+      this.activeActors.delete(actorKey(job));
+      this.scheduleDrain();
+    };
     try {
-      await this.executor.execute(structuredClone(job), (event) =>
-        this.emit(event),
-      );
+      const startedAt = this.now().toISOString();
+      job.workflow ??= createAgentHostWorkflow(job, startedAt);
+      const recovery = recoverAgentHostWorkflow(job.workflow, startedAt);
+      job.workflow = recovery.workflow;
+      if (recovery.disposition === "uncertain") {
+        job.status = "uncertain";
+        job.error = recovery.error;
+        job.updatedAt = startedAt;
+        await this.repository.put(job);
+        this.emit({ type: "job", job });
+        return;
+      }
+      if (recovery.disposition === "failed") {
+        await this.finish(job, "failed", recovery.error);
+        return;
+      }
+      if (recovery.disposition === "complete") {
+        await this.finish(job, "completed");
+        return;
+      }
+      const node = currentWorkflowNode(job.workflow);
+      if (node === "prepare-turn") {
+        job.workflow = beginWorkflowNode(job.workflow, node, startedAt);
+      }
+      job.status = "running";
+      job.attempts += 1;
+      job.startedAt = startedAt;
+      job.updatedAt = startedAt;
+      await this.repository.put(job);
+      this.emit({ type: "job", job });
+
+      if (node !== "finalize") {
+        await this.executor.execute(
+          structuredClone(job),
+          (event) => this.emit(event),
+          this.executionControl(job),
+        );
+      }
       if (job.status !== "running" || this.pausing.has(job.id)) return;
       await this.finish(job, "completed");
     } catch (error) {
@@ -940,9 +1182,7 @@ export class AgentHost {
         );
       }
     } finally {
-      this.running.delete(job.id);
-      this.activeActors.delete(actorKey(job));
-      this.scheduleDrain();
+      release();
     }
   }
 
@@ -955,6 +1195,13 @@ export class AgentHost {
     error?: string,
   ): Promise<void> {
     const completedAt = this.now().toISOString();
+    if (
+      status === "completed" &&
+      job.workflow &&
+      currentWorkflowNode(job.workflow) === "finalize"
+    ) {
+      job.workflow = finalizeAgentHostWorkflow(job.workflow, completedAt);
+    }
     job.status = status;
     job.error = error;
     job.completedAt = completedAt;

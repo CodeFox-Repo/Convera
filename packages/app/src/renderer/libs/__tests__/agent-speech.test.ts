@@ -76,6 +76,70 @@ describe("agent speech", () => {
     });
   });
 
+  it("returns the original message when an AgentHost effect is delivered twice", async () => {
+    const { channelId, conversationId } = await seedRoom();
+    const query = {
+      kind: "send_message" as const,
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "durable result",
+      agentHost: {
+        jobId: "job-1",
+        effectId: "effect-1",
+        payloadHash: "a".repeat(64),
+        triggerMessageId: "trigger-1",
+        contextMessageIds: ["trigger-1"],
+        chain: { hops: 0, invoked: [sageMemberId] },
+      },
+    };
+
+    const first = await resolveWorkspaceQuery(query);
+    const replay = await resolveWorkspaceQuery(query);
+
+    expect(first).toMatchObject({ ok: true, kind: "send_message" });
+    expect(replay).toEqual(first);
+    expect(
+      await db.messages.where("conversationId").equals(conversationId).count(),
+    ).toBe(1);
+    expect(await db.agentEffectReceipts.get("effect-1")).toMatchObject({
+      messageId:
+        first.ok && first.kind === "send_message" ? first.messageId : "missing",
+      payloadHash: "a".repeat(64),
+    });
+  });
+
+  it("rejects an AgentHost effect key reused with different content", async () => {
+    const { channelId } = await seedRoom();
+    const agentHost = {
+      jobId: "job-1",
+      effectId: "effect-1",
+      payloadHash: "a".repeat(64),
+      triggerMessageId: "trigger-1",
+      contextMessageIds: ["trigger-1"],
+      chain: { hops: 0, invoked: [sageMemberId] },
+    };
+    await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "first",
+      agentHost,
+    });
+
+    expect(
+      await resolveWorkspaceQuery({
+        kind: "send_message",
+        viewerMemberId: sageMemberId,
+        channelId,
+        content: "different",
+        agentHost: { ...agentHost, payloadHash: "b".repeat(64) },
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining("different content") },
+    });
+  });
+
   it("re-parses mentions from the posted text", async () => {
     // A mention is what routes the next turn, so it has to come from the text
     // that actually landed rather than anything the model claimed alongside it.

@@ -7,6 +7,8 @@ import type {
 } from "@/shared/types/local-ai";
 import type { AgentHostRendererBridge } from "./renderer-bridge";
 import { LocalAiAgentHostExecutor } from "./executor";
+import { AgentHost } from "./host";
+import { InMemoryAgentHostJobRepository } from "./repository";
 
 /** Prepares a turn whose transcript is one direct question, unanswered. */
 function silentBridge(): AgentHostRendererBridge {
@@ -199,6 +201,68 @@ describe("LocalAiAgentHostExecutor", () => {
     expect(messages.at(-1)?.content).toContain("nobody heard you");
     expect(messages.slice(0, -1)).toEqual([
       { role: "user", content: "@trusted are you there?" },
+    ]);
+  });
+
+  it("persists the normal prepare, provider-effect, and finalize path", async () => {
+    const runtime = {
+      startChat: async (
+        request: LocalAIChatRequest,
+        emit: (event: LocalAIStreamEvent) => void,
+      ) => {
+        emit({
+          type: "interaction",
+          requestId: request.requestId,
+          interactionId: "interaction",
+          kind: "input",
+          name: "workspace:query",
+          prompt: "Send a message",
+          input: {
+            kind: "send_message",
+            viewerMemberId: "agent:trusted",
+            channelId: "channel",
+            content: "done",
+          },
+        });
+      },
+    } as unknown as LocalAIRuntimeService;
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: new LocalAiAgentHostExecutor(runtime, silentBridge()),
+      createId: () => "durable-job",
+    });
+
+    await host.enqueue({
+      channelId: "channel",
+      channelKind: "channel",
+      conversationId: "trusted-conversation",
+      triggerMessageId: "message",
+      contextMessageIds: ["message"],
+      mode: "direct",
+      offeredAgentMemberIds: ["agent:trusted"],
+      targets: [{ agentId: "trusted", memberId: "agent:trusted" }],
+      chain: { hops: 0, invoked: ["agent:trusted"] },
+    });
+    await vi.waitFor(async () =>
+      expect((await host.listJobs())[0].status).toBe("completed"),
+    );
+
+    const completed = (await host.listJobs())[0];
+    expect(completed.workflow).toMatchObject({
+      checkpoint: { step: 3, next: [] },
+      effects: [
+        expect.objectContaining({
+          kind: "provider-turn",
+          status: "committed",
+          receipt: { spoke: true, next: ["finalize"] },
+        }),
+      ],
+    });
+    expect(completed.workflow?.checkpoints.map(({ next }) => next)).toEqual([
+      ["prepare-turn"],
+      ["provider-turn"],
+      ["finalize"],
+      [],
     ]);
   });
 });

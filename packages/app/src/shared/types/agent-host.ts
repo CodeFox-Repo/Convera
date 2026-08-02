@@ -4,10 +4,93 @@ export type AgentHostJobStatus =
   | "queued"
   | "running"
   | "paused"
+  | "uncertain"
   | "completed"
   | "failed"
   | "cancelled"
   | "interrupted";
+
+export type AgentHostWorkflowNode =
+  | "prepare-turn"
+  | "provider-turn"
+  | "provider-retry"
+  | "finalize";
+
+export interface AgentHostWorkflowCheckpoint {
+  id: string;
+  parentId?: string;
+  step: number;
+  next: AgentHostWorkflowNode[];
+  values: {
+    inputHash: string;
+    requestId?: string;
+    turnId?: string;
+    providerTurnCount: number;
+    spoke?: boolean;
+    terminalStatus?: "completed" | "failed";
+    terminalError?: string;
+  };
+  committedWriteIds: string[];
+  createdAt: string;
+}
+
+export interface AgentHostWorkflowNodeAttempt {
+  id: string;
+  node: AgentHostWorkflowNode;
+  attempt: number;
+  status: "running" | "completed" | "failed" | "interrupted";
+  inputHash: string;
+  startedAt: string;
+  completedAt?: string;
+  error?: string;
+}
+
+export interface AgentHostWorkflowPendingWrite {
+  id: string;
+  checkpointId: string;
+  attemptId: string;
+  channel: "node-result";
+  value: {
+    next: AgentHostWorkflowNode[];
+    values: Partial<AgentHostWorkflowCheckpoint["values"]>;
+  };
+  status: "pending" | "committed";
+  createdAt: string;
+  committedAt?: string;
+}
+
+export interface AgentHostWorkflowEffect {
+  id: string;
+  attemptId: string;
+  kind: "provider-turn";
+  idempotencyKey: string;
+  inputHash: string;
+  requestId: string;
+  turnId: string;
+  status: "prepared" | "started" | "committed" | "failed" | "uncertain";
+  preparedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  receipt?: {
+    spoke: boolean;
+    next: AgentHostWorkflowNode[];
+    terminalStatus?: "completed" | "failed";
+    terminalError?: string;
+  };
+  error?: string;
+}
+
+export interface AgentHostWorkflowState {
+  schemaVersion: 1;
+  graphVersion: "agent-host-turn-v1";
+  stateSchemaVersion: 1;
+  threadId: string;
+  checkpoint: AgentHostWorkflowCheckpoint;
+  checkpoints: AgentHostWorkflowCheckpoint[];
+  attempts: AgentHostWorkflowNodeAttempt[];
+  pendingWrites: AgentHostWorkflowPendingWrite[];
+  effects: AgentHostWorkflowEffect[];
+}
 
 export type AgentHostChannelKind = "channel" | "dm";
 
@@ -87,6 +170,8 @@ export interface AgentHostJob {
   collaboration?: AgentHostCollaboration;
   /** Renderer/Dexie-owned result messages posted by this run. */
   outputMessageIds?: string[];
+  /** Main-owned execution metadata. It stores references and receipts, never transcript text. */
+  workflow?: AgentHostWorkflowState;
   maxOutputTokens?: number;
   status: AgentHostJobStatus;
   attempts: number;

@@ -118,6 +118,20 @@ export interface PendingTurnJournal {
   updatedAt: Date;
 }
 
+/**
+ * A renderer-side inbox receipt for an AgentHost effect. The message remains
+ * authoritative in `messages`; this row only makes response-loss retries
+ * return the same message id instead of posting a duplicate.
+ */
+export interface AgentEffectReceipt {
+  idempotencyKey: string;
+  payloadHash: string;
+  jobId: string;
+  conversationId: string;
+  messageId: string;
+  createdAt: Date;
+}
+
 export type PendingConversationDeletionState =
   | "pending"
   | "deleting"
@@ -250,6 +264,7 @@ export class ConveraDB extends Dexie {
   conversations!: EntityTable<Conversation, "id">;
   messages!: EntityTable<Message, "id">;
   pendingTurns!: EntityTable<PendingTurnJournal, "turnId">;
+  agentEffectReceipts!: EntityTable<AgentEffectReceipt, "idempotencyKey">;
   pendingConversationDeletions!: EntityTable<
     PendingConversationDeletion,
     "conversationId"
@@ -480,6 +495,13 @@ export class ConveraDB extends Dexie {
     // that was never asked, and both have cost real time to chase.
     this.version(10).stores({
       agentTraces: "id, conversationId, memberId, startedAt",
+    });
+
+    // v11: endpoint idempotency for AgentHost speech. A message and its
+    // receipt are committed in the same Dexie transaction by agent-speech.
+    this.version(11).stores({
+      agentEffectReceipts:
+        "idempotencyKey, jobId, conversationId, messageId, createdAt",
     });
 
     // A database created fresh at the latest version never runs upgrade hooks,

@@ -43,7 +43,9 @@ export function AgentTurnFailureNotice({
       (job) =>
         job.conversationId === conversationId &&
         job.error &&
-        (job.status === "failed" || job.status === "interrupted"),
+        (job.status === "failed" ||
+          job.status === "interrupted" ||
+          job.status === "uncertain"),
     );
   if (!failure || failure.id === dismissed) return null;
 

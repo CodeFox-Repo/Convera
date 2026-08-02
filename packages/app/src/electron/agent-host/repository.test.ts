@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -44,13 +44,17 @@ describe("JsonAgentHostJobRepository", () => {
   it("round-trips jobs and updates by stable id", async () => {
     const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
     temporaryDirectories.push(directory);
+    const path = join(directory, "jobs.json");
     const repository = new JsonAgentHostJobRepository({
-      path: join(directory, "jobs.json"),
+      path,
     });
     await repository.put(job("1", "queued"));
     await repository.put(job("1", "completed"));
 
     expect(await repository.list()).toEqual([job("1", "completed")]);
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      schemaVersion: 4,
+    });
   });
 
   it("persists structured task provenance and Dexie result receipts", async () => {
@@ -161,5 +165,24 @@ describe("JsonAgentHostJobRepository", () => {
         controlInstructions: [],
       }),
     ]);
+  });
+
+  it("migrates version three without making old running work replayable", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-agent-host-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "jobs.json");
+    await writeFile(
+      path,
+      JSON.stringify({ schemaVersion: 3, jobs: [job("1", "running")] }),
+      "utf8",
+    );
+
+    const [migrated] = await new JsonAgentHostJobRepository({ path }).list();
+
+    expect(migrated).toMatchObject({ status: "running" });
+    expect(migrated.workflow).toBeUndefined();
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      schemaVersion: 4,
+    });
   });
 });

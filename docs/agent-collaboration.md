@@ -12,12 +12,12 @@ first — this is the mechanism behind "agents are colleagues, not features".
   `src/electron/ai/workspace-tools.ts` and answered in the renderer by
   `resolveWorkspaceQuery` (`src/renderer/libs/workspace-perception.ts`).
   Visibility is enforced in exactly one function, `canViewChannel` in that same
-  file, and an invisible channel returns the *same* error as a nonexistent one,
+  file, and an invisible channel returns the _same_ error as a nonexistent one,
   so agents cannot probe for hidden rooms. Channel isolation lands by editing
   that one function.
 - **What a read returns is what a person sees.** A `read_channel` message
   carries `replyTo`, `replyCount`, and `reactions` as `{emoji, reactors}` with
-  reactor *names* resolved, not member ids — a tally an agent cannot read is
+  reactor _names_ resolved, not member ids — a tally an agent cannot read is
   not perception. Names are resolved past the current roster: `readChannel`
   bulk-gets any sender or reactor id missing from it, so people who left still
   print as names. `replyCount` is counted over the whole transcript, not the
@@ -40,7 +40,7 @@ first — this is the mechanism behind "agents are colleagues, not features".
 - **Typing is read off the stream, never assumed.** An agent counts as typing
   from `tool-input-start` for `send_message` until that call closes, keyed by
   the stream's own `toolCallId`. Being offered a message, reading a channel and
-  thinking are all *working*, not composing — and showing them as typing claims
+  thinking are all _working_, not composing — and showing them as typing claims
   a reply is coming when most colleagues will stay quiet. Both the channel path
   (`agent-host-service.ts`) and the 1:1 path (`use-local-ai-chat.ts`) decide
   this through one shared function, `typingTransition` in `typing-store.ts`.
@@ -51,6 +51,21 @@ first — this is the mechanism behind "agents are colleagues, not features".
   prepare and execute each turn over `agent-host:request`/`respond`. The
   renderer half is `RendererAgentHostService`
   (`src/renderer/libs/agent-host-service.ts`).
+- **A run advances through durable semantic checkpoints.** The job snapshot
+  owns a small `prepare-turn -> provider-turn -> provider-retry? -> finalize`
+  workflow with immutable checkpoints, node attempts, pending writes and a
+  provider-effect ledger (`src/electron/agent-host/workflow.ts`). A restart may
+  resume a node that stopped before an external effect, or commit a node whose
+  provider receipt was already durable. A provider effect recorded as started
+  without a receipt becomes `uncertain` and is never replayed automatically.
+  Older running jobs without this workflow stay `interrupted` rather than
+  being guessed forward.
+- **Speech delivery is idempotent at the Dexie boundary.** Agent Host injects
+  an effect key and payload hash outside model-controlled input. The renderer
+  commits the channel message and `agentEffectReceipts` inbox row in one Dexie
+  transaction; replay returns the original message id and a key reused with
+  different content is rejected. Messages remain the channel-text authority;
+  the receipt is only delivery evidence.
 - **Turns are concurrent.** A turn that reserves no transcript row sets
   `concurrent: true` and serializes per (conversation, actor) rather than per
   conversation (`sessionKey` in `src/electron/ai/runtime.ts`), so colleagues
@@ -67,7 +82,7 @@ These were decided deliberately. Change them on purpose, not by accident.
   `src/renderer/libs/agent-templates.ts` are Elena, Mika, Omar, Noah, Vera,
   Hana, Ivan and Zoe — people, not mascots. Each `systemPrompt` ends in a
   temperament, not just a job, because a room of eight competent assistants
-  reads as one assistant eight times. (Template *ids* are still the old mascot
+  reads as one assistant eight times. (Template _ids_ are still the old mascot
   names — `sage`, `patch`, `atlas` — and renaming them would orphan every
   hired row; leave them.)
 - **Everyone may answer, but the room is not a chorus.** Several agents
@@ -82,18 +97,18 @@ These were decided deliberately. Change them on purpose, not by accident.
     (`elena 最近在忙什么` names Elena as surely as `@Elena`) because the
     mechanical instruction is what models follow; a description of the
     principle was not enough. A message that names someone else is theirs
-    alone: don't answer it, don't answer *for* them, don't rephrase the
+    alone: don't answer it, don't answer _for_ them, don't rephrase the
     question back at them.
   - **Read your own sentence back.** If any colleague here could have written
     it, it's an echo — say it in your own voice or say nothing. This lives in
     the same block, plus an unconditional clause forbidding checklists and
     process descriptions in every channel context.
 - **Tasks: visible everywhere, controllable only in private.** `manage_task`
-  (`src/electron/ai/agent-host-tools.ts`) is attached to *every* Agent
+  (`src/electron/ai/agent-host-tools.ts`) is attached to _every_ Agent
   Host turn, so an agent can answer "what are you working on?" from any room.
   Outside a DM, `canControl` is false and only `list`/`inspect` run; `pause`,
   `resume`, `cancel` and `redirect` return `TASK_CONTROL_UNAVAILABLE`. Two
-  structural reasons, both load-bearing: a channel turn *is itself* one of the
+  structural reasons, both load-bearing: a channel turn _is itself_ one of the
   listed tasks, so a cancel from a channel could kill the run that is speaking;
   and redirect guidance is stored under a never-reveal-in-public contract
   (`formatTaskGuidance` in `agent-host-service.ts`) that authoring it from a
@@ -104,7 +119,7 @@ These were decided deliberately. Change them on purpose, not by accident.
   addressed in. `MAX_CHAIN_HOPS` (counting every agent message) contains the
   blast radius.
 - **Reply markers are rare.** The boxed quote is a one-line strip (`↩ Name
-  text`, `message-row.tsx`). The tool description tells agents a marker is for
+text`, `message-row.tsx`). The tool description tells agents a marker is for
   pulling an older or ambiguous message back into view — answering the latest
   message needs none.
 - **Reasoning stays on.** With reasoning off, models answer into the void
@@ -114,12 +129,12 @@ These were decided deliberately. Change them on purpose, not by accident.
 
 ## Providers
 
-| id | transport | notes |
-| --- | --- | --- |
-| `openai-api` | OpenAI Responses API | `gpt-5.6-luna`, the only model in its catalog, so nothing can pick an expensive one by accident. Default for hired agents. |
-| `fireworks-api` | Fireworks Responses API | DeepSeek V4 Flash. `store: false`, `reasoningEffort: "max"`. |
-| `claude-code` | Claude Agent SDK | Brings its own tools. |
-| `codex-cli` | Codex app-server (local process) | Brings its own tools. |
+| id              | transport                        | notes                                                                                                                      |
+| --------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `openai-api`    | OpenAI Responses API             | `gpt-5.6-luna`, the only model in its catalog, so nothing can pick an expensive one by accident. Default for hired agents. |
+| `fireworks-api` | Fireworks Responses API          | DeepSeek V4 Flash. `store: false`, `reasoningEffort: "max"`.                                                               |
+| `claude-code`   | Claude Agent SDK                 | Brings its own tools.                                                                                                      |
+| `codex-cli`     | Codex app-server (local process) | Brings its own tools.                                                                                                      |
 
 Every OpenAI-compatible HTTP provider goes through the **Responses API**, not
 `/chat/completions` — Fireworks implements `/v1/responses` at the same baseURL,
@@ -154,7 +169,7 @@ plus `run_command`.
   macOS and bubblewrap+seccomp on Linux. On an unsupported platform it falls
   back to a bare shell, unsandboxed — a known ceiling, marked in place.
 - **`resolveInSandbox` (`src/electron/ai/sandbox.ts`) is the boundary.** pi's
-  own cwd only resolves *relative* paths; it does not confine absolute ones. So
+  own cwd only resolves _relative_ paths; it does not confine absolute ones. So
   every pi tool call goes through `sandboxedPiTool`, which rewrites `path`
   through `resolveInSandbox`: both sides are realpath'd (walking up to the
   nearest existing ancestor, so a not-yet-created file is still symlink-checked),
@@ -243,7 +258,7 @@ remember to increment.
   localStorage, falling back to the workspace `epoch` so pre-install history
   stays quiet). Own messages never count. The scan floor is the earliest
   boundary among conversations that actually exist — computing it as
-  `min(epoch, ...lastSeen)` made the floor *always* the epoch, i.e. all of
+  `min(epoch, ...lastSeen)` made the floor _always_ the epoch, i.e. all of
   history re-scanned on every message write.
 - **The member card is the roster.** `MemberCard`
   (`src/renderer/components/common/member-card.tsx`) opens from a channel
@@ -271,7 +286,7 @@ remember to increment.
   `ready` gates whether a turn pinned to that provider can run at all.
 - **Search is visibility-gated and speaks Chinese.**
   `use-conversation-search.ts` filters through `useVisibleChannelsStrict` —
-  the same `canViewChannel` — and drops hidden conversations *before* matching;
+  the same `canViewChannel` — and drops hidden conversations _before_ matching;
   "strict" means an unresolved check searches nothing rather than leaking. A
   CJK needle (`hasCJK`) short-circuits to case-folded substring matching,
   because uFuzzy's tokenizer treats every non-Latin codepoint as a separator,

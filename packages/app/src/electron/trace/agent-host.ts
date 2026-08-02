@@ -73,6 +73,7 @@ function terminalStatus(job: AgentHostJob): TraceStatus | undefined {
   if (job.status === "failed") return "error";
   if (job.status === "cancelled") return "cancelled";
   if (job.status === "interrupted") return "interrupted";
+  if (job.status === "uncertain") return "interrupted";
   return undefined;
 }
 
@@ -263,7 +264,9 @@ export class AgentHostTraceRecorder {
       },
     });
     await this.safeAppend(inputs);
-    if (job.status === "interrupted") await this.recoverInterruptedRun(job);
+    if (job.status === "interrupted" || job.status === "uncertain") {
+      await this.recoverInterruptedRun(job);
+    }
   }
 
   async beginTurn(

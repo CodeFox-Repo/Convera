@@ -11,7 +11,12 @@ const TERMINAL = new Set<AgentHostJobStatus>([
 ]);
 
 /** What is happening now, then what is waiting, then what is being held. */
-const OPEN_ORDER: AgentHostJobStatus[] = ["running", "queued", "paused"];
+const OPEN_ORDER: AgentHostJobStatus[] = [
+  "running",
+  "uncertain",
+  "queued",
+  "paused",
+];
 
 /**
  * What a colleague is currently carrying.
@@ -37,7 +42,9 @@ export function openAgentTasks(
 export function taskStatusLabel(status: string): string {
   return status === "running"
     ? "Working"
-    : status === "queued"
-      ? "Queued"
-      : status.charAt(0).toUpperCase() + status.slice(1);
+    : status === "uncertain"
+      ? "Needs review"
+      : status === "queued"
+        ? "Queued"
+        : status.charAt(0).toUpperCase() + status.slice(1);
 }
