@@ -80,11 +80,24 @@ export interface WorkspaceAddReactionQuery {
   emoji: string;
 }
 
+/**
+ * Open the private room with one colleague, creating it on first use.
+ *
+ * Returns the channel id to post into; it does not send anything, so deciding
+ * to talk and deciding what to say stay separate steps.
+ */
+export interface WorkspaceOpenDMQuery {
+  kind: "open_dm";
+  viewerMemberId: string;
+  memberId: string;
+}
+
 export type WorkspaceQuery =
   | WorkspaceListChannelsQuery
   | WorkspaceReadChannelQuery
   | WorkspaceSendMessageQuery
-  | WorkspaceAddReactionQuery;
+  | WorkspaceAddReactionQuery
+  | WorkspaceOpenDMQuery;
 
 export interface WorkspaceChannelSummary {
   id: string;
@@ -149,4 +162,5 @@ export type WorkspaceQueryResult =
   | { ok: true; kind: "read_channel"; channel: WorkspaceChannelView }
   | { ok: true; kind: "send_message"; messageId: string }
   | { ok: true; kind: "add_reaction"; messageId: string; emoji: string }
+  | { ok: true; kind: "open_dm"; channelId: string; name: string }
   | { ok: false; error: { code: string; message: string } };

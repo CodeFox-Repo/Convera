@@ -58,7 +58,8 @@ function isAgentDM(channel: Channel, agentMemberId: string): boolean {
 function conversation(
   id: string,
   title: string,
-  agentId: string,
+  /** Null for a room between two colleagues: it belongs to neither of them. */
+  agentId: string | null,
   now: Date,
 ): Conversation {
   return {
@@ -167,6 +168,87 @@ export async function ensureAgentDM(
       });
 
       return { channelId: deterministicChannelId, conversationId };
+    },
+  );
+}
+
+/** Stable regardless of who opened it, so one pair has one history. */
+export function peerDMChannelId(memberA: string, memberB: string): string {
+  const [first, second] = [memberA, memberB].sort();
+  return `dm:peer:${stablePart(first)}:${stablePart(second)}`;
+}
+
+export function peerDMConversationId(memberA: string, memberB: string): string {
+  const [first, second] = [memberA, memberB].sort();
+  return `conversation:dm:peer:${stablePart(first)}:${stablePart(second)}`;
+}
+
+/**
+ * The private room between two colleagues.
+ *
+ * Deliberately not `ensureAgentDM` with a different argument: that one is the
+ * desk you walk to, and everything about it assumes you are one of the two —
+ * it names the room after the agent and marks it as the default responder so
+ * silence would look broken. Here neither party is the human, both are
+ * expected to answer by being addressed, and the room is named for the pair.
+ *
+ * You are not a member. `canViewChannel` lets you read it anyway, so the
+ * conversation is watchable without either colleague being told you are there.
+ */
+export async function ensurePeerDM(
+  memberAId: string,
+  memberBId: string,
+): Promise<AgentDirectMessage> {
+  const a = memberAId.trim();
+  const b = memberBId.trim();
+  if (!a || !b) throw new Error("Two member ids are required.");
+  if (a === b) throw new Error("A colleague cannot open a room with itself.");
+  if (a === LOCAL_HUMAN_MEMBER_ID || b === LOCAL_HUMAN_MEMBER_ID) {
+    throw new Error("Use ensureAgentDM for a direct message with a person.");
+  }
+
+  return db.transaction(
+    "rw",
+    [db.members, db.channels, db.conversations],
+    async () => {
+      const [memberA, memberB] = await Promise.all([
+        db.members.get(a),
+        db.members.get(b),
+      ]);
+      if (!memberA || !memberB) {
+        throw new Error("Both colleagues must exist to open a room.");
+      }
+
+      const channelId = peerDMChannelId(a, b);
+      const conversationId = peerDMConversationId(a, b);
+      const existing = await db.channels.get(channelId);
+      const now = new Date();
+      const name = [memberA.name, memberB.name].sort().join(" & ");
+
+      if (!(await db.conversations.get(conversationId))) {
+        await db.conversations.put({
+          ...conversation(conversationId, name, null, now),
+        });
+      }
+      if (existing) return { channelId, conversationId };
+
+      await db.channels.add({
+        id: channelId,
+        workspaceId: LOCAL_WORKSPACE_ID,
+        groupId: null,
+        name,
+        kind: "dm",
+        isPrivate: true,
+        memberIds: [a, b],
+        conversationId,
+        // Nobody is the assigned answerer: being addressed is what invites a
+        // reply, exactly as it works in a room.
+        defaultAgentMemberId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return { channelId, conversationId };
     },
   );
 }

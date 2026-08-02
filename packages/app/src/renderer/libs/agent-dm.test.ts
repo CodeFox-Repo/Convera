@@ -15,6 +15,7 @@ import {
   agentDMConversationId,
   conversationIsChannel,
   ensureAgentDM,
+  ensurePeerDM,
   openAgentDM,
 } from "./agent-dm";
 
@@ -216,6 +217,46 @@ describe("agent direct messages", () => {
       // No channel row points at it — the legacy 1:1 path, where truncating
       // costs one assistant reply and nobody else's.
       expect(await conversationIsChannel("conv-plain")).toBe(false);
+    });
+  });
+
+  describe("ensurePeerDM", () => {
+    const OTHER: Agent = { ...AGENT, id: "raj", name: "Raj" };
+
+    async function twoColleagues(): Promise<[string, string]> {
+      await db.agents.put(OTHER);
+      await ensureAgentDM(AGENT.id);
+      await ensureAgentDM(OTHER.id);
+      return [memberIdForAgent(AGENT.id), memberIdForAgent(OTHER.id)];
+    }
+
+    it("gives one pair one room whoever opens it", async () => {
+      const [a, b] = await twoColleagues();
+      const opened = await ensurePeerDM(a, b);
+      const reopened = await ensurePeerDM(b, a);
+      expect(reopened).toEqual(opened);
+
+      const room = await db.channels.get(opened.channelId);
+      expect(room).toMatchObject({ kind: "dm", isPrivate: true });
+      expect([...(room?.memberIds ?? [])].sort()).toEqual([a, b].sort());
+    });
+
+    it("leaves you out of the room and assigns no default answerer", async () => {
+      // You read it through canViewChannel, not by being in it: a roster that
+      // named you would change how the two of them talk.
+      const [a, b] = await twoColleagues();
+      const { channelId } = await ensurePeerDM(a, b);
+      const room = await db.channels.get(channelId);
+      expect(room?.memberIds).not.toContain(LOCAL_HUMAN_MEMBER_ID);
+      expect(room?.defaultAgentMemberId).toBeNull();
+    });
+
+    it("refuses a room with yourself, or with a person", async () => {
+      const [a] = await twoColleagues();
+      await expect(ensurePeerDM(a, a)).rejects.toThrow("with itself");
+      await expect(ensurePeerDM(a, LOCAL_HUMAN_MEMBER_ID)).rejects.toThrow(
+        "ensureAgentDM",
+      );
     });
   });
 });

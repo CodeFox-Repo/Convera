@@ -126,6 +126,25 @@ describe("channel visibility", () => {
     expect(canViewChannel(viewer(AGENT), dm)).toBe(false);
   });
 
+  it("hides one colleague's DM from another", () => {
+    // Two agents talking privately is the case this rule exists for: a third
+    // colleague gets no window into it, and neither participant is AGENT.
+    const between = channel("d2", "dm", ["agent:buzz", "agent:mika"], {
+      kind: "dm",
+    });
+    expect(canViewChannel(viewer(AGENT), between)).toBe(false);
+  });
+
+  it("lets the person whose workspace this is read a DM they are not in", () => {
+    // Watching without joining: you stay out of memberIds, so no roster names
+    // you and nothing routes to you, but the conversation is not hidden from
+    // the one person who owns the workspace it happens in.
+    const between = channel("d2", "dm", ["agent:buzz", "agent:mika"], {
+      kind: "dm",
+    });
+    expect(canViewChannel(viewer(HUMAN), between)).toBe(true);
+  });
+
   it("shows a tagged channel only to holders of one of its tags", () => {
     const payroll = channel("p", "payroll", [HUMAN], {
       visibleToTags: ["hr", "finance"],

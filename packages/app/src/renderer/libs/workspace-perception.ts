@@ -15,6 +15,7 @@ import type {
   WorkspaceChannelMessage,
   WorkspaceChannelSummary,
   WorkspaceChannelView,
+  WorkspaceOpenDMQuery,
   WorkspaceQuery,
   WorkspaceQueryResult,
   WorkspaceRosterEntry,
@@ -33,7 +34,13 @@ import type {
   Tag,
   TagPermission,
 } from "@/shared/types/workspace";
-import { db, toggleReaction, type Message } from "./db";
+import {
+  db,
+  LOCAL_HUMAN_MEMBER_ID,
+  toggleReaction,
+  type Message,
+} from "./db";
+import { ensurePeerDM } from "./agent-dm";
 import { groupRepliesByParent } from "./utils/reply-threads";
 
 /**
@@ -84,7 +91,16 @@ export async function resolveViewer(memberId: string): Promise<Viewer> {
  */
 export function canViewChannel(viewer: Viewer, channel: Channel): boolean {
   if (channel.kind === "dm") {
-    return channel.memberIds.includes(viewer.memberId);
+    // You can read every DM in your own workspace, including the ones two
+    // colleagues hold without you. Reading is not joining: you stay out of
+    // `memberIds`, so no roster names you, nothing is routed to you, and the
+    // two of them talk as though nobody is listening — which is the point.
+    // Agents get no such window: this is one person's workspace, not a place
+    // where colleagues read each other's mail.
+    return (
+      viewer.memberId === LOCAL_HUMAN_MEMBER_ID ||
+      channel.memberIds.includes(viewer.memberId)
+    );
   }
   const required = channel.visibleToTags ?? [];
   if (required.length === 0) {
@@ -406,6 +422,30 @@ async function addReaction(
   };
 }
 
+async function openDM(
+  query: WorkspaceOpenDMQuery,
+): Promise<WorkspaceQueryResult> {
+  const target = await db.members.get(query.memberId);
+  // Deliberately the same shape as an unreadable channel: an agent should not
+  // be able to map the roster by probing ids it was never given.
+  if (!target || target.kind !== "agent") {
+    return notFound(query.memberId);
+  }
+  if (target.id === query.viewerMemberId) {
+    return {
+      ok: false,
+      error: {
+        code: "WORKSPACE_QUERY_FAILED",
+        message: "You cannot open a private room with yourself.",
+      },
+    };
+  }
+
+  const { channelId } = await ensurePeerDM(query.viewerMemberId, target.id);
+  const room = await db.channels.get(channelId);
+  return { ok: true, kind: "open_dm", channelId, name: room?.name ?? "" };
+}
+
 export async function resolveWorkspaceQuery(
   query: WorkspaceQuery,
 ): Promise<WorkspaceQueryResult> {
@@ -423,6 +463,8 @@ export async function resolveWorkspaceQuery(
         return await sendMessage(query);
       case "add_reaction":
         return await addReaction(query);
+      case "open_dm":
+        return await openDM(query);
     }
   } catch (error) {
     return {
@@ -442,6 +484,7 @@ const WORKSPACE_QUERY_KINDS: ReadonlySet<string> = new Set([
   "read_channel",
   "send_message",
   "add_reaction",
+  "open_dm",
 ]);
 
 function isWorkspaceQuery(value: unknown): value is WorkspaceQuery {

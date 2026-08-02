@@ -39,6 +39,16 @@ function fakeRenderer(visibleChannelIds: string[]) {
           }),
         };
       }
+      if (query.kind === "open_dm") {
+        return {
+          value: JSON.stringify({
+            ok: true,
+            kind: "open_dm",
+            channelId: `dm:peer:${query.memberId}`,
+            name: query.memberId,
+          }),
+        };
+      }
       if (!visibleChannelIds.includes(query.channelId)) {
         return {
           value: JSON.stringify({
@@ -299,6 +309,7 @@ describe("withWorkspacePerception", () => {
       "workspace:send_message",
       "workspace:read_channel",
       "workspace:add_reaction",
+      "workspace:open_dm",
     ]);
   });
 

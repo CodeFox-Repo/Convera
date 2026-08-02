@@ -101,7 +101,18 @@ const addReactionSchema = z.object({
     .describe("A single emoji character, e.g. 👍."),
 });
 
+const openDMSchema = z.object({
+  member_id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe("Member id of the colleague, from a channel roster."),
+});
+
 const DESCRIPTIONS = {
+  open_dm:
+    "Open your private room with one colleague and get its channel id, then post there with send_message. Use it when something is between the two of you — checking a detail before you answer in front of everyone, handing over a piece of work, disagreeing without making it a scene. The room is created the first time you ask and is the same room every time after. No other colleague can read it, though the person whose workspace this is can, the way a manager can see the rooms in their own office.",
   list_channels:
     "List every channel in this workspace you are allowed to see, including ones you have not joined. Use it to find where a topic lives before reading it. Each entry reports whether you are a member, its group, and how many people are in it.",
   read_channel:
@@ -278,6 +289,18 @@ export function createWorkspacePerceptionTools(
           channelId: input.channel_id as string,
           messageId: input.message_id as string,
           emoji: input.emoji as string,
+        }),
+    ),
+    perceptionTool(
+      "open_dm",
+      DESCRIPTIONS.open_dm,
+      openDMSchema.shape,
+      openDMSchema,
+      (input) =>
+        ask(options, {
+          kind: "open_dm",
+          viewerMemberId: options.viewerMemberId,
+          memberId: input.member_id as string,
         }),
     ),
   ];
