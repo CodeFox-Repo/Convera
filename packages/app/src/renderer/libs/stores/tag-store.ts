@@ -34,13 +34,19 @@ export function useMembersWithTag(name: string): Member[] | undefined {
 
 // ==================== Actions ====================
 
-/** Lowercase and dash-separated, so `HR Team` and `hr-team` are one tag. */
+/**
+ * Lowercase and dash-separated, so `HR Team` and `hr-team` are one tag.
+ *
+ * Kept by Unicode property rather than `[^a-z0-9-]`: stripping to ASCII turned
+ * every all-CJK name into the empty string, and each caller drops an empty
+ * name, so `设计` silently registered no tag at all.
+ */
 export function normalizeTagName(name: string): string {
   return name
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/[^\p{L}\p{N}-]/gu, "");
 }
 
 export async function createTag(

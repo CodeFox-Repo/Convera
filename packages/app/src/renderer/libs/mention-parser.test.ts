@@ -68,6 +68,14 @@ describe("parseMentions", () => {
     expect(parseMentions("@Fizzy is not @Fizz", members)).toEqual([fizz.id]);
   });
 
+  it("does not match a CJK name that is only a prefix of a longer one", () => {
+    // The ASCII boundary class read every Chinese character as a word break,
+    // so a message for 李明 pulled 李 into the room instead.
+    const li = member("m-li", "李", "agent");
+    expect(parseMentions("@李明 你好", [li])).toEqual([]);
+    expect(parseMentions("@李 你好", [li])).toEqual([li.id]);
+  });
+
   it("is case-insensitive", () => {
     expect(parseMentions("@fizz", members)).toEqual([fizz.id]);
   });

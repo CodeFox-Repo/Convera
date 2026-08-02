@@ -58,6 +58,14 @@ describe("tag names", () => {
     expect(normalizeTagName("   ")).toBe("");
   });
 
+  it("keeps a non-Latin name instead of stripping it to nothing", () => {
+    // Stripping to ASCII emptied every Chinese tag, and an empty name is
+    // dropped by each caller — so the tag silently never existed.
+    expect(normalizeTagName("设计")).toBe("设计");
+    expect(normalizeTagName("研发 团队")).toBe("研发-团队");
+    expect(normalizeTagName("Ünder!")).toBe("ünder");
+  });
+
   it("does not create a second row for a name that already exists", async () => {
     const first = await createTag("Finance");
     const second = await createTag("finance");

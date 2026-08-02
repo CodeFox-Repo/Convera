@@ -30,9 +30,15 @@ function codeRanges(text: string): [number, number][] {
   return ranges;
 }
 
-/** A mention must not run out of a word: rules out emails and `@Fizzy` for "Fizz". */
+/**
+ * A mention must not run out of a word: rules out emails and `@Fizzy` for "Fizz".
+ *
+ * Letters and digits are matched by Unicode property, not `\w`: an ASCII-only
+ * class treats every CJK character as a boundary, so `@李明` resolved to a
+ * member named `李` — the exact collision this check exists to prevent.
+ */
 function isBoundary(char: string | undefined): boolean {
-  return char === undefined || !/[\w@]/.test(char);
+  return char === undefined || !/[\p{L}\p{N}_@]/u.test(char);
 }
 
 export function findMentionSpans(
