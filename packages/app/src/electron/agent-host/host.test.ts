@@ -153,6 +153,42 @@ describe("AgentHost", () => {
     gates.get("job-3")?.resolve();
   });
 
+  it("makes one colleague finish a room before starting another", async () => {
+    // A person called into two rooms answers one and then the other, carrying
+    // the first into the second. Keying the queue by room ran the same
+    // colleague twice at once, which is how one agent ended up holding two
+    // unrelated provider sessions and forgetting what it had just said.
+    const gates = new Map<string, ReturnType<typeof deferred<void>>>();
+    const execute = vi.fn((job: AgentHostJob) => {
+      const gate = deferred<void>();
+      gates.set(job.id, gate);
+      return gate.promise;
+    });
+    let nextId = 0;
+    const host = new AgentHost({
+      repository: new InMemoryAgentHostJobRepository(),
+      executor: { execute },
+      maxConcurrency: 3,
+      createId: () => `job-${++nextId}`,
+    });
+
+    await host.enqueue(dispatch("general", ["agent:a"], "message:one"));
+    await host.enqueue(dispatch("dm-with-you", ["agent:a"], "message:two"));
+
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].conversationId).toBe("general");
+
+    // The second room must still be waiting: with a per-room key both ran at
+    // once and this count was already 2.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    gates.get("job-1")?.resolve();
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+    expect(execute.mock.calls[1][0].conversationId).toBe("dm-with-you");
+    gates.get("job-2")?.resolve();
+  });
+
   it("marks a running job interrupted instead of replaying it", async () => {
     const running = storedJob("running");
     const repository = new InMemoryAgentHostJobRepository([running]);

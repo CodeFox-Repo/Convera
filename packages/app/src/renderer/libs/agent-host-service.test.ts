@@ -183,7 +183,13 @@ describe("RendererAgentHostService", () => {
       },
       agent: { id: agent.id, memberId: member.id },
     });
-    expect(prepared.request.agent?.systemPrompt).toContain(
+    // The room rides the per-turn channel, not the persona: folding it into
+    // the prompt changed the session's context fingerprint on every move
+    // between rooms and threw the native session away each time.
+    expect(prepared.request.agentHost?.roomContext).toContain(
+      "You have a send_message tool",
+    );
+    expect(prepared.request.agent?.systemPrompt).not.toContain(
       "You have a send_message tool",
     );
     expect(await db.messages.count()).toBe(before);

@@ -187,6 +187,18 @@ describe("LocalAiRuntime", () => {
         networkAccess: true,
       }),
     ).not.toBe(fingerprint);
+
+    // Walking into another room is not becoming another agent. The room used
+    // to be concatenated onto the persona, so every move rewrote systemPrompt,
+    // changed this hash, and threw away the native session. It now rides the
+    // per-turn channel — and the signature takes only `agent`, so the room
+    // cannot reach this hash even by accident.
+    expect(
+      fingerprintAgentContext(
+        { agent: { ...request.agent, systemPrompt: "Be concise." } },
+        sandbox,
+      ),
+    ).toBe(fingerprint);
   });
 
   it("maps the renderer default sentinel to the provider default model", () => {

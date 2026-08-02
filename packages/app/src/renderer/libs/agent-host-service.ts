@@ -292,13 +292,16 @@ export class RendererAgentHostService {
       channel.id,
       channel.description,
     );
-    const baseSystemPrompt = agent.systemPrompt
-      ? `${agent.systemPrompt}\n\n${roomContext}`
-      : roomContext;
+    // Identity stays in the prompt; where they are standing does not. Both
+    // used to be concatenated here, which meant walking from #general into a
+    // DM changed the prompt, changed the context fingerprint, and threw away
+    // the native session — the colleague arrived with no memory of the room
+    // it had just left.
+    const systemPrompt = agent.systemPrompt ?? "";
     const taskGuidance = formatTaskGuidance(job.controlInstructions);
-    const systemPrompt = taskGuidance
-      ? `${baseSystemPrompt}\n\n${taskGuidance}`
-      : baseSystemPrompt;
+    const turnContext = taskGuidance
+      ? `${roomContext}\n\n${taskGuidance}`
+      : roomContext;
     // The shared transcript advances every time a colleague posts, so this
     // actor's binding is usually behind by the time its next offer arrives.
     // A bootstrap cannot clear that state — only a rebase resets the session
@@ -343,6 +346,12 @@ export class RendererAgentHostService {
           id: job.agentId,
           memberId: job.agentMemberId,
           systemPrompt,
+        },
+        agentHost: {
+          jobId: job.id,
+          taskId: job.taskId,
+          channelKind: job.channelKind,
+          roomContext: turnContext,
         },
       },
     };

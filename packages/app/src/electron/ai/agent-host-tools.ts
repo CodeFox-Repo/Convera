@@ -196,6 +196,10 @@ export function withAgentHostTools(
         ...prepared,
         systemContext: [
           prepared?.systemContext,
+          // Where they are standing, re-stated every turn. It rides here
+          // rather than in the persona so that moving between rooms does not
+          // read as becoming a different agent.
+          input.request.agentHost?.roomContext,
           canControl
             ? "This is your private direct conversation with the user. You may inspect and control your background channel tasks with task:manage_task. Work state comes from that tool; do not guess from chat history."
             : "You may look up your own background tasks with task:manage_task (list and inspect only). Work state comes from that tool; do not guess from chat history.",

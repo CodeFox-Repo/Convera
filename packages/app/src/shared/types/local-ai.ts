@@ -94,6 +94,17 @@ export interface LocalAIChatRequest {
     jobId: string;
     taskId: string;
     channelKind: "channel" | "dm";
+    /**
+     * Where the agent is standing this turn: room name, description, who is
+     * present, whether it may pass.
+     *
+     * Carried apart from `agent.systemPrompt` on purpose. The prompt is
+     * identity and is hashed into the session's context fingerprint, so
+     * folding the room into it made every move between rooms look like a
+     * different agent and rotated the native session. This rides the per-turn
+     * channel instead, which is re-sent each turn and never fingerprinted.
+     */
+    roomContext?: string;
   };
   options?: {
     temperature?: number;

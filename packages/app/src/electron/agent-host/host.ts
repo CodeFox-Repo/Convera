@@ -44,8 +44,20 @@ const MAX_DISPATCH_HOPS = 20;
 const MAX_CONTROL_INSTRUCTIONS = 100;
 const MAX_CONTROL_INSTRUCTION_LENGTH = 4_000;
 
-function actorKey(job: Pick<AgentHostJob, "conversationId" | "agentMemberId">) {
-  return `${job.conversationId}\0${job.agentMemberId}`;
+/**
+ * One colleague works on one thing at a time, wherever the work came from.
+ *
+ * Keyed on the member alone, not the room: a person called into two rooms at
+ * once answers one and then the other, and their memory of the first is what
+ * they carry into the second. Keying by conversation ran the same colleague
+ * twice in parallel, which is also what let two rooms hold two unrelated
+ * provider sessions for one agent.
+ *
+ * Different colleagues in one room still run concurrently — that is what an
+ * open floor is.
+ */
+function actorKey(job: Pick<AgentHostJob, "agentMemberId">) {
+  return job.agentMemberId;
 }
 
 function validateDispatch(dispatch: AgentHostDispatch): void {
