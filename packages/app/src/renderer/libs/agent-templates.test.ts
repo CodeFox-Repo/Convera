@@ -12,6 +12,7 @@ import {
   dedupeHiredAgents,
   ensureLocalHumanMember,
   ensureStarterTeam,
+  STARTER_CHANNELS,
   fireAgent,
   hireTemplate,
   isHired,
@@ -107,6 +108,21 @@ describe("hire flow", () => {
 
     expect(await db.agents.get(agent.id)).toBeUndefined();
     expect(await db.members.get(memberIdForAgent(agent.id))).toBeUndefined();
+  });
+
+  it("does not re-hire a starter the user let go, on the next version bump", async () => {
+    // Seeding hires by name whenever the layout version changes. That is right
+    // for a colleague who was never hired and wrong for one who was dismissed:
+    // walking back in overrules a decision the user made on purpose.
+    await db.settings.clear();
+    const elenaAgent = await hireTemplate(elena, []);
+    await fireAgent(elenaAgent.id);
+
+    await ensureStarterTeam();
+
+    expect(
+      (await db.agents.toArray()).some((row) => row.name === elena.name),
+    ).toBe(false);
   });
 });
 
@@ -239,7 +255,9 @@ describe("starter channels", () => {
       "Mine, hands off.",
     );
     // Backfill fills rooms in, it does not duplicate them.
-    expect((await db.channels.toArray()).length).toBe(5);
+    expect((await db.channels.toArray()).length).toBe(
+      STARTER_CHANNELS.length,
+    );
   });
 
   it("does not duplicate a renamed starter room on a version bump", async () => {
@@ -256,7 +274,7 @@ describe("starter channels", () => {
     await ensureStarterTeam();
 
     const channels = await db.channels.toArray();
-    expect(channels.length).toBe(5);
+    expect(channels.length).toBe(STARTER_CHANNELS.length);
     expect(channels.some((c) => c.name === "📣 company-news")).toBe(true);
     expect(channels.some((c) => c.name.includes("announcements"))).toBe(false);
   });
@@ -272,7 +290,7 @@ describe("starter channels", () => {
     await ensureStarterTeam();
 
     const channels = await db.channels.toArray();
-    expect(channels.length).toBe(4);
+    expect(channels.length).toBe(STARTER_CHANNELS.length - 1);
     expect(channels.some((c) => c.name.includes("docs"))).toBe(false);
   });
 });

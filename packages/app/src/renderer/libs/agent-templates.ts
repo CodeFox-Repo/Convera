@@ -63,7 +63,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     role: "Engineer",
     description: "Writes the change, not a description of the change.",
     systemPrompt:
-      "You are Dev, a software engineer. You are the one who actually builds it: once a change is settled enough to start, write the code — real files, real names, the smallest diff that works — instead of describing what someone could write. Read the surrounding code first and match it; reuse the helper that exists rather than adding a second one. Say which files you would touch and what you are unsure about, and when a request is too vague to implement, name the one decision you need instead of guessing at all of them. You talk like someone mid-task: concrete, a little terse, quick to say \"that'll break\" or \"we already have that\".",
+      'You are Dev, a software engineer. You are the one who actually builds it: once a change is settled enough to start, write the code — real files, real names, the smallest diff that works — instead of describing what someone could write. Read the surrounding code first and match it; reuse the helper that exists rather than adding a second one. Say which files you would touch and what you are unsure about, and when a request is too vague to implement, name the one decision you need instead of guessing at all of them. You talk like someone mid-task: concrete, a little terse, quick to say "that\'ll break" or "we already have that".',
     tags: ["implementation", "code", "refactor"],
   },
   {
@@ -135,11 +135,21 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
  */
 /**
  * A fresh workspace should feel like joining a small team, not an empty room.
- * Hires three starter colleagues once, on first launch; idempotent, and never
+ * Hires the starter colleagues once, on first launch; idempotent, and never
  * re-hires anyone the user has fired (it only runs while NO hired agent
  * exists at all).
+ *
+ * A team that only reviews is not a team. The first three were a reviewer, a
+ * debugger and a writer — everyone waiting for work that nobody here produces
+ * — so the two who make something come with them.
  */
-const STARTER_TEMPLATE_IDS = ["sage", "patch", "quill"] as const;
+const STARTER_TEMPLATE_IDS = [
+  "sage",
+  "patch",
+  "quill",
+  "forge",
+  "chart",
+] as const;
 
 /**
  * Heals damage from earlier seeding bugs: duplicate hires (StrictMode double
@@ -365,7 +375,7 @@ async function upgradeEmojiAvatars(): Promise<void> {
  * the platform's only chance to tell an agent what #announcements *means*
  * without stuffing it into a prompt.
  */
-const STARTER_CHANNELS: Array<{
+export const STARTER_CHANNELS: Array<{
   name: string;
   description: string;
   agentTemplateIds: string[];
@@ -376,13 +386,13 @@ const STARTER_CHANNELS: Array<{
     name: "📣 announcements",
     description:
       "The onboarding hall. Project introductions, direction and decisions that affect everyone are posted here — read it to understand what the team is working on and why.",
-    agentTemplateIds: ["sage", "patch", "quill"],
+    agentTemplateIds: ["sage", "patch", "quill", "forge", "chart"],
   },
   {
     name: "💬 general",
     description:
       "Open chat for the whole team. Anything that does not have a room of its own: questions, half-formed ideas, and the conversation that happens between the work.",
-    agentTemplateIds: ["sage", "patch", "quill"],
+    agentTemplateIds: ["sage", "patch", "quill", "forge", "chart"],
   },
   {
     name: "🔍 code-review",
@@ -401,6 +411,22 @@ const STARTER_CHANNELS: Array<{
     description:
       "Documentation, READMEs and onboarding writing. Where working code gets turned into something the next person can follow.",
     agentTemplateIds: ["quill"],
+  },
+  // These two rooms are also how Dev and Priya reach an existing workspace at
+  // all: seeding only writes a roster when it creates the room, so adding them
+  // to #general above does nothing for anyone who already has one. A new room
+  // is created with its members, so it is the only door open to them.
+  {
+    name: "📋 planning",
+    description:
+      "What we are building and in what order. Bring a rough idea and leave with something someone can start on: scope, the pieces, and what is explicitly not in this round.",
+    agentTemplateIds: ["chart"],
+  },
+  {
+    name: "🔨 build",
+    description:
+      "Work in progress on the implementation itself. Decisions made while writing it, the change taking shape, and the questions that only appear once the code is real.",
+    agentTemplateIds: ["forge"],
   },
 ];
 
@@ -473,7 +499,7 @@ async function seedStarterChannels(): Promise<void> {
  * seed itself is idempotent (hire skips existing names, channels skip existing
  * names), so a re-run only ever fills in what is missing.
  */
-const STARTER_TEAM_VERSION = 4;
+const STARTER_TEAM_VERSION = 5;
 
 export async function ensureStarterTeam(): Promise<void> {
   await renameLegacyStarters();
@@ -499,9 +525,14 @@ export async function ensureStarterTeam(): Promise<void> {
       (agent) => agent.name,
     ),
   );
+  const dismissed = await dismissedStarterNames();
   for (const id of STARTER_TEMPLATE_IDS) {
     const template = AGENT_TEMPLATES.find((t) => t.id === id);
-    if (template && !hiredNames.has(template.name))
+    if (
+      template &&
+      !hiredNames.has(template.name) &&
+      !dismissed.has(template.name)
+    )
       await hireTemplate(template, []);
   }
   await seedStarterChannels();
@@ -595,10 +626,34 @@ export function describeAgentRemoval(
 }
 
 /** Removes an agent from the org: its member identity goes with it. */
+/**
+ * Remembered across seeds so a starter the user let go does not walk back in.
+ *
+ * Seeding hires by name whenever the version is bumped, which is right for a
+ * colleague who was never hired and wrong for one who was dismissed — that
+ * reads as the app overruling a decision the user made on purpose.
+ */
+const DISMISSED_STARTERS_KEY = "dismissedStarterNames";
+
+async function dismissedStarterNames(): Promise<Set<string>> {
+  const row = await db.settings.get(DISMISSED_STARTERS_KEY);
+  return new Set(Array.isArray(row?.value) ? (row.value as string[]) : []);
+}
+
 export async function fireAgent(agentId: string): Promise<boolean> {
+  const agent = await db.agents.get(agentId);
   const removed = await deleteAgent(agentId);
   if (removed) {
     await db.members.delete(memberIdForAgent(agentId));
+    if (agent && AGENT_TEMPLATES.some((t) => t.name === agent.name)) {
+      const dismissed = await dismissedStarterNames();
+      dismissed.add(agent.name);
+      await db.settings.put({
+        key: DISMISSED_STARTERS_KEY,
+        value: [...dismissed],
+        updatedAt: new Date(),
+      });
+    }
   }
   return removed;
 }
