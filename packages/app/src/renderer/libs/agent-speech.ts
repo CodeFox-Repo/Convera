@@ -80,9 +80,18 @@ export function installAgentSpeech(): void {
             ? (await db.messages.get(replyToMessageId))?.senderId
             : undefined,
           defaultAgentMemberId: null,
-          openFloor: false,
+          // A colleague asking the room a question is asking the room. This
+          // was closed when the hop ceiling was 3 and an open floor burned the
+          // whole budget on one line; now the cap is generous and merely being
+          // offered no longer books a slot, so a question posted by an agent
+          // reaches the room exactly as a person's does. Without it "大家怎么样"
+          // from an agent invited nobody and sat there unanswered, while the
+          // same sentence from a person filled the room.
+          openFloor: channel.kind === "channel",
           chain: agentHost.chain,
         });
+        const mentionedAnyone =
+          parseMentions(content, members).length > 0 || !!replyToMessageId;
         if (routed.invoke.length > 0) {
           const targets = routed.invoke.flatMap((memberId) => {
             const member = members.find(
@@ -97,11 +106,31 @@ export function installAgentSpeech(): void {
             channelKind: channel.kind,
             conversationId: channel.conversationId,
             triggerMessageId: messageId,
+            // The room being posted into, not the room the speaker was
+            // standing in. These used to be the speaker's own frozen context,
+            // which is right only while it talks where it was called: an agent
+            // asked in a DM to raise something in #general handed the readers
+            // a DM's message ids, and every one of their turns died on
+            // "The frozen Agent Host context is not valid for this channel."
             contextMessageIds: [
-              ...agentHost.contextMessageIds.slice(-499),
+              ...(
+                await db.messages
+                  .where("conversationId")
+                  .equals(channel.conversationId)
+                  .toArray()
+              )
+                .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+                .map((row) => row.id)
+                .filter((id) => id !== messageId)
+                .slice(-499),
               messageId,
             ],
-            mode: "direct",
+            // Matches how the message was routed. A named colleague was asked
+            // and a reply is expected of them; an open question was offered to
+            // the room, where saying nothing is a complete answer. Reporting
+            // an open floor as `direct` also armed the unheard-reply retry,
+            // which re-asks a colleague who had quietly and correctly passed.
+            mode: mentionedAnyone ? "direct" : "open-floor",
             offeredAgentMemberIds: routed.invoke,
             targets,
             chain: routed.chain,

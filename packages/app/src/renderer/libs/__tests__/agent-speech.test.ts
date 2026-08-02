@@ -176,6 +176,126 @@ describe("agent speech", () => {
     );
   });
 
+  it("opens the floor when a colleague asks the room, not one person", async () => {
+    // "大家怎么样" from an agent used to invite nobody — agent speech was
+    // hardcoded closed-floor — so a colleague's open question sat unanswered
+    // while the identical sentence from a person filled the room.
+    const patchMemberId = memberIdForAgent("a-patch");
+    const { channelId, conversationId } = await seedRoom();
+    await db.members.put({
+      id: patchMemberId,
+      workspaceId: "personal",
+      kind: "agent",
+      name: "Mika",
+      avatar: null,
+      agentId: "a-patch",
+      status: "idle",
+    });
+    const channel = await db.channels.get(channelId);
+    await db.channels.update(channelId, {
+      memberIds: [...channel!.memberIds, patchMemberId],
+    });
+    await db.messages.add({
+      id: "human-trigger",
+      conversationId,
+      role: "user",
+      content: "morning",
+      senderId: LOCAL_HUMAN_MEMBER_ID,
+      createdAt: new Date(1),
+    });
+    const enqueue = vi.fn(async () => ({ success: true, jobs: [] }));
+    Object.assign(globalThis, {
+      window: { agentHost: { enqueue } as unknown as IAgentHostAPI },
+    });
+
+    await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "大家现在都在忙什么？",
+      agentHost: {
+        jobId: "job-sage",
+        triggerMessageId: "human-trigger",
+        contextMessageIds: ["human-trigger"],
+        chain: { hops: 0, invoked: [] },
+      },
+    });
+
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "open-floor",
+        offeredAgentMemberIds: [patchMemberId],
+      }),
+    );
+  });
+
+  it("hands readers the room being posted into, not the one the speaker was in", async () => {
+    // Asked in a DM to raise something in #general, the speaker used to pass
+    // on its own frozen DM context. Every reader's turn then died on "The
+    // frozen Agent Host context is not valid for this channel" — the room went
+    // quiet and nothing surfaced why.
+    const patchMemberId = memberIdForAgent("a-patch");
+    const { channelId, conversationId } = await seedRoom();
+    await db.members.put({
+      id: patchMemberId,
+      workspaceId: "personal",
+      kind: "agent",
+      name: "Mika",
+      avatar: null,
+      agentId: "a-patch",
+      status: "idle",
+    });
+    const channel = await db.channels.get(channelId);
+    await db.channels.update(channelId, {
+      memberIds: [...channel!.memberIds, patchMemberId],
+    });
+    await db.messages.add({
+      id: "room-history",
+      conversationId,
+      role: "user",
+      content: "earlier in this room",
+      senderId: LOCAL_HUMAN_MEMBER_ID,
+      createdAt: new Date(1),
+    });
+    // What the speaker was looking at: a message in a different conversation.
+    await db.messages.add({
+      id: "dm-only",
+      conversationId: "conversation:dm:elsewhere",
+      role: "user",
+      content: "go ask the room",
+      senderId: LOCAL_HUMAN_MEMBER_ID,
+      createdAt: new Date(2),
+    });
+    const enqueue = vi.fn(async () => ({ success: true, jobs: [] }));
+    Object.assign(globalThis, {
+      window: { agentHost: { enqueue } as unknown as IAgentHostAPI },
+    });
+
+    await resolveWorkspaceQuery({
+      kind: "send_message",
+      viewerMemberId: sageMemberId,
+      channelId,
+      content: "大家现在都在忙什么？",
+      agentHost: {
+        jobId: "job-sage",
+        triggerMessageId: "dm-only",
+        contextMessageIds: ["dm-only"],
+        chain: { hops: 1, invoked: [sageMemberId] },
+      },
+    });
+
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextMessageIds: expect.arrayContaining(["room-history"]),
+      }),
+    );
+    expect(enqueue).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextMessageIds: expect.arrayContaining(["dm-only"]),
+      }),
+    );
+  });
+
   it("leaves no trace when the agent says nothing", async () => {
     // The whole point: silence is the absence of a call, not an empty bubble
     // that has to be cleaned up afterwards.
