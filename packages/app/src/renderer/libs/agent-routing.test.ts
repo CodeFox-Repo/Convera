@@ -1,10 +1,6 @@
 import type { Member } from "@/shared/types/workspace";
 import { describe, expect, it } from "vitest";
-import {
-  MAX_CHAIN_HOPS,
-  routeMessage,
-  type ChainState,
-} from "./agent-routing";
+import { MAX_CHAIN_HOPS, routeMessage, type ChainState } from "./agent-routing";
 
 function member(id: string, name: string, kind: Member["kind"]): Member {
   return {
@@ -203,7 +199,11 @@ describe("routeMessage", () => {
     });
     expect(opening.invoke).toEqual([fizz.id, honey.id, bean.id]);
 
-    const handoff = fromAgent(fizz.id, "@Honey can you build it", opening.chain);
+    const handoff = fromAgent(
+      fizz.id,
+      "@Honey can you build it",
+      opening.chain,
+    );
     expect(handoff.invoke).toEqual([honey.id]);
     expect(handoff.limitReached).toBe(false);
   });

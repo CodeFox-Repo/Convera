@@ -34,12 +34,7 @@ import type {
   Tag,
   TagPermission,
 } from "@/shared/types/workspace";
-import {
-  db,
-  LOCAL_HUMAN_MEMBER_ID,
-  toggleReaction,
-  type Message,
-} from "./db";
+import { db, LOCAL_HUMAN_MEMBER_ID, toggleReaction, type Message } from "./db";
 import { ensurePeerDM } from "./agent-dm";
 import { groupRepliesByParent } from "./utils/reply-threads";
 

