@@ -1,5 +1,10 @@
 import type { AgentSandbox } from "@/shared/types/workspace";
 import type { LocalAIChatRequest } from "@/shared/types/local-ai";
+import type {
+  PiModel,
+  PiStreamOptions,
+  PiThinkingLevel,
+} from "./pi-agent-types";
 import type { LanguageModel, ProviderMetadata, ToolSet } from "ai";
 import type {
   AgentTool,
@@ -17,7 +22,8 @@ export function resolveLocalModelId(
   return requested && requested !== "default" ? requested : defaultModelId;
 }
 
-export interface LocalAiProviderRun {
+export interface LocalAiAiSdkProviderRun {
+  executionEngine?: "ai-sdk";
   model: LanguageModel;
   providerOptions?: Record<string, Record<string, unknown>>;
   /**
@@ -27,6 +33,26 @@ export interface LocalAiProviderRun {
    */
   tools?: ToolSet;
   getNativeSessionId(metadata: ProviderMetadata | undefined): string;
+}
+
+export interface LocalAiPiProviderRun {
+  executionEngine: "pi-agent-core";
+  model: PiModel;
+  apiKey: string;
+  fetch?: PiStreamOptions["fetch"];
+  reasoning?: PiThinkingLevel;
+  onPayload?: PiStreamOptions["onPayload"];
+  providerOptions?: undefined;
+  tools?: undefined;
+  getNativeSessionId(metadata: ProviderMetadata | undefined): string;
+}
+
+export type LocalAiProviderRun = LocalAiAiSdkProviderRun | LocalAiPiProviderRun;
+
+export function isPiProviderRun(
+  run: LocalAiProviderRun,
+): run is LocalAiPiProviderRun {
+  return run.executionEngine === "pi-agent-core";
 }
 
 /**
@@ -58,6 +84,15 @@ export interface LocalAiProviderAdapter {
    * thing standing between the model and the rest of the disk.
    */
   readonly enforcesSandbox: boolean;
+  /**
+   * Whether a persisted provider binding owns enough conversation history for
+   * the next append to send only its newest message. Stateless HTTP providers
+   * set this to false so the runtime replays the bounded recovery transcript.
+   *
+   * Optional so native-session adapters keep their existing behaviour; absent
+   * reads as true.
+   */
+  readonly resumesNativeSession?: boolean;
   /**
    * True when the provider already gives the model file and shell access of its
    * own (both CLI adapters do). False means the runtime must supply the basic

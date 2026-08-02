@@ -445,7 +445,18 @@ export function withAgentHostTools(
   getHost: () => AgentHost | undefined,
 ): LocalAiTurnHooks {
   return {
-    ...hooks,
+    prepareDurableTurnHook: hooks.prepareDurableTurnHook
+      ? (input) => hooks.prepareDurableTurnHook!(input)
+      : undefined,
+    replayDurableTurnHook: hooks.replayDurableTurnHook
+      ? (hook) => hooks.replayDurableTurnHook!(hook)
+      : undefined,
+    onTurnCompleted: hooks.onTurnCompleted
+      ? (input) => hooks.onTurnCompleted!(input)
+      : undefined,
+    onTurnFailed: hooks.onTurnFailed
+      ? (input) => hooks.onTurnFailed!(input)
+      : undefined,
     prepareTurnContext: async (
       input,
     ): Promise<PreparedLocalAiTurnContext | undefined> => {

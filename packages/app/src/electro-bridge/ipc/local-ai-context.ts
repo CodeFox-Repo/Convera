@@ -16,6 +16,7 @@ import type {
   LocalAITurnRuntimeStateRequest,
 } from "@/shared/types/local-ai";
 import { isLocalAIMemoryProvider } from "@/shared/types/local-ai";
+import { isLocalAiProviderId } from "@/electron/ai/types";
 import { createLocalAIAPI, LOCAL_AI_CHANNELS } from "./local-ai-api";
 import {
   contextBridge,
@@ -53,12 +54,6 @@ interface ActiveConversationLease {
 }
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
-const ALLOWED_PROVIDER_IDS = new Set([
-  "claude-code",
-  "codex-cli",
-  "openai-api",
-  "fireworks-api",
-]);
 const MAX_MESSAGE_CHARS = 200_000;
 const MAX_REQUEST_CHARS = 1_000_000;
 const MAX_INTERACTION_RESPONSE_CHARS = 20_000;
@@ -214,7 +209,7 @@ function validateRequest(request: unknown): request is LocalAIChatRequest {
     !isValidIdentifier(request.conversationId) ||
     !isValidIdentifier(request.turnId) ||
     typeof request.providerId !== "string" ||
-    !ALLOWED_PROVIDER_IDS.has(request.providerId) ||
+    !isLocalAiProviderId(request.providerId) ||
     !isRecord(request.operation)
   ) {
     return false;
@@ -387,7 +382,7 @@ function validateResetRequest(
     isRecord(request) &&
     isValidIdentifier(request.conversationId) &&
     typeof request.providerId === "string" &&
-    ALLOWED_PROVIDER_IDS.has(request.providerId)
+    isLocalAiProviderId(request.providerId)
   );
 }
 
@@ -411,9 +406,9 @@ function validateMemorySettingsUpdate(
         isLocalAIMemoryProvider(update.provider))) &&
     (update.subconsciousProvider === undefined ||
       update.subconsciousProvider === "off" ||
-      update.subconsciousProvider === "codex-cli" ||
-      update.subconsciousProvider === "claude-code" ||
-      update.subconsciousProvider === "follow-active") &&
+      update.subconsciousProvider === "follow-active" ||
+      (typeof update.subconsciousProvider === "string" &&
+        isLocalAiProviderId(update.subconsciousProvider))) &&
     (update.schedule === undefined ||
       update.schedule === "every-turn" ||
       update.schedule === "batch" ||
@@ -622,10 +617,7 @@ export function setupLocalAIIPC(
         );
       }
       if (!options.runtime) return failure(runtimeUnavailable());
-      if (
-        typeof providerId !== "string" ||
-        !ALLOWED_PROVIDER_IDS.has(providerId)
-      ) {
+      if (typeof providerId !== "string" || !isLocalAiProviderId(providerId)) {
         return failure(
           createError("Invalid provider id", "LOCAL_AI_INVALID_REQUEST"),
         );

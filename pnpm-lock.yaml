@@ -29,6 +29,12 @@ importers:
       '@anthropic-ai/sandbox-runtime':
         specifier: ^0.0.67
         version: 0.0.67
+      '@earendil-works/pi-agent-core':
+        specifier: 0.83.0
+        version: 0.83.0(@modelcontextprotocol/sdk@1.13.0)(bufferutil@4.0.9)(utf-8-validate@6.0.5)(ws@8.18.2)(zod@3.25.76)
+      '@earendil-works/pi-ai':
+        specifier: 0.83.0
+        version: 0.83.0(@modelcontextprotocol/sdk@1.13.0)(bufferutil@4.0.9)(utf-8-validate@6.0.5)(ws@8.18.2)(zod@3.25.76)
       '@earendil-works/pi-coding-agent':
         specifier: ^0.83.0
         version: 0.83.0(@modelcontextprotocol/sdk@1.13.0)(bufferutil@4.0.9)(utf-8-validate@6.0.5)(ws@8.18.2)(zod@3.25.76)
@@ -326,13 +332,13 @@ importers:
         version: 8.18.1
       '@wdio/electron-service':
         specifier: 10.1.0
-        version: 10.1.0(bufferutil@4.0.9)(electron@34.5.8)(expect-webdriverio@5.7.0)(tsx@4.23.1)(utf-8-validate@6.0.5)(webdriverio@9.27.1)
+        version: 10.1.0(bufferutil@4.0.9)(electron@36.9.5)(expect-webdriverio@5.7.0)(tsx@4.23.1)(utf-8-validate@6.0.5)(webdriverio@9.27.1)
       '@wdio/native-utils':
         specifier: 2.5.0
         version: 2.5.0(tsx@4.23.1)
       electron:
-        specifier: 34.5.8
-        version: 34.5.8
+        specifier: 36.9.5
+        version: 36.9.5
       electron-devtools-installer:
         specifier: ^4.0.0
         version: 4.0.0
@@ -8795,7 +8801,7 @@ packages:
       - utf-8-validate
     dev: true
 
-  /@wdio/electron-service@10.1.0(bufferutil@4.0.9)(electron@34.5.8)(expect-webdriverio@5.7.0)(tsx@4.23.1)(utf-8-validate@6.0.5)(webdriverio@9.27.1):
+  /@wdio/electron-service@10.1.0(bufferutil@4.0.9)(electron@36.9.5)(expect-webdriverio@5.7.0)(tsx@4.23.1)(utf-8-validate@6.0.5)(webdriverio@9.27.1):
     resolution: {integrity: sha512-OwPwVlYoNUEmGPDPBlkJGdv/pKOvruYEC5G3pyWSsAPnjKrW49/IVOBoM/a3UF8LKb2zsA+95ezJ517hTPk7dA==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
@@ -8817,7 +8823,7 @@ packages:
       compare-versions: 6.1.1
       debug: 4.4.3
       deepmerge-ts: 7.1.5
-      electron: 34.5.8
+      electron: 36.9.5
       electron-to-chromium: 1.5.398
       fast-copy: 4.0.4
       find-versions: 6.0.0
@@ -11193,14 +11199,14 @@ packages:
     dev: true
     optional: true
 
-  /electron@34.5.8:
-    resolution: {integrity: sha512-vxLD65mabTzYmEVa9KceMHM0+zO+vqgrhcyNVlmTd0IGV5J7XZ8v/qElm0o4YQ4wPeq7olZkUjZkBQQEdr23/g==}
+  /electron@36.9.5:
+    resolution: {integrity: sha512-1UCss2IqxqujSzg/2jkRjuiT3G+EEXgd6UKB5kUekwQW1LJ6d4QCr8YItfC3Rr9VIGRDJ29eOERmnRNO1Eh+NA==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
     requiresBuild: true
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 20.17.48
+      '@types/node': 22.16.0
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color

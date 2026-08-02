@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { InMemorySessionStateRepository } from "../ai/session/repository";
+import { LOCAL_AI_PROVIDER_IDS } from "../ai/types";
+import { memoryCuratorConversationId } from "../ai/subscription-memory-curator";
 import {
   createElectronMemoryIntegration,
   forgetMemoryCuratorSessions,
@@ -46,23 +48,27 @@ describe("Electron memory integration", () => {
     });
   });
 
-  it("forgets both provider-native curator sessions for a memory scope", async () => {
+  it("forgets every registered provider's curator session for a memory scope", async () => {
     const sessions = new InMemorySessionStateRepository();
     const scope = { kind: "conversation" as const, id: "conversation-1" };
-    const codexId = "memory-curator:conversation:conversation-1:codex-cli";
-    const claudeId = "memory-curator:conversation:conversation-1:claude-code";
-    await sessions.setConversationMemoryState(codexId, {
-      memoryVersion: 3,
-      memoryEpoch: 1,
-    });
-    await sessions.setConversationMemoryState(claudeId, {
-      memoryVersion: 4,
-      memoryEpoch: 2,
-    });
+    const curatorIds = LOCAL_AI_PROVIDER_IDS.map((providerId) =>
+      memoryCuratorConversationId(scope, providerId),
+    );
+    await Promise.all(
+      curatorIds.map((conversationId, index) =>
+        sessions.setConversationMemoryState(conversationId, {
+          memoryVersion: index + 1,
+          memoryEpoch: index,
+        }),
+      ),
+    );
 
     await forgetMemoryCuratorSessions(sessions, scope);
 
-    expect(await sessions.getConversation(codexId)).toBeUndefined();
-    expect(await sessions.getConversation(claudeId)).toBeUndefined();
+    await Promise.all(
+      curatorIds.map(async (conversationId) => {
+        expect(await sessions.getConversation(conversationId)).toBeUndefined();
+      }),
+    );
   });
 });

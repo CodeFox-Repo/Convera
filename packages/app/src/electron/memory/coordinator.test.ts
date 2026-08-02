@@ -316,6 +316,35 @@ describe("MemoryIntegrationCoordinator", () => {
     ).toEqual([]);
   });
 
+  it("follows the registered provider from the latest completed turn", async () => {
+    const curate = vi.fn(async () => ({
+      action: "noop" as const,
+      reason: "No durable change.",
+    }));
+    const create = vi.fn(async () => ({ curate }));
+    const { coordinator, settings } = setup({
+      curatorFactory: { create },
+    });
+    await settings.update({
+      provider: "local",
+      curator: "follow-active",
+      schedule: "every-turn",
+    });
+    const prepared = await prepare(coordinator, "turn-openai");
+
+    await coordinator.completeTurn({
+      token: prepared.contextToken!,
+      turnId: "turn-openai",
+      providerId: "openai-api",
+      userContent: "Remember that the curator follows this provider.",
+      assistantContent: "Okay.",
+    });
+    await coordinator.flushSubconscious();
+
+    expect(create).toHaveBeenCalledWith("openai-api");
+    expect(curate).toHaveBeenCalledOnce();
+  });
+
   it("uses the durable terminal time when replaying completion curation", async () => {
     const { coordinator, jobs, settings } = setup();
     await settings.update({

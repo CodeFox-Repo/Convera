@@ -55,6 +55,19 @@ describe("MemorySettingsRepository", () => {
     expect(repository.getSourceId()).toBe(sourceId);
   });
 
+  it.each(["openai-api", "fireworks-api"] as const)(
+    "persists the registered %s provider as a curator",
+    async (curator) => {
+      const persistence = new InMemoryMemorySettingsPersistence();
+      const repository = new MemorySettingsRepository(persistence);
+
+      await expect(repository.update({ curator })).resolves.toMatchObject({
+        curator,
+      });
+      await expect(persistence.read()).resolves.toMatchObject({ curator });
+    },
+  );
+
   it("ignores omitted IPC fields represented as explicit undefined", async () => {
     const repository = new MemorySettingsRepository(
       new InMemoryMemorySettingsPersistence(),

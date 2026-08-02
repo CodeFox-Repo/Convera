@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import type { AgentTool } from "../ai/agent-tools";
 import { z, type ZodRawShape, type ZodTypeAny } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { errorMessage, MemoryError } from "./errors";
 import {
   MEMORY_SCOPE_KINDS,
@@ -501,6 +502,13 @@ const MEMORY_AGENT_TOOL_DEFINITIONS: MemoryAgentToolDefinition[] = [
   },
 ];
 
+function agentInputSchema(schema: ZodTypeAny): Record<string, unknown> {
+  return zodToJsonSchema(schema, {
+    $refStrategy: "none",
+    target: "jsonSchema7",
+  }) as Record<string, unknown>;
+}
+
 type ExecutableTool = {
   execute?: (
     input: Record<string, unknown>,
@@ -527,11 +535,7 @@ export function createMemoryAgentTools(
       name: definition.name,
       qualifiedName: definition.qualifiedName,
       description: definition.description,
-      inputSchema: {
-        type: "object",
-        description:
-          "Validated by the provider-native Zod schema exposed on inputValidator.",
-      },
+      inputSchema: agentInputSchema(definition.inputValidator),
       inputShape: definition.inputShape,
       inputValidator: definition.inputValidator,
       execute: async (input: Record<string, unknown>) =>

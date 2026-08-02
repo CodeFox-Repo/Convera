@@ -21,7 +21,7 @@ import type {
   DurableTurnHookRecord,
   ProviderMemoryCursors,
 } from "../ai/session/types";
-import type { LocalAiProviderId } from "../ai/types";
+import { isLocalAiProviderId, type LocalAiProviderId } from "../ai/types";
 import type { MemoryCandidateRepository } from "./candidate-sink";
 import type {
   MemoryIndexRepository,
@@ -133,7 +133,7 @@ const DEFAULT_CONTEXT_BUDGET = {
 };
 
 function providerId(value: string): LocalAiProviderId | undefined {
-  return value === "codex-cli" || value === "claude-code" ? value : undefined;
+  return isLocalAiProviderId(value) ? value : undefined;
 }
 
 function publicSettings(settings: PublicMemorySettings): LocalAIMemorySettings {
@@ -296,7 +296,7 @@ export class MemoryIntegrationCoordinator
         : providerId(settings.curator);
     if (!selected) {
       throw new Error(
-        "Subconscious memory curation is disabled or has no valid subscription provider.",
+        "Background memory curation is disabled or has no registered provider.",
       );
     }
     const existing = this.curators.get(selected);

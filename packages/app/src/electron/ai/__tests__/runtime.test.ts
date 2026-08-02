@@ -11,6 +11,7 @@ import {
   type LocalAiProviderAdapter,
 } from "../provider-adapter";
 import { LOCAL_AI_PROVIDER_DESCRIPTORS } from "../provider-descriptors";
+import type { PiModel } from "../pi-agent-types";
 import {
   describeSandboxMemory,
   fingerprintAgentContext,
@@ -399,6 +400,129 @@ describe("LocalAiRuntime", () => {
         })
       )?.assistantText,
     ).toBeUndefined();
+  });
+
+  it("routes stateless Pi runs through Pi and replays bounded history", async () => {
+    const piModel: PiModel = {
+      id: "gpt-test",
+      name: "GPT Test",
+      api: "openai-responses",
+      provider: "openai",
+      baseUrl: "https://example.test/v1",
+      reasoning: true,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 100_000,
+      maxTokens: 10_000,
+    };
+    const adapter: LocalAiProviderAdapter = {
+      id: "openai-api",
+      enforcesSandbox: false,
+      resumesNativeSession: false,
+      getStatus: vi.fn(async () => ({
+        ...LOCAL_AI_PROVIDER_DESCRIPTORS["openai-api"],
+        available: true,
+        authenticated: true,
+        checkedAt: new Date().toISOString(),
+      })),
+      prepareRun: vi.fn(async () => ({
+        executionEngine: "pi-agent-core" as const,
+        model: piModel,
+        apiKey: "test-key",
+        getNativeSessionId: () => "pi-session",
+      })),
+      dispose: vi.fn(async () => undefined),
+    };
+    const streamInvoker = vi.fn<RuntimeStreamInvoker>(() => {
+      throw new Error("AI SDK stream must not run for a Pi provider.");
+    });
+    const piStreamFactory = vi.fn(() => ({
+      toUIMessageStream: async function* () {
+        yield { type: "text-start" as const, id: "pi-text" };
+        yield {
+          type: "text-delta" as const,
+          id: "pi-text",
+          delta: "Pi",
+        };
+        yield { type: "text-end" as const, id: "pi-text" };
+        yield { type: "finish" as const, finishReason: "stop" as const };
+      },
+      finishReason: Promise.resolve("stop" as const),
+      usage: Promise.resolve({
+        inputTokens: 2,
+        outputTokens: 1,
+        totalTokens: 3,
+      }),
+    }));
+    const events: LocalAIStreamEvent[] = [];
+    const runtime = new LocalAiRuntime({
+      adapters: [adapter],
+      streamInvoker,
+      piStreamFactory,
+      sessionRepository: new InMemorySessionStateRepository(),
+    });
+
+    await runtime.startChat(
+      request({
+        providerId: "openai-api",
+        agent: { systemPrompt: "system" },
+      }),
+      (event) => events.push(event),
+    );
+    await runtime.startChat(
+      request({
+        requestId: "request-2",
+        turnId: "turn-2",
+        providerId: "openai-api",
+        operation: {
+          kind: "append",
+          message: { role: "user", content: "follow up" },
+          recoveryMessages: [
+            { role: "user", content: "hello" },
+            { role: "assistant", content: "Pi" },
+            { role: "user", content: "follow up" },
+          ],
+        },
+        agent: { systemPrompt: "system" },
+      }),
+      (event) => events.push(event),
+    );
+
+    expect(streamInvoker).not.toHaveBeenCalled();
+    expect(piStreamFactory).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        requestId: "request-1",
+        run: expect.objectContaining({
+          executionEngine: "pi-agent-core",
+          model: piModel,
+        }),
+        messages: [
+          { role: "system", content: "system" },
+          { role: "user", content: "hello" },
+        ],
+      }),
+    );
+    expect(piStreamFactory).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        requestId: "request-2",
+        messages: [
+          { role: "system", content: "system" },
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "Pi" },
+          { role: "user", content: "follow up" },
+        ],
+      }),
+    );
+    expect(
+      vi.mocked(adapter.prepareRun).mock.calls[1]?.[2].session,
+    ).toMatchObject({ nativeSessionId: "pi-session" });
+    expect(events.at(-1)).toMatchObject({
+      type: "finish",
+      finishReason: "stop",
+      usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 },
+    });
   });
 
   it("enforces text-only policy before provider tool preparation", async () => {

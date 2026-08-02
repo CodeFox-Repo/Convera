@@ -51,6 +51,32 @@ function input(
 }
 
 describe("Agent Host task tools", () => {
+  it("preserves lifecycle hooks while adding task tools", async () => {
+    const prepareDurableTurnHook = vi.fn(() => undefined);
+    const replayDurableTurnHook = vi.fn(() => undefined);
+    const onTurnCompleted = vi.fn(() => undefined);
+    const onTurnFailed = vi.fn(() => undefined);
+    const hooks = withAgentHostTools(
+      {
+        prepareDurableTurnHook,
+        replayDurableTurnHook,
+        onTurnCompleted,
+        onTurnFailed,
+      },
+      () => undefined,
+    );
+
+    await hooks.prepareDurableTurnHook?.(undefined as never);
+    await hooks.replayDurableTurnHook?.(undefined as never);
+    await hooks.onTurnCompleted?.(undefined as never);
+    await hooks.onTurnFailed?.(undefined as never);
+
+    expect(prepareDurableTurnHook).toHaveBeenCalledOnce();
+    expect(replayDurableTurnHook).toHaveBeenCalledOnce();
+    expect(onTurnCompleted).toHaveBeenCalledOnce();
+    expect(onTurnFailed).toHaveBeenCalledOnce();
+  });
+
   it("injects one task tool wherever the agent is standing", async () => {
     const host = {
       listTasks: vi.fn(async () => [task]),
