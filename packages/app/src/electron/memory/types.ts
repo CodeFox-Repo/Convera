@@ -49,6 +49,8 @@ export interface MemoryBlock {
   value: string;
   description?: string;
   limit?: number;
+  /** Agents and the subconscious curator may read but not mutate this block. */
+  readOnly: boolean;
   version: number;
   provenance: MemoryProvenance;
   updatedAt: string;
@@ -94,6 +96,8 @@ export type MemoryPatchOperation =
       value: string;
       description?: string;
       limit?: number;
+      /** May only be set or changed by an explicit user/system patch. */
+      readOnly?: boolean;
     }
   | {
       type: "insert_passage";
@@ -133,6 +137,7 @@ const memoryPatchOperationSchema = z.discriminatedUnion("type", [
     value: z.string().max(100_000),
     description: z.string().trim().min(1).max(2_000).optional(),
     limit: z.number().int().min(1).max(100_000).optional(),
+    readOnly: z.boolean().optional(),
   }),
   z.object({
     type: z.literal("insert_passage"),

@@ -7,6 +7,7 @@ export class MemoryError extends Error {
       | "OFFLINE"
       | "VALIDATION"
       | "APPROVAL_REQUIRED"
+      | "READ_ONLY"
       | "NOT_FOUND",
     readonly retryable: boolean,
     options?: ErrorOptions,

@@ -7,6 +7,7 @@ import type {
   LocalAIMessage,
   LocalAIProviderStatus,
   LocalAIResetProviderSessionRequest,
+  LocalAISetMemoryBlockReadOnlyRequest,
   LocalAIResult,
   LocalAIRuntimeService,
   LocalAISerializableError,
@@ -85,6 +86,17 @@ function isValidIdentifier(value: unknown): value is string {
     typeof value === "string" &&
     value.length > 0 &&
     REQUEST_ID_PATTERN.test(value)
+  );
+}
+
+function validateSetMemoryBlockReadOnlyRequest(
+  value: unknown,
+): value is LocalAISetMemoryBlockReadOnlyRequest {
+  return (
+    isRecord(value) &&
+    isValidIdentifier(value.conversationId) &&
+    isValidIdentifier(value.label) &&
+    typeof value.readOnly === "boolean"
   );
 }
 
@@ -1165,6 +1177,65 @@ export function setupLocalAIIPC(
         return {
           success: true,
           data: await options.runtime.getMemoryStatus(conversationId),
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
+    LOCAL_AI_CHANNELS.GET_CONVERSATION_MEMORY_STATE,
+    async (event, conversationId?: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime?.getConversationMemoryState) {
+        return failure(runtimeUnavailable());
+      }
+      if (!isValidIdentifier(conversationId)) {
+        return failure(
+          createError("Invalid conversation id", "LOCAL_AI_INVALID_REQUEST"),
+        );
+      }
+      try {
+        return {
+          success: true,
+          data: await options.runtime.getConversationMemoryState(
+            conversationId,
+          ),
+        };
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  mainIPC.handle(
+    LOCAL_AI_CHANNELS.SET_MEMORY_BLOCK_READ_ONLY,
+    async (event, request?: unknown) => {
+      if (!ensureSender(event)) {
+        return failure(
+          createError("IPC sender is not allowed", "LOCAL_AI_FORBIDDEN"),
+        );
+      }
+      if (!options.runtime?.setMemoryBlockReadOnly) {
+        return failure(runtimeUnavailable());
+      }
+      if (!validateSetMemoryBlockReadOnlyRequest(request)) {
+        return failure(
+          createError(
+            "Invalid memory block read-only request",
+            "LOCAL_AI_INVALID_REQUEST",
+          ),
+        );
+      }
+      try {
+        return {
+          success: true,
+          data: await options.runtime.setMemoryBlockReadOnly(request),
         };
       } catch (error) {
         return failure(error);

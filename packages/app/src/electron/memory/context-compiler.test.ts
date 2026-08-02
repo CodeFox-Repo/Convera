@@ -14,6 +14,7 @@ function snapshot(overrides: Partial<MemorySnapshot> = {}): MemorySnapshot {
         scope: { kind: "conversation", id: "conversation-1" },
         label: "current_goal",
         value: "Implement local memory.",
+        readOnly: false,
         version: 2,
         provenance: {
           actor: "subconscious",
@@ -54,6 +55,19 @@ describe("MemoryContextCompiler", () => {
     expect(result.context).toContain("<checkpoint>");
     expect(result.context).toContain('label="current_goal"');
     expect(result.requiresNewSession).toBe(false);
+  });
+
+  it("marks read-only blocks in provider context", () => {
+    const protectedSnapshot = snapshot();
+    protectedSnapshot.blocks[0]!.readOnly = true;
+
+    const result = new MemoryContextCompiler().compile({
+      snapshots: [protectedSnapshot],
+      session: { isNew: true, seen: {} },
+      budget,
+    });
+
+    expect(result.context).toContain('read_only="true"');
   });
 
   it("returns no context when the native session has seen the version", () => {

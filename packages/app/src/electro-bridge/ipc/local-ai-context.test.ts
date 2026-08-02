@@ -129,6 +129,20 @@ function createRuntime(
       pendingJobs: 0,
       failedJobs: 0,
     })),
+    getConversationMemoryState: vi.fn((conversationId: string) => ({
+      conversationId,
+      version: 1,
+      epoch: 0,
+      blocks: [{ label: "policy", readOnly: false, version: 1 }],
+    })),
+    setMemoryBlockReadOnly: vi.fn((request) => ({
+      conversationId: request.conversationId,
+      version: 2,
+      epoch: 0,
+      blocks: [
+        { label: request.label, readOnly: request.readOnly, version: 2 },
+      ],
+    })),
     ...overrides,
   };
 }
@@ -887,6 +901,62 @@ describe("local AI IPC", () => {
       error: { code: "LOCAL_AI_INVALID_REQUEST" },
     });
     expect(runtime.updateMemorySettings).toHaveBeenCalledOnce();
+  });
+
+  it("validates read-only block changes before they reach memory storage", async () => {
+    const sender = new FakeWebContents(1);
+    const runtime = createRuntime();
+    const { handlers, ipc } = createMainIPC();
+    setupLocalAIIPC(
+      {
+        runtime,
+        getAllowedWebContents: () => sender as never,
+      },
+      ipc as never,
+    );
+
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.GET_CONVERSATION_MEMORY_STATE)?.(
+        createEvent(sender),
+        "conversation-1",
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { blocks: [{ label: "policy", readOnly: false }] },
+    });
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.SET_MEMORY_BLOCK_READ_ONLY)?.(
+        createEvent(sender),
+        {
+          conversationId: "conversation-1",
+          label: "policy",
+          readOnly: true,
+        },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      data: { blocks: [{ label: "policy", readOnly: true }] },
+    });
+    expect(runtime.setMemoryBlockReadOnly).toHaveBeenCalledWith({
+      conversationId: "conversation-1",
+      label: "policy",
+      readOnly: true,
+    });
+
+    await expect(
+      handlers.get(LOCAL_AI_CHANNELS.SET_MEMORY_BLOCK_READ_ONLY)?.(
+        createEvent(sender),
+        {
+          conversationId: "conversation-1",
+          label: "invalid label",
+          readOnly: true,
+        },
+      ),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "LOCAL_AI_INVALID_REQUEST" },
+    });
+    expect(runtime.setMemoryBlockReadOnly).toHaveBeenCalledOnce();
   });
 
   it("accepts local and paused memory providers", async () => {

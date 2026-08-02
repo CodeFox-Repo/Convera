@@ -1,10 +1,12 @@
 import type {
   LocalAIBranchConversationRequest,
   LocalAIChatRequest,
+  LocalAIConversationMemoryState,
   LocalAIDeleteConversationRequest,
   LocalAIMemorySettings,
   LocalAIMemorySettingsUpdate,
   LocalAIMemoryStatus,
+  LocalAISetMemoryBlockReadOnlyRequest,
 } from "@/shared/types/local-ai";
 import type {
   LocalAiCompletedTurn,
@@ -41,6 +43,7 @@ import { SerialTaskQueue } from "./serial-queue";
 import { createMemoryAgentTools } from "./tools";
 import { sameMemoryScope, type MemoryScope } from "./types";
 import type { MemoryBackend } from "./memory-backend";
+import { randomUUID } from "node:crypto";
 
 export interface SubscriptionCuratorFactory {
   create(
@@ -729,6 +732,105 @@ export class MemoryIntegrationCoordinator
           .length,
       };
     }
+  }
+
+  async getConversationMemoryState(
+    conversationId: string,
+  ): Promise<LocalAIConversationMemoryState> {
+    return this.lifecycle.run(() =>
+      this.getConversationMemoryStateUnlocked(conversationId),
+    );
+  }
+
+  private async getConversationMemoryStateUnlocked(
+    conversationId: string,
+  ): Promise<LocalAIConversationMemoryState> {
+    if ((await this.settings.get()).provider === "off") {
+      throw new MemoryError("Memory is disabled.", "CONFIGURATION", false);
+    }
+    const runtime = await this.ensureRuntimeUnlocked();
+    const snapshot = await runtime.store.getSnapshot({
+      kind: "conversation",
+      id: conversationId,
+    });
+    return {
+      conversationId,
+      version: snapshot.version,
+      epoch: snapshot.epoch,
+      blocks: snapshot.blocks.map((block) => ({
+        label: block.label,
+        readOnly: block.readOnly,
+        version: block.version,
+      })),
+    };
+  }
+
+  async setMemoryBlockReadOnly(
+    request: LocalAISetMemoryBlockReadOnlyRequest,
+  ): Promise<LocalAIConversationMemoryState> {
+    return this.lifecycle.run(async () => {
+      if ((await this.settings.get()).provider === "off") {
+        throw new MemoryError("Memory is disabled.", "CONFIGURATION", false);
+      }
+      const runtime = await this.ensureRuntimeUnlocked();
+      const scope: MemoryScope = {
+        kind: "conversation",
+        id: request.conversationId,
+      };
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const snapshot = await runtime.store.getSnapshot(scope);
+        const block = snapshot.blocks.find(
+          (candidate) => candidate.label === request.label,
+        );
+        if (!block) {
+          throw new MemoryError(
+            `Memory block ${request.label} does not exist in conversation:${request.conversationId}.`,
+            "NOT_FOUND",
+            false,
+          );
+        }
+        if (block.readOnly === request.readOnly) {
+          return this.getConversationMemoryStateUnlocked(
+            request.conversationId,
+          );
+        }
+        const turnId = `user:read-only:${randomUUID()}`;
+        const result = await runtime.store.applyPatch({
+          scope,
+          baseVersion: snapshot.version,
+          turnId,
+          provenance: {
+            actor: "user",
+            turnId,
+            timestamp: this.now().toISOString(),
+          },
+          operations: [
+            {
+              type: "upsert_block",
+              label: block.label,
+              value: block.value,
+              description: block.description,
+              limit: block.limit,
+              readOnly: request.readOnly,
+            },
+          ],
+        });
+        if (result.status === "conflict") continue;
+        if (result.status === "queued") {
+          throw new MemoryError(
+            "The read-only change is queued because the memory backend is unavailable.",
+            "OFFLINE",
+            true,
+          );
+        }
+        return this.getConversationMemoryStateUnlocked(request.conversationId);
+      }
+      throw new MemoryError(
+        "Memory changed repeatedly while updating read-only state.",
+        "CONFLICT",
+        true,
+      );
+    });
   }
 
   async branchConversation(

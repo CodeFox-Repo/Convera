@@ -52,6 +52,8 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   "local-ai:get-memory-settings",
   "local-ai:update-memory-settings",
   "local-ai:get-memory-status",
+  "local-ai:get-conversation-memory-state",
+  "local-ai:set-memory-block-read-only",
   "mcp:getServers",
   "mcp:getAllTools",
   "mcp:startServer",

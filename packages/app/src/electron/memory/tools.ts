@@ -223,7 +223,11 @@ export function createMemoryTools(options: CreateMemoryToolsOptions) {
           blocks: snapshot.blocks.map((block) =>
             format === "detailed"
               ? block
-              : { label: block.label, value: block.value },
+              : {
+                  label: block.label,
+                  value: block.value,
+                  readOnly: block.readOnly,
+                },
           ),
         };
       } catch (error) {

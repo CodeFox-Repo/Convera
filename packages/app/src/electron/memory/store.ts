@@ -86,6 +86,15 @@ function metadataString(
   return typeof value === "string" ? value : undefined;
 }
 
+function metadataBoolean(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string,
+  fallback = false,
+): boolean {
+  const value = metadata?.[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function metadataStrings(
   metadata: Record<string, unknown> | null | undefined,
   key: string,
@@ -124,12 +133,14 @@ function blockMetadata(
   scope: MemoryScope,
   version: number,
   provenance: MemoryProvenance,
+  readOnly: boolean,
 ): Record<string, unknown> {
   return {
     converaSchema: 1,
     converaScopeKind: scope.kind,
     converaScopeId: scope.id,
     converaVersion: version,
+    converaReadOnly: readOnly,
     converaActor: provenance.actor,
     converaActorId: provenance.actorId,
     converaSourceActorIds: provenance.sourceActorIds,
@@ -153,11 +164,23 @@ function memoryBlock(
     value: record.value,
     description: record.description ?? undefined,
     limit: record.limit,
+    readOnly: metadataBoolean(record.metadata, "converaReadOnly"),
     version: metadataNumber(record.metadata, "converaVersion", index.version),
     provenance: provenanceFromBlock(record, now),
     updatedAt:
       metadataString(record.metadata, "converaTimestamp") ?? toIso(now),
   };
+}
+
+function snapshotWithReadOnlyDefaults(
+  snapshot: MemorySnapshot,
+): MemorySnapshot {
+  const normalized = structuredClone(snapshot);
+  normalized.blocks = normalized.blocks.map((block) => ({
+    ...block,
+    readOnly: block.readOnly === true,
+  }));
+  return normalized;
 }
 
 function operationSummary(operations: MemoryPatchOperation[]): string {
@@ -358,8 +381,11 @@ export class LocalMemoryStore implements MemoryStore {
         return structuredClone(snapshot);
       } catch (error) {
         if (index.lastKnownGood) {
+          const lastKnownGood = snapshotWithReadOnlyDefaults(
+            index.lastKnownGood,
+          );
           return {
-            ...structuredClone(index.lastKnownGood),
+            ...lastKnownGood,
             retrievedAt: toIso(this.now),
             stale: true,
             pendingTurnIds: index.pendingWrites.map(
@@ -620,6 +646,30 @@ export class LocalMemoryStore implements MemoryStore {
       index.corrections.map((correction) => correction.originalId),
     );
     for (const operation of patch.operations) {
+      if (operation.type === "upsert_block") {
+        const existing = await this.findManagedBlock(index, operation.label);
+        const existingReadOnly = metadataBoolean(
+          existing?.metadata,
+          "converaReadOnly",
+        );
+        const privilegedActor =
+          patch.provenance.actor === "user" ||
+          patch.provenance.actor === "system";
+        if (existingReadOnly && !privilegedActor) {
+          throw new MemoryError(
+            `Memory block ${operation.label} is read-only and cannot be modified by ${patch.provenance.actor}.`,
+            "READ_ONLY",
+            false,
+          );
+        }
+        if (operation.readOnly !== undefined && !privilegedActor) {
+          throw new MemoryError(
+            `Only an explicit user or system patch may change read-only state for memory block ${operation.label}.`,
+            "READ_ONLY",
+            false,
+          );
+        }
+      }
       if (operation.type !== "correct_passage") continue;
       if (corrected.has(operation.memoryId)) {
         throw new MemoryError(
@@ -637,6 +687,26 @@ export class LocalMemoryStore implements MemoryStore {
       }
       corrected.add(operation.memoryId);
     }
+  }
+
+  private async findManagedBlock(
+    index: MemoryScopeIndex,
+    label: string,
+  ): Promise<BackendBlockRecord | undefined> {
+    const blockId = index.blockIds[label];
+    if (blockId) {
+      try {
+        return await this.backend.retrieveBlock(blockId);
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+      }
+    }
+    return (
+      await this.backend.listBlocks({
+        tags: [BLOCK_TAG, scopeTag(index.scope)],
+        matchAllTags: true,
+      })
+    ).find((block) => block.label === label);
   }
 
   private async drainJournal(
@@ -722,14 +792,18 @@ export class LocalMemoryStore implements MemoryStore {
   ): Promise<void> {
     switch (operation.type) {
       case "upsert_block": {
+        const existing = await this.findManagedBlock(index, operation.label);
+        const readOnly =
+          operation.readOnly ??
+          metadataBoolean(existing?.metadata, "converaReadOnly");
         const metadata = blockMetadata(
           patch.scope,
           nextVersion,
           patch.provenance,
+          readOnly,
         );
         const idempotencyTag = mutationTag(patch.turnId, operationIndex);
         const tags = [BLOCK_TAG, scopeTag(patch.scope), idempotencyTag];
-        const blockId = index.blockIds[operation.label];
         const input = {
           label: operation.label,
           value: operation.value,
@@ -739,9 +813,9 @@ export class LocalMemoryStore implements MemoryStore {
           tags,
         };
         let record: BackendBlockRecord | undefined;
-        if (blockId) {
+        if (existing) {
           try {
-            record = await this.backend.updateBlock(blockId, input);
+            record = await this.backend.updateBlock(existing.id, input);
           } catch (error) {
             if (!isNotFoundError(error)) throw error;
           }
