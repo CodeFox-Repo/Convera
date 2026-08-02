@@ -88,7 +88,13 @@ async function loadOffer(job: AgentHostJob): Promise<{
     );
   }
   if (!channel.memberIds.includes(job.agentMemberId)) {
-    throw new Error("The agent is no longer a member of this channel.");
+    // Firing an agent strips it from every roster while its work is still
+    // queued in the main process. That is the same nothing-to-act-on case as a
+    // missing channel, so it must read as stale rather than fail — the host
+    // still sorts the two by message text, hence the shared "no longer has".
+    throw new StaleAgentHostJobError(
+      "The channel no longer has this agent as a member.",
+    );
   }
 
   const [memberRows, agent, messageRows] = await Promise.all([

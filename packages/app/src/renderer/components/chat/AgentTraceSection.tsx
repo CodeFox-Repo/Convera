@@ -12,7 +12,9 @@ function useTraces(memberId: string, limit = 8): AgentTrace[] | undefined {
       .equals(memberId)
       .reverse()
       .sortBy("startedAt");
-    return rows.slice(-limit).reverse();
+    // `rows` is already newest-first, so the newest `limit` are at the head.
+    // Taking the tail returned an agent's oldest turns and froze the panel.
+    return rows.slice(0, limit);
   }, [memberId, limit]);
 }
 

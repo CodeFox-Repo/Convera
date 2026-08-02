@@ -175,8 +175,11 @@ export class MCPHub extends EventEmitter {
         return required.length === 0;
       }
 
-      // If we can't determine the structure, assume it has no required params
-      return true;
+      // An unrecognised schema shape is not a promise that the tool takes no
+      // input. These tools become one-click slash commands invoked with an
+      // empty argument object, so guessing wrong runs a write with no input
+      // the user chose — leave it out and let the agent call it properly.
+      return false;
     });
   }
 
