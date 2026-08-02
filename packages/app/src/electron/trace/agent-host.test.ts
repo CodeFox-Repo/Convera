@@ -144,6 +144,89 @@ describe("AgentHostTraceRecorder", () => {
     }
   });
 
+  it("projects PR #218 delegation and handoff provenance into the task DAG", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "convera-agent-trace-"));
+    try {
+      const store = new LocalTraceStore(join(directory, "traces.jsonl"));
+      const recorder = new AgentHostTraceRecorder(store);
+      await recorder.recordJob(job);
+      await recorder.recordJob({
+        ...job,
+        id: "run-child",
+        taskId: "task-child",
+        parentTaskId: job.taskId,
+        agentId: "two",
+        agentMemberId: "agent:two",
+        collaboration: {
+          kind: "delegation",
+          operationId: "delegation-1",
+          sourceTaskId: job.taskId,
+          sourceJobId: job.id,
+          fromMemberId: job.agentMemberId,
+          depth: 1,
+          path: [job.agentMemberId, "agent:two"],
+        },
+        outputMessageIds: ["message-result"],
+      } as AgentHostJob);
+      await recorder.recordJob({
+        ...job,
+        id: "run-handoff",
+        parentJobId: job.id,
+        agentId: "three",
+        agentMemberId: "agent:three",
+        collaboration: {
+          kind: "handoff",
+          operationId: "handoff-1",
+          sourceTaskId: job.taskId,
+          sourceJobId: job.id,
+          fromMemberId: job.agentMemberId,
+          depth: 1,
+          path: [job.agentMemberId, "agent:three"],
+        },
+      } as AgentHostJob);
+
+      const graph = await store.graph("trace:message-1");
+      expect(graph.edges).toEqual(
+        expect.arrayContaining([
+          {
+            fromSpanId: "task:task-1",
+            toSpanId: "task:task-child",
+            relation: "parent",
+          },
+          {
+            fromSpanId: "run:run-1",
+            toSpanId: "task:task-child",
+            relation: "triggered_by",
+          },
+          {
+            fromSpanId: "run:run-1",
+            toSpanId: "handoff:handoff-1",
+            relation: "handoff",
+          },
+          {
+            fromSpanId: "handoff:handoff-1",
+            toSpanId: "run:run-handoff",
+            relation: "triggered_by",
+          },
+        ]),
+      );
+      expect(
+        graph.spans.find((span) => span.spanId === "task:task-child")
+          ?.attributes,
+      ).toMatchObject({
+        collaborationKind: "delegation",
+        collaborationOperationId: "delegation-1",
+        resultMessageCount: 1,
+        taskDepth: 1,
+      });
+      expect(
+        graph.spans.find((span) => span.spanId === "handoff:handoff-1"),
+      ).toMatchObject({ status: "ok", attributes: { committed: true } });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("closes open runtime spans when an interrupted job is recovered", async () => {
     const directory = await mkdtemp(join(tmpdir(), "convera-agent-trace-"));
     try {

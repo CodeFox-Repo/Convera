@@ -4,12 +4,39 @@ import type {
   LocalAIStreamEvent,
 } from "@/shared/types/local-ai";
 import type {
+  TraceAttributes,
   TraceEventInput,
   TraceSpan,
   TraceStatus,
 } from "@/shared/types/trace";
 import { WORKSPACE_QUERY_INTERACTION } from "@/shared/types/workspace-perception";
 import type { TraceEventSink, TraceEventStore } from "./store";
+
+/**
+ * Forward-compatible view of the structured collaboration provenance added by
+ * PR #218. Keeping this local means tracing can land independently and starts
+ * recording the extra fields as soon as that AgentHost shape is present.
+ */
+interface StructuredCollaboration {
+  kind: "delegation" | "handoff";
+  operationId: string;
+  sourceTaskId: string;
+  sourceJobId: string;
+  fromMemberId: string;
+  depth: number;
+  path: string[];
+  expiresAt?: string;
+}
+
+type TraceableAgentHostJob = AgentHostJob & {
+  parentTaskId?: string;
+  collaboration?: StructuredCollaboration;
+  outputMessageIds?: string[];
+};
+
+function structuredJob(job: AgentHostJob): TraceableAgentHostJob {
+  return job as TraceableAgentHostJob;
+}
 
 function traceIdFor(job: AgentHostJob): string {
   return `trace:${job.triggerMessageId}`;
@@ -25,6 +52,20 @@ function taskSpanId(job: AgentHostJob): string {
 
 function runSpanId(job: AgentHostJob): string {
   return `run:${job.id}`;
+}
+
+function collaborationAttributes(job: TraceableAgentHostJob): TraceAttributes {
+  const collaboration = job.collaboration;
+  return collaboration
+    ? {
+        collaborationKind: collaboration.kind,
+        collaborationOperationId: collaboration.operationId,
+        sourceTaskId: collaboration.sourceTaskId,
+        sourceJobId: collaboration.sourceJobId,
+        fromMemberId: collaboration.fromMemberId,
+        taskDepth: collaboration.depth,
+      }
+    : {};
 }
 
 function terminalStatus(job: AgentHostJob): TraceStatus | undefined {
@@ -54,10 +95,19 @@ export class AgentHostTraceRecorder {
   }
 
   async recordJob(job: AgentHostJob): Promise<void> {
+    const traceable = structuredJob(job);
+    const collaboration = traceable.collaboration;
     const traceId = traceIdFor(job);
     const missionId = missionSpanId(job);
     const taskId = taskSpanId(job);
     const runId = runSpanId(job);
+    const taskParentId = traceable.parentTaskId
+      ? `task:${traceable.parentTaskId}`
+      : missionId;
+    const handoffId =
+      collaboration?.kind === "handoff"
+        ? `handoff:${collaboration.operationId}`
+        : undefined;
     const common = {
       traceId,
       emitter: "main" as const,
@@ -83,7 +133,16 @@ export class AgentHostTraceRecorder {
         ...common,
         eventId: `${taskId}:start`,
         spanId: taskId,
-        parentSpanId: missionId,
+        parentSpanId: taskParentId,
+        links:
+          collaboration?.kind === "delegation"
+            ? [
+                {
+                  spanId: `run:${collaboration.sourceJobId}`,
+                  relation: "triggered_by",
+                },
+              ]
+            : undefined,
         occurredAt: job.createdAt,
         type: "span.start",
         spanKind: "task",
@@ -92,6 +151,10 @@ export class AgentHostTraceRecorder {
           taskId: job.taskId,
           agentId: job.agentId,
           agentMemberId: job.agentMemberId,
+          ...(traceable.parentTaskId
+            ? { parentTaskId: traceable.parentTaskId }
+            : {}),
+          ...collaborationAttributes(traceable),
         },
       },
       {
@@ -99,9 +162,19 @@ export class AgentHostTraceRecorder {
         eventId: `${runId}:start`,
         spanId: runId,
         parentSpanId: taskId,
-        links: job.parentJobId
-          ? [{ spanId: `run:${job.parentJobId}`, relation: "supersedes" }]
-          : undefined,
+        links: [
+          ...(job.parentJobId
+            ? [
+                {
+                  spanId: `run:${job.parentJobId}`,
+                  relation: "supersedes" as const,
+                },
+              ]
+            : []),
+          ...(handoffId
+            ? [{ spanId: handoffId, relation: "triggered_by" as const }]
+            : []),
+        ],
         occurredAt: job.createdAt,
         type: "span.start",
         spanKind: "run",
@@ -111,21 +184,67 @@ export class AgentHostTraceRecorder {
           attempt: job.attempts,
           jobStatus: job.status,
           agentMemberId: job.agentMemberId,
+          ...collaborationAttributes(traceable),
         },
       },
     ];
+    if (handoffId && collaboration) {
+      inputs.push(
+        {
+          ...common,
+          eventId: `${handoffId}:start`,
+          spanId: handoffId,
+          parentSpanId: taskId,
+          links: [
+            {
+              spanId: `run:${collaboration.sourceJobId}`,
+              relation: "handoff",
+            },
+          ],
+          occurredAt: job.createdAt,
+          type: "span.start",
+          spanKind: "handoff",
+          name: "Task ownership handoff",
+          attributes: {
+            operationId: collaboration.operationId,
+            taskId: job.taskId,
+            sourceJobId: collaboration.sourceJobId,
+            fromMemberId: collaboration.fromMemberId,
+            toMemberId: job.agentMemberId,
+            taskDepth: collaboration.depth,
+          },
+        },
+        {
+          ...common,
+          eventId: `${handoffId}:end`,
+          spanId: handoffId,
+          parentSpanId: taskId,
+          occurredAt: job.createdAt,
+          type: "span.end",
+          spanKind: "handoff",
+          name: "Task ownership handoff",
+          status: "ok",
+          attributes: { committed: true },
+        },
+      );
+    }
     const status = terminalStatus(job);
     inputs.push({
       ...common,
       eventId: `${taskId}:status:${job.status}:${job.updatedAt}`,
       spanId: taskId,
-      parentSpanId: missionId,
+      parentSpanId: taskParentId,
       occurredAt: job.updatedAt,
       type: "span.event",
       spanKind: "task",
       name: "Task status changed",
       status,
-      attributes: { jobStatus: job.status, currentRunId: job.id },
+      attributes: {
+        jobStatus: job.status,
+        currentRunId: job.id,
+        resultMessageCount: traceable.outputMessageIds?.length ?? 0,
+        ...collaborationAttributes(traceable),
+      },
     });
     inputs.push({
       ...common,

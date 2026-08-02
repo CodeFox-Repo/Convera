@@ -87,6 +87,52 @@ function syntheticTrace(
   })) as TraceEvent[];
 }
 
+function structuredCollaborationTrace(): TraceEvent[] {
+  const events = syntheticTrace("structured-collaboration", 1);
+  let sequence = events.length;
+  const add = (
+    spanId: string,
+    spanKind: "task" | "handoff",
+    parentSpanId: string,
+    attributes: Record<string, string | number | boolean>,
+  ) => {
+    for (const type of ["span.start", "span.end"] as const) {
+      events.push({
+        schemaVersion: TRACE_SCHEMA_VERSION,
+        eventId: `${spanId}:${type}`,
+        traceId: "synthetic:structured-collaboration",
+        spanId,
+        parentSpanId,
+        links:
+          spanKind === "task"
+            ? [{ spanId: "run-1", relation: "triggered_by" }]
+            : [{ spanId: "run-1", relation: "handoff" }],
+        sequence: ++sequence,
+        occurredAt: "2026-01-01T00:00:01.000Z",
+        recordedAt: "2026-01-01T00:00:01.000Z",
+        emitter: "main",
+        type,
+        spanKind,
+        name: spanKind,
+        status: type === "span.end" ? "ok" : undefined,
+        attributes,
+        classification: "P0",
+      });
+    }
+  };
+  add("task-delegated", "task", "task-1", {
+    collaborationKind: "delegation",
+    collaborationOperationId: "delegation-1",
+    taskDepth: 1,
+    resultMessageCount: 1,
+  });
+  add("handoff-1", "handoff", "task-delegated", {
+    operationId: "handoff-1",
+    committed: true,
+  });
+  return events;
+}
+
 const cases = [];
 if (requestedPath) {
   const store = new LocalTraceStore(resolve(requestedPath));
@@ -103,6 +149,12 @@ if (requestedPath) {
     const events = syntheticTrace(name, tasks, terminalStatus);
     cases.push(evaluateTrace(projectTrace(events, `synthetic:${name}`)));
   }
+  const structured = structuredCollaborationTrace();
+  cases.push(
+    evaluateTrace(
+      projectTrace(structured, "synthetic:structured-collaboration"),
+    ),
+  );
 }
 
 const report = {

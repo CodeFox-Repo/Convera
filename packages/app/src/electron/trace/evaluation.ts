@@ -19,6 +19,12 @@ export interface TraceEvaluationReport {
   };
   metrics: {
     spans: number;
+    tasks: number;
+    delegationOperations: number;
+    delegatedTasks: number;
+    handoffs: number;
+    maxTaskDepth: number;
+    resultReceipts: number;
     turns: number;
     modelCalls: number;
     toolCalls: number;
@@ -33,12 +39,28 @@ export interface TraceEvaluationReport {
 const expectedParent: Partial<
   Record<TraceSpan["spanKind"], TraceSpan["spanKind"]>
 > = {
-  task: "mission",
   run: "task",
   turn: "run",
   model: "turn",
   tool: "model",
+  handoff: "task",
 };
+
+function hasCanonicalParent(
+  span: TraceSpan,
+  byId: Map<string, TraceSpan>,
+): boolean {
+  if (span.spanKind === "task") {
+    const parentKind = span.parentSpanId
+      ? byId.get(span.parentSpanId)?.spanKind
+      : undefined;
+    return parentKind === "mission" || parentKind === "task";
+  }
+  const parentKind = expectedParent[span.spanKind];
+  return (
+    !parentKind || byId.get(span.parentSpanId ?? "")?.spanKind === parentKind
+  );
+}
 
 function check(
   id: string,
@@ -70,15 +92,11 @@ export function evaluateTrace(
   const missionRoots = graph.rootSpanIds.filter(
     (spanId) => byId.get(spanId)?.spanKind === "mission",
   );
-  const hierarchyViolations = graph.spans.filter((span) => {
-    const parentKind = expectedParent[span.spanKind];
-    if (!parentKind) return false;
-    return (
-      !span.parentSpanId || byId.get(span.parentSpanId)?.spanKind !== parentKind
-    );
-  });
+  const hierarchyViolations = graph.spans.filter(
+    (span) => !hasCanonicalParent(span, byId),
+  );
   const runtimeSpans = graph.spans.filter((span) =>
-    ["run", "turn", "model", "tool"].includes(span.spanKind),
+    ["run", "turn", "model", "tool", "handoff"].includes(span.spanKind),
   );
   const incompleteRuntimeSpans = runtimeSpans.filter(
     (span) => !span.startedAt || !span.endedAt,
@@ -87,6 +105,19 @@ export function evaluateTrace(
     .filter((span) => span.spanKind === "tool")
     .map((span) => String(span.attributes.toolName ?? span.name));
   const repeatedToolCalls = toolNames.length - new Set(toolNames).size;
+  const taskSpans = graph.spans.filter((span) => span.spanKind === "task");
+  const delegatedTasks = taskSpans.filter(
+    (span) => span.attributes.collaborationKind === "delegation",
+  );
+  const delegationOperations = new Set(
+    delegatedTasks
+      .map((span) => span.attributes.collaborationOperationId)
+      .filter((value): value is string => typeof value === "string"),
+  ).size;
+  const taskDepths = taskSpans.map((span) => {
+    const depth = span.attributes.taskDepth;
+    return typeof depth === "number" ? depth : 0;
+  });
   const checks = [
     check(
       "mission-root",
@@ -111,7 +142,7 @@ export function evaluateTrace(
     ),
     check(
       "canonical-hierarchy",
-      "Task, Run, Turn, Model, and Tool use the canonical parent chain",
+      "Task, Run, Turn, Model, Tool, and Handoff use the canonical parent chain",
       hierarchyViolations.length === 0,
       "0 hierarchy violations",
       `${hierarchyViolations.length} hierarchy violations`,
@@ -137,6 +168,16 @@ export function evaluateTrace(
     },
     metrics: {
       spans: graph.spans.length,
+      tasks: taskSpans.length,
+      delegationOperations,
+      delegatedTasks: delegatedTasks.length,
+      handoffs: graph.spans.filter((span) => span.spanKind === "handoff")
+        .length,
+      maxTaskDepth: Math.max(0, ...taskDepths),
+      resultReceipts: taskSpans.reduce((total, span) => {
+        const count = span.attributes.resultMessageCount;
+        return total + (typeof count === "number" ? count : 0);
+      }, 0),
       turns: graph.spans.filter((span) => span.spanKind === "turn").length,
       modelCalls: modelSpans.length,
       toolCalls: toolNames.length,

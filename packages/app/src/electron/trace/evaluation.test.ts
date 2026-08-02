@@ -65,4 +65,53 @@ describe("evaluateTrace", () => {
       actual: "1 incomplete runtime spans",
     });
   });
+
+  it("counts delegated tasks, handoffs, depth, and result receipts", () => {
+    const events = lifecycleEvents();
+    let sequence = events.length;
+    const add = (
+      spanId: string,
+      spanKind: "task" | "handoff",
+      parentSpanId: string,
+      attributes: Record<string, string | number | boolean>,
+    ) => {
+      for (const type of ["span.start", "span.end"] as const) {
+        events.push({
+          schemaVersion: TRACE_SCHEMA_VERSION,
+          eventId: `${spanId}:${type}`,
+          traceId: "trace",
+          spanId,
+          parentSpanId,
+          sequence: ++sequence,
+          occurredAt: "2026-01-01T00:00:01.000Z",
+          recordedAt: "2026-01-01T00:00:01.000Z",
+          emitter: "main",
+          type,
+          spanKind,
+          name: spanKind,
+          status: type === "span.end" ? "ok" : undefined,
+          attributes,
+          classification: "P0",
+        });
+      }
+    };
+    add("task-child", "task", "task", {
+      collaborationKind: "delegation",
+      collaborationOperationId: "delegation-1",
+      taskDepth: 1,
+      resultMessageCount: 2,
+    });
+    add("handoff", "handoff", "task-child", { committed: true });
+
+    const report = evaluateTrace(projectTrace(events, "trace"));
+    expect(report.summary.score).toBe(1);
+    expect(report.metrics).toMatchObject({
+      tasks: 2,
+      delegationOperations: 1,
+      delegatedTasks: 1,
+      handoffs: 1,
+      maxTaskDepth: 1,
+      resultReceipts: 2,
+    });
+  });
 });
