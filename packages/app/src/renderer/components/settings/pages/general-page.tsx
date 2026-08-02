@@ -6,6 +6,7 @@ import { describeProviderStatus } from "@/renderer/libs/provider-status";
 import {
   DEFAULT_LOCAL_AI_MODEL_ID,
   isLocalAIProviderId,
+  type LocalAIProviderId,
 } from "@/renderer/libs/local-ai";
 import { useModelConfigStore } from "@/renderer/libs/stores/model-config-store";
 import { useSettingsStore } from "@/renderer/libs/stores/settings-store";
@@ -40,6 +41,29 @@ export const MEMORY_PROVIDER_OPTIONS = LOCAL_AI_MEMORY_PROVIDERS.map(
     label: value === "off" ? "Off" : "Local",
   }),
 );
+
+export const CLI_RUNTIME_OPTIONS = [
+  { value: "codex-cli", label: "Codex" },
+  { value: "claude-code", label: "Claude Code" },
+] as const satisfies ReadonlyArray<{
+  value: LocalAIProviderId;
+  label: string;
+}>;
+
+export function isCliRuntimeProvider(
+  value: string,
+): value is (typeof CLI_RUNTIME_OPTIONS)[number]["value"] {
+  return CLI_RUNTIME_OPTIONS.some((option) => option.value === value);
+}
+
+export function selectDefaultCliRuntime(
+  value: string,
+  setDefaultModel: (providerId: string, modelId: string) => void,
+): boolean {
+  if (!isCliRuntimeProvider(value)) return false;
+  setDefaultModel(value, DEFAULT_LOCAL_AI_MODEL_ID);
+  return true;
+}
 
 export function createMemoryProviderUpdate(
   value: string,
@@ -450,52 +474,53 @@ export function GeneralSettingsPage() {
             </button>
           </div>
 
-          <div className="border border-border rounded-lg divide-y divide-border">
-            {providers.map((provider) => {
-              const isSelected = provider.id === defaultConfigId;
-              const status = describeProviderStatus(provider, providersLoading);
-              const canSelect =
-                status.ready && isLocalAIProviderId(provider.id);
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Command-line runtime
+            </p>
+            <div
+              role="group"
+              aria-label="Default command-line runtime"
+              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+            >
+              {CLI_RUNTIME_OPTIONS.map((option) => {
+                const provider = providers.find(
+                  (candidate) => candidate.id === option.value,
+                );
+                const status = provider
+                  ? describeProviderStatus(provider, providersLoading)
+                  : {
+                      label: providersLoading ? "Checking" : "Unavailable",
+                      ready: false,
+                    };
+                const isSelected = option.value === defaultConfigId;
 
-              return (
-                <button
-                  key={provider.id}
-                  type="button"
-                  data-testid={`local-ai-provider-${provider.id}`}
-                  aria-pressed={isSelected}
-                  disabled={!canSelect}
-                  onClick={() => {
-                    if (isLocalAIProviderId(provider.id)) {
-                      setDefaultModel(provider.id, DEFAULT_LOCAL_AI_MODEL_ID);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    data-testid={`cli-runtime-${option.value}`}
+                    aria-pressed={isSelected}
+                    disabled={!status.ready}
+                    onClick={() =>
+                      selectDefaultCliRuntime(option.value, setDefaultModel)
                     }
-                  }}
-                  className="flex w-full items-center justify-between p-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                      <Terminal className="h-4 w-4 text-foreground" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground">
-                        {provider.name}
-                      </h4>
-                      {/* The hint is the whole point of this row: an agent
-                          pinned to a provider fails for exactly this reason,
-                          and this is where you find out which. */}
-                      <p className="text-xs text-muted-foreground">
-                        {status.hint ?? status.label}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        status.ready
-                          ? "text-primary bg-primary/10"
-                          : "text-muted-foreground bg-muted"
-                      }`}
-                    >
-                      {status.label}
+                    className={`flex min-h-20 items-center justify-between rounded-lg border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isSelected
+                        ? "border-primary text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Terminal className="h-4 w-4" />
+                      <span>
+                        <span className="block font-medium text-foreground">
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs">
+                          {status.hint ?? status.label}
+                        </span>
+                      </span>
                     </span>
                     <span
                       className={`flex min-w-16 items-center justify-end gap-1 text-xs ${
@@ -503,12 +528,88 @@ export function GeneralSettingsPage() {
                       }`}
                     >
                       {isSelected && <Check className="h-3.5 w-3.5" />}
-                      {isSelected ? "Selected" : "Select"}
+                      {isSelected ? "Selected" : status.label}
                     </span>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              API providers
+            </p>
+            <div className="border border-border rounded-lg divide-y divide-border">
+              {providers
+                .filter((provider) => !isCliRuntimeProvider(provider.id))
+                .map((provider) => {
+                  const isSelected = provider.id === defaultConfigId;
+                  const status = describeProviderStatus(
+                    provider,
+                    providersLoading,
+                  );
+                  const canSelect =
+                    status.ready && isLocalAIProviderId(provider.id);
+
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      data-testid={`local-ai-provider-${provider.id}`}
+                      aria-pressed={isSelected}
+                      disabled={!canSelect}
+                      onClick={() => {
+                        if (isLocalAIProviderId(provider.id)) {
+                          setDefaultModel(
+                            provider.id,
+                            DEFAULT_LOCAL_AI_MODEL_ID,
+                          );
+                        }
+                      }}
+                      className="flex w-full items-center justify-between p-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                          <Terminal className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">
+                            {provider.name}
+                          </h4>
+                          {/* The hint is the whole point of this row: an agent
+                          pinned to a provider fails for exactly this reason,
+                          and this is where you find out which. */}
+                          <p className="text-xs text-muted-foreground">
+                            {status.hint ?? status.label}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`text-xs px-2 py-1 rounded ${
+                            status.ready
+                              ? "text-primary bg-primary/10"
+                              : "text-muted-foreground bg-muted"
+                          }`}
+                        >
+                          {status.label}
+                        </span>
+                        <span
+                          className={`flex min-w-16 items-center justify-end gap-1 text-xs ${
+                            isSelected
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {isSelected && <Check className="h-3.5 w-3.5" />}
+                          {isSelected ? "Selected" : "Select"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
           </div>
         </div>
 

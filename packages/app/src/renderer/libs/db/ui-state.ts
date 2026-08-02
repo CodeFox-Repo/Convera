@@ -39,6 +39,12 @@ const CURRENT_CONVERSATION_KEY = "current-conversation-id";
 const storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | undefined =
   typeof localStorage === "undefined" ? undefined : localStorage;
 
+const startupProviderId =
+  typeof window === "undefined"
+    ? null
+    : (window.electronAPI?.getStartupProvider?.() ?? null);
+const initialProviderId = startupProviderId ?? DEFAULT_LOCAL_AI_PROVIDER_ID;
+
 interface SelectionState {
   // Currently selected items
   currentConversationId: string | null;
@@ -61,9 +67,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
   currentConversationId: storage?.getItem(CURRENT_CONVERSATION_KEY) ?? null,
   conversationSelectionVersion: 0,
   selectedAgentId: null,
-  selectedConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+  selectedConfigId: initialProviderId,
   selectedModelId: DEFAULT_LOCAL_AI_MODEL_ID,
-  defaultConfigId: DEFAULT_LOCAL_AI_PROVIDER_ID,
+  defaultConfigId: initialProviderId,
   defaultModelId: DEFAULT_LOCAL_AI_MODEL_ID,
 
   setCurrentConversation: (id) => {
@@ -143,7 +149,19 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 void Promise.all([
   db.settings.get("local-ai-default-selection"),
   db.settings.get("local-ai-selection"),
-]).then(([currentRecord, legacyRecord]) => {
+]).then(async ([currentRecord, legacyRecord]) => {
+  if (startupProviderId) {
+    await db.settings.put({
+      key: "local-ai-default-selection",
+      value: {
+        configId: startupProviderId,
+        modelId: DEFAULT_LOCAL_AI_MODEL_ID,
+      },
+      updatedAt: new Date(),
+    });
+    return;
+  }
+
   const record = currentRecord ?? legacyRecord;
   const value = record?.value;
   if (
