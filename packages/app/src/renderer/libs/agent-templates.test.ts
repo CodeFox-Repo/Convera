@@ -255,9 +255,7 @@ describe("starter channels", () => {
       "Mine, hands off.",
     );
     // Backfill fills rooms in, it does not duplicate them.
-    expect((await db.channels.toArray()).length).toBe(
-      STARTER_CHANNELS.length,
-    );
+    expect((await db.channels.toArray()).length).toBe(STARTER_CHANNELS.length);
   });
 
   it("does not duplicate a renamed starter room on a version bump", async () => {
