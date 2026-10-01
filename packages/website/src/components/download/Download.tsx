@@ -1,3 +1,4 @@
+import { getReleaseSummary, RELEASES_URL, type GitHubRelease } from "@/lib/release-info";
 import SimpleBackground from "@/components/SimpleBackground";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,20 +20,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface GitHubRelease {
-  tag_name: string;
-  name: string;
-  body: string;
-  published_at: string;
-  assets: Array<{
-    name: string;
-    browser_download_url: string;
-    size: number;
-    content_type: string;
-  }>;
-}
+import { useCallback, useEffect, useState } from "react";
 
 const Download = () => {
   const { toast } = useToast();
@@ -65,102 +53,56 @@ const Download = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Fetch latest release
-  useEffect(() => {
-    const fetchLatestRelease = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const response = await fetch(
-          "https://api.github.com/repos/CodeFox-Repo/Convera/releases/latest",
-          {
-            headers: {
-              Accept: "application/vnd.github.v3+json",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.status}`);
-        }
-
-        const release: GitHubRelease = await response.json();
-        setLatestRelease(release);
-      } catch (err) {
-        console.error("Failed to fetch latest release:", err);
-        setError("Failed to load latest version information");
-
-        // Fallback to default values
-        setLatestRelease({
-          tag_name: "v0.0.8",
-          name: "Convera 0.0.8",
-          body: "Latest version of Convera with improved performance and new features.",
-          published_at: "2025-01-01T00:00:00Z",
-          assets: [],
-        });
-      } finally {
-        setIsLoading(false);
+  const fetchLatestRelease = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setLatestRelease(null);
+    try {
+      const response = await fetch(
+        `${RELEASES_URL.replace("github.com/", "api.github.com/repos/")}/latest`,
+        {
+          headers: { Accept: "application/vnd.github.v3+json" },
+        },
+      );
+      if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+      const release: GitHubRelease = await response.json();
+      if (!release.tag_name || !Array.isArray(release.assets)) {
+        throw new Error("Incomplete release information");
       }
-    };
-
-    fetchLatestRelease();
+      setLatestRelease(release);
+    } catch (err) {
+      console.error("Failed to fetch latest release:", err);
+      setError("Couldn’t load the latest release. Try again or view releases on GitHub.");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // Helper functions
-  const getVersionNumber = () => {
-    if (!latestRelease) return "0.0.8";
-    return latestRelease.tag_name.replace(/^v/, "");
-  };
+  useEffect(() => {
+    void fetchLatestRelease();
+  }, [fetchLatestRelease]);
 
-  const getFormattedDate = () => {
-    if (!latestRelease) return "Loading...";
+  const release = getReleaseSummary(latestRelease);
+  const currentVersion = release.version;
+  const releaseDate = release.date;
+  const getDMGDownloadUrl = () => release.dmgUrl;
+  const getDMGSize = () => release.dmgSize;
+
+  const copyInstallCommand = async () => {
     try {
-      return new Date(latestRelease.published_at).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
+      await navigator.clipboard.writeText("brew install --cask codefox-repo/codefox/convera");
+      toast({
+        title: "Install command copied",
+        description: "Review it, then paste it into Terminal to install.",
+        duration: 2500,
       });
     } catch {
-      return "Unknown date";
+      toast({
+        title: "Couldn’t copy the command",
+        description: "Select the command and copy it manually.",
+        variant: "destructive",
+      });
     }
-  };
-
-  const getDMGDownloadUrl = () => {
-    if (!latestRelease?.assets) return null;
-
-    const dmgAsset = latestRelease.assets.find(
-      (asset) => asset.name.endsWith(".dmg") && asset.name.includes("arm64"),
-    );
-
-    return dmgAsset?.browser_download_url || null;
-  };
-
-  const getDMGSize = () => {
-    if (!latestRelease?.assets) return "Unknown";
-
-    const dmgAsset = latestRelease.assets.find(
-      (asset) => asset.name.endsWith(".dmg") && asset.name.includes("arm64"),
-    );
-
-    if (!dmgAsset?.size) return "Unknown";
-
-    // Convert bytes to MB
-    const sizeInMB = (dmgAsset.size / (1024 * 1024)).toFixed(1);
-    return `${sizeInMB} MB`;
-  };
-
-  const currentVersion = getVersionNumber();
-  const releaseDate = getFormattedDate();
-
-  const showComingSoonToast = (platform?: string) => {
-    toast({
-      title: "🚀 Coming Soon!",
-      description: platform
-        ? `${platform} is currently in development and will be available soon. Stay tuned for updates!`
-        : "This feature is currently in development and will be available soon. Stay tuned for updates!",
-      duration: 3000,
-    });
   };
 
   // macOS is not a card here: brew install is the front door (its own
@@ -172,95 +114,51 @@ const Download = () => {
     {
       platform: "Windows",
       icon: <Monitor className="h-8 w-8" />,
-      version: "Windows 10+",
+      version: "No release available",
       size: "—",
       type: "TBD",
       downloadUrl: null,
       recommended: false,
-      architecture: "x64",
-      minRequirements: "Windows 10 or later",
+      architecture: "Not confirmed",
+      minRequirements: "Not confirmed",
       comingSoon: true,
     },
     {
       platform: "Linux",
       icon: <Monitor className="h-8 w-8" />,
-      version: "Ubuntu 20.04+",
+      version: "No release available",
       size: "—",
       type: "TBD",
       downloadUrl: null,
       recommended: false,
-      architecture: "x64",
-      minRequirements: "Ubuntu 20.04 or equivalent",
+      architecture: "Not confirmed",
+      minRequirements: "Not confirmed",
       comingSoon: true,
     },
   ];
 
-  const getReleaseNotes = () => {
-    if (!latestRelease?.body) {
-      return [
-        "🎉 Initial public release of Convera",
-        "🤖 Integrated with Model Context Protocol (MCP)",
-        "💬 Natural language desktop automation",
-        "🔧 Support for popular productivity apps",
-        "🎨 Modern, intuitive user interface",
-        "🔒 Privacy-focused local processing",
-      ];
-    }
-
-    // Parse GitHub release body into bullet points
-    const lines = latestRelease.body
-      .split("\n")
-      .filter((line) => line.trim())
-      .map((line) => line.trim());
-
-    // Look for lines that start with - or * or are numbered
-    const bulletPoints = lines.filter(
-      (line) =>
-        line.match(/^[-*]\s/) || line.match(/^\d+\.\s/) || line.match(/^[🎉🤖💬🔧🎨🔒⚡🚀✨🐛📝]/u),
-    );
-
-    if (bulletPoints.length > 0) {
-      return bulletPoints.slice(0, 6); // Limit to 6 items
-    }
-
-    // If no bullet points found, split by periods and use as features
-    const sentences = latestRelease.body
-      .split(/[.!]/)
-      .filter((sentence) => sentence.trim().length > 10)
-      .slice(0, 6)
-      .map((sentence) => `✨ ${sentence.trim()}`);
-
-    return sentences.length > 0
-      ? sentences
-      : [
-          "📦 Latest version with improvements and bug fixes",
-          "🔧 Enhanced performance and stability",
-          "🎨 UI/UX improvements",
-        ];
-  };
-
-  const releaseNotes = getReleaseNotes();
+  const releaseNotes = release.notes;
 
   const features = [
     {
       icon: <Zap className="h-5 w-5" />,
-      title: "Lightning Fast",
-      description: "Optimized performance for instant responses",
+      title: "Choose your provider",
+      description: "AI replies require a configured provider",
     },
     {
       icon: <Shield className="h-5 w-5" />,
-      title: "Privacy First",
-      description: "Your data stays on your device",
+      title: "Local history",
+      description: "AI requests go to your chosen provider",
     },
     {
       icon: <Users className="h-5 w-5" />,
-      title: "Community Driven",
-      description: "Open source with active community support",
+      title: "Open source",
+      description: "Browse the code and report issues on GitHub",
     },
     {
       icon: <Star className="h-5 w-5" />,
-      title: "AI Powered",
-      description: "Advanced AI capabilities with MCP integration",
+      title: "Connect tools",
+      description: "Add compatible MCP servers in settings",
     },
   ];
 
@@ -286,8 +184,8 @@ const Download = () => {
               <p
                 className={`text-secondary mx-auto max-w-3xl text-lg leading-relaxed md:text-xl ${isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
               >
-                Your personal AI desktop companion that understands your workflow and automates
-                repetitive tasks intelligently.
+                Try the macOS beta on Apple Silicon. Configure an AI provider to start chatting.
+                Provider accounts and usage charges are separate.
               </p>
             </div>
 
@@ -303,22 +201,31 @@ const Download = () => {
                 ) : (
                   <Star className="text-orange-primary mr-2 h-4 w-4" />
                 )}
-                v{currentVersion}
+                {isLoading
+                  ? "Checking latest version…"
+                  : currentVersion
+                    ? `v${currentVersion}`
+                    : "Version unavailable"}
               </Badge>
               <Badge
                 variant="outline"
                 className="border-orange bg-card text-orange-primary px-4 py-2 text-base backdrop-blur-sm"
               >
                 <Clock className="text-orange-primary mr-2 h-4 w-4" />
-                {releaseDate}
+                {isLoading ? "Loading release date…" : (releaseDate ?? "Release date unavailable")}
               </Badge>
               {error && (
-                <Badge
-                  variant="outline"
-                  className="border-destructive/20 bg-destructive/10 text-destructive px-4 py-2 text-base backdrop-blur-sm"
-                >
-                  ⚠️ Using fallback data
-                </Badge>
+                <div role="alert" className="text-destructive w-full text-sm">
+                  <p>{error}</p>
+                  <Button
+                    variant="outline"
+                    className="mt-3"
+                    onClick={() => void fetchLatestRelease()}
+                    disabled={isLoading}
+                  >
+                    Try again
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -350,29 +257,21 @@ const Download = () => {
               Install with Homebrew
             </h2>
             <p className="text-secondary mx-auto max-w-2xl text-lg">
-              One command installs Convera and clears macOS quarantine for you — no
-              &ldquo;damaged app&rdquo; dialog, no manual steps.
+              Run this command if you use Homebrew. Review the release and installation instructions
+              before installing this beta.
             </p>
           </div>
           <button
             type="button"
             className="border-primary/30 bg-card hover:border-primary/60 mx-auto block w-full max-w-xl overflow-x-auto rounded-xl border-2 px-6 py-5 text-center font-mono text-sm shadow-lg transition-all hover:shadow-xl md:text-base"
-            title="Click to copy"
-            onClick={() => {
-              void navigator.clipboard.writeText(
-                "brew install --cask codefox-repo/codefox/convera",
-              );
-              toast({
-                title: "Copied!",
-                description: "Paste it into Terminal to install.",
-                duration: 2500,
-              });
-            }}
+            title="Copy Homebrew install command"
+            aria-label="Copy Homebrew install command"
+            onClick={() => void copyInstallCommand()}
           >
             brew install --cask codefox-repo/codefox/convera
           </button>
           <p className="text-muted-foreground mt-3 text-center text-xs">
-            Click to copy · Apple Silicon · macOS 12+
+            Copy install command · Apple Silicon · macOS 12+
           </p>
         </div>
       </section>
@@ -386,7 +285,7 @@ const Download = () => {
               Other Platforms
             </h2>
             <p className="text-secondary mx-auto max-w-2xl text-lg md:text-xl">
-              Windows and Linux ship when the agent sandbox covers them.
+              Windows and Linux downloads are not available. No release date is confirmed.
             </p>
           </div>
 
@@ -414,7 +313,7 @@ const Download = () => {
                       variant="outline"
                       className="bg-accent/5 border-accent/20 text-accent px-3 py-1"
                     >
-                      Coming Soon
+                      Not available
                     </Badge>
                   </div>
                 )}
@@ -455,10 +354,9 @@ const Download = () => {
                     className="text-foreground bg-muted hover:bg-muted/80 w-full shadow-md transition-all duration-300 hover:shadow-lg"
                     size="lg"
                     disabled={option.comingSoon}
-                    onClick={() => showComingSoonToast(option.platform)}
                   >
                     <Clock className="mr-2 h-4 w-4" />
-                    Coming Soon
+                    Not available
                   </Button>
                 </CardContent>
               </Card>
@@ -468,8 +366,8 @@ const Download = () => {
           {/* Direct DMG — the fallback path, deliberately below the fold */}
           <div className="mt-12 text-center">
             <p className="text-secondary mb-4">
-              Prefer a direct download? Grab the DMG — you&apos;ll need one
-              extra Terminal command (see the quick-start below).
+              Prefer a direct download? Review the release notes and macOS installation guidance
+              before opening the DMG.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button
@@ -482,7 +380,11 @@ const Download = () => {
                 }}
               >
                 <Apple className="mr-2 h-4 w-4" />
-                Download DMG ({getDMGSize()})
+                {getDMGDownloadUrl()
+                  ? `Download macOS DMG (${getDMGSize()})`
+                  : isLoading
+                    ? "Checking for macOS DMG…"
+                    : "macOS DMG unavailable"}
               </Button>
               <Button
                 variant="outline"
@@ -509,10 +411,17 @@ const Download = () => {
               <CardHeader className="pb-6">
                 <CardTitle className="flex items-center gap-3 text-xl">
                   <FileText className="text-primary h-5 w-5" />
-                  What's New in v{currentVersion}
+                  Release notes{currentVersion ? ` · v${currentVersion}` : ""}
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {releaseNotes.length === 0 && (
+                  <p className="text-muted-foreground mb-8 text-sm">
+                    {isLoading
+                      ? "Loading release notes…"
+                      : "Release notes are unavailable here. View releases on GitHub for details."}
+                  </p>
+                )}
                 <ul className="mb-8 space-y-4">
                   {releaseNotes.map((note, index) => (
                     <li key={index} className="flex items-start gap-3">
@@ -526,12 +435,7 @@ const Download = () => {
                   <Button
                     variant="outline"
                     className="border-primary/20 text-primary hover:bg-primary/5 w-full"
-                    onClick={() =>
-                      window.open(
-                        `https://github.com/CodeFox-Repo/Convera/releases/tag/${latestRelease?.tag_name || "latest"}`,
-                        "_blank",
-                      )
-                    }
+                    onClick={() => window.open(release.url, "_blank")}
                   >
                     View Full Changelog
                     <ExternalLink className="ml-2 h-4 w-4" />
@@ -539,7 +443,7 @@ const Download = () => {
                   <Button
                     variant="outline"
                     className="border-border text-muted-foreground hover:bg-muted/20 w-full"
-                    onClick={() => showComingSoonToast("Previous Versions")}
+                    onClick={() => window.open(RELEASES_URL, "_blank", "noopener,noreferrer")}
                   >
                     Previous Versions
                     <HardDrive className="ml-2 h-4 w-4" />
@@ -563,12 +467,9 @@ const Download = () => {
                       <span className="text-primary text-xs font-semibold">1</span>
                     </div>
                     <div>
-                      <h4 className="mb-1 text-sm font-medium">
-                        Install with Homebrew
-                      </h4>
+                      <h4 className="mb-1 text-sm font-medium">Install with Homebrew</h4>
                       <p className="text-muted-foreground text-xs">
-                        One command installs the app and clears macOS
-                        quarantine for you
+                        Requires Homebrew. Review the command and the release before installing.
                       </p>
                     </div>
                   </div>
@@ -578,18 +479,14 @@ const Download = () => {
                       <span className="text-primary text-xs font-semibold">2</span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="mb-1 text-sm font-medium">
-                        Downloaded the DMG instead?
-                      </h4>
+                      <h4 className="mb-1 text-sm font-medium">Downloaded the DMG instead?</h4>
                       <p className="text-muted-foreground mb-2 text-xs">
-                        The build isn&apos;t notarized yet, so macOS will say
-                        the app &ldquo;is damaged&rdquo;. It isn&apos;t — run
-                        this once in Terminal after moving Convera to
-                        Applications:
+                        macOS may block this beta because it is not notarized. Verify the download
+                        came from this repository. The command below removes macOS quarantine checks
+                        for this app; use it only if you trust the download:
                       </p>
                       <code className="bg-well border-rule block overflow-x-auto rounded-md border px-2.5 py-1.5 font-mono text-[11px]">
-                        sudo xattr -rd com.apple.quarantine
-                        /Applications/Convera.app
+                        sudo xattr -rd com.apple.quarantine /Applications/Convera.app
                       </code>
                     </div>
                   </div>
@@ -599,9 +496,10 @@ const Download = () => {
                       <span className="text-primary text-xs font-semibold">3</span>
                     </div>
                     <div>
-                      <h4 className="mb-1 text-sm font-medium">Launch Application</h4>
+                      <h4 className="mb-1 text-sm font-medium">Choose an AI provider</h4>
                       <p className="text-muted-foreground text-xs">
-                        Open Convera and meet your starter colleagues
+                        Open Settings → General to check providers. Configure the provider used by
+                        your colleagues before sending a message.
                       </p>
                     </div>
                   </div>
@@ -619,19 +517,31 @@ const Download = () => {
                       variant="outline"
                       size="sm"
                       className="border-primary/20 text-primary hover:bg-primary/5 w-full justify-start"
-                      onClick={() => showComingSoonToast("Community Forum")}
+                      onClick={() =>
+                        window.open(
+                          "https://github.com/CodeFox-Repo/Convera",
+                          "_blank",
+                          "noopener,noreferrer",
+                        )
+                      }
                     >
                       <Users className="mr-2 h-3 w-3" />
-                      Join Community
+                      View GitHub repository
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       className="border-accent/20 text-accent hover:bg-accent/5 w-full justify-start"
-                      onClick={() => showComingSoonToast("Issue Reporting")}
+                      onClick={() =>
+                        window.open(
+                          "https://github.com/CodeFox-Repo/Convera/issues",
+                          "_blank",
+                          "noopener,noreferrer",
+                        )
+                      }
                     >
                       <Github className="mr-2 h-3 w-3" />
-                      Report Issues
+                      Report an issue
                     </Button>
                   </div>
                 </div>

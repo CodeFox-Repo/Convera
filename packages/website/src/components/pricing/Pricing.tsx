@@ -165,7 +165,11 @@ const Pricing: React.FC = () => {
                     isVisible.hero ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
                   }`}
                 >
-                  Choose the plan that fits your needs and start using Convera today.
+                  Review the plan and renewal price before continuing.
+                </p>
+                <p className="text-muted-foreground mx-auto max-w-2xl text-sm leading-relaxed">
+                  AI provider subscriptions and API usage may cost extra. Check your provider’s
+                  terms and usage limits separately.
                 </p>
               </div>
             </div>
@@ -202,7 +206,7 @@ const Pricing: React.FC = () => {
                     : ""
                 }
                 features={[
-                  "All feature in Free",
+                  "Everything in Free",
                   "Boosted AI Model rate limits for advanced usage",
                   "Priority response time",
                 ]}
