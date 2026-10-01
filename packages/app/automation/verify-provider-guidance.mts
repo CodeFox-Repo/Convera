@@ -98,9 +98,16 @@ try {
     text: "No API key",
     timeout_ms: 60000,
   });
+  const settingsBody = await call("convera_observe", {
+    action: "element",
+    selector: "body",
+  });
+  const providerHeading =
+    variant === "before" ? "Local AI Providers" : "AI providers";
+  assert.ok(settingsBody.text.includes(providerHeading));
   await call("convera_interact", {
     action: "scroll",
-    selector: providerSelector,
+    selector: `//h2[normalize-space()="${providerHeading}"]`,
   });
   const provider = await call("convera_observe", {
     action: "element",
@@ -126,10 +133,13 @@ try {
     text: "No API key",
     timeout_ms: 60000,
   });
-  const memorySelector = await find("Background curator");
+  await find("Background curator");
+  const memoryHeading =
+    variant === "before" ? "Memory and Context" : "Memory and context";
+  assert.ok(settingsBody.text.includes(memoryHeading));
   await call("convera_interact", {
     action: "scroll",
-    selector: memorySelector,
+    selector: `//h2[normalize-space()="${memoryHeading}"]`,
   });
   const body = await call("convera_observe", {
     action: "element",
