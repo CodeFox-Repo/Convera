@@ -15,8 +15,6 @@ jobs:
     name: Build App (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
-    env:
-      NODE_OPTIONS: --max-old-space-size=4096
     strategy:
       matrix:
         os: [macos-latest]
@@ -56,6 +54,8 @@ jobs:
 
       - name: Build and package app
         working-directory: packages/app
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -euo pipefail
           mkdir -p .automation/build-check
@@ -69,6 +69,8 @@ jobs:
 
       - name: Make distribution files
         working-directory: packages/app
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -euo pipefail
           # Package was verified above; do not silently build it a second time.
