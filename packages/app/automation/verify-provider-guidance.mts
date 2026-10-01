@@ -67,6 +67,7 @@ try {
   await client.connect(transport);
   await call("convera_session", { action: "launch", profile_id: profileId });
   launched = true;
+  await call("convera_observe", { action: "snapshot", max_elements: 500 });
   await call("convera_wait", {
     condition: "displayed",
     selector: 'button[aria-label="Open settings"]',
@@ -145,6 +146,23 @@ try {
     });
     await call("convera_observe", { action: "snapshot", max_elements: 500 });
   }
+} catch (error) {
+  if (launched) {
+    // Keep diagnostic evidence without turning a failed assertion into success.
+    for (const action of ["snapshot", "logs"] as const) {
+      try {
+        await call("convera_observe", { action, max_elements: 500 });
+      } catch (diagnosticError) {
+        log.push({ diagnosticError: String(diagnosticError) });
+      }
+    }
+    try {
+      await capture("failure");
+    } catch (diagnosticError) {
+      log.push({ diagnosticError: String(diagnosticError) });
+    }
+  }
+  throw error;
 } finally {
   try {
     if (launched) await call("convera_session", { action: "close" });
