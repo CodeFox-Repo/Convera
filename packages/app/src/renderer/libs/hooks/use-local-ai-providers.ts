@@ -47,14 +47,14 @@ export function useLocalAIProviders() {
     }
   }, []);
 
+  const cancelPending = useCallback(() => {
+    requestId.current += 1;
+  }, []);
+
   useEffect(() => {
     void refresh();
-    return () => {
-      // This ref is a request sequence, not a DOM node. Invalidate any in-flight check.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      ++requestId.current;
-    };
-  }, [refresh]);
+    return cancelPending;
+  }, [refresh, cancelPending]);
 
   return { providers, loading, error, refresh };
 }
