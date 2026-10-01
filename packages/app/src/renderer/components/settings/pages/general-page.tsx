@@ -63,6 +63,7 @@ export function GeneralSettingsPage() {
   const {
     providers,
     loading: providersLoading,
+    error: providersError,
     refresh: refreshProviders,
   } = useLocalAIProviders();
   const [memorySettings, setMemorySettings] =
@@ -363,19 +364,19 @@ export function GeneralSettingsPage() {
             General
           </h1>
           <p className="text-muted-foreground">
-            Configure keyboard shortcuts and general preferences
+            Manage keyboard shortcuts, AI providers and memory
           </p>
         </div>
 
         <ProfileSection />
 
-        {/* Keyboard Shortcuts Section */}
+        {/* Keyboard shortcuts Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Keyboard className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-medium text-foreground">
-                Keyboard Shortcuts
+                Keyboard shortcuts
               </h2>
             </div>
             <Button
@@ -385,7 +386,7 @@ export function GeneralSettingsPage() {
               className="flex items-center gap-2 border-border"
             >
               <RotateCcw className="h-4 w-4" />
-              Reset
+              Reset shortcuts
             </Button>
           </div>
 
@@ -435,13 +436,14 @@ export function GeneralSettingsPage() {
             <div className="flex items-center gap-2">
               <Cpu className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-medium text-foreground">
-                Local AI Providers
+                AI providers
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose the provider Convera uses for new chats. An agent pinned to
-              a provider listed here as unavailable cannot answer. Your
-              selection is stored only on this device.
+              Choose a default for new chats. Colleagues with their own provider
+              keep that choice; change it in Agents. Chat history is stored
+              locally, but messages and context are sent to the selected
+              provider. Provider terms and usage charges apply.
             </p>
             <button
               type="button"
@@ -450,10 +452,15 @@ export function GeneralSettingsPage() {
               className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors pointer-events-auto hover:text-foreground disabled:opacity-60"
             >
               <RotateCcw className="h-3 w-3" />
-              Re-check providers
+              {providersLoading ? "Checking providers…" : "Re-check providers"}
             </button>
           </div>
 
+          {providersError && (
+            <p role="alert" className="text-sm text-destructive">
+              {providersError}
+            </p>
+          )}
           <div className="border border-border rounded-lg divide-y divide-border">
             {providers.map((provider) => {
               const isSelected = provider.id === defaultConfigId;
@@ -507,7 +514,11 @@ export function GeneralSettingsPage() {
                       }`}
                     >
                       {isSelected && <Check className="h-3.5 w-3.5" />}
-                      {isSelected ? "Selected" : "Select"}
+                      {isSelected
+                        ? "Default"
+                        : canSelect
+                          ? "Use by default"
+                          : "Setup required"}
                     </span>
                   </div>
                 </button>
@@ -521,12 +532,12 @@ export function GeneralSettingsPage() {
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-medium text-foreground">
-                Memory and Context
+                Memory and context
               </h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Store memory locally. An isolated provider session can curate
-              completed turns without blocking the reply.
+              Save memory on this device. If you enable a background curator,
+              completed turns are sent to that AI provider to update memory.
             </p>
           </div>
 
@@ -537,8 +548,9 @@ export function GeneralSettingsPage() {
                   Memory provider
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Off pauses memory without deleting it. Local keeps memory on
-                  this device.
+                  Off pauses memory without deleting saved memories. Local
+                  stores memories on this device; AI processing may use a
+                  provider.
                 </p>
               </div>
               <select
@@ -567,8 +579,8 @@ export function GeneralSettingsPage() {
                   Background curator
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Uses an isolated text-only provider session. API providers may
-                  incur usage charges.
+                  Sends completed turns to the selected AI provider in the
+                  background. Provider usage charges may apply.
                 </p>
               </div>
               <select
@@ -671,7 +683,10 @@ export function GeneralSettingsPage() {
               </label>
             )}
 
-            <div className="flex items-center justify-between gap-4 p-4">
+            <div
+              className="flex items-center justify-between gap-4 p-4"
+              role={memoryError ? "alert" : "status"}
+            >
               <div>
                 <span className="font-medium text-foreground">
                   Memory status
@@ -685,10 +700,20 @@ export function GeneralSettingsPage() {
               <span className="text-xs text-muted-foreground">
                 {memorySaving
                   ? "Saving…"
-                  : `${memoryStatus?.health ?? "unknown"} · ${
-                      memoryStatus?.pendingJobs ?? 0
-                    } pending · ${memoryStatus?.failedJobs ?? 0} failed`}
+                  : memoryStatus
+                    ? `${memoryStatus.health} · ${memoryStatus.pendingJobs} pending · ${memoryStatus.failedJobs} failed`
+                    : "Status unavailable"}
               </span>
+              {memoryError && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={memorySaving}
+                  onClick={() => void refreshMemoryConfiguration()}
+                >
+                  Reload memory settings
+                </Button>
+              )}
             </div>
           </div>
         </div>

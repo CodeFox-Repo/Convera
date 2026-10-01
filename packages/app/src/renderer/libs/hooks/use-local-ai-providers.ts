@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocalAIProviderStatus } from "@/shared/types/local-ai";
 import {
   getLocalAI,
@@ -19,28 +19,42 @@ export function useLocalAIProviders() {
   const [providers, setProviders] =
     useState<LocalAIProviderStatus[]>(fallbackProviders);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const refresh = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    setLoading(true);
+    setError(null);
     const localAI = getLocalAI();
-    if (!localAI) {
-      setProviders(fallbackProviders);
-      setLoading(false);
-      return;
-    }
 
     try {
+      if (!localAI) throw new Error("Provider connection unavailable");
       const result = await localAI.listProviders();
-      if (result.success && result.data) {
-        setProviders(result.data);
+      if (!result.success || !result.data)
+        throw new Error("Provider check failed");
+      if (currentRequest === requestId.current) setProviders(result.data);
+    } catch {
+      if (currentRequest === requestId.current) {
+        // Do not leave a stale “Ready” badge after a failed refresh.
+        setProviders(fallbackProviders);
+        setError(
+          "Couldn’t check AI providers. Re-check providers or restart Convera.",
+        );
       }
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
+  }, []);
+
+  const cancelPending = useCallback(() => {
+    requestId.current += 1;
   }, []);
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+    return cancelPending;
+  }, [refresh, cancelPending]);
 
-  return { providers, loading, refresh };
+  return { providers, loading, error, refresh };
 }
