@@ -52,7 +52,7 @@ export function ChannelEmptyState({
   // Every starter colleague is pinned to this provider at hire time, so a
   // missing key here means nobody in the room can answer — worth saying before
   // the user types into a room that will stay silent.
-  const { providers, loading } = useLocalAIProviders();
+  const { providers, loading, error } = useLocalAIProviders();
   const provider = providers.find(
     (candidate) => candidate.id === DEFAULT_LOCAL_AI_PROVIDER_ID,
   );
@@ -95,16 +95,19 @@ export function ChannelEmptyState({
             </div>
           ))}
           <p className="text-xs leading-relaxed text-muted-foreground">
-            They read this room like you do and answer when spoken to. Mention
-            one by name to ask them directly, or say something to nobody in
-            particular and whoever fits will pick it up.
+            Mention a colleague by name to ask them directly. For a general
+            message, each colleague decides whether to reply. Their AI provider
+            must be configured before they can answer.
           </p>
         </div>
       )}
 
       <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Choose a suggestion to edit before sending.
+        </p>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Try
+          Add a starter message
         </p>
         {prompts.map((prompt) => (
           <button
@@ -118,12 +121,12 @@ export function ChannelEmptyState({
         ))}
       </div>
 
-      {status && !status.ready && (
+      {!loading && (error || (status && !status.ready)) && (
         <div className="flex items-start gap-2 rounded-lg border border-destructive px-3 py-2 text-xs text-destructive">
           <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
           <p className="min-w-0 flex-1 leading-relaxed">
-            Nobody here can answer yet — {status.label}
-            {status.hint ? `: ${status.hint}` : "."}{" "}
+            {error ??
+              `${provider?.name ?? "The default provider"} needs setup. ${status?.hint ?? "Check provider settings."}`}{" "}
             <button
               type="button"
               onClick={onOpenSettings}
@@ -131,7 +134,8 @@ export function ChannelEmptyState({
             >
               Open Settings → General
             </button>{" "}
-            to set one up.
+            to check providers. Colleagues may have a different provider set in
+            Agents.
           </p>
         </div>
       )}

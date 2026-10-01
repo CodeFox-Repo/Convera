@@ -337,8 +337,8 @@ const AgentFormFields = ({
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Each colleague can run on its own model — a reviewer on a stronger
-            one, a note-taker on something cheap.
+            This choice applies to this colleague. Messages and context go to
+            the selected provider; its terms and usage charges apply.
           </p>
         )}
       </div>

@@ -1,0 +1,64 @@
+name: Provider UX verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/app/src/renderer/libs/provider-status*"
+      - "packages/app/src/renderer/libs/hooks/use-local-ai-providers*"
+      - "packages/app/src/renderer/components/chat/ChannelEmptyState.tsx"
+      - "packages/app/src/renderer/components/settings/pages/general-page.tsx"
+      - "packages/app/src/renderer/components/settings/pages/agents-page.tsx"
+      - "packages/app/automation/verify-provider-guidance.mts"
+      - ".github/workflows/provider-ux-copy.yml"
+jobs:
+  provider-ux:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test provider status and refresh recovery
+        working-directory: packages/app
+        run: pnpm exec vitest run src/renderer/libs/provider-status.test.ts src/renderer/libs/hooks/use-local-ai-providers.test.ts
+      - name: Prepare actual Electron app
+        run: pnpm --filter @convera/app automation:prepare
+      - name: Verify provider setup in isolated Electron profile
+        working-directory: packages/app
+        env:
+          UX_VARIANT: after
+        run: pnpm exec tsx automation/verify-provider-guidance.mts
+      - name: Prepare baseline checkout
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add "$RUNNER_TEMP/convera-before" "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/convera-before/node_modules"
+          if [ -d "$GITHUB_WORKSPACE/packages/app/node_modules" ]; then
+            ln -s "$GITHUB_WORKSPACE/packages/app/node_modules" "$RUNNER_TEMP/convera-before/packages/app/node_modules"
+          fi
+      - name: Prepare baseline Electron app
+        working-directory: ${{ runner.temp }}/convera-before
+        run: pnpm --filter @convera/app automation:prepare
+      - name: Capture actual baseline with the same scenario
+        working-directory: ${{ runner.temp }}/convera-before/packages/app
+        env:
+          UX_VARIANT: before
+        run: EVIDENCE_DIR="$GITHUB_WORKSPACE/packages/app/.automation/ux-evidence" pnpm exec tsx "$GITHUB_WORKSPACE/packages/app/automation/verify-provider-guidance.mts"
+      - name: Upload native verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: convera-provider-ux-evidence
+          path: |
+            packages/app/.automation/ux-evidence
+            packages/app/.automation/logs
+          if-no-files-found: error
