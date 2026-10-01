@@ -67,6 +67,13 @@ try {
   await client.connect(transport);
   await call("convera_session", { action: "launch", profile_id: profileId });
   launched = true;
+  // The semantic toolset has no resize action. Resize only this isolated
+  // Electron window so screenshots include the complete settings section.
+  await call("convera_execute", {
+    context: "main",
+    script:
+      "const window = electron.BrowserWindow.getAllWindows()[0]; window.setSize(1100, 850); return window.getSize();",
+  });
   await call("convera_observe", { action: "snapshot", max_elements: 500 });
   await call("convera_wait", {
     condition: "displayed",
