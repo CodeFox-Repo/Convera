@@ -14,6 +14,7 @@ jobs:
   build:
     name: Build App (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       matrix:
         os: [macos-latest]
@@ -53,8 +54,34 @@ jobs:
 
       - name: Build and package app
         working-directory: packages/app
-        run: pnpm run package
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          set -euo pipefail
+          mkdir -p .automation/build-check
+          pnpm run package 2>&1 | tee .automation/build-check/package.log
+          # Forge can return zero after a Vite subprocess runs out of memory.
+          ! grep -E 'FATAL ERROR|heap out of memory' .automation/build-check/package.log
+          test -s .vite/build/main.js
+          test -s .vite/build/preload.js
+          test -s .vite/renderer/main_window/index.html
+          test -n "$(find out -type d -name 'Convera.app' -print -quit)"
 
       - name: Make distribution files
         working-directory: packages/app
-        run: pnpm run make
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          set -euo pipefail
+          # Package was verified above; do not silently build it a second time.
+          pnpm exec electron-forge make --skip-package 2>&1 | tee .automation/build-check/make.log
+          ! grep -E 'FATAL ERROR|heap out of memory' .automation/build-check/make.log
+          test -n "$(find out/make -type f -name '*.dmg' -size +0c -print -quit)"
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: convera-build-check-logs
+          path: packages/app/.automation/build-check
+          if-no-files-found: warn
