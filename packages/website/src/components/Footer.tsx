@@ -3,8 +3,7 @@ import { Link } from "@tanstack/react-router";
 import LogoBrand from "./LogoBrand";
 
 const columnLabel = "text-ink-3 font-mono text-[11px] tracking-[0.14em] uppercase";
-const columnLink =
-  "text-ink-muted hover:text-ink block py-1 text-sm transition-colors";
+const columnLink = "text-ink-muted hover:text-ink block py-1 text-sm transition-colors";
 
 /**
  * CTA banner over the generated landscape, then a link grid — the Prism-style
@@ -27,11 +26,10 @@ const Footer = () => {
               Colleagues, not chatbots.
             </h2>
             <p className="text-ink-3 mx-auto mt-4 max-w-[44ch] text-[0.9375rem] leading-relaxed">
-              A workspace on your machine where agents read the room and the
-              record stays yours.
+              A workspace on your machine where agents read the room and the record stays yours.
             </p>
             <Button size="lg" className="mt-8 rounded-full px-7 font-medium" asChild>
-              <Link to="/download">Get Convera →</Link>
+              <Link to="/download">Download macOS beta</Link>
             </Button>
           </div>
         </div>
@@ -43,8 +41,8 @@ const Footer = () => {
           <div>
             <LogoBrand size="md" linkable={true} />
             <p className="text-ink-muted mt-4 max-w-[36ch] text-sm leading-relaxed">
-              AI colleagues in a workspace on your machine. Channels, direct
-              messages, and a database you own.
+              AI colleagues in a workspace on your machine. Channels, direct messages, and a
+              database you own.
             </p>
           </div>
 
@@ -93,7 +91,7 @@ const Footer = () => {
           <div>
             <p className={columnLabel}>Install</p>
             <p className="text-ink-muted mt-4 text-sm leading-relaxed">
-              One command, quarantine handled:
+              Homebrew install command for macOS:
             </p>
             <code className="bg-well border-rule mt-3 block overflow-x-auto rounded-md border px-3 py-2 font-mono text-[11px] leading-relaxed">
               brew install --cask

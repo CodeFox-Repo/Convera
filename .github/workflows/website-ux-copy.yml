@@ -1,0 +1,69 @@
+name: Website UX verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/website/**"
+      - ".github/workflows/website-ux-copy.yml"
+jobs:
+  website-ux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test release copy states
+        run: pnpm --filter @convera/website test:copy
+      - name: Build website
+        working-directory: packages/website
+        run: pnpm exec vite build
+      - name: Install isolated browser test tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/convera-ui" playwright@1.58.2
+          "$RUNNER_TEMP/convera-ui/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Prepare baseline source
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add "$RUNNER_TEMP/convera-before" "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/convera-before/node_modules"
+          if [ -d "$GITHUB_WORKSPACE/packages/website/node_modules" ]; then
+            ln -s "$GITHUB_WORKSPACE/packages/website/node_modules" "$RUNNER_TEMP/convera-before/packages/website/node_modules"
+          fi
+      - name: Verify real website and capture before and after
+        env:
+          BEFORE_URL: http://127.0.0.1:8180
+          AFTER_URL: http://127.0.0.1:8181
+        run: |
+          set -euo pipefail
+          mkdir -p ux-evidence
+          (cd "$RUNNER_TEMP/convera-before/packages/website" && "$GITHUB_WORKSPACE/packages/website/node_modules/.bin/vite" --host 127.0.0.1 --port 8180 > "$GITHUB_WORKSPACE/ux-evidence/before-server.log" 2>&1) &
+          before_pid=$!
+          (cd packages/website && pnpm exec vite --host 127.0.0.1 --port 8181 > "$GITHUB_WORKSPACE/ux-evidence/after-server.log" 2>&1) &
+          after_pid=$!
+          trap 'kill "$before_pid" "$after_pid" 2>/dev/null || true' EXIT
+          for port in 8180 8181; do
+            ready=0
+            for attempt in $(seq 1 60); do
+              if curl --fail --silent "http://127.0.0.1:$port" >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            test "$ready" -eq 1
+          done
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/convera-ui/node_modules/playwright/index.mjs" EVIDENCE_DIR="$GITHUB_WORKSPACE/ux-evidence" node packages/website/scripts/verify-ux-copy.mjs
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: convera-website-ux-evidence
+          path: ux-evidence
+          if-no-files-found: error

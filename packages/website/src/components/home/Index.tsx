@@ -40,7 +40,8 @@ const Index = () => {
             className="rise text-ink-faint font-mono text-[11px] tracking-[0.14em] uppercase"
             style={slot(0)}
           >
-            a chatbot answers you → <span className="text-terracotta">colleagues work with you</span>
+            a chatbot answers you →{" "}
+            <span className="text-terracotta">colleagues work with you</span>
           </p>
 
           <h1
@@ -56,7 +57,7 @@ const Index = () => {
           >
             Channels, colleagues, direct messages — a workplace on your machine where agents read
             the room, answer when spoken to, and stay out of conversations that aren&apos;t theirs.
-            Everything lives in a database on your disk.
+            Chat history is stored on your device. AI replies use your chosen provider.
           </p>
 
           <div
@@ -64,7 +65,7 @@ const Index = () => {
             style={slot(3)}
           >
             <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
-              <Link to="/download">Download for macOS</Link>
+              <Link to="/download">Download macOS beta</Link>
             </Button>
           </div>
 
@@ -128,8 +129,8 @@ const Index = () => {
               writing a paragraph about it.
             </p>
             <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
-              No routing rules decide who talks. Each colleague reads the message and decides —
-              like people do.
+              No routing rules decide who talks. Each colleague reads the message and decides — like
+              people do.
             </p>
           </div>
           <pre className="chat-plate rise self-center" style={slot(2)}>
@@ -161,16 +162,16 @@ const Index = () => {
               className="rise mt-4 max-w-[20ch] text-[clamp(1.75rem,3.4vw,2.5rem)] leading-[1.08] font-bold tracking-[-0.025em]"
               style={slot(1)}
             >
-              Everything you say stays in a database you own.
+              Your chat history, stored on your device.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(2)}>
-              Conversations, messages, agents and model configs live in a local database — not on a
-              sync server you have to trust. Global search covers all of it, instantly, offline. And
-              a fail-closed guard throws before any request containing an API key can leave the
-              machine.
+              Conversations, messages, agents and model settings are saved locally. Search works on
+              your device. When you use AI or connected tools, relevant messages and context are
+              sent to the provider or service you choose.
             </p>
             <p className="rise text-ink-faint mt-5 font-mono text-[13px]" style={slot(3)}>
-              Delete the app and the folder — the record is gone. That's the whole cloud story.
+              Provider terms, data policies and usage charges apply. Local storage does not mean
+              that AI processing stays on your device.
             </p>
           </div>
           <pre className="chat-plate rise self-center" style={slot(2)}>
@@ -185,8 +186,8 @@ const Index = () => {
             {"\n"}
             <span className="dim">▸ newest: "q3 launch plan" — 2 days ago</span>
             {"\n"}
-            <span className="tool">✓ credential guard</span>
-            <span className="off"> keys never leave this machine</span>
+            <span className="tool">● AI replies</span>
+            <span className="off"> processed by your chosen provider</span>
           </pre>
         </div>
       </section>
@@ -339,16 +340,19 @@ const Index = () => {
               Put your record where you can keep it.
             </h2>
             <p className="rise text-ink-muted mt-5 max-w-[52ch] leading-relaxed" style={slot(1)}>
-              One brew command and you&apos;re standing in a workspace with three colleagues.
-              If something feels wrong in the first minute, tell us in Discord — that&apos;s a bug
+              One brew command and you&apos;re standing in a workspace with three colleagues. If
+              something feels wrong in the first minute, tell us in Discord — that&apos;s a bug
               worth filing.
             </p>
-            <code className="rise bg-well border-rule mt-6 block w-fit overflow-x-auto rounded-md border px-3 py-2 font-mono text-[13px]" style={slot(1)}>
+            <code
+              className="rise bg-well border-rule mt-6 block w-fit overflow-x-auto rounded-md border px-3 py-2 font-mono text-[13px]"
+              style={slot(1)}
+            >
               brew install --cask codefox-repo/codefox/convera
             </code>
             <div className="rise mt-8 flex flex-wrap items-center gap-4" style={slot(2)}>
               <Button size="lg" className="rounded-lg px-7 font-medium" asChild>
-                <Link to="/download">Download for macOS</Link>
+                <Link to="/download">Download macOS beta</Link>
               </Button>
               <a
                 href="https://discord.gg/convera"

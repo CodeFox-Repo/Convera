@@ -43,7 +43,9 @@ const Navbar: React.FC = () => {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="text-ink-muted hover:text-ink p-2 transition-colors md:hidden"
-            aria-label="Toggle menu"
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -52,7 +54,7 @@ const Navbar: React.FC = () => {
 
       {isMenuOpen && (
         <div className="mx-auto mt-2 w-full max-w-[420px]">
-          <nav className={`flex flex-col gap-1 rounded-2xl p-3 ${glass}`}>
+          <nav id="mobile-navigation" className={`flex flex-col gap-1 rounded-2xl p-3 ${glass}`}>
             <Link
               to="/pricing"
               onClick={() => setIsMenuOpen(false)}
